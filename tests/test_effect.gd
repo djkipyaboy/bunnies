@@ -37,5 +37,32 @@ func _initialize() -> void:
 	e.tick(); e.tick()
 	_check(e.duration == 0 and e.is_expired(), "expired after 2 ticks (duration %d)" % e.duration)
 
+	# --- Combatant: attaching Slow lowers derived current_initiative; expiry restores it ---
+	var c: Combatant = Combatant.new()
+	c.display_name = "Martin"
+	c.max_hp = 40
+	c.base_initiative = 50
+	c.recompute_initiative()
+	_check(c.current_initiative == 50, "current_initiative derives from base (got %d)" % c.current_initiative)
+
+	c.attach_effect(EffectLibrary.make(&"slow"))
+	_check(c.current_initiative == 30, "Slow -20 -> current_initiative 30 (got %d)" % c.current_initiative)
+
+	c.on_end()  # tick 1: duration 2 -> 1, still attached
+	_check(c.current_initiative == 30, "still slowed after 1 turn (got %d)" % c.current_initiative)
+	_check(c.active_effects.size() == 1, "slow still attached after 1 tick (got %d)" % c.active_effects.size())
+
+	c.on_end()  # tick 2: duration 1 -> 0, expires and detaches
+	_check(c.current_initiative == 50, "initiative restored after Slow expires (got %d)" % c.current_initiative)
+	_check(c.active_effects.is_empty(), "slow detached on expiry (got %d)" % c.active_effects.size())
+
+	# --- Two combatants don't share a duration counter ---
+	var c1: Combatant = Combatant.new(); c1.base_initiative = 50; c1.recompute_initiative()
+	var c2: Combatant = Combatant.new(); c2.base_initiative = 50; c2.recompute_initiative()
+	c1.attach_effect(EffectLibrary.make(&"slow"))
+	c2.attach_effect(EffectLibrary.make(&"slow"))
+	c1.on_end()
+	_check(c2.active_effects[0].duration == 2, "c2 slow unaffected by c1 tick (got %d)" % c2.active_effects[0].duration)
+
 	print(("EFFECT TEST PASSED" if _failures == 0 else "EFFECT TEST FAILED: %d" % _failures))
 	quit(_failures)
