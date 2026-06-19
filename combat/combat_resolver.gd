@@ -54,14 +54,15 @@ signal spin_resolved(attacks: Array[AttackResult])
 ## using [param base_damage] as the weapon base. Returns the per-reel [AttackResult]s and emits
 ## [signal spin_started] → [signal damage_applied] (per reel) → [signal meter_charged] →
 ## [signal spin_resolved].
-func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null) -> Array[AttackResult]:
+func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = []) -> Array[AttackResult]:
 	spin_started.emit()
 
 	var attacks: Array[AttackResult] = []
 	var total_meter: int = 0
 
-	for reel: ActionReel in reels:
-		var attack: AttackResult = _resolve_single(reel, base_damage, target_type)
+	for i: int in range(reels.size()):
+		var is_wild: bool = i in wild_reel_indices
+		var attack: AttackResult = _resolve_single(reels[i], base_damage, target_type, is_wild)
 		total_meter += attack.meter_gain
 		attacks.append(attack)
 		damage_applied.emit(attack)
@@ -75,8 +76,8 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 # ---------------------------------------------------------------------------
 
 ## Resolves one reel into an [AttackResult]: spin → damage (multiplier × type chart) → meter.
-func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageType) -> AttackResult:
-	var face: ReelFace = reel.spin()
+func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageType, is_wild: bool = false) -> AttackResult:
+	var face: ReelFace = _crit_face(reel) if is_wild else reel.spin()
 
 	var attack: AttackResult = AttackResult.new()
 	attack.face = face
@@ -102,3 +103,11 @@ func _meter_gain_for(tier: ReelFace.ResultTier) -> int:
 	if tier >= 0 and tier < meter_charge_weights.size():
 		return meter_charge_weights[tier]
 	return 0
+
+## Returns the reel's first crit-success face (the Sticky-Wild target). Falls back to a normal
+## spin if the reel has no crit-success face, so a wild never crashes on an odd strip.
+func _crit_face(reel: ActionReel) -> ReelFace:
+	for face: ReelFace in reel.faces:
+		if face != null and face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			return face
+	return reel.spin()
