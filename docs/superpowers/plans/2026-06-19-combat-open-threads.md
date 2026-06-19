@@ -16,12 +16,18 @@
 - **Balance numbers are `[ASSUMPTION]` placeholders** — keep them as editable data, never hard-balance. (CLAUDE.md §4)
 - **Reel band is 2–5; Main-Phase reel changes are ADDITIVE to the weapon baseline, never overwrite.** (DESIGN §4.3, §4.8)
 - **Ultimate costs ONLY the Bonus Meter** — never the `ResourcePool`. The two economies are independent. (DESIGN §4.9, §10 Dec 6)
-- **Run a test (from the project root — the worktree dir):**
-  `Godot_v4.6.3-stable_win64 --headless --path . --script res://tests/test_<name>.gd`
+- **Godot binary (NOT on PATH):** `C:\Godot_v4.6.3-stable_win64_console.exe` — use the `_console`
+  variant for headless stdout capture. From Git Bash the path is `/c/Godot_v4.6.3-stable_win64_console.exe`.
+  Run all commands **from the project root** (the worktree dir, which holds `project.godot`).
+- **Run a test:**
+  `"/c/Godot_v4.6.3-stable_win64_console.exe" --headless --path . --script res://tests/test_<name>.gd`
   Each suite prints `… TEST PASSED/FAILED` and exits non-zero on failure.
-- **After adding a NEW `class_name`, refresh the class cache before `--script` can resolve it:**
-  `Godot_v4.6.3-stable_win64 --headless --path . --editor --quit`
+- **After adding a NEW `class_name`, refresh the class cache before `--script` can resolve it**
+  (REQUIRED on a fresh worktree — the `.godot/` cache is unbuilt, so `class_name` types fail to parse):
+  `"/c/Godot_v4.6.3-stable_win64_console.exe" --headless --path . --editor --quit`
   (This also surfaces parse/compile errors across the project — use it as the script/scene compile check.)
+- **Benign at exit:** headless runs print `ObjectDB instances leaked` / `resources still in use at exit`
+  warnings (RefCounted cleanup at process exit). These are NOT failures — judge by `… TEST PASSED` + exit 0.
 - Source of truth for design = `DESIGN.md`; this plan implements `docs/superpowers/specs/2026-06-19-combat-open-threads-design.md`. If code and `DESIGN.md` disagree, `DESIGN.md` wins.
 
 ---
