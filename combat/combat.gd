@@ -62,9 +62,10 @@ func _build_scenario() -> void:
 	add_child(_phase_manager)
 
 	# Player: Slashing weapon (3 reels), defends as Slashing. Visible Bonus Meter.
-	_pc = _make_combatant("Martin (Mouse)", true, 40, slashing, _make_weapon(10.0, slashing, 3), true)
+	_pc = _make_combatant("Martin (Mouse)", true, 100, slashing, _make_weapon(10.0, slashing, 3), true)
 	# Enemy: Crushing weapon (2 reels), defends as Earth → PC's Slashing hits it for ×1.25.
-	_enemy = _make_combatant("Cluny's Rat", false, 30, earth, _make_weapon(8.0, crushing, 2), false)
+	# Both HP set to 100 [ASSUMPTION] so the fight lasts long enough to charge/test the Ultimate.
+	_enemy = _make_combatant("Cluny's Rat", false, 100, earth, _make_weapon(8.0, crushing, 2), false)
 
 	_turn_manager.combatants = [_pc, _enemy]
 
