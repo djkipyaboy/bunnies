@@ -226,6 +226,14 @@ func _on_turn_started(c: Combatant) -> void:
 
 func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 	_phase_label.text = "Phase: %s" % PhaseManager.Phase.keys()[phase]
+	if _attacker == null:
+		return
+	if phase == PhaseManager.Phase.UPKEEP:
+		_attacker.on_upkeep()
+		(_panels[_attacker] as CombatantPanel).refresh_status()
+	elif phase == PhaseManager.Phase.END:
+		_attacker.on_end()
+		(_panels[_attacker] as CombatantPanel).refresh_status()
 
 func _on_spin_pressed() -> void:
 	if not _awaiting_player_spin:
@@ -263,6 +271,13 @@ func _apply_attack(attack) -> void:
 		_log("  %s reel → %s (no damage)." % [_attacker.display_name, tier_name])
 	if _attacker.bonus_meter != null:
 		_attacker.bonus_meter.charge(attack.face.result_tier)
+	if attack.rider_effect_id != &"":
+		var rider: Effect = EffectLibrary.make(attack.rider_effect_id)
+		if rider != null:
+			_defender.attach_effect(rider)
+			_log("  %s is afflicted with %s (%d turns)." % [_defender.display_name, String(rider.id).to_upper(), rider.duration])
+			(_panels[_defender] as CombatantPanel).refresh_status()
+			_turn_order_bar.set_order(_turn_manager.get_turn_order())
 
 	_pending_strips -= 1
 	if _pending_strips <= 0:

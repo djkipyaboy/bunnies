@@ -9,6 +9,7 @@ var _hp_bar: ProgressBar
 var _hp_label: Label
 var _meter_caption: Label
 var _meter_bar: ProgressBar
+var _status_label: Label
 var _combatant: Combatant
 
 func _ready() -> void:
@@ -40,6 +41,10 @@ func _ready() -> void:
 	_meter_bar.modulate = Color(0.9, 0.8, 0.3)
 	box.add_child(_meter_bar)
 
+	_status_label = Label.new()
+	_status_label.add_theme_color_override("font_color", Color(0.9, 0.5, 0.2))
+	box.add_child(_status_label)
+
 ## Binds this panel to [param c] and wires its signals.
 func bind(c: Combatant) -> void:
 	_combatant = c
@@ -62,6 +67,16 @@ func bind(c: Combatant) -> void:
 func refresh_initiative() -> void:
 	if _combatant != null:
 		_name_label.text = "%s  (init %d)" % [_combatant.display_name, _combatant.current_initiative]
+
+## Refreshes the active-effect line (e.g. "SLOW -20 (1)"). Called by the orchestrator on
+## Upkeep/End and when a rider is applied. Empty when no effects are active.
+func refresh_status() -> void:
+	if _combatant == null or _status_label == null:
+		return
+	var parts: PackedStringArray = []
+	for e: Effect in _combatant.active_effects:
+		parts.append("%s %d (%d)" % [String(e.id).to_upper(), int(e.magnitude), e.duration])
+	_status_label.text = ", ".join(parts)
 
 func _on_hp_changed(hp: int, max_hp: int) -> void:
 	_hp_bar.value = hp

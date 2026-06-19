@@ -49,10 +49,14 @@ func _on_turn_started(c: Combatant) -> void:
 		_done = true
 		return
 	var defender: Combatant = _enemy if c == _pc else _pc
+	c.on_upkeep()
 	var attacks: Array = _resolver.resolve_combat_phase(c.weapon.reels, c.weapon.base_damage, defender.defense_type)
 	for a in attacks:
 		defender.take_damage(a.final_damage)
 		c.bonus_meter.charge(a.face.result_tier)
+		if a.rider_effect_id != &"":
+			defender.attach_effect(EffectLibrary.make(a.rider_effect_id))
+	c.on_end()
 	_tm.advance_turn()
 
 func _on_combat_ended(winner_is_player: bool) -> void:
