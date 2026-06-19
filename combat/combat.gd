@@ -338,8 +338,12 @@ func _highlight_wild_strips() -> void:
 		(strips[i] as ReelStrip).set_wild(i in wild)
 
 func _prepare_strips(reels: Array[ActionReel]) -> void:
+	# Free immediately (not queue_free): callers read _strips_box.get_children() synchronously right
+	# after this returns (_do_spin, _highlight_preview_wild), so deferred deletion would leave stale
+	# strips in the child list and break the spin (the turn would hang on never-settled stale strips).
 	for child in _strips_box.get_children():
-		child.queue_free()
+		_strips_box.remove_child(child)
+		child.free()
 	for reel: ActionReel in reels:
 		var strip := ReelStrip.new()
 		_strips_box.add_child(strip)
