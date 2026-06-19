@@ -20,6 +20,7 @@ class AttackResult:
 	var base_damage: float = 0.0             ## Weapon base damage fed in.
 	var final_damage: int = 0                ## After multiplier + type chart, rounded.
 	var meter_gain: int = 0                  ## Bonus-Meter charge this face contributed.
+	var rider_effect_id: StringName = &""    ## Rider to apply (crit-success of a riding type); empty = none.
 
 # ---------------------------------------------------------------------------
 # Signals  (naming convention: snake_case, past-tense — CLAUDE.md §2)
@@ -89,6 +90,10 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 			var type_mult: float = reel.damage_type.multiplier_against(target_type) if reel.damage_type != null else 1.0
 			attack.final_damage = int(roundf(raw * type_mult))
 		attack.meter_gain = _meter_gain_for(face.result_tier)
+		# Crit-success of a type that carries an inherent rider (Crushing -> Slow) reports it.
+		# The resolver only REPORTS; the orchestrator attaches the Effect (ARCHITECTURE §2).
+		if face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS and reel.damage_type != null and reel.damage_type.inherent_rider_id != &"":
+			attack.rider_effect_id = reel.damage_type.inherent_rider_id
 
 	return attack
 
