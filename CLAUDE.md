@@ -170,11 +170,23 @@ These agents are installed (`~/.claude/agents/`). Use them when the task fits:
 - Headless test suite under `tests/`: bonus_meter, combatant, turn_manager, phase_manager,
   and a full-loop integration test — all green. Run a test:
   `Godot_v4.6.3-stable_win64 --headless --path bunnies --script res://tests/test_<name>.gd`.
+- Four combat threads, all headless-test-green (reviewed, merge-approved):
+  - **Effect + Crushing→Slow:** `Effect` resource + `EffectLibrary` (the `&"slow"` rider, −20/2);
+    `Combatant.current_initiative` now DERIVED from `base_initiative` + `INITIATIVE_MOD` effects;
+    resolver REPORTS the rider, orchestrator APPLIES it to the defender (authority rule §2 preserved).
+  - **ResourcePool:** Stamina-only prototype pool (regen in Upkeep, spent in Main 1, shown on panel).
+  - **Main-Phase Storm splice:** `PhaseManager` pauses at Main 1; `Combatant.try_splice_reel`
+    (additive, spends Stamina, 5-reel cap); spins resolve `turn_reels`.
+  - **Sticky-Wild Ultimate:** `Combatant.fire_sticky_wild` (costs ONLY the armed meter) + resolver
+    `wild_reel_indices` override; only the STICKY_WILD archetype is built.
+  - New suites: test_effect, test_resource_pool, test_crushing_slow, test_reel_splice, test_ultimate_sticky_wild.
 
 **Verified-by-machine vs your call:** all logic + integration is test-green and the scene loads
 without errors. **Whether the spin is *fun*, and whether the scrolling reels feel right, is the
 human call (CLAUDE.md §5 hard ceiling)** — play `combat.tscn` and judge.
 
-**Next:** play-test for feel → tune the `[ASSUMPTION]` balance numbers (HP, base damage, charge
-weights, chart values); then candidates: Ultimate firing (meter already arms), resource-pool +
-Main-Phase reel editing, the Crushing→Slow turn-order demo, or `ARCHITECTURE.md`.
+**Next:** HUMAN PLAY-TEST for feel → tune the `[ASSUMPTION]` balance numbers (HP, base damage,
+charge weights, chart values, plus the new ones: Slow −20/2, Stamina 3/5 +1/round, splice 2 STA,
+sticky 2 spins); then candidates: the other five Ultimate archetypes, Focus/Mana resources, a
+reel-selection UI for the Ultimate (instead of auto-target reel 0), a guard against re-firing the
+Ultimate mid-window, a PC Crushing option (player-side Slow).

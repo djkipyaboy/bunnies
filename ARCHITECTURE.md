@@ -6,9 +6,10 @@
 > Naming convention is LOCKED in `CLAUDE.md §2` (classes PascalCase, files snake_case, signals
 > snake_case **past-tense** like `spin_resolved`; handlers `_on_<emitter>_<signal>`).
 >
-> **Scope of this doc:** the combat system as it exists today + near-term combat stubs
-> (`Effect`, `Ultimate`, `ResourcePool`). World/meta classes (`Class`, `EncounterTable`,
-> `RewardTable`, talents) remain a `DESIGN.md §8` sketch — not yet designed in code.
+> **Scope of this doc:** the combat system as it exists today — including the now-built combat
+> threads (`Effect`/Crushing→Slow, `ResourcePool`, Main-Phase reel splice, the STICKY_WILD
+> `Ultimate`). World/meta classes (`Class`, `EncounterTable`, `RewardTable`, talents) remain a
+> `DESIGN.md §8` sketch — not yet designed in code.
 
 ---
 
@@ -25,10 +26,13 @@ res://                                  (git root = C:\Bunnies\bunnies-main\bunn
       action_reel.gd      ActionReel      (extends Reel)
       damage_type.gd      DamageType
       weapon.gd           Weapon
+      effect.gd           Effect          (buffs/debuffs/riders)
       types/              slashing.tres · piercing.tres · crushing.tres ·
                           storm.tres · mystic.tres · earth.tres   (the 6-type chart, [ASSUMPTION] values)
     combat_resolver.gd    CombatResolver  (pure calculator)
     combatant.gd          Combatant
+    effect_library.gd     EffectLibrary   (rider factory)
+    resource_pool.gd      ResourcePool    (Stamina, prototype)
     bonus_meter.gd        BonusMeter
     turn_manager.gd       TurnManager
     phase_manager.gd      PhaseManager
@@ -118,24 +122,54 @@ The type chart, one row per type (DESIGN §5). Replaces the old PayTable.
 ### `Weapon` — `combat/resources/weapon.gd` (extends Resource)
 - `base_damage: float`, `reels: Array[ActionReel]` (the 2–5 baseline band)
 
+### `Effect` — `combat/resources/effect.gd` (extends Resource) — buffs/debuffs/riders (DESIGN §11 A4, §4.1)
+Reel faces APPLY effects (via `rider_effect_id`); they don't contain them.
+- `enum Kind { INITIATIVE_MOD, DAMAGE_OVER_TIME, MULTIPLIER_EDIT, REEL_FACE_EDIT }`
+- `id: StringName`, `kind: Kind`, `magnitude: float`, `duration: int`
+- `tick()` (decrement duration), `is_expired() -> bool`
+
+### `EffectLibrary` — `combat/effect_library.gd` — rider factory
+- `make(id) -> Effect` — returns a **fresh duplicate** of the named effect
+- Holds the `&"slow"` rider = `INITIATIVE_MOD`, magnitude −20, duration 2 (`[ASSUMPTION]`) — the
+  Crushing→Slow target rider.
+
+### `ResourcePool` — `combat/resource_pool.gd` (extends RefCounted) — DESIGN §10 Dec 6
+Spent in Main 1; FULLY INDEPENDENT of `BonusMeter`. Stamina only for the prototype.
+- `stamina`, `max_stamina`, `regen_per_turn`
+- **signal:** `pool_changed`
+- `can_afford(cost) -> bool`, `spend(cost) -> bool`, `regen()` — `cost` is a `Dictionary` keyed by
+  `&"stamina"`
+
 ---
 
 ## 4. Combat logic (implemented)
 
 ### `CombatResolver` — `combat/combat_resolver.gd` (extends Node) — pure calculator
-- nested `class AttackResult { face, damage_type, base_damage, final_damage:int, meter_gain:int }`
+- nested `class AttackResult { face, damage_type, base_damage, final_damage:int, meter_gain:int, rider_effect_id }`
+  — `rider_effect_id` is the rider the resolver **reports** on a crit-success of a riding type; the
+  orchestrator applies it (authority rule §2).
 - `@export meter_charge_weights: Array[int] = [0,0,1,2,3]` (`[ASSUMPTION]`)
-- `resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null) -> Array[AttackResult]`
+- `resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = []) -> Array[AttackResult]`
   — each reel resolves **independently**; damage = `base × face.multiplier × type_chart`, rounded;
-  non-damaging tiers deal 0. Emits `spin_started`, `damage_applied(attack)` per reel,
-  `meter_charged(total)`, `spin_resolved(attacks)`. (The orchestrator may use the return value
-  and apply effects itself — see §2.)
+  non-damaging tiers deal 0. A reel whose index is in `wild_reel_indices` is **overridden** to its
+  crit-success face (`_crit_face`, with a `spin()` fallback) — the Sticky-Wild Ultimate hook. Emits
+  `spin_started`, `damage_applied(attack)` per reel, `meter_charged(total)`, `spin_resolved(attacks)`.
+  (The orchestrator may use the return value and apply effects itself — see §2.)
 
 ### `Combatant` — `combat/combatant.gd` (extends RefCounted)
-- config: `display_name`, `is_player`, `max_hp`, `weapon`, `defense_type: DamageType`, `bonus_meter`
-- live: `hp`, `current_initiative` (the turn-order sort key)
+- config: `display_name`, `is_player`, `max_hp`, `weapon`, `defense_type: DamageType`, `bonus_meter`,
+  `resource_pool: ResourcePool` (Stamina, prototype-seeded 3/5 +1/round for the player)
+- live: `hp`, `base_initiative`, `current_initiative` — the turn-order sort key, now **derived** via
+  `recompute_initiative()` (`base_initiative` + active `INITIATIVE_MOD` magnitudes); `active_effects: Array[Effect]`
+- live (per turn): `turn_reels`, `sticky_wild_reel`, `sticky_wild_spins_remaining`
 - **signals:** `hp_changed(hp, max_hp)`, `defeated`
 - `start_combat()` (seed hp), `take_damage(amount)` (clamps at 0, fires `defeated` once), `is_alive()`
+- effects: `attach_effect()` (duplicates defensively), `tick_effects()`, `recompute_initiative()`,
+  phase hooks `on_upkeep()` (regen pool, tick) / `on_end()`
+- reel loadout: `begin_turn()` (copies `weapon.reels` into `turn_reels`),
+  `try_splice_reel(type, base_damage, cost, cap)` (additive, spends Stamina, 5-reel cap)
+- ultimate: `fire_sticky_wild(reel_index, spins)` (requires armed meter; consumes it — costs ONLY the
+  meter), `wild_reel_indices()`, `consume_wild_spin()`
 
 ### `BonusMeter` — `combat/bonus_meter.gd` (extends RefCounted) — DESIGN §4.9
 - `cap` (10), `floor` (per-class carryover), `charge_weights: Array[int]`, `is_visible`, `value`
@@ -151,8 +185,8 @@ The type chart, one row per type (DESIGN §5). Replaces the old PayTable.
 ### `PhaseManager` — `combat/phase_manager.gd` (extends Node) — DESIGN §4.8
 - `enum Phase { UPKEEP, MAIN_1, COMBAT, MAIN_2, END }`, `current_phase`
 - **signals:** `phase_changed(phase)`, `turn_finished`
-- `start_turn()` (runs Upkeep→Main 1→Combat, then **pauses** for the spin),
-  `resume_after_combat()` (Main 2→End→`turn_finished`)
+- `start_turn()` (runs Upkeep→Main 1, then **pauses** at Main 1 for resource-spend / reel-splice / Ultimate),
+  `proceed_to_combat()` (enters Combat for the spin), `resume_after_combat()` (Main 2→End→`turn_finished`)
 
 ---
 
@@ -185,61 +219,31 @@ Godot_v4.6.3-stable_win64 --headless --path bunnies --editor --quit
 ```
 
 Suites: `test_bonus_meter`, `test_combatant`, `test_turn_manager`, `test_phase_manager`,
-`test_action_reel`, and `test_combat_loop` (full integration through the real managers/resolver).
+`test_action_reel`, `test_effect`, `test_resource_pool`, `test_crushing_slow`, `test_reel_splice`,
+`test_ultimate_sticky_wild`, and `test_combat_loop` (full integration through the real managers/resolver).
 Each prints `… TEST PASSED/FAILED` and exits non-zero on failure. New combat logic is written
 **test-first** (red → green). `gen_damage_types.gd` regenerates the 6 type `.tres`.
 
 ---
 
-## 7. Near-term designed stubs (NOT yet built)
+## 7. Combat threads — implemented
 
-Concrete contracts for the next combat classes (DESIGN §8, §4.9, §10 Dec 6, §11 A4). Build
-test-first when picked up. Signatures follow the locked convention.
+The near-term combat classes (DESIGN §8, §4.9, §10 Dec 6, §11 A4) are now **built and test-green**.
+Their contracts live with their owners: `Effect` / `EffectLibrary` / `ResourcePool` in §3, the new
+`Combatant` fields/methods and `PhaseManager` Main-1 pause in §4.
 
-```gdscript
-# combat/resources/effect.gd — buffs/debuffs/riders applied BY reel faces (DESIGN §11 A4, §4.1).
-# Reel faces APPLY effects; they don't contain them. Crushing→Slow is the first target rider.
-class_name Effect
-extends Resource
-enum Kind { INITIATIVE_MOD, DAMAGE_OVER_TIME, MULTIPLIER_EDIT, REEL_FACE_EDIT }
-@export var id: StringName = &""
-@export var kind: Kind = Kind.INITIATIVE_MOD
-@export var magnitude: float = 0.0
-@export var duration: int = 1            # turns/rounds remaining; ticks down in Upkeep/End
-# func apply(target: Combatant) -> void        # on attach
-# func tick(target: Combatant) -> void         # each Upkeep/End; decrement duration
-# func is_expired() -> bool
-```
-
-```gdscript
-# combat/resource_pool.gd — Stamina/Focus/Mana, spent in Main 1 (DESIGN §10 Dec 6).
-# FULLY INDEPENDENT of BonusMeter. Gates abilities and additive reel-count modifiers.
-class_name ResourcePool
-extends RefCounted
-var stamina: int = 0 ;  var max_stamina: int = 0
-var focus: int = 0   ;  var max_focus: int = 0
-var mana: int = 0    ;  var max_mana: int = 0
-# signal pool_changed(kind, value, max)
-# func can_afford(cost: Dictionary) -> bool
-# func spend(cost: Dictionary) -> bool
-# func regen() -> void                          # Upkeep
-```
-
-```gdscript
-# combat/ultimate.gd — the armed ability fired by a full BonusMeter (DESIGN §4.9).
-# Cost is the meter ONLY (never the ResourcePool). One archetype per class = identity.
-class_name Ultimate
-extends RefCounted
-enum Archetype { STICKY_WILD, EXTRA_SPINS, CASCADE, MULTIPLIER_CASCADE, HOLD_RESPIN, PICKEM }
-var archetype: Archetype = Archetype.EXTRA_SPINS
-# func can_fire(meter: BonusMeter) -> bool       # meter.is_armed()
-# func fire(ctx) -> void                          # apply effect, then meter.consume()
-```
-
-**Wiring when built:** `PhaseManager` Main 1 spends `ResourcePool` to add/subtract reels (additive to
-the weapon band) and to arm abilities that attach `Effect`s; `TurnManager` ticks `Effect` durations in
-Upkeep/End and re-sorts when `current_initiative` changes; firing an `Ultimate` is a player action in
-Main 1/2 once `BonusMeter.is_armed()`.
+- **`Effect` + Crushing→Slow** (implemented) — `combat/resources/effect.gd` + `combat/effect_library.gd`.
+  The resolver **reports** `rider_effect_id` on a crit-success of a riding type; the orchestrator
+  attaches the `&"slow"` effect (`INITIATIVE_MOD` −20 / 2 turns) to the defender, whose
+  `current_initiative` is re-derived via `recompute_initiative()` — demonstrating turn-order edits.
+- **`ResourcePool`** (implemented) — `combat/resource_pool.gd`. Stamina only for the prototype;
+  regenerated in `on_upkeep`, spent by reel-splice in Main 1, shown on `CombatantPanel`.
+- **Main-Phase reel splice** (implemented) — Main 1 pauses; the player may
+  `Combatant.try_splice_reel(...)` (additive, spends Stamina, 5-reel cap) before committing the spin.
+- **`Ultimate` — STICKY_WILD only** (implemented) — wired directly on `Combatant`
+  (`fire_sticky_wild` / `wild_reel_indices` / `consume_wild_spin`) + the resolver's
+  `wild_reel_indices` override; costs ONLY the armed meter. The remaining five archetypes
+  (`EXTRA_SPINS`, `CASCADE`, `MULTIPLIER_CASCADE`, `HOLD_RESPIN`, `PICKEM`) are **deferred**.
 
 ---
 
