@@ -18,10 +18,14 @@ signal turn_finished
 
 var current_phase: Phase = Phase.UPKEEP
 
-## Runs Upkeep and Main 1, then stops on Combat awaiting the spin.
+## Runs Upkeep and Main 1, then PAUSES — the player acts in Main 1 (splice reels, fire Ultimate)
+## before committing to the spin via [method proceed_to_combat].
 func start_turn() -> void:
 	_enter(Phase.UPKEEP)
 	_enter(Phase.MAIN_1)
+
+## Commits Main 1 and enters the Combat phase, pausing for the spin (DESIGN.md §4.8).
+func proceed_to_combat() -> void:
 	_enter(Phase.COMBAT)
 
 ## Resumes after the Combat-phase spin has resolved: runs Main 2 and End, then finishes the turn.

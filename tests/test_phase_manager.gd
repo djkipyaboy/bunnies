@@ -26,10 +26,16 @@ func _initialize() -> void:
 	pm.phase_changed.connect(_on_phase_changed)
 	pm.turn_finished.connect(_on_turn_finished)
 
-	# start_turn() runs Upkeep -> Main 1 -> Combat, then PAUSES for the spin.
+	# start_turn() runs Upkeep -> Main 1, then PAUSES for the player's Main-1 actions.
 	pm.start_turn()
+	_check(_phase_log == [PhaseManager.Phase.UPKEEP, PhaseManager.Phase.MAIN_1],
+		"start_turn pauses at Main 1: %s" % str(_phase_log))
+	_check(pm.current_phase == PhaseManager.Phase.MAIN_1, "current_phase is MAIN_1 while paused")
+
+	# proceed_to_combat() enters Combat and pauses for the spin.
+	pm.proceed_to_combat()
 	_check(_phase_log == [PhaseManager.Phase.UPKEEP, PhaseManager.Phase.MAIN_1, PhaseManager.Phase.COMBAT],
-		"start_turn pauses at Combat: %s" % str(_phase_log))
+		"proceed_to_combat enters Combat: %s" % str(_phase_log))
 	_check(pm.current_phase == PhaseManager.Phase.COMBAT, "current_phase is COMBAT while paused")
 	_check(_turn_finished_count == 0, "turn not finished before spin resolves")
 
@@ -38,7 +44,7 @@ func _initialize() -> void:
 	_check(_phase_log == [
 			PhaseManager.Phase.UPKEEP, PhaseManager.Phase.MAIN_1, PhaseManager.Phase.COMBAT,
 			PhaseManager.Phase.MAIN_2, PhaseManager.Phase.END],
-		"full phase order Upkeep->Main1->Combat->Main2->End: %s" % str(_phase_log))
+		"full phase order: %s" % str(_phase_log))
 	_check(_turn_finished_count == 1, "turn_finished fired once (got %d)" % _turn_finished_count)
 
 	print(("PHASE MANAGER TEST PASSED" if _failures == 0 else "PHASE MANAGER TEST FAILED: %d" % _failures))
