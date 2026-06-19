@@ -199,9 +199,17 @@ Shown on `CombatantPanel` as a small Stamina bar/number.
 ## 5. Wave C — Main-Phase reel splice (+1 typed reel)
 
 The single most pillar-proving in-combat editor: **splice one extra Storm reel for this turn** at a
-Stamina cost. It changes reel **count** *and* **typing** at once — the multi-typing path
-`DESIGN.md §4.6`/`§4.8` calls out — and it makes the type chart bite: Cluny's Rat defends as Earth,
-so a Storm reel is real coverage the Slashing weapon can't express.
+Stamina cost. It changes reel **count** *and* **typing** at once — the canonical multi-typing path
+`DESIGN.md §4.6`/`§4.8` calls out ("a heavy weapon adds a Storm reel for X turns").
+
+> **Chart reality (flagged):** with the current placeholder chart, **Storm vs Earth = ×0.75** and
+> the PC's native **Slashing vs Earth = ×1.25**, so against *this* enemy the spliced Storm reel is a
+> *weaker, off-type* hit — not "coverage." That is fine for the prototype: the splice is **additive**
+> (a pure bonus attack on top of the 3 native reels), so its value is "one extra independent attack +
+> the resource tension of paying for it," and the type chart still visibly applies (the Storm reel
+> deals less than a native Slashing reel would). The "coverage shines" narrative is a future
+> multi-enemy concern; chart values are `[ASSUMPTION]` and tuned post-fun (CLAUDE.md §4) — we do
+> **not** rebalance the chart to force the story here.
 
 ### 5.1 Mechanic
 
@@ -218,8 +226,10 @@ so a Storm reel is real coverage the Slashing weapon can't express.
 ### 5.2 Trade-off (keeps it from strictly-best)
 
 - Costs 2 Stamina → a weaker next turn (the §4 trade-off pillar, made legible by one bar).
-- Off-type **coverage, not raw power** — great into Earth, mediocre into Storm-resistant defenders;
-  against a Slashing-weak target the player should prefer native reels. Context-dependent by design.
+- The spliced reel is **off-type and additive**: a bonus independent attack whose damage depends on
+  the matchup (×0.75 into this Earth rat vs. the native ×1.25). So the live decision is "spend now
+  for an extra hit, or bank the Stamina" — context-dependent by design. (When multi-enemy fights
+  exist, off-type splicing becomes genuine coverage; not demonstrable against one Earth defender.)
 
 `[ASSUMPTION]` values: cost **2 STA**, **+1** Storm reel at base damage **10**, default tier
 composition, this turn only, capped at the 5-reel band.
