@@ -53,6 +53,10 @@ var base_initiative: int = 0
 ## Active buffs/debuffs/riders (DESIGN.md §4.1, A4). Ticked in [method on_end]; own copies (duplicated).
 var active_effects: Array[Effect] = []
 
+## The reels actually spun this Combat Phase: a per-turn copy of weapon.reels that Main-1 actions
+## edit ADDITIVELY (DESIGN.md §8 "resolved set of reels"). Reset each turn by [method begin_turn].
+var turn_reels: Array[ActionReel] = []
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -104,6 +108,25 @@ func tick_effects() -> void:
 		e.tick()
 	active_effects = active_effects.filter(func(e: Effect) -> bool: return not e.is_expired())
 	recompute_initiative()
+
+# ---------------------------------------------------------------------------
+# Per-turn reel loadout (Main-Phase editing — DESIGN.md §4.8)
+# ---------------------------------------------------------------------------
+
+## Resets this turn's reel set to the weapon baseline. Call at the start of the turn (Upkeep/Main 1).
+func begin_turn() -> void:
+	turn_reels = weapon.reels.duplicate() if weapon != null else []
+
+## Splices one extra [param type]-typed reel onto THIS turn (additive, never overwrites the weapon).
+## Spends [param cost] Stamina and respects the [param cap]-reel band ceiling. Returns false (and
+## changes nothing) if unaffordable or already at the cap (DESIGN.md §4.3, §4.8).
+func try_splice_reel(type: DamageType, base_damage: float, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_default(type))
+	return true
 
 # ---------------------------------------------------------------------------
 # Per-turn phase hooks (called by the orchestrator off PhaseManager.phase_changed)
