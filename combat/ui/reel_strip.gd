@@ -92,3 +92,7 @@ func play_to(target_index: int, delay: float = 0.0) -> void:
 	tw.tween_property(_strip, "position:y", final_y, SPIN_DURATION) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.finished.connect(func() -> void: strip_settled.emit())
+
+## Toggles the WILD highlight on this strip (Sticky-Wild Ultimate target). Cosmetic only.
+func set_wild(on: bool) -> void:
+	modulate = Color(1.6, 1.4, 0.4) if on else Color(1, 1, 1)

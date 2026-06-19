@@ -24,6 +24,7 @@ var _log_box: RichTextLabel
 var _spin_button: Button
 var _end_turn_button: Button
 var _splice_button: Button
+var _ultimate_button: Button
 var _strips_box: HBoxContainer
 var _overlay: Panel
 
@@ -169,6 +170,13 @@ func _build_ui() -> void:
 	_splice_button.disabled = true
 	add_child(_splice_button)
 
+	_ultimate_button = Button.new()
+	_ultimate_button.text = "Fire Ultimate (WILD)"
+	_ultimate_button.position = Vector2(900, 328)
+	_ultimate_button.custom_minimum_size = Vector2(210, 52)
+	_ultimate_button.disabled = true
+	add_child(_ultimate_button)
+
 	_build_overlay()
 
 	(_panels[_pc] as CombatantPanel).bind(_pc)
@@ -208,6 +216,7 @@ func _bind_signals() -> void:
 	_spin_button.pressed.connect(_on_spin_pressed)
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
 	_splice_button.pressed.connect(_on_splice_pressed)
+	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 
 func _start_combat() -> void:
 	_turn_manager.roll_initiative()
@@ -278,12 +287,32 @@ func _on_splice_pressed() -> void:
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	_refresh_main1_actions()
 
+## Fires the Sticky-Wild Ultimate on reel 0 for 2 spins (auto-target — DESIGN spec §6). Armed only.
+## [ASSUMPTION] reel 0, 2 spins (CLAUDE.md §4).
+func _on_ultimate_pressed() -> void:
+	if not _awaiting_player_spin:
+		return
+	if _attacker.fire_sticky_wild(0, 2):
+		_log("  %s fires the Ultimate — reel 1 is WILD for 2 spins!" % _attacker.display_name)
+		(_panels[_attacker] as CombatantPanel).bind(_attacker)  # refresh meter to 0
+		_highlight_wild_strips()
+	_refresh_main1_actions()
+
 ## Enables/disables the Main-1 action buttons for the current player turn.
 func _refresh_main1_actions() -> void:
 	var is_player_main1: bool = _awaiting_player_spin and _attacker != null and _attacker.is_player
 	var pool: ResourcePool = _attacker.resource_pool if _attacker != null else null
 	_splice_button.disabled = not (is_player_main1 and pool != null \
 		and pool.can_afford({&"stamina": 2}) and _attacker.turn_reels.size() < 5)
+	_ultimate_button.disabled = not (is_player_main1 and _attacker.bonus_meter != null \
+		and _attacker.bonus_meter.is_armed())
+
+## Glows the reel strips that are currently WILD (forced crit-success) for the active attacker.
+func _highlight_wild_strips() -> void:
+	var wild: Array[int] = _attacker.wild_reel_indices() if _attacker != null else []
+	var strips: Array = _strips_box.get_children()
+	for i: int in range(strips.size()):
+		(strips[i] as ReelStrip).set_wild(i in wild)
 
 func _prepare_strips(reels: Array[ActionReel]) -> void:
 	for child in _strips_box.get_children():
@@ -292,12 +321,13 @@ func _prepare_strips(reels: Array[ActionReel]) -> void:
 		var strip := ReelStrip.new()
 		_strips_box.add_child(strip)
 		strip.configure(reel)
+	_highlight_wild_strips()
 
 func _do_spin() -> void:
 	if _phase_manager.current_phase != PhaseManager.Phase.COMBAT:
 		_phase_manager.proceed_to_combat()  # enemy auto-commit (player committed in _on_spin_pressed)
 	var reels: Array[ActionReel] = _attacker.turn_reels
-	var attacks: Array = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type)
+	var attacks: Array = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices())
 	_pending_strips = attacks.size()
 	var strips: Array = _strips_box.get_children()
 	for i: int in range(attacks.size()):
@@ -331,6 +361,8 @@ func _apply_attack(attack) -> void:
 		_finish_spin()
 
 func _finish_spin() -> void:
+	_attacker.consume_wild_spin()
+	_highlight_wild_strips()
 	_splice_button.disabled = true
 	# If the spin ended the fight, go straight to the result — no End Turn needed.
 	if _turn_manager.is_combat_over():
