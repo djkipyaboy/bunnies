@@ -31,6 +31,9 @@ func _mk(name: String, is_player: bool, init: int = 0, max_hp: int = 20) -> Comb
 	c.is_player = is_player
 	c.max_hp = max_hp
 	c.start_combat()
+	# Sets current_initiative directly for the turn-ORDER tests (B/D/E) only — base_initiative is
+	# intentionally left at 0 here. These are controlled sort-key values, NOT the roll path, so the
+	# derived-initiative invariant (current == base + mods) does NOT hold for _mk-built combatants.
 	c.current_initiative = init
 	return c
 

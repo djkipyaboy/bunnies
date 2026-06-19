@@ -278,6 +278,8 @@ func _apply_attack(attack) -> void:
 			_log("  %s is afflicted with %s (%d turns)." % [_defender.display_name, String(rider.id).to_upper(), rider.duration])
 			(_panels[_defender] as CombatantPanel).refresh_status()
 			_turn_order_bar.set_order(_turn_manager.get_turn_order())
+			# Sync the panel name label's "(init N)" to the new current_initiative after the Slow rider.
+			(_panels[_defender] as CombatantPanel).refresh_initiative()
 
 	_pending_strips -= 1
 	if _pending_strips <= 0:

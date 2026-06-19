@@ -89,6 +89,9 @@ func recompute_initiative() -> void:
 func attach_effect(effect: Effect) -> void:
 	if effect == null:
 		return
+	# Defensively duplicate so a shared (.tres-loaded) Effect can never share a live duration
+	# counter across combatants. Safe even for already-fresh EffectLibrary.make() instances.
+	effect = effect.duplicate()
 	active_effects.append(effect)
 	recompute_initiative()
 
