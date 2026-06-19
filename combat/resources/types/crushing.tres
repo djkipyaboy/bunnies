@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="DamageType" format=3]
+
+[ext_resource type="Script" path="res://combat/resources/damage_type.gd" id="1_7ldao"]
+
+[resource]
+script = ExtResource("1_7ldao")
+type = 2
+inherent_rider_id = &"slow"
+effectiveness = {
+0: 1.25
+}

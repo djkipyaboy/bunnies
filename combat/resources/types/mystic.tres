@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="DamageType" format=3]
+
+[ext_resource type="Script" path="res://combat/resources/damage_type.gd" id="1_sjxs8"]
+
+[resource]
+script = ExtResource("1_sjxs8")
+type = 4
+effectiveness = {
+1: 1.25
+}
