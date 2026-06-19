@@ -29,6 +29,8 @@ var _strips_box: HBoxContainer
 var _overlay: Panel
 
 var _storm_type: DamageType
+var _strips_caption: Label
+var _plan: MainPhasePlan
 
 var _attacker: Combatant
 var _defender: Combatant
@@ -122,10 +124,10 @@ func _build_ui() -> void:
 	add_child(enemy_panel)
 	_panels[_enemy] = enemy_panel
 
-	var strips_caption := Label.new()
-	strips_caption.text = "Action reels"
-	strips_caption.position = Vector2(40, 208)
-	add_child(strips_caption)
+	_strips_caption = Label.new()
+	_strips_caption.text = "Action reels"
+	_strips_caption.position = Vector2(40, 208)
+	add_child(_strips_caption)
 
 	_strips_box = HBoxContainer.new()
 	_strips_box.position = Vector2(40, 234)
@@ -244,8 +246,8 @@ func _on_turn_started(c: Combatant) -> void:
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
+	_plan = MainPhasePlan.new(c, _storm_type, 2, 5, 0, 2)  # [ASSUMPTION] cost 2, cap 5, wild reel 0, 2 spins
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
-	_prepare_strips(c.turn_reels)
 	_end_turn_button.disabled = true
 	if c.is_player:
 		_awaiting_player_spin = true
@@ -254,8 +256,8 @@ func _on_turn_started(c: Combatant) -> void:
 		_awaiting_player_spin = false
 		_spin_button.disabled = true
 		get_tree().create_timer(ENEMY_THINK_DELAY).timeout.connect(_do_spin, CONNECT_ONE_SHOT)
-	# Refresh AFTER _awaiting_player_spin is set — the splice button's enabled state reads it.
-	_refresh_main1_actions()
+	# Render the preview AFTER _awaiting_player_spin is set — button states read it.
+	_refresh_main1_preview()
 
 func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 	_phase_label.text = "Phase: %s" % PhaseManager.Phase.keys()[phase]
@@ -273,40 +275,60 @@ func _on_spin_pressed() -> void:
 	if not _awaiting_player_spin:
 		return
 	_awaiting_player_spin = false
+	if _plan != null:
+		_plan.commit()  # spends Stamina / consumes meter / appends reel / arms wild — the ONLY apply point
 	_spin_button.disabled = true
 	_splice_button.disabled = true
-	_phase_manager.proceed_to_combat()  # commit Main 1 → enter Combat
+	_ultimate_button.disabled = true
+	_splice_button.modulate = Color(1, 1, 1)
+	_ultimate_button.modulate = Color(1, 1, 1)
+	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
+	_prepare_strips(_attacker.turn_reels)  # re-sync strips to the committed reels (incl. a spliced reel)
+	_phase_manager.proceed_to_combat()     # commit Main 1 → enter Combat
 	_do_spin()
 
-## [ASSUMPTION] splice cost 2 Stamina, band ceiling 5 (CLAUDE.md §4).
+## Stages/un-stages the Storm splice (toggle). Applies nothing — commit happens on SPIN.
 func _on_splice_pressed() -> void:
-	if not _awaiting_player_spin:
+	if not _awaiting_player_spin or _plan == null:
 		return
-	if _attacker.try_splice_reel(_storm_type, _attacker.weapon.base_damage, 2, 5):
-		_prepare_strips(_attacker.turn_reels)
-		_log("  %s splices a Storm reel (now %d reels)." % [_attacker.display_name, _attacker.turn_reels.size()])
-		(_panels[_attacker] as CombatantPanel).refresh_resources()
-	_refresh_main1_actions()
+	_plan.toggle_splice()
+	_refresh_main1_preview()
 
-## Fires the Sticky-Wild Ultimate on reel 0 for 2 spins (auto-target — DESIGN spec §6). Armed only.
-## [ASSUMPTION] reel 0, 2 spins (CLAUDE.md §4).
+## Stages/un-stages the Sticky-Wild Ultimate (toggle). Consumes nothing — commit happens on SPIN.
 func _on_ultimate_pressed() -> void:
-	if not _awaiting_player_spin:
+	if not _awaiting_player_spin or _plan == null:
 		return
-	if _attacker.fire_sticky_wild(0, 2):
-		_log("  %s fires the Ultimate — reel 1 is WILD for 2 spins!" % _attacker.display_name)
-		(_panels[_attacker] as CombatantPanel).bind(_attacker)  # refresh meter to 0
-		_highlight_wild_strips()
-	_refresh_main1_actions()
+	_plan.toggle_ultimate()
+	_refresh_main1_preview()
 
-## Enables/disables the Main-1 action buttons for the current player turn.
-func _refresh_main1_actions() -> void:
+## Renders the staged Main-1 preview: preview reels (+ staged splice), wild glow (staged + carryover),
+## reel-count and Stamina deltas, meter flash, and the toggle buttons' enabled/staged visual state.
+func _refresh_main1_preview() -> void:
+	if _plan == null:
+		return
+	_prepare_strips(_plan.preview_reels())
+	_highlight_preview_wild()
+
+	var base_n: int = _attacker.turn_reels.size()
+	var prev_n: int = _plan.preview_reels().size()
+	_strips_caption.text = ("Action reels  (%d → %d)" % [base_n, prev_n]) if prev_n != base_n else "Action reels"
+
+	var panel: CombatantPanel = _panels[_attacker]
+	panel.preview_resources(_plan.preview_stamina())
+	panel.set_meter_flash(_plan.will_consume_meter())
+
 	var is_player_main1: bool = _awaiting_player_spin and _attacker != null and _attacker.is_player
-	var pool: ResourcePool = _attacker.resource_pool if _attacker != null else null
-	_splice_button.disabled = not (is_player_main1 and pool != null \
-		and pool.can_afford({&"stamina": 2}) and _attacker.turn_reels.size() < 5)
-	_ultimate_button.disabled = not (is_player_main1 and _attacker.bonus_meter != null \
-		and _attacker.bonus_meter.is_armed())
+	_splice_button.disabled = not (is_player_main1 and (_plan.splice_staged or _plan.can_stage_splice()))
+	_ultimate_button.disabled = not (is_player_main1 and (_plan.fire_ultimate_staged or _plan.can_stage_ultimate()))
+	_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.splice_staged else Color(1, 1, 1)
+	_ultimate_button.modulate = Color(0.6, 1.0, 0.6) if _plan.fire_ultimate_staged else Color(1, 1, 1)
+
+## Glows the strips that WOULD be wild at spin (staged fire ∪ carryover), per the plan's preview.
+func _highlight_preview_wild() -> void:
+	var wild: Array[int] = _plan.effective_wild_indices() if _plan != null else []
+	var strips: Array = _strips_box.get_children()
+	for i: int in range(strips.size()):
+		(strips[i] as ReelStrip).set_wild(i in wild)
 
 ## Glows the reel strips that are currently WILD (forced crit-success) for the active attacker.
 func _highlight_wild_strips() -> void:
@@ -365,6 +387,10 @@ func _finish_spin() -> void:
 	_attacker.consume_wild_spin()
 	_highlight_wild_strips()
 	_splice_button.disabled = true
+	_ultimate_button.disabled = true
+	_splice_button.modulate = Color(1, 1, 1)
+	_ultimate_button.modulate = Color(1, 1, 1)
+	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
 	# If the spin ended the fight, go straight to the result — no End Turn needed.
 	if _turn_manager.is_combat_over():
 		_phase_manager.resume_after_combat()  # → turn_finished → advance_turn → combat_ended

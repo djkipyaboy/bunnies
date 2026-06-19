@@ -12,6 +12,7 @@ var _meter_bar: ProgressBar
 var _status_label: Label
 var _stamina_label: Label
 var _combatant: Combatant
+var _meter_flash_tween: Tween
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(260, 130)
@@ -95,6 +96,35 @@ func refresh_resources() -> void:
 		_stamina_label.text = ""
 		return
 	_stamina_label.text = "STA %d/%d" % [_combatant.resource_pool.stamina, _combatant.resource_pool.max_stamina]
+
+## Shows a pending Stamina change ("STA 3 → 1 / 5") while a cost is staged; falls back to the plain
+## readout when preview matches current. Cleared/refreshed by refresh_resources() after a commit.
+func preview_resources(preview_stamina: int) -> void:
+	if _stamina_label == null:
+		return
+	if _combatant == null or _combatant.resource_pool == null:
+		_stamina_label.text = ""
+		return
+	var cur: int = _combatant.resource_pool.stamina
+	if preview_stamina != cur:
+		_stamina_label.text = "STA %d → %d / %d" % [cur, preview_stamina, _combatant.resource_pool.max_stamina]
+	else:
+		_stamina_label.text = "STA %d/%d" % [cur, _combatant.resource_pool.max_stamina]
+
+## Pulses the Bonus Meter bar while an Ultimate is staged (signals "will be consumed on SPIN").
+## Steady (default colour) when off. Cosmetic only.
+func set_meter_flash(on: bool) -> void:
+	if _meter_bar == null:
+		return
+	if _meter_flash_tween != null and _meter_flash_tween.is_valid():
+		_meter_flash_tween.kill()
+		_meter_flash_tween = null
+	if on:
+		_meter_flash_tween = create_tween().set_loops()
+		_meter_flash_tween.tween_property(_meter_bar, "modulate", Color(1.6, 1.4, 0.4), 0.4)
+		_meter_flash_tween.tween_property(_meter_bar, "modulate", Color(0.9, 0.8, 0.3), 0.4)
+	else:
+		_meter_bar.modulate = Color(0.9, 0.8, 0.3)
 
 func _on_pool_changed(_kind: StringName, _value: int, _max: int) -> void:
 	refresh_resources()
