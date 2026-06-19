@@ -10,6 +10,7 @@ var _hp_label: Label
 var _meter_caption: Label
 var _meter_bar: ProgressBar
 var _status_label: Label
+var _stamina_label: Label
 var _combatant: Combatant
 
 func _ready() -> void:
@@ -41,6 +42,10 @@ func _ready() -> void:
 	_meter_bar.modulate = Color(0.9, 0.8, 0.3)
 	box.add_child(_meter_bar)
 
+	_stamina_label = Label.new()
+	_stamina_label.add_theme_color_override("font_color", Color(0.5, 0.8, 0.9))
+	box.add_child(_stamina_label)
+
 	_status_label = Label.new()
 	_status_label.add_theme_color_override("font_color", Color(0.9, 0.5, 0.2))
 	box.add_child(_status_label)
@@ -63,6 +68,10 @@ func bind(c: Combatant) -> void:
 		c.bonus_meter.meter_changed.connect(_on_meter_changed)
 		c.bonus_meter.meter_armed.connect(_on_meter_armed)
 
+	if c.resource_pool != null:
+		c.resource_pool.pool_changed.connect(_on_pool_changed)
+	refresh_resources()
+
 ## Refreshes the initiative shown in the name (after an initiative roll).
 func refresh_initiative() -> void:
 	if _combatant != null:
@@ -77,6 +86,18 @@ func refresh_status() -> void:
 	for e: Effect in _combatant.active_effects:
 		parts.append("%s %d (%d)" % [String(e.id).to_upper(), int(e.magnitude), e.duration])
 	_status_label.text = ", ".join(parts)
+
+## Updates the Stamina readout (blank when the combatant has no pool). Call from bind()+on_upkeep.
+func refresh_resources() -> void:
+	if _stamina_label == null:
+		return
+	if _combatant == null or _combatant.resource_pool == null:
+		_stamina_label.text = ""
+		return
+	_stamina_label.text = "STA %d/%d" % [_combatant.resource_pool.stamina, _combatant.resource_pool.max_stamina]
+
+func _on_pool_changed(_kind: StringName, _value: int, _max: int) -> void:
+	refresh_resources()
 
 func _on_hp_changed(hp: int, max_hp: int) -> void:
 	_hp_bar.value = hp

@@ -81,6 +81,13 @@ func _make_combatant(name: String, is_player: bool, max_hp: int, defense: Damage
 	meter.floor = 3
 	meter.is_visible = meter_visible
 	c.bonus_meter = meter
+	# [ASSUMPTION] Stamina economy — only the player uses Main-1 actions in the prototype.
+	if is_player:
+		var pool: ResourcePool = ResourcePool.new()
+		pool.max_stamina = 5
+		pool.stamina = 3
+		pool.regen_per_turn = 1
+		c.resource_pool = pool
 	c.start_combat()
 	return c
 
@@ -231,6 +238,7 @@ func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 	if phase == PhaseManager.Phase.UPKEEP:
 		_attacker.on_upkeep()
 		(_panels[_attacker] as CombatantPanel).refresh_status()
+		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	elif phase == PhaseManager.Phase.END:
 		_attacker.on_end()
 		(_panels[_attacker] as CombatantPanel).refresh_status()

@@ -34,6 +34,9 @@ var defense_type: DamageType
 ## The Bonus Meter (PCs + Elite/Boss only; null for trash enemies).
 var bonus_meter: BonusMeter
 
+## Stamina/Focus/Mana spent in Main 1 (DESIGN.md §10 Dec 6). Null = no resource economy.
+var resource_pool: ResourcePool
+
 # ---------------------------------------------------------------------------
 # Live state
 # ---------------------------------------------------------------------------
@@ -108,6 +111,8 @@ func tick_effects() -> void:
 
 ## Start-of-turn bookkeeping: resource regen (Wave B) + refresh the derived sort key.
 func on_upkeep() -> void:
+	if resource_pool != null:
+		resource_pool.regen()
 	recompute_initiative()
 
 ## End-of-turn bookkeeping: tick effect durations (Slow counts down here — DESIGN.md §4.8).

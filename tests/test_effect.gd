@@ -64,5 +64,21 @@ func _initialize() -> void:
 	c1.on_end()
 	_check(c2.active_effects[0].duration == 2, "c2 slow unaffected by c1 tick (got %d)" % c2.active_effects[0].duration)
 
+	# --- on_upkeep regenerates the resource pool when present ---
+	var rc: Combatant = Combatant.new()
+	rc.base_initiative = 50
+	rc.resource_pool = ResourcePool.new()
+	rc.resource_pool.max_stamina = 5
+	rc.resource_pool.stamina = 1
+	rc.resource_pool.regen_per_turn = 1
+	rc.on_upkeep()
+	_check(rc.resource_pool.stamina == 2, "on_upkeep regens stamina 1 -> 2 (got %d)" % rc.resource_pool.stamina)
+
+	# --- on_upkeep is safe when no pool is attached ---
+	var np: Combatant = Combatant.new()
+	np.base_initiative = 50
+	np.on_upkeep()
+	_check(np.resource_pool == null, "on_upkeep no-ops without a pool")
+
 	print(("EFFECT TEST PASSED" if _failures == 0 else "EFFECT TEST FAILED: %d" % _failures))
 	quit(_failures)
