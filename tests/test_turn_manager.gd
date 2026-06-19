@@ -44,6 +44,8 @@ func _initialize() -> void:
 		for c: Combatant in tm.combatants:
 			if c.current_initiative < 1 or c.current_initiative > 100:
 				out_of_range += 1
+			if c.base_initiative != c.current_initiative:
+				out_of_range += 1  # with no effects, current must equal base
 	_check(out_of_range == 0, "all initiative rolls in 1..100 (out-of-range: %d)" % out_of_range)
 
 	# --- B. get_turn_order() sorts by current_initiative descending ---

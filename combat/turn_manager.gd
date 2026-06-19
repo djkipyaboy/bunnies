@@ -44,7 +44,8 @@ var _turn_index: int = 0
 func roll_initiative() -> void:
 	for c: Combatant in combatants:
 		var value: int = InitiativeReel.roll_percentile(_initiative_tens, _initiative_ones)
-		c.current_initiative = value
+		c.base_initiative = value
+		c.recompute_initiative()
 		initiative_rolled.emit(c, value)
 
 ## Returns combatants sorted by current_initiative, descending (the turn order).
