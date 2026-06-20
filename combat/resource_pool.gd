@@ -31,6 +31,17 @@ func spend(cost: Dictionary) -> bool:
 	pool_changed.emit(&"stamina", stamina, max_stamina)
 	return true
 
+## Adds resources back (e.g. a payline neutral-line refund), clamped to the maximum. Mirrors the
+## cost-dictionary shape of [method spend].
+func refund(cost: Dictionary) -> void:
+	var amount: int = int(cost.get(&"stamina", 0))
+	if amount <= 0:
+		return
+	var before: int = stamina
+	stamina = mini(stamina + amount, max_stamina)
+	if stamina != before:
+		pool_changed.emit(&"stamina", stamina, max_stamina)
+
 ## Upkeep regeneration: adds [member regen_per_turn], clamped at [member max_stamina].
 func regen() -> void:
 	var before: int = stamina

@@ -96,3 +96,16 @@ func play_to(target_index: int, delay: float = 0.0) -> void:
 ## Toggles the WILD highlight on this strip (Sticky-Wild Ultimate target). Cosmetic only.
 func set_wild(on: bool) -> void:
 	modulate = Color(1.6, 1.4, 0.4) if on else Color(1, 1, 1)
+
+## Briefly highlights one of the 3 visible window cells (row 0=top,1=center,2=bottom) as part of a
+## winning payline. Cosmetic only. Exact styling is placeholder — judged in play-test.
+func flash_cell(row: int) -> void:
+	var marker := ColorRect.new()
+	marker.color = Color(1.0, 0.95, 0.4, 0.35)
+	marker.size = Vector2(110, CELL_HEIGHT)
+	marker.position = Vector2(0, CELL_HEIGHT * float(row))
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(marker)
+	var tw := create_tween()
+	tw.tween_interval(1.2)
+	tw.tween_callback(marker.queue_free)

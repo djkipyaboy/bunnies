@@ -25,6 +25,7 @@ var _spin_button: Button
 var _end_turn_button: Button
 var _splice_button: Button
 var _ultimate_button: Button
+var _payline_banner: Label
 var _strips_box: HBoxContainer
 var _strips: Array[ReelStrip] = []   # the live strips; tracked explicitly, independent of tree free-timing
 var _overlay: Panel
@@ -127,6 +128,12 @@ func _build_ui() -> void:
 
 	# Action-reels block sits below the combatant panels (which grew taller with the Stamina/effect
 	# lines); moved down so the panel's Stamina readout no longer overlaps this caption.
+	# Payline win banner — placeholder feedback sitting just above the reels block.
+	_payline_banner = Label.new()
+	_payline_banner.position = Vector2(40, 232)
+	_payline_banner.add_theme_font_size_override("font_size", 20)
+	add_child(_payline_banner)
+
 	_strips_caption = Label.new()
 	_strips_caption.text = "Action reels"
 	_strips_caption.position = Vector2(40, 256)
@@ -219,6 +226,7 @@ func _bind_signals() -> void:
 	_turn_manager.combat_ended.connect(_on_combat_ended)
 	_phase_manager.phase_changed.connect(_on_phase_changed)
 	_phase_manager.turn_finished.connect(_on_turn_finished)
+	_resolver.paylines_resolved.connect(_on_paylines_resolved)
 	_spin_button.pressed.connect(_on_spin_pressed)
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
 	_splice_button.pressed.connect(_on_splice_pressed)
@@ -358,16 +366,17 @@ func _prepare_strips(reels: Array[ActionReel]) -> void:
 func _do_spin() -> void:
 	if _phase_manager.current_phase != PhaseManager.Phase.COMBAT:
 		_phase_manager.proceed_to_combat()  # enemy auto-commit (player committed in _on_spin_pressed)
+	_payline_banner.text = ""
 	var reels: Array[ActionReel] = _attacker.turn_reels
-	var attacks: Array = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices())
+	var weapon_count: int = _attacker.weapon.reels.size()
+	var attacks: Array = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count)
 	_pending_strips = attacks.size()
 	var strips: Array = _strips
 	for i: int in range(attacks.size()):
 		var attack = attacks[i]
-		var face_index: int = reels[i].faces.find(attack.face)
 		var strip: ReelStrip = strips[i]
 		strip.strip_settled.connect(_apply_attack.bind(attack), CONNECT_ONE_SHOT)
-		strip.play_to(face_index, float(i) * STRIP_STAGGER)
+		strip.play_to(attack.landed_index, float(i) * STRIP_STAGGER)  # resolver owns the index (screen == grid)
 
 func _apply_attack(attack) -> void:
 	var tier_name: String = ReelFace.ResultTier.keys()[attack.face.result_tier]
@@ -391,6 +400,58 @@ func _apply_attack(attack) -> void:
 	_pending_strips -= 1
 	if _pending_strips <= 0:
 		_finish_spin()
+
+## Applies payline rewards after the spin's per-reel attacks (the resolver reports; we apply).
+## [ASSUMPTION] reward values — tune by playtest (CLAUDE.md §4).
+func _on_paylines_resolved(hits: Array) -> void:
+	for hit in hits:
+		match hit.tier:
+			ReelFace.ResultTier.CRIT_SUCCESS:
+				var weapon_type: DamageType = _attacker.weapon.reels[0].damage_type if not _attacker.weapon.reels.is_empty() else null
+				var type_mult: float = weapon_type.multiplier_against(_defender.defense_type) if weapon_type != null else 1.0
+				var bonus: int = ceili(_attacker.weapon.base_damage * (float(hit.length) / 3.0) * type_mult)
+				_defender.take_damage(bonus)
+				_log("  ★ CRIT LINE (%d) → %d bonus damage!" % [hit.length, bonus])
+				_append_banner("CRIT x%d" % hit.length)
+				if hit.length >= 3:
+					for ally: Combatant in _allies_of(_attacker):
+						ally.attach_effect(EffectLibrary.make(&"inspirational"))
+						(_panels[ally] as CombatantPanel).refresh_status()
+						(_panels[ally] as CombatantPanel).refresh_initiative()
+					_log("  ✦ Inspirational! All allies +5 initiative (2 turns).")
+					_turn_order_bar.set_order(_turn_manager.get_turn_order())
+			ReelFace.ResultTier.SUCCESS:
+				if _attacker.bonus_meter != null:
+					_attacker.bonus_meter.add_flat(1)
+					_log("  SUCCESS LINE → +1 Bonus Meter.")
+					_append_banner("SUCCESS")
+			ReelFace.ResultTier.NEUTRAL:
+				if _attacker.resource_pool != null:
+					_attacker.resource_pool.refund({&"stamina": 1})
+					_log("  NEUTRAL LINE → refund 1 Stamina.")
+					(_panels[_attacker] as CombatantPanel).refresh_resources()
+					_append_banner("UTIL")
+		_highlight_payline(hit)
+
+## All combatants on the same side as [param c] (its allies, including itself).
+func _allies_of(c: Combatant) -> Array[Combatant]:
+	var out: Array[Combatant] = []
+	for other: Combatant in _turn_manager.combatants:
+		if other.is_player == c.is_player:
+			out.append(other)
+	return out
+
+## Lights the winning line's cells on the weapon strips (placeholder visual).
+func _highlight_payline(hit) -> void:
+	for cell: Vector2i in hit.cells:
+		if cell.x >= 0 and cell.x < _strips.size():
+			_strips[cell.x].flash_cell(cell.y)
+
+## Appends a short per-line tag to the payline banner (placeholder feedback).
+func _append_banner(tag: String) -> void:
+	if _payline_banner == null:
+		return
+	_payline_banner.text = ("Lines: " + tag) if _payline_banner.text == "" else (_payline_banner.text + "  •  " + tag)
 
 func _finish_spin() -> void:
 	_attacker.consume_wild_spin()

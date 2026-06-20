@@ -59,6 +59,17 @@ func charge(tier: ReelFace.ResultTier) -> void:
 	if is_armed() and not was_armed:
 		meter_armed.emit()
 
+## Adds [param amount] charge directly (e.g. a payline success-line reward), clamped to [member cap].
+## Emits [signal meter_changed], and [signal meter_armed] the first time the meter reaches the cap.
+func add_flat(amount: int) -> void:
+	if amount <= 0:
+		return
+	var was_armed: bool = is_armed()
+	value = mini(value + amount, cap)
+	meter_changed.emit(value, cap)
+	if is_armed() and not was_armed:
+		meter_armed.emit()
+
 ## True when the meter is full and its Ultimate is armed.
 func is_armed() -> bool:
 	return value >= cap
