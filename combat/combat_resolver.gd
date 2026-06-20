@@ -53,6 +53,10 @@ signal paylines_resolved(hits: Array)
 ## First pass: crit-fail 0, fail 0, neutral +1, success +2, crit-success +3.
 @export var meter_charge_weights: Array[int] = [0, 0, 1, 2, 3]
 
+## Probability that a Sticky-Wild reel lands its crit face (a BIAS, not a force). The other
+## ~35% is a normal weighted spin, so wild grids vary (more payline variety). [ASSUMPTION]
+const WILD_CRIT_CHANCE: float = 0.65  # [ASSUMPTION]
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -94,10 +98,12 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageType, is_wild: bool = false, flat_damage_bonus: int = 0) -> AttackResult:
 	var face: ReelFace
 	var index: int
-	if is_wild:
+	if is_wild and randf() < WILD_CRIT_CHANCE:
+		# Biased toward crit (not forced): land the crit face this spin.
 		face = _crit_face(reel)
 		index = reel.faces.find(face)
 	else:
+		# Normal weighted spin — both for non-wild reels and the ~35% non-crit wild case.
 		face = reel.spin()
 		index = reel.get_last_index()
 

@@ -34,6 +34,9 @@ static func make_default(type: DamageType = null) -> ActionReel:
 		var count: int = entry[2]
 		for i: int in range(count):
 			reel.faces.append(_make_face(tier, multiplier))
+	# Shuffle so the strip order isn't a discoverable pattern. Balance-neutral: tier COUNTS are
+	# unchanged (the reel IS the dice), only face adjacency varies — for grid/payline variety.
+	reel.faces.shuffle()
 	return reel
 
 static func _make_face(tier: ReelFace.ResultTier, multiplier: float) -> ReelFace:

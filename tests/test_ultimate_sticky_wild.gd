@@ -1,7 +1,10 @@
 extends SceneTree
 
-# Headless test: Sticky-Wild Ultimate — arm/fire/consume, ALL weapon reels forced crit for 2
+# Headless test: Sticky-Wild Ultimate — arm/fire/consume, ALL weapon reels armed wild for 2
 # spins, then revert. Cost is the full Bonus Meter (cap 15) and NOTHING else.
+# A wild reel lands its crit face with WILD_CRIT_CHANCE (0.65) probability — a BIAS, not a
+# force — so grids vary (more payline variety). The arm/fire/consume model is unchanged; only
+# the per-spin OUTCOME is now biased. The crit rate is checked statistically.
 # Run: Godot_v4.6.3-stable_win64_console.exe --headless --path . --script res://tests/test_ultimate_sticky_wild.gd
 
 var _failures: int = 0
@@ -44,25 +47,36 @@ func _initialize() -> void:
 	_check(c.sticky_wild_count == 3, "all 3 weapon reels wild after firing (got %d)" % c.sticky_wild_count)
 	_check(c.wild_reel_indices() == [0, 1, 2], "every weapon reel is wild after firing (got %s)" % str(c.wild_reel_indices()))
 
-	# --- Resolver forces crit-success on EVERY wild reel ---
+	# --- Wild stays armed on ALL reels across both spins, then reverts (arm/consume model) ---
 	var resolver: CombatResolver = CombatResolver.new()
 	c.begin_turn()
-	var a1: Array = resolver.resolve_combat_phase(c.turn_reels, c.weapon.base_damage, null, c.wild_reel_indices())
-	for i: int in range(a1.size()):
-		_check(a1[i].face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS, "reel %d forces crit-success (spin 1)" % i)
+	resolver.resolve_combat_phase(c.turn_reels, c.weapon.base_damage, null, c.wild_reel_indices())
 	c.consume_wild_spin()
 	_check(c.sticky_wild_spins_remaining == 1, "1 wild spin left (got %d)" % c.sticky_wild_spins_remaining)
 	_check(c.wild_reel_indices() == [0, 1, 2], "still all reels wild between spins (got %s)" % str(c.wild_reel_indices()))
 
 	# --- Second spin still wild on all reels, then it reverts ---
 	c.begin_turn()
-	var a2: Array = resolver.resolve_combat_phase(c.turn_reels, c.weapon.base_damage, null, c.wild_reel_indices())
-	for i: int in range(a2.size()):
-		_check(a2[i].face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS, "reel %d forces crit-success (spin 2)" % i)
+	resolver.resolve_combat_phase(c.turn_reels, c.weapon.base_damage, null, c.wild_reel_indices())
 	c.consume_wild_spin()
 	_check(c.sticky_wild_spins_remaining == 0, "wild exhausted (got %d)" % c.sticky_wild_spins_remaining)
 	_check(c.wild_reel_indices() == [], "no wild reels after exhaustion (got %s)" % str(c.wild_reel_indices()))
 	_check(c.sticky_wild_count == 0, "wild count cleared on exhaustion (got %d)" % c.sticky_wild_count)
+
+	# --- A wild reel is BIASED toward crit (~0.65), not forced. Check statistically. ---
+	var crit: int = 0
+	var noncrit: int = 0
+	for i: int in range(2000):
+		var reel: ActionReel = ActionReel.make_default(slashing)
+		var atk: Array = resolver.resolve_combat_phase([reel], 10.0, null, [0])  # reel 0 wild
+		if atk[0].face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			crit += 1
+		else:
+			noncrit += 1
+	var rate: float = float(crit) / 2000.0
+	_check(rate >= 0.58 and rate <= 0.78, "wild crit rate ~0.65 (got %.3f)" % rate)
+	_check(noncrit > 0, "wild is biased, not forced (some non-crit results, got %d)" % noncrit)
+	_check(crit > 0, "wild still mostly crits (got %d)" % crit)
 
 	# --- Firing never touches the ResourcePool (independent economies) ---
 	var c2: Combatant = _mk_pc()
