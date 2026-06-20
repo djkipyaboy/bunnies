@@ -253,3 +253,28 @@ Their contracts live with their owners: `Effect` / `EffectLibrary` / `ResourcePo
 `Class` (HP seed, reel/talent identity, `meter_floor`, `ultimate_archetype`), `EncounterTable`,
 `RewardTable`, the talent system, and the world/hub structure. Post-prototype — see `DESIGN.md §8`,
 §11, §12. Do not build speculatively (CLAUDE.md §7 YAGNI).
+
+---
+
+## 9. Future UI direction (recorded for later — NOT built yet)
+
+Designer's UX vision for combat presentation, captured for a future UI cycle. The current prototype
+uses placeholder Labels/bars and a **simple dice readout** for the STUNNED roll; the scrolling-reel
+treatments below are the intended polish, deferred.
+
+- **Scrolling reel-strip for the STUNNED d100 roll.** When a combatant resolves a stun-check, show
+  the two digit reels (0–9 percentile) animating in the **same scrolling `ReelStrip` style as the
+  attack reels**, in the action-reels area. (v1 uses a plain dice readout instead.)
+- **Initiative roll as a scrolling reel-strip per character.** At combat start, each combatant's
+  Initiative d100 should animate as a **small** scrolling reel-strip placed **beside that character's
+  nameplate/panel** (next to HP, Bonus Meter, etc.), not as a single shared roll. This needs a
+  compact, reusable digit reel-strip widget.
+- **WoW-party-frame-style status UI.** Per-character frames showing active buffs/debuffs as **small
+  icons/meters** (so the player reads combat state at a glance without text), with **hover-over
+  tooltips** explaining each effect's impact. Replaces today's single text status line.
+- **Shared need:** a reusable, size-configurable **digit/percentile reel-strip widget** (and a tier
+  reel-strip already exists as `ReelStrip`) — both the STUNNED roll and the per-character Initiative
+  roll consume it. Build that widget when this cycle is picked up.
+
+These are player-facing polish; the underlying logic (initiative percentile, stun d100) already
+exists as data and can drive these visuals when built. Do not build now (YAGNI).
