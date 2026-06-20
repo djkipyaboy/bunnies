@@ -94,18 +94,34 @@ func recompute_initiative() -> void:
 	var total: float = 0.0
 	for e: Effect in active_effects:
 		if e != null and e.kind == Effect.Kind.INITIATIVE_MOD:
-			total += e.magnitude
+			total += e.effective_magnitude()
 	current_initiative = base_initiative + int(roundf(total))
 
 ## Attaches an effect (already a fresh/duplicated instance) and updates the derived sort key.
 func attach_effect(effect: Effect) -> void:
 	if effect == null:
 		return
-	# Defensively duplicate so a shared (.tres-loaded) Effect can never share a live duration
-	# counter across combatants. Safe even for already-fresh EffectLibrary.make() instances.
+	# Merge by id: re-applying an effect already active never creates a second instance (this is
+	# what prevents unbounded additive stacking). A stacking effect adds a stack (diminishing,
+	# capped); a non-stacking one is a no-op on stacks. Either way the duration is refreshed.
+	var existing: Effect = _find_effect(effect.id)
+	if existing != null:
+		existing.add_stack()                 # no-op at cap / for max_stacks == 1
+		existing.duration = effect.duration   # refresh to the incoming duration
+		recompute_initiative()
+		return
+	# New id: defensively duplicate so a shared (.tres-loaded) Effect can't share a live counter
+	# across combatants (safe even for fresh EffectLibrary.make() instances), then append.
 	effect = effect.duplicate()
 	active_effects.append(effect)
 	recompute_initiative()
+
+## Returns the active effect with [param id], or null if none is active.
+func _find_effect(id: StringName) -> Effect:
+	for e: Effect in active_effects:
+		if e != null and e.id == id:
+			return e
+	return null
 
 ## Ticks every active effect one bearer-turn, drops the expired ones, and recomputes initiative.
 func tick_effects() -> void:

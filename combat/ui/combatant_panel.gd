@@ -88,7 +88,8 @@ func refresh_status() -> void:
 		return
 	var parts: PackedStringArray = []
 	for e: Effect in _combatant.active_effects:
-		parts.append("%s %d (%d)" % [String(e.id).to_upper(), int(e.magnitude), e.duration])
+		var stack_txt: String = (" x%d" % e.stacks) if e.stacks > 1 else ""
+		parts.append("%s %d%s (%d)" % [String(e.id).to_upper(), int(e.effective_magnitude()), stack_txt, e.duration])
 	_status_label.text = ", ".join(parts)
 
 ## Updates the Stamina readout (blank when the combatant has no pool). Call from bind()+on_upkeep.

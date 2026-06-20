@@ -101,5 +101,40 @@ func _initialize() -> void:
 	_check(is_equal_approx(flat.effective_magnitude(), -7.0), "non-stacking effective = flat magnitude (got %s)" % str(flat.effective_magnitude()))
 	_check(not flat.add_stack(), "non-stacking add_stack refused (max_stacks 1)")
 
+	# --- attach_effect merges a stacking debuff by id: diminishing, capped, never a 2nd instance ---
+	var sc: Combatant = Combatant.new()
+	sc.base_initiative = 60
+	sc.recompute_initiative()
+	sc.attach_effect(EffectLibrary.make(&"slow"))
+	_check(sc.active_effects.size() == 1 and sc.current_initiative == 40, "1st slow: init 40, 1 effect (init %d, n %d)" % [sc.current_initiative, sc.active_effects.size()])
+	sc.attach_effect(EffectLibrary.make(&"slow"))
+	_check(sc.active_effects.size() == 1 and sc.current_initiative == 30, "2nd slow merges: init 30, still 1 effect (init %d, n %d)" % [sc.current_initiative, sc.active_effects.size()])
+	sc.attach_effect(EffectLibrary.make(&"slow"))
+	_check(sc.current_initiative == 25, "3rd slow: -35 -> init 25 (got %d)" % sc.current_initiative)
+	sc.attach_effect(EffectLibrary.make(&"slow"))
+	_check(sc.current_initiative == 25 and sc.active_effects.size() == 1, "4th slow capped: init 25, 1 effect (init %d)" % sc.current_initiative)
+	_check(sc.active_effects[0].stacks == 3, "merged effect capped at 3 stacks (got %d)" % sc.active_effects[0].stacks)
+
+	# --- re-applying refreshes the duration to the incoming value ---
+	sc.active_effects[0].duration = 1   # simulate one tick elapsed
+	sc.attach_effect(EffectLibrary.make(&"slow"))
+	_check(sc.active_effects[0].duration == 2, "re-apply refreshes duration to 2 (got %d)" % sc.active_effects[0].duration)
+
+	# --- non-stacking effect also merges by id (refresh only, no doubling, no 2nd instance) ---
+	var nc: Combatant = Combatant.new()
+	nc.base_initiative = 50
+	nc.recompute_initiative()
+	var w1: Effect = Effect.new()
+	w1.id = &"weaken"; w1.kind = Effect.Kind.INITIATIVE_MOD; w1.magnitude = -5.0; w1.duration = 2; w1.max_stacks = 1
+	nc.attach_effect(w1)
+	var w2: Effect = Effect.new()
+	w2.id = &"weaken"; w2.kind = Effect.Kind.INITIATIVE_MOD; w2.magnitude = -5.0; w2.duration = 2; w2.max_stacks = 1
+	nc.attach_effect(w2)
+	_check(nc.active_effects.size() == 1 and nc.current_initiative == 45, "non-stacking weaken merges: 1 effect, -5 not -10 (init %d, n %d)" % [nc.current_initiative, nc.active_effects.size()])
+
+	# --- distinct ids attach as separate effects ---
+	nc.attach_effect(EffectLibrary.make(&"slow"))
+	_check(nc.active_effects.size() == 2 and nc.current_initiative == 25, "distinct id (slow) adds a 2nd effect: init 25 (n %d, init %d)" % [nc.active_effects.size(), nc.current_initiative])
+
 	print(("EFFECT TEST PASSED" if _failures == 0 else "EFFECT TEST FAILED: %d" % _failures))
 	quit(_failures)
