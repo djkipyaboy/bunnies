@@ -411,7 +411,7 @@ func _on_paylines_resolved(hits: Array) -> void:
 				var type_mult: float = weapon_type.multiplier_against(_defender.defense_type) if weapon_type != null else 1.0
 				var bonus: int = ceili(_attacker.weapon.base_damage * (float(hit.length) / 3.0) * type_mult)
 				_defender.take_damage(bonus)
-				_log("  ★ CRIT LINE (%d) → %d bonus damage!" % [hit.length, bonus])
+				_log("  ★ CRIT LINE (%d) %s → %d bonus damage!" % [hit.length, _describe_line(hit), bonus])
 				_append_banner("CRIT x%d" % hit.length)
 				if hit.length >= 3:
 					for ally: Combatant in _allies_of(_attacker):
@@ -423,12 +423,12 @@ func _on_paylines_resolved(hits: Array) -> void:
 			ReelFace.ResultTier.SUCCESS:
 				if _attacker.bonus_meter != null:
 					_attacker.bonus_meter.add_flat(1)
-					_log("  SUCCESS LINE → +1 Bonus Meter.")
+					_log("  SUCCESS LINE %s → +1 Bonus Meter." % _describe_line(hit))
 					_append_banner("SUCCESS")
 			ReelFace.ResultTier.NEUTRAL:
 				if _attacker.resource_pool != null:
 					_attacker.resource_pool.refund({&"stamina": 1})
-					_log("  NEUTRAL LINE → refund 1 Stamina.")
+					_log("  NEUTRAL LINE %s → refund 1 Stamina." % _describe_line(hit))
 					(_panels[_attacker] as CombatantPanel).refresh_resources()
 					_append_banner("UTIL")
 		_highlight_payline(hit)
@@ -446,6 +446,15 @@ func _highlight_payline(hit) -> void:
 	for cell: Vector2i in hit.cells:
 		if cell.x >= 0 and cell.x < _strips.size():
 			_strips[cell.x].flash_cell(cell.y)
+
+## Notates a payline's cells for the combat log, e.g. "[R1-top, R2-mid, R3-bot]" (reel#, row).
+## Placeholder for the eventual flashing path-line overlay (slot-machine style).
+func _describe_line(hit) -> String:
+	var row_names: Array[String] = ["top", "mid", "bot"]
+	var parts: PackedStringArray = []
+	for cell: Vector2i in hit.cells:
+		parts.append("R%d-%s" % [cell.x + 1, row_names[cell.y]])
+	return "[" + ", ".join(parts) + "]"
 
 ## Appends a short per-line tag to the payline banner (placeholder feedback).
 func _append_banner(tag: String) -> void:
