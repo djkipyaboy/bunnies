@@ -16,6 +16,8 @@ static func make(id: StringName) -> Effect:
 			e.kind = Effect.Kind.INITIATIVE_MOD
 			e.magnitude = -20.0
 			e.duration = 2
+			e.max_stacks = 3
+			e.stack_magnitudes = [-20.0, -10.0, -5.0]
 			return e
 		_:
 			return null

@@ -80,5 +80,26 @@ func _initialize() -> void:
 	np.on_upkeep()
 	_check(np.resource_pool == null, "on_upkeep no-ops without a pool")
 
+	# --- Stacking model: effective_magnitude by stack count, cap, and EffectLibrary schedule ---
+	var s1: Effect = EffectLibrary.make(&"slow")
+	_check(s1.max_stacks == 3, "slow max_stacks == 3 (got %d)" % s1.max_stacks)
+	_check(s1.stack_magnitudes == [-20.0, -10.0, -5.0], "slow stack schedule (got %s)" % str(s1.stack_magnitudes))
+	_check(s1.stacks == 1, "fresh slow starts at 1 stack (got %d)" % s1.stacks)
+	_check(is_equal_approx(s1.effective_magnitude(), -20.0), "1 stack -> -20 (got %s)" % str(s1.effective_magnitude()))
+	_check(s1.add_stack(), "2nd add_stack succeeds")
+	_check(is_equal_approx(s1.effective_magnitude(), -30.0), "2 stacks -> -30 (got %s)" % str(s1.effective_magnitude()))
+	_check(s1.add_stack(), "3rd add_stack succeeds")
+	_check(is_equal_approx(s1.effective_magnitude(), -35.0), "3 stacks -> -35 (got %s)" % str(s1.effective_magnitude()))
+	_check(not s1.add_stack(), "4th add_stack refused at cap")
+	_check(s1.stacks == 3, "stacks capped at 3 (got %d)" % s1.stacks)
+	_check(is_equal_approx(s1.effective_magnitude(), -35.0), "capped magnitude stays -35 (got %s)" % str(s1.effective_magnitude()))
+
+	# --- Non-stacking effect: effective_magnitude is the flat magnitude; cannot add a stack ---
+	var flat: Effect = Effect.new()
+	flat.kind = Effect.Kind.INITIATIVE_MOD
+	flat.magnitude = -7.0
+	_check(is_equal_approx(flat.effective_magnitude(), -7.0), "non-stacking effective = flat magnitude (got %s)" % str(flat.effective_magnitude()))
+	_check(not flat.add_stack(), "non-stacking add_stack refused (max_stacks 1)")
+
 	print(("EFFECT TEST PASSED" if _failures == 0 else "EFFECT TEST FAILED: %d" % _failures))
 	quit(_failures)
