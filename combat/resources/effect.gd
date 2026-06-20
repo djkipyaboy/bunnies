@@ -22,6 +22,10 @@ enum Kind { INITIATIVE_MOD, DAMAGE_OVER_TIME, MULTIPLIER_EDIT, REEL_FACE_EDIT }
 ## Remaining turns on the bearer. Ticks down in Combatant.on_end(); removed when it hits 0.
 @export var duration: int = 1
 
+## Whether this effect helps its bearer (buff) vs. harms it (debuff). Drives the UI's buff/debuff
+## colour distinction. [ASSUMPTION] data — authored per effect in EffectLibrary.
+@export var beneficial: bool = false
+
 ## How many times this effect can stack on one bearer (1 = non-stacking). [ASSUMPTION] data.
 @export var max_stacks: int = 1
 

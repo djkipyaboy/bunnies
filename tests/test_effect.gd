@@ -136,5 +136,16 @@ func _initialize() -> void:
 	nc.attach_effect(EffectLibrary.make(&"slow"))
 	_check(nc.active_effects.size() == 2 and nc.current_initiative == 25, "distinct id (slow) adds a 2nd effect: init 25 (n %d, init %d)" % [nc.active_effects.size(), nc.current_initiative])
 
+	# --- Effect polarity + Inspirational ---
+	var slow_p: Effect = EffectLibrary.make(&"slow")
+	_check(not slow_p.beneficial, "slow is a debuff (beneficial == false)")
+	var insp: Effect = EffectLibrary.make(&"inspirational")
+	_check(insp != null, "library builds Inspirational")
+	_check(insp.kind == Effect.Kind.INITIATIVE_MOD, "inspirational is INITIATIVE_MOD")
+	_check(is_equal_approx(insp.magnitude, 5.0), "inspirational +5 init (got %s)" % str(insp.magnitude))
+	_check(insp.duration == 2, "inspirational duration 2 (got %d)" % insp.duration)
+	_check(insp.max_stacks == 1, "inspirational non-stacking (got %d)" % insp.max_stacks)
+	_check(insp.beneficial, "inspirational is a buff (beneficial == true)")
+
 	print(("EFFECT TEST PASSED" if _failures == 0 else "EFFECT TEST FAILED: %d" % _failures))
 	quit(_failures)

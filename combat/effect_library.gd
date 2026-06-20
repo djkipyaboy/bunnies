@@ -18,6 +18,16 @@ static func make(id: StringName) -> Effect:
 			e.duration = 2
 			e.max_stacks = 3
 			e.stack_magnitudes = [-20.0, -10.0, -5.0]
+			e.beneficial = false
+			return e
+		&"inspirational":
+			var e: Effect = Effect.new()
+			e.id = &"inspirational"
+			e.kind = Effect.Kind.INITIATIVE_MOD
+			e.magnitude = 5.0
+			e.duration = 2
+			e.max_stacks = 1
+			e.beneficial = true
 			return e
 		_:
 			return null

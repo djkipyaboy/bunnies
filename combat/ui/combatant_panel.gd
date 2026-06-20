@@ -9,7 +9,7 @@ var _hp_bar: ProgressBar
 var _hp_label: Label
 var _meter_caption: Label
 var _meter_bar: ProgressBar
-var _status_label: Label
+var _status_label: RichTextLabel
 var _stamina_label: Label
 var _combatant: Combatant
 var _meter_flash_tween: Tween
@@ -50,8 +50,11 @@ func _ready() -> void:
 	_stamina_label.add_theme_color_override("font_color", Color(0.5, 0.8, 0.9))
 	box.add_child(_stamina_label)
 
-	_status_label = Label.new()
-	_status_label.add_theme_color_override("font_color", Color(0.9, 0.5, 0.2))
+	_status_label = RichTextLabel.new()
+	_status_label.bbcode_enabled = true
+	_status_label.fit_content = true
+	_status_label.scroll_active = false
+	_status_label.custom_minimum_size = Vector2(240, 20)
 	box.add_child(_status_label)
 
 ## Binds this panel to [param c] and wires its signals.
@@ -88,9 +91,10 @@ func refresh_status() -> void:
 		return
 	var parts: PackedStringArray = []
 	for e: Effect in _combatant.active_effects:
+		var colour: String = "#5fd35f" if e.beneficial else "#e08030"  # buff green / debuff orange
 		var stack_txt: String = (" x%d" % e.stacks) if e.stacks > 1 else ""
-		parts.append("%s %d%s (%d)" % [String(e.id).to_upper(), int(e.effective_magnitude()), stack_txt, e.duration])
-	_status_label.text = ", ".join(parts)
+		parts.append("[color=%s]%s %d%s (%d)[/color]" % [colour, String(e.id).to_upper(), int(e.effective_magnitude()), stack_txt, e.duration])
+	_status_label.text = "  ".join(parts)
 
 ## Updates the Stamina readout (blank when the combatant has no pool). Call from bind()+on_upkeep.
 func refresh_resources() -> void:
