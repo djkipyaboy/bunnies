@@ -49,6 +49,11 @@ func roll_initiative() -> void:
 		c.recompute_initiative()
 		initiative_rolled.emit(c, value)
 
+## Rolls a fresh d100 (percentile, 00=100, range 1–100) from the shared Initiative reels — used by
+## the STUNNED "shake off" gate. (DESIGN spec 2026-06-20.)
+func roll_d100() -> int:
+	return InitiativeReel.roll_percentile(_initiative_tens, _initiative_ones)
+
 ## Returns combatants sorted for turn order: current_initiative desc, ties broken by Finesse desc,
 ## then by the stored d10 tiebreak_roll desc (DESIGN.md §4.1; Finesse stat 2026-06-20).
 func get_turn_order() -> Array[Combatant]:

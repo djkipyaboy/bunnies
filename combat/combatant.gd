@@ -77,6 +77,11 @@ var turn_reels: Array[ActionReel] = []
 var sticky_wild_count: int = 0
 var sticky_wild_spins_remaining: int = 0
 
+## STUNNED is a per-turn condition (NOT a duration Effect): set at turn start when current_initiative
+## is below the threshold and the combatant wasn't STUNNED last turn (anti-lock). DESIGN spec 2026-06-20.
+var stunned_this_turn: bool = false
+var stunned_last_turn: bool = false
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -195,9 +200,23 @@ func on_upkeep() -> void:
 		resource_pool.regen()
 	recompute_initiative()
 
-## End-of-turn bookkeeping: tick effect durations (Slow counts down here — DESIGN.md §4.8).
+## End-of-turn bookkeeping: tick effect durations (Slow counts down here — DESIGN.md §4.8), then
+## carry the STUNNED flag forward for the anti-lock (this turn's stun becomes last turn's immunity).
 func on_end() -> void:
 	tick_effects()
+	stunned_last_turn = stunned_this_turn
+	stunned_this_turn = false
+
+## Recomputes STUNNED for this turn: stunned when current_initiative < [param threshold] AND not
+## immune (immune = STUNNED last turn — the anti-lock that prevents a permanent lockout). Returns
+## the new stunned_this_turn. Call at turn start, after on_upkeep has recomputed initiative.
+func evaluate_stun(threshold: int) -> bool:
+	stunned_this_turn = current_initiative < threshold and not stunned_last_turn
+	return stunned_this_turn
+
+## The d100 "shake off" gate: a roll of 51+ recovers (takes the turn); 01–50 loses the turn.
+static func stun_check_passed(roll: int) -> bool:
+	return roll >= 51
 
 # ---------------------------------------------------------------------------
 # Sticky-Wild Ultimate (DESIGN.md §4.9) — costs ONLY the Bonus Meter
