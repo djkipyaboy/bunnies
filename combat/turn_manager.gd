@@ -44,15 +44,23 @@ var _turn_index: int = 0
 func roll_initiative() -> void:
 	for c: Combatant in combatants:
 		var value: int = InitiativeReel.roll_percentile(_initiative_tens, _initiative_ones)
-		c.base_initiative = value
+		c.base_initiative = value + c.effective_stats().finesse
+		c.tiebreak_roll = _initiative_tens.spin().digit  # stored d10 final tie-break (a spin, not randf)
 		c.recompute_initiative()
 		initiative_rolled.emit(c, value)
 
-## Returns combatants sorted by current_initiative, descending (the turn order).
+## Returns combatants sorted for turn order: current_initiative desc, ties broken by Finesse desc,
+## then by the stored d10 tiebreak_roll desc (DESIGN.md §4.1; Finesse stat 2026-06-20).
 func get_turn_order() -> Array[Combatant]:
 	var ordered: Array[Combatant] = combatants.duplicate()
 	ordered.sort_custom(func(a: Combatant, b: Combatant) -> bool:
-		return a.current_initiative > b.current_initiative)
+		if a.current_initiative != b.current_initiative:
+			return a.current_initiative > b.current_initiative
+		var fa: int = a.effective_stats().finesse
+		var fb: int = b.effective_stats().finesse
+		if fa != fb:
+			return fa > fb
+		return a.tiebreak_roll > b.tiebreak_roll)
 	return ordered
 
 # ---------------------------------------------------------------------------
