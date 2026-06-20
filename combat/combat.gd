@@ -9,6 +9,7 @@ extends Control
 
 const STRIP_STAGGER: float = 0.25
 const ENEMY_THINK_DELAY: float = 0.6
+const STUN_THRESHOLD: int = -20   # [ASSUMPTION] start-of-turn initiative below this → STUNNED
 
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
@@ -41,6 +42,7 @@ var _attacker: Combatant
 var _defender: Combatant
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
+var _awaiting_stun_check: bool = false
 var _pending_strips: int = 0
 
 func _ready() -> void:
@@ -311,6 +313,22 @@ func _on_turn_started(c: Combatant) -> void:
 	_plan = MainPhasePlan.new(c, _storm_type, 2, 5, 0, 2)  # [ASSUMPTION] splice cost 2, reel cap 5; Ultimate wilds ALL weapon reels for 2 spins
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
 	_end_turn_button.disabled = true
+	(_panels[c] as CombatantPanel).refresh_status()  # show/clear STUNNED tag
+	if c.evaluate_stun(STUN_THRESHOLD):
+		# STUNNED — gate the turn behind a d100 "shake off" check.
+		_awaiting_stun_check = true
+		_awaiting_player_spin = false
+		_splice_button.disabled = true
+		_ultimate_button.disabled = true
+		_prepare_strips(c.turn_reels)  # show the reels (idle) behind the gate
+		_log("  %s is STUNNED — %s a shake-off roll." % [c.display_name, "press SPIN for" if c.is_player else "rolling"])
+		if c.is_player:
+			_spin_button.disabled = false  # SPIN rolls the stun check (not an attack)
+		else:
+			_spin_button.disabled = true
+			get_tree().create_timer(ENEMY_THINK_DELAY).timeout.connect(_resolve_stun_check, CONNECT_ONE_SHOT)
+		return
+	# Not stunned — normal turn.
 	if c.is_player:
 		_awaiting_player_spin = true
 		_spin_button.disabled = false
@@ -334,6 +352,9 @@ func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 
 func _on_spin_pressed() -> void:
+	if _awaiting_stun_check:
+		_resolve_stun_check()
+		return
 	if not _awaiting_player_spin:
 		return
 	_awaiting_player_spin = false
@@ -350,6 +371,28 @@ func _on_spin_pressed() -> void:
 	# list. _do_spin spins _strips directly.
 	_phase_manager.proceed_to_combat()     # commit Main 1 → enter Combat
 	_do_spin()
+
+## Resolves the STUNNED shake-off gate: roll d100; 01–50 loses the turn, 51–100 recovers to a full
+## normal turn. v1 shows a plain dice readout (scrolling-reel version is future — ARCHITECTURE §9).
+func _resolve_stun_check() -> void:
+	_awaiting_stun_check = false
+	_spin_button.disabled = true
+	var roll: int = _turn_manager.roll_d100()
+	if Combatant.stun_check_passed(roll):
+		_log("  %s shook off the stun (rolled %d) — free to act!" % [_attacker.display_name, roll])
+		_payline_banner.text = "STUN CHECK %d → SHAKE OFF" % roll
+		# Recover into a normal turn (stunned_this_turn stays true only as the anti-lock record).
+		if _attacker.is_player:
+			_awaiting_player_spin = true
+			_spin_button.disabled = false
+		else:
+			get_tree().create_timer(ENEMY_THINK_DELAY).timeout.connect(_do_spin, CONNECT_ONE_SHOT)
+		_refresh_main1_preview()
+	else:
+		_log("  %s is STUNNED (rolled %d) — loses the turn!" % [_attacker.display_name, roll])
+		_payline_banner.text = "STUN CHECK %d → TURN LOST" % roll
+		# Lose the turn: skip Combat, run Main 2 → End → advance. (No proceed_to_combat.)
+		_phase_manager.resume_after_combat()
 
 ## Stages/un-stages the Storm splice (toggle). Applies nothing — commit happens on SPIN.
 func _on_splice_pressed() -> void:

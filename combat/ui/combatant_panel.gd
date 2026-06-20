@@ -107,6 +107,8 @@ func refresh_status() -> void:
 		var colour: String = "#5fd35f" if e.beneficial else "#e08030"  # buff green / debuff orange
 		var stack_txt: String = (" x%d" % e.stacks) if e.stacks > 1 else ""
 		parts.append("[color=%s]%s %d%s (%d)[/color]" % [colour, String(e.id).to_upper(), int(e.effective_magnitude()), stack_txt, e.duration])
+	if _combatant.stunned_this_turn:
+		parts.insert(0, "[color=#e0e040]STUNNED[/color]")
 	_status_label.text = "  ".join(parts)
 
 ## Updates the Stamina readout (blank when the combatant has no pool). Call from bind()+on_upkeep.
