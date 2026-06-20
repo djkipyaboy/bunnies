@@ -61,7 +61,7 @@ signal paylines_resolved(hits: Array)
 ## using [param base_damage] as the weapon base. Returns the per-reel [AttackResult]s and emits
 ## [signal spin_started] → [signal damage_applied] (per reel) → [signal meter_charged] →
 ## [signal spin_resolved].
-func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = [], weapon_reel_count: int = -1, extra_lines: Array = []) -> Array[AttackResult]:
+func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = [], weapon_reel_count: int = -1, flat_damage_bonus: int = 0, extra_lines: Array = []) -> Array[AttackResult]:
 	spin_started.emit()
 
 	var attacks: Array[AttackResult] = []
@@ -69,7 +69,7 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 
 	for i: int in range(reels.size()):
 		var is_wild: bool = i in wild_reel_indices
-		var attack: AttackResult = _resolve_single(reels[i], base_damage, target_type, is_wild)
+		var attack: AttackResult = _resolve_single(reels[i], base_damage, target_type, is_wild, flat_damage_bonus)
 		total_meter += attack.meter_gain
 		attacks.append(attack)
 		damage_applied.emit(attack)
@@ -91,7 +91,7 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 # ---------------------------------------------------------------------------
 
 ## Resolves one reel into an [AttackResult]: spin → damage (multiplier × type chart) → meter.
-func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageType, is_wild: bool = false) -> AttackResult:
+func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageType, is_wild: bool = false, flat_damage_bonus: int = 0) -> AttackResult:
 	var face: ReelFace
 	var index: int
 	if is_wild:
@@ -112,7 +112,7 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 		if face.deals_damage():
 			var raw: float = base_damage * face.multiplier
 			var type_mult: float = reel.damage_type.multiplier_against(target_type) if reel.damage_type != null else 1.0
-			attack.final_damage = ceili(raw * type_mult)  # round UP (project convention)
+			attack.final_damage = ceili(raw * type_mult) + flat_damage_bonus  # round UP (project convention)
 		attack.meter_gain = _meter_gain_for(face.result_tier)
 		# Crit-success of a type that carries an inherent rider (Crushing -> Slow) reports it.
 		# The resolver only REPORTS; the orchestrator attaches the Effect (ARCHITECTURE §2).
