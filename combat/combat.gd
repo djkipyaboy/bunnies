@@ -225,16 +225,20 @@ func _build_overlay() -> void:
 	_overlay.visible = false
 	add_child(_overlay)
 
+	# Centered, symmetric contents: title spans the card width (centered), button centered below it.
 	var result_label := Label.new()
 	result_label.name = "ResultLabel"
-	result_label.position = Vector2(40, 48)
+	result_label.position = Vector2(0, 44)
+	result_label.size = Vector2(OVERLAY_SIZE.x, 60)
+	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	result_label.add_theme_font_size_override("font_size", 48)
 	_overlay.add_child(result_label)
 
+	const RESTART_SIZE := Vector2(180, 56)
 	var restart := Button.new()
 	restart.text = "Fight again"
-	restart.position = Vector2(120, 124)
-	restart.custom_minimum_size = Vector2(180, 56)
+	restart.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 120)
+	restart.custom_minimum_size = RESTART_SIZE
 	restart.pressed.connect(func() -> void: get_tree().reload_current_scene())
 	_overlay.add_child(restart)
 

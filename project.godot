@@ -13,3 +13,8 @@ config_version=5
 config/name="Bunnies"
 run/main_scene="res://combat/combat.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=800
