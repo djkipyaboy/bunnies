@@ -71,9 +71,10 @@ var active_effects: Array[Effect] = []
 ## edit ADDITIVELY (DESIGN.md §8 "resolved set of reels"). Reset each turn by [method begin_turn].
 var turn_reels: Array[ActionReel] = []
 
-## Sticky-Wild Ultimate state (DESIGN.md §4.9). sticky_wild_reel = the reel forced to crit-success;
-## -1 = none. sticky_wild_spins_remaining counts the spins the wild still applies for.
-var sticky_wild_reel: int = -1
+## Sticky-Wild Ultimate state (DESIGN.md §4.9). sticky_wild_count = how many LEADING reels are
+## forced to crit-success (the weapon reels — splices are excluded by passing only the weapon count
+## at fire time); 0 = none. sticky_wild_spins_remaining counts the spins the wild still applies for.
+var sticky_wild_count: int = 0
 var sticky_wild_spins_remaining: int = 0
 
 # ---------------------------------------------------------------------------
@@ -203,24 +204,28 @@ func on_end() -> void:
 # ---------------------------------------------------------------------------
 
 ## Fires the Sticky-Wild Ultimate if the meter is armed: consumes the full meter and forces the
-## designated reel to land crit-success for the next [param spins] spins. Returns false if not armed.
-func fire_sticky_wild(reel_index: int, spins: int) -> bool:
+## first [param reel_count] reels to land crit-success for the next [param spins] spins. Pass the
+## WEAPON reel count so spliced/ability reels stay normal. Returns false if not armed.
+func fire_sticky_wild(reel_count: int, spins: int) -> bool:
 	if bonus_meter == null or not bonus_meter.is_armed():
 		return false
 	bonus_meter.consume()
-	sticky_wild_reel = reel_index
+	sticky_wild_count = reel_count
 	sticky_wild_spins_remaining = spins
 	return true
 
-## The reels currently forced to crit-success (for the resolver). Empty when no wild is active.
+## The reels currently forced to crit-success (for the resolver): [0, 1, …, sticky_wild_count-1]
+## while a wild is active. Empty when no wild is active.
 func wild_reel_indices() -> Array[int]:
-	if sticky_wild_spins_remaining > 0 and sticky_wild_reel >= 0:
-		return [sticky_wild_reel]
-	return []
+	var out: Array[int] = []
+	if sticky_wild_spins_remaining > 0 and sticky_wild_count > 0:
+		for i: int in range(sticky_wild_count):
+			out.append(i)
+	return out
 
 ## Consumes one sticky-wild spin; clears the wild when exhausted. Call once per resolved spin.
 func consume_wild_spin() -> void:
 	if sticky_wild_spins_remaining > 0:
 		sticky_wild_spins_remaining -= 1
 		if sticky_wild_spins_remaining == 0:
-			sticky_wild_reel = -1
+			sticky_wild_count = 0

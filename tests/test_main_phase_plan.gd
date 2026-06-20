@@ -80,15 +80,15 @@ func _initialize() -> void:
 	plan_armed.toggle_ultimate()
 	_check(plan_armed.fire_ultimate_staged, "ultimate staged when meter armed")
 	_check(plan_armed.will_consume_meter(), "will_consume_meter true when ultimate staged")
-	_check(plan_armed.effective_wild_indices() == [0], "staged fire -> wild [0] (got %s)" % str(plan_armed.effective_wild_indices()))
+	_check(plan_armed.effective_wild_indices() == [0, 1, 2], "staged fire -> all weapon reels wild [0,1,2] (got %s)" % str(plan_armed.effective_wild_indices()))
 	_check(armed.bonus_meter.value == 10, "PREVIEW DID NOT CONSUME the meter (got %d)" % armed.bonus_meter.value)
 
 	# --- effective_wild_indices reflects carryover even with nothing staged ---
 	var carry: Combatant = _mk_pc(3, 10)
-	carry.fire_sticky_wild(0, 2)  # simulate a prior-turn commit; meter now 0, reel 0 wild
+	carry.fire_sticky_wild(carry.weapon.reels.size(), 2)  # simulate a prior-turn commit; meter 0, all reels wild
 	var plan_carry: MainPhasePlan = MainPhasePlan.new(carry, storm, 2, 5, 0, 2)
 	_check(not plan_carry.fire_ultimate_staged, "carryover: nothing staged this turn")
-	_check(plan_carry.effective_wild_indices() == [0], "carryover wild surfaces in preview (got %s)" % str(plan_carry.effective_wild_indices()))
+	_check(plan_carry.effective_wild_indices() == [0, 1, 2], "carryover wild surfaces in preview (got %s)" % str(plan_carry.effective_wild_indices()))
 
 	# --- commit: splice spends + appends ---
 	var cs: Combatant = _mk_pc(3, 0)
@@ -104,7 +104,7 @@ func _initialize() -> void:
 	pcf.toggle_ultimate()
 	pcf.commit()
 	_check(cf.bonus_meter.value == 0, "commit fire consumed the meter (got %d)" % cf.bonus_meter.value)
-	_check(cf.wild_reel_indices() == [0], "commit fire armed reel 0 (got %s)" % str(cf.wild_reel_indices()))
+	_check(cf.wild_reel_indices() == [0, 1, 2], "commit fire armed all weapon reels (got %s)" % str(cf.wild_reel_indices()))
 	_check(cf.resource_pool.stamina == 4, "commit fire did NOT spend stamina (got %d)" % cf.resource_pool.stamina)
 
 	# --- commit: nothing staged is a no-op ---

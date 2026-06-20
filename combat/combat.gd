@@ -17,6 +17,9 @@ var _phase_manager: PhaseManager
 var _pc: Combatant
 var _enemy: Combatant
 var _panels: Dictionary = {}     # Combatant -> CombatantPanel
+var _pc_panel: CombatantPanel
+var _enemy_panel: CombatantPanel
+var _log_bg: Panel
 
 var _turn_order_bar: TurnOrderBar
 var _phase_label: Label
@@ -46,6 +49,9 @@ func _ready() -> void:
 	_build_ui()
 	_bind_signals()
 	_start_combat()
+	# Reposition the action-reels block below the (now-built+bound) panels' real height. Deferred so
+	# the panels' size has settled first — runs after this frame's layout pass.
+	_relayout_action_block.call_deferred()
 
 # ---------------------------------------------------------------------------
 # Scenario (placeholder content + balance — all [ASSUMPTION])
@@ -98,7 +104,7 @@ func _make_combatant(name: String, is_player: bool, max_hp: int, defense: Damage
 	c.base_max_hp = max_hp
 	c.base_meter_floor = 3
 	var meter: BonusMeter = BonusMeter.new()
-	meter.cap = 10
+	meter.cap = 15      # [ASSUMPTION] Ultimate cost — full meter (raised from 10; tune by playtest).
 	meter.is_visible = meter_visible
 	c.bonus_meter = meter
 	# [ASSUMPTION] Stamina economy — only the player uses Main-1 actions in the prototype.
@@ -128,15 +134,15 @@ func _build_ui() -> void:
 	_turn_order_bar.position = Vector2(126, 12)
 	add_child(_turn_order_bar)
 
-	var pc_panel := CombatantPanel.new()
-	pc_panel.position = Vector2(40, 70)
-	add_child(pc_panel)
-	_panels[_pc] = pc_panel
+	_pc_panel = CombatantPanel.new()
+	_pc_panel.position = Vector2(40, 70)
+	add_child(_pc_panel)
+	_panels[_pc] = _pc_panel
 
-	var enemy_panel := CombatantPanel.new()
-	enemy_panel.position = Vector2(852, 70)
-	add_child(enemy_panel)
-	_panels[_enemy] = enemy_panel
+	_enemy_panel = CombatantPanel.new()
+	_enemy_panel.position = Vector2(852, 70)
+	add_child(_enemy_panel)
+	_panels[_enemy] = _enemy_panel
 
 	# Action-reels block sits below the combatant panels (which grew taller with the Stamina/effect
 	# lines); moved down so the panel's Stamina readout no longer overlaps this caption.
@@ -161,10 +167,10 @@ func _build_ui() -> void:
 	add_child(_phase_label)
 
 	# Scrollable combat log — keeps the full history; scroll back to the start of the fight.
-	var log_bg := Panel.new()
-	log_bg.position = Vector2(40, 500)
-	log_bg.size = Vector2(820, 134)
-	add_child(log_bg)
+	_log_bg = Panel.new()
+	_log_bg.position = Vector2(40, 500)
+	_log_bg.size = Vector2(820, 134)
+	add_child(_log_bg)
 
 	_log_box = RichTextLabel.new()
 	_log_box.bbcode_enabled = false
@@ -208,24 +214,57 @@ func _build_ui() -> void:
 	(_panels[_enemy] as CombatantPanel).bind(_enemy)
 
 func _build_overlay() -> void:
+	# Centered result card (NOT a full-screen cover) so the combat log stays readable after the fight.
+	const OVERLAY_SIZE := Vector2(420, 200)
 	_overlay = Panel.new()
-	_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_overlay.modulate = Color(1, 1, 1, 0.92)
+	_overlay.size = OVERLAY_SIZE
+	var viewport: Vector2 = get_viewport_rect().size
+	_overlay.position = (viewport - OVERLAY_SIZE) * 0.5
 	_overlay.visible = false
 	add_child(_overlay)
 
 	var result_label := Label.new()
 	result_label.name = "ResultLabel"
-	result_label.position = Vector2(480, 280)
+	result_label.position = Vector2(40, 48)
 	result_label.add_theme_font_size_override("font_size", 48)
 	_overlay.add_child(result_label)
 
 	var restart := Button.new()
 	restart.text = "Fight again"
-	restart.position = Vector2(500, 360)
+	restart.position = Vector2(120, 124)
 	restart.custom_minimum_size = Vector2(180, 56)
 	restart.pressed.connect(func() -> void: get_tree().reload_current_scene())
 	_overlay.add_child(restart)
+
+## Repositions the whole action-reels block (banner → caption → strips → phase → log) BELOW the
+## actual measured panel height, so it can never overlap the panels again when they grow more rows.
+## Driven off the live panel size (not a hard-coded Y), so it's self-correcting. Deferred + awaited so
+## the panels' [member Control.size] has settled from their own [code]_ready[/code] layout pass.
+func _relayout_action_block() -> void:
+	await get_tree().process_frame
+	if _pc_panel == null or _enemy_panel == null:
+		return
+
+	var panel_bottom: float = maxf(
+		_pc_panel.position.y + _pc_panel.size.y,
+		_enemy_panel.position.y + _enemy_panel.size.y) + 12.0
+
+	_payline_banner.position.y = panel_bottom
+	_strips_caption.position.y = panel_bottom + 24.0
+	_strips_box.position.y = panel_bottom + 48.0
+
+	# Strip height = ReelStrip.CELL_HEIGHT * ReelStrip.VISIBLE_CELLS (64 * 3 = 192).
+	var strip_height: float = ReelStrip.CELL_HEIGHT * float(ReelStrip.VISIBLE_CELLS)
+	_phase_label.position.y = _strips_box.position.y + strip_height + 6.0
+
+	# Log panel + box just below the phase label; clamp the height so its bottom stays on-screen.
+	var log_top: float = _phase_label.position.y + 22.0
+	var viewport_h: float = get_viewport_rect().size.y
+	var log_height: float = maxf(80.0, (viewport_h - 14.0) - log_top)
+	_log_bg.position.y = log_top
+	_log_bg.size.y = log_height
+	_log_box.position.y = log_top + 6.0
+	_log_box.size.y = maxf(10.0, log_height - 12.0)
 
 # ---------------------------------------------------------------------------
 # Wiring
@@ -269,7 +308,7 @@ func _on_turn_started(c: Combatant) -> void:
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
-	_plan = MainPhasePlan.new(c, _storm_type, 2, 5, 0, 2)  # [ASSUMPTION] cost 2, cap 5, wild reel 0, 2 spins
+	_plan = MainPhasePlan.new(c, _storm_type, 2, 5, 0, 2)  # [ASSUMPTION] splice cost 2, reel cap 5; Ultimate wilds ALL weapon reels for 2 spins
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
 	_end_turn_button.disabled = true
 	if c.is_player:
@@ -512,6 +551,7 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	var label: Label = _overlay.get_node("ResultLabel")
 	label.text = "VICTORY!" if winner_is_player else "DEFEAT"
 	_log("Combat over — %s wins." % ("you" if winner_is_player else "the enemy"))
+	move_child(_overlay, get_child_count() - 1)  # ensure the result card draws over everything
 	_overlay.visible = true
 
 # ---------------------------------------------------------------------------

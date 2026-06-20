@@ -68,11 +68,22 @@ func will_consume_meter() -> bool:
 	return fire_ultimate_staged
 
 ## The reels that WOULD be wild at spin: already-active carryover wild unioned with a staged fire.
+## A staged fire turns ALL weapon reels wild (splices excluded), so the preview shows the leading
+## [0 … weapon_reel_count-1] band.
 func effective_wild_indices() -> Array[int]:
 	var out: Array[int] = combatant.wild_reel_indices().duplicate()
-	if fire_ultimate_staged and not (wild_reel in out):
-		out.append(wild_reel)
+	if fire_ultimate_staged:
+		for i: int in range(_weapon_reel_count()):
+			if not (i in out):
+				out.append(i)
+		out.sort()
 	return out
+
+## How many WEAPON reels the Ultimate would make wild (splices/ability reels excluded).
+func _weapon_reel_count() -> int:
+	if combatant == null or combatant.weapon == null:
+		return 0
+	return combatant.weapon.reels.size()
 
 ## Applies the staged choices via the committed Combatant methods. Called once, on SPIN. The methods
 ## carry their own guards; staging already validated, so they succeed. No-op when nothing is staged.
@@ -80,4 +91,4 @@ func commit() -> void:
 	if splice_staged:
 		combatant.try_splice_reel(splice_type, combatant.weapon.base_damage, splice_cost, reel_cap)
 	if fire_ultimate_staged:
-		combatant.fire_sticky_wild(wild_reel, wild_spins)
+		combatant.fire_sticky_wild(_weapon_reel_count(), wild_spins)

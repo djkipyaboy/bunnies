@@ -161,15 +161,16 @@ Spent in Main 1; FULLY INDEPENDENT of `BonusMeter`. Stamina only for the prototy
   `resource_pool: ResourcePool` (Stamina, prototype-seeded 3/5 +1/round for the player)
 - live: `hp`, `base_initiative`, `current_initiative` — the turn-order sort key, now **derived** via
   `recompute_initiative()` (`base_initiative` + active `INITIATIVE_MOD` magnitudes); `active_effects: Array[Effect]`
-- live (per turn): `turn_reels`, `sticky_wild_reel`, `sticky_wild_spins_remaining`
+- live (per turn): `turn_reels`, `sticky_wild_count`, `sticky_wild_spins_remaining`
 - **signals:** `hp_changed(hp, max_hp)`, `defeated`
 - `start_combat()` (seed hp), `take_damage(amount)` (clamps at 0, fires `defeated` once), `is_alive()`
 - effects: `attach_effect()` (duplicates defensively), `tick_effects()`, `recompute_initiative()`,
   phase hooks `on_upkeep()` (regen pool, tick) / `on_end()`
 - reel loadout: `begin_turn()` (copies `weapon.reels` into `turn_reels`),
   `try_splice_reel(type, base_damage, cost, cap)` (additive, spends Stamina, 5-reel cap)
-- ultimate: `fire_sticky_wild(reel_index, spins)` (requires armed meter; consumes it — costs ONLY the
-  meter), `wild_reel_indices()`, `consume_wild_spin()`
+- ultimate: `fire_sticky_wild(reel_count, spins)` (requires armed meter; consumes it — costs ONLY the
+  meter; wilds the first `reel_count` reels = ALL weapon reels, splices excluded),
+  `wild_reel_indices()` → `[0 … count-1]`, `consume_wild_spin()`
 
 ### `BonusMeter` — `combat/bonus_meter.gd` (extends RefCounted) — DESIGN §4.9
 - `cap` (10), `floor` (per-class carryover), `charge_weights: Array[int]`, `is_visible`, `value`
