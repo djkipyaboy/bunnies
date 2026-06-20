@@ -37,6 +37,17 @@ var bonus_meter: BonusMeter
 ## Stamina/Focus/Mana spent in Main 1 (DESIGN.md §10 Dec 6). Null = no resource economy.
 var resource_pool: ResourcePool
 
+## Base (innate) stats from race/class. Gear adds on top — see [method effective_stats].
+var base_stats: Stats
+
+## Equipped items contributing stat bonuses (DESIGN.md A7).
+var gear: Array[Gear] = []
+
+## Pre-stat seeds; the live max_hp / pool max / meter floor are DERIVED in [method apply_stats].
+var base_max_hp: int = 1
+var base_max_stamina: int = 0
+var base_meter_floor: int = 0
+
 # ---------------------------------------------------------------------------
 # Live state
 # ---------------------------------------------------------------------------
@@ -49,6 +60,9 @@ var current_initiative: int = 0
 
 ## The raw rolled Initiative (TurnManager.roll_initiative). current_initiative builds on this.
 var base_initiative: int = 0
+
+## Final initiative tie-break — a stored d10 reel roll set in TurnManager.roll_initiative.
+var tiebreak_roll: int = 0
 
 ## Active buffs/debuffs/riders (DESIGN.md §4.1, A4). Ticked in [method on_end]; own copies (duplicated).
 var active_effects: Array[Effect] = []
@@ -84,6 +98,27 @@ func take_damage(amount: int) -> void:
 ## True while this combatant still has HP.
 func is_alive() -> bool:
 	return hp > 0
+
+## Effective stats = base_stats + every equipped gear's stat_bonuses (null-safe → zeroes).
+func effective_stats() -> Stats:
+	var s: Stats = Stats.new()
+	if base_stats != null:
+		s = s.plus(base_stats)
+	for g: Gear in gear:
+		if g != null:
+			s = s.plus(g.stat_bonuses)
+	return s
+
+## Recomputes the stat-derived values (max HP / pool max / meter floor). Call at setup AFTER gear is
+## equipped and BEFORE start_combat(). [ASSUMPTION] flat 1:1 mappings.
+func apply_stats() -> void:
+	var s: Stats = effective_stats()
+	max_hp = base_max_hp + s.vigor
+	if resource_pool != null:
+		resource_pool.max_stamina = base_max_stamina + s.focus
+		resource_pool.stamina = mini(resource_pool.stamina, resource_pool.max_stamina)
+	if bonus_meter != null:
+		bonus_meter.floor = base_meter_floor + s.grit
 
 # ---------------------------------------------------------------------------
 # Effects & turn-order
