@@ -51,7 +51,7 @@ func _on_turn_started(c: Combatant) -> void:
 	var defender: Combatant = _enemy if c == _pc else _pc
 	c.on_upkeep()
 	c.begin_turn()
-	var attacks: Array = _resolver.resolve_combat_phase(c.turn_reels, c.weapon.base_damage, defender.defense_type, c.wild_reel_indices(), c.weapon.reels.size())
+	var attacks: Array = _resolver.resolve_combat_phase(c.turn_reels, c.weapon.base_damage, defender.defense_type, c.wild_reel_indices(), c.weapon.reels.size(), c.effective_stats().might)
 	c.consume_wild_spin()
 	for a in attacks:
 		defender.take_damage(a.final_damage)

@@ -11,21 +11,26 @@ var _meter_caption: Label
 var _meter_bar: ProgressBar
 var _status_label: RichTextLabel
 var _stamina_label: Label
+var _stats_label: Label
 var _combatant: Combatant
 var _meter_flash_tween: Tween
 
 func _ready() -> void:
 	# Tall enough to contain all rows (name, HP bar+text, Bonus Meter, Stamina, status effects)
 	# without spilling onto the Action-reels caption positioned below the panel.
-	custom_minimum_size = Vector2(260, 172)
+	custom_minimum_size = Vector2(260, 192)
 	size = custom_minimum_size
 	var box := VBoxContainer.new()
 	box.position = Vector2(10, 8)
-	box.custom_minimum_size = Vector2(240, 156)
+	box.custom_minimum_size = Vector2(240, 176)
 	add_child(box)
 
 	_name_label = Label.new()
 	box.add_child(_name_label)
+
+	_stats_label = Label.new()
+	_stats_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.7))
+	box.add_child(_stats_label)
 
 	_hp_bar = ProgressBar.new()
 	_hp_bar.show_percentage = false
@@ -78,6 +83,14 @@ func bind(c: Combatant) -> void:
 	if c.resource_pool != null:
 		c.resource_pool.pool_changed.connect(_on_pool_changed)
 	refresh_resources()
+	_refresh_stats()
+
+## Refreshes the effective-stats readout (placeholder; feel judged in play-test).
+func _refresh_stats() -> void:
+	if _stats_label == null or _combatant == null:
+		return
+	var s: Stats = _combatant.effective_stats()
+	_stats_label.text = "MGT %d  FIN %d  VIG %d  FOC %d  GRT %d" % [s.might, s.finesse, s.vigor, s.focus, s.grit]
 
 ## Refreshes the initiative shown in the name (after an initiative roll).
 func refresh_initiative() -> void:

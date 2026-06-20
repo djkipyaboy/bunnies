@@ -65,11 +65,20 @@ func _build_scenario() -> void:
 	_phase_manager = PhaseManager.new()
 	add_child(_phase_manager)
 
-	# Player: Slashing weapon (3 reels), defends as Slashing. Visible Bonus Meter.
-	_pc = _make_combatant("Martin (Mouse)", true, 100, slashing, _make_weapon(10.0, slashing, 3), true)
+	# [ASSUMPTION] starter armor: Might 3 (noticeable +3/hit), Finesse 2 (wins the init tie vs the rat).
+	var jerkin_stats: Stats = Stats.new()
+	jerkin_stats.might = 3
+	jerkin_stats.finesse = 2
+	var jerkin: Gear = Gear.new()
+	jerkin.display_name = "Padded Jerkin"
+	jerkin.slot = Gear.Slot.ARMOR
+	jerkin.stat_bonuses = jerkin_stats
+
+	# Player: Slashing weapon (3 reels), defends as Slashing. Visible Bonus Meter. Wears the jerkin.
+	_pc = _make_combatant("Martin (Mouse)", true, 100, slashing, _make_weapon(10.0, slashing, 3), true, Stats.new(), [jerkin])
 	# Enemy: Crushing weapon (2 reels), defends as Earth → PC's Slashing hits it for ×1.25.
 	# Both HP set to 100 [ASSUMPTION] so the fight lasts long enough to charge/test the Ultimate.
-	_enemy = _make_combatant("Cluny's Rat", false, 100, earth, _make_weapon(8.0, crushing, 2), false)
+	_enemy = _make_combatant("Cluny's Rat", false, 100, earth, _make_weapon(8.0, crushing, 2), false, Stats.new(), [])
 
 	_turn_manager.combatants = [_pc, _enemy]
 
@@ -80,25 +89,28 @@ func _make_weapon(base_damage: float, type: DamageType, reel_count: int) -> Weap
 		w.reels.append(ActionReel.make_default(type))
 	return w
 
-func _make_combatant(name: String, is_player: bool, max_hp: int, defense: DamageType, weapon: Weapon, meter_visible: bool) -> Combatant:
+func _make_combatant(name: String, is_player: bool, max_hp: int, defense: DamageType, weapon: Weapon, meter_visible: bool, base_stats: Stats = null, items: Array[Gear] = []) -> Combatant:
 	var c: Combatant = Combatant.new()
 	c.display_name = name
 	c.is_player = is_player
-	c.max_hp = max_hp
 	c.defense_type = defense
 	c.weapon = weapon
+	c.base_max_hp = max_hp
+	c.base_meter_floor = 3
 	var meter: BonusMeter = BonusMeter.new()
 	meter.cap = 10
-	meter.floor = 3
 	meter.is_visible = meter_visible
 	c.bonus_meter = meter
 	# [ASSUMPTION] Stamina economy — only the player uses Main-1 actions in the prototype.
 	if is_player:
 		var pool: ResourcePool = ResourcePool.new()
-		pool.max_stamina = 5
 		pool.stamina = 3
 		pool.regen_per_turn = 1
 		c.resource_pool = pool
+		c.base_max_stamina = 5
+	c.base_stats = base_stats
+	c.gear = items
+	c.apply_stats()       # derive max_hp / max_stamina / meter.floor from stats BEFORE seeding hp
 	c.start_combat()
 	return c
 
@@ -369,7 +381,7 @@ func _do_spin() -> void:
 	_payline_banner.text = ""
 	var reels: Array[ActionReel] = _attacker.turn_reels
 	var weapon_count: int = _attacker.weapon.reels.size()
-	var attacks: Array = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count)
+	var attacks: Array = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might)
 	_pending_strips = attacks.size()
 	var strips: Array = _strips
 	for i: int in range(attacks.size()):
