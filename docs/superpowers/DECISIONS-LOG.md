@@ -46,6 +46,26 @@
   round-half to ceil. With current data (integer base × quarter-step chart) the per-reel result is
   unchanged in most cases; it matters mainly for the length-scaled line bonus.
 
+## Stat system (built autonomously per your "complete your version, review after", 2026-06-20)
+Full design in `specs/2026-06-20-stat-system-design.md`. My notable calls:
+- **5 stat → lever mapping:** Might→flat damage/hit, Finesse→initiative + tie-break, Vigor→max HP,
+  Focus→max Stamina, **Grit→Bonus-Meter floor** (you listed damage/init/HP/pools — I assigned Grit the
+  meter as the 5th lever, per the Game Designer's "Grit tilts the meter economy"). Change if you'd
+  rather Grit do something else (or drop to 4 active levers).
+- **Flat 1:1 mapping for ALL five** (the stat value IS the bonus). Meaningful for Might/Finesse;
+  deliberately small for HP/pool/meter (raw 1:1) — coefficients easy to raise later. The demo only
+  grants Might + Finesse, so Vigor/Focus/Grit are unit-tested but not seen live yet.
+- **Tie-break order:** `current_initiative` desc → effective **Finesse** desc → a stored **d10
+  coin-flip reel** roll (kept a spin, not `randf`, fixed for the fight so order is stable).
+- **Might applies per landed reel hit** (mirrors 5e per-hit STR), NOT to the payline crit-line bonus
+  (that stays weapon-only for now).
+- **Starter gear "Padded Jerkin"** (ARMOR): Might **3** (≈+3/hit, ~+9 on a 3-hit spin), Finesse **2**
+  (+2 init and wins ties vs the rat). `[ASSUMPTION]` — set to be *noticeable* per your ask.
+
+## Payline follow-up (2026-06-20)
+- Combat log now notates winning line cells (e.g. `[R1-top, R2-mid, R3-bot]`) — placeholder for the
+  eventual thin flashing path-line overlay you described.
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;
