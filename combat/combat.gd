@@ -313,8 +313,9 @@ func _on_turn_started(c: Combatant) -> void:
 	_plan = MainPhasePlan.new(c, _storm_type, 2, 5, 0, 2)  # [ASSUMPTION] splice cost 2, reel cap 5; Ultimate wilds ALL weapon reels for 2 spins
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
 	_end_turn_button.disabled = true
-	(_panels[c] as CombatantPanel).refresh_status()  # show/clear STUNNED tag
-	if c.evaluate_stun(STUN_THRESHOLD):
+	var is_stunned: bool = c.evaluate_stun(STUN_THRESHOLD)
+	(_panels[c] as CombatantPanel).refresh_status()  # reflect/clear the STUNNED tag now that it's evaluated
+	if is_stunned:
 		# STUNNED — gate the turn behind a d100 "shake off" check.
 		_awaiting_stun_check = true
 		_awaiting_player_spin = false
