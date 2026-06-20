@@ -32,6 +32,10 @@ signal face_resolved(face: ReelFace)
 ## When set, its length must match [member faces]; otherwise selection falls back to uniform.
 @export var weights: Array[float] = []
 
+## The index returned by the most recent [method spin] (−1 before any spin). Used by the resolver to
+## read the 3-cell visible window (top/center/bottom) for the payline grid.
+var _last_index: int = -1
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -45,6 +49,7 @@ func spin() -> ReelFace:
 		return null
 
 	var index: int = _select_index()
+	_last_index = index
 	var face: ReelFace = faces[index]
 	face_resolved.emit(face)
 	return face
@@ -74,3 +79,7 @@ func _select_weighted_index() -> int:
 		if roll < running:
 			return i
 	return weights.size() - 1
+
+## The face index chosen by the most recent spin() (−1 if not yet spun).
+func get_last_index() -> int:
+	return _last_index

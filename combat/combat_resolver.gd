@@ -21,6 +21,7 @@ class AttackResult:
 	var final_damage: int = 0                ## After multiplier + type chart, rounded.
 	var meter_gain: int = 0                  ## Bonus-Meter charge this face contributed.
 	var rider_effect_id: StringName = &""    ## Rider to apply (crit-success of a riding type); empty = none.
+	var landed_index: int = -1               ## Strip index the reel landed on (for grid + strip sync).
 
 # ---------------------------------------------------------------------------
 # Signals  (naming convention: snake_case, past-tense — CLAUDE.md §2)
@@ -38,6 +39,12 @@ signal meter_charged(amount: int)
 ## Emitted once the whole phase resolves. [param attacks] holds every [AttackResult], in order.
 signal spin_resolved(attacks: Array[AttackResult])
 
+## The most recent spin's weapon grid: Array[col] of Array[row]=ReelFace (3 rows). For UI + paylines.
+var last_grid: Array = []
+
+## Emitted after [signal spin_resolved] with the scoring payline hits (Array of PaylineResolver.PaylineHit).
+signal paylines_resolved(hits: Array)
+
 # ---------------------------------------------------------------------------
 # Tuning data  ([ASSUMPTION] placeholders — tune by playtest, DESIGN.md §4.9)
 # ---------------------------------------------------------------------------
@@ -54,7 +61,7 @@ signal spin_resolved(attacks: Array[AttackResult])
 ## using [param base_damage] as the weapon base. Returns the per-reel [AttackResult]s and emits
 ## [signal spin_started] → [signal damage_applied] (per reel) → [signal meter_charged] →
 ## [signal spin_resolved].
-func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = []) -> Array[AttackResult]:
+func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = [], weapon_reel_count: int = -1, extra_lines: Array = []) -> Array[AttackResult]:
 	spin_started.emit()
 
 	var attacks: Array[AttackResult] = []
@@ -69,6 +76,14 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 
 	meter_charged.emit(total_meter)
 	spin_resolved.emit(attacks)
+
+	# Build the weapon grid (first weapon_reel_count reels; -1 = all) and evaluate paylines.
+	var wcount: int = weapon_reel_count if weapon_reel_count >= 0 else reels.size()
+	wcount = mini(wcount, reels.size())
+	last_grid = _build_grid(reels, attacks, wcount)
+	var lines: Array = PaylineLibrary.lines_for(wcount)
+	lines.append_array(extra_lines)
+	paylines_resolved.emit(PaylineResolver.evaluate(last_grid, lines))
 	return attacks
 
 # ---------------------------------------------------------------------------
@@ -77,19 +92,27 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 
 ## Resolves one reel into an [AttackResult]: spin → damage (multiplier × type chart) → meter.
 func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageType, is_wild: bool = false) -> AttackResult:
-	var face: ReelFace = _crit_face(reel) if is_wild else reel.spin()
+	var face: ReelFace
+	var index: int
+	if is_wild:
+		face = _crit_face(reel)
+		index = reel.faces.find(face)
+	else:
+		face = reel.spin()
+		index = reel.get_last_index()
 
 	var attack: AttackResult = AttackResult.new()
 	attack.face = face
 	attack.damage_type = reel.damage_type
 	attack.base_damage = base_damage
+	attack.landed_index = index
 
 	if face != null:
 		# Neutral and the failure tiers deal no weapon damage (their value is utility + meter).
 		if face.deals_damage():
 			var raw: float = base_damage * face.multiplier
 			var type_mult: float = reel.damage_type.multiplier_against(target_type) if reel.damage_type != null else 1.0
-			attack.final_damage = int(roundf(raw * type_mult))
+			attack.final_damage = ceili(raw * type_mult)  # round UP (project convention)
 		attack.meter_gain = _meter_gain_for(face.result_tier)
 		# Crit-success of a type that carries an inherent rider (Crushing -> Slow) reports it.
 		# The resolver only REPORTS; the orchestrator attaches the Effect (ARCHITECTURE §2).
@@ -111,3 +134,20 @@ func _crit_face(reel: ActionReel) -> ReelFace:
 		if face != null and face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 			return face
 	return reel.spin()
+
+## Builds the 3-row x wcount-col grid from the weapon reels' landed windows (top/center/bottom,
+## wrapping the strip). grid[col] = [top, center, bottom] ReelFaces.
+func _build_grid(reels: Array[ActionReel], attacks: Array[AttackResult], wcount: int) -> Array:
+	var grid: Array = []
+	for c: int in range(wcount):
+		var reel: ActionReel = reels[c]
+		var n: int = reel.faces.size()
+		if n == 0:
+			grid.append([null, null, null])
+			continue
+		var idx: int = attacks[c].landed_index
+		var top: ReelFace = reel.faces[posmod(idx - 1, n)]
+		var center: ReelFace = reel.faces[posmod(idx, n)]
+		var bottom: ReelFace = reel.faces[posmod(idx + 1, n)]
+		grid.append([top, center, bottom])
+	return grid
