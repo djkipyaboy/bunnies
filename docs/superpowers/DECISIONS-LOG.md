@@ -66,6 +66,18 @@ Full design in `specs/2026-06-20-stat-system-design.md`. My notable calls:
 - Combat log now notates winning line cells (e.g. `[R1-top, R2-mid, R3-bot]`) — placeholder for the
   eventual thin flashing path-line overlay you described.
 
+## UI fixes + Ultimate redesign (2026-06-20, your request + "brainstorm and commit")
+- **Ultimate (Sticky-Wild) buffed per your proposal:** meter cost **10 → 15**; the WILD now applies
+  to **all weapon attack reels** (not just reel 0), for **2 spins** `[ASSUMPTION]`. Spliced reels stay
+  excluded (consistent with the payline grid being weapon-only). Note the emergent synergy: all-crit
+  weapon reels → the grid lights crit paylines → bonus damage + Inspirational fire too. Duration 2 is
+  a tuning knob — say if it should be 1.
+- **Panel overlap fix:** made the action-reels block (banner/caption/strips) + phase + log reposition
+  **below the actual panel height** (adaptive), so future panel rows can't overlap the header again;
+  the log clamps to the viewport bottom.
+- **Combat log post-combat:** the victory/defeat overlay is now a centered result panel (not a
+  full-screen cover), so the combat log stays readable after the fight.
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;
