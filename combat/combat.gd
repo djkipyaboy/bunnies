@@ -466,10 +466,15 @@ func _on_paylines_resolved(hits: Array) -> void:
 				_append_banner("CRIT x%d" % hit.length)
 				if hit.length >= 3:
 					for ally: Combatant in _allies_of(_attacker):
-						ally.attach_effect(EffectLibrary.make(&"inspirational"))
+						var insp: Effect = EffectLibrary.make(&"inspirational")
+						# Caster acts THIS turn, so its own End ticks the buff once immediately — +1
+						# duration so it still benefits over 2 FRESH turns. Allies tick on their own End.
+						if ally == _attacker:
+							insp.duration += 1
+						ally.attach_effect(insp)
 						(_panels[ally] as CombatantPanel).refresh_status()
 						(_panels[ally] as CombatantPanel).refresh_initiative()
-					_log("  ✦ Inspirational! All allies +5 initiative (2 turns).")
+					_log("  ✦ Inspirational! Allies +5 initiative (caster keeps 2 fresh turns).")
 					_turn_order_bar.set_order(_turn_manager.get_turn_order())
 			ReelFace.ResultTier.SUCCESS:
 				if _attacker.bonus_meter != null:

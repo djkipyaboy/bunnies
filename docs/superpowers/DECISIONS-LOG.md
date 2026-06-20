@@ -78,6 +78,19 @@ Full design in `specs/2026-06-20-stat-system-design.md`. My notable calls:
 - **Combat log post-combat:** the victory/defeat overlay is now a centered result panel (not a
   full-screen cover), so the combat log stays readable after the fight.
 
+## Inspirational timing fix + naming note (2026-06-20)
+- **Caster keeps 2 fresh turns:** the combatant that triggers Inspirational gets **+1 duration**
+  (so its own same-turn End tick doesn't rob a turn); other allies keep the base 2 (they tick on
+  their own End). Per your proposal. Root cause: `on_end` ticks the *active* combatant's effects, so
+  self-applied buffs lose a tick the turn they're cast (SLOW is unaffected — it's applied to the foe).
+- **The +5 initiative DOES apply** — `attach_effect` → `recompute_initiative` adds it immediately, and
+  the orchestrator refreshes the panel's `(init N)` + re-sorts the turn-order bar. You couldn't see it
+  because the crit-line bonus damage ended the fight; it's observable on a non-lethal Inspirational
+  trigger (and now the post-combat overlay no longer hides the panels).
+- **"Initiative" naming:** keeping `initiative` in CODE; a player-facing rename to something more
+  thematic is deferred to end of dev (saved as a project memory). When we rename, only the display
+  strings change.
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;
