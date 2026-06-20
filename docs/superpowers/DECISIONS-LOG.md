@@ -91,6 +91,20 @@ Full design in `specs/2026-06-20-stat-system-design.md`. My notable calls:
   thematic is deferred to end of dev (saved as a project memory). When we rename, only the display
   strings change.
 
+## Crit diversity + Luck stat (2026-06-20, "brainstorm and commit without approval")
+- **Reel face order shuffled** per reel at creation (balance-neutral — same face counts, only adjacency
+  varies) so results aren't a discoverable fixed pattern. Approved in brainstorm.
+- **Ultimate = crit-BIASED, not crit-forced:** each wild reel has a **65%** `[ASSUMPTION]` chance to land
+  its crit face, else a normal spin — so crits are common but vary in count/position → diverse paylines
+  (crit columns/diagonals/mixed), not the same uniform CRIT+ row every time. Approved level: 65%.
+- **Luck = the 6th stat.** Effect: **edits the reel to add crit-success faces** (pillar-aligned "builds
+  edit the reels" — visible, not hidden weights). `[ASSUMPTION]` **+1 crit-success face per Luck point**
+  per weapon reel, applied once at combatant setup, then the reel is reshuffled so the crit faces are
+  distributed. Martin demos it via gear Luck; panel shows `LCK`.
+- **Luck → "extra paylines" DEFERRED:** the 3×3 prototype grid already contains all straight lines, so
+  extra-line geometry isn't demonstrable yet. The resolver's `extra_lines` hook is reserved; revisit
+  when larger weapon grids or non-straight bonus lines exist. (My scoping call.)
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;
