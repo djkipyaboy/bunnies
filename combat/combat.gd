@@ -26,6 +26,7 @@ var _end_turn_button: Button
 var _splice_button: Button
 var _ultimate_button: Button
 var _strips_box: HBoxContainer
+var _strips: Array[ReelStrip] = []   # the live strips; tracked explicitly, independent of tree free-timing
 var _overlay: Panel
 
 var _storm_type: DamageType
@@ -124,32 +125,34 @@ func _build_ui() -> void:
 	add_child(enemy_panel)
 	_panels[_enemy] = enemy_panel
 
+	# Action-reels block sits below the combatant panels (which grew taller with the Stamina/effect
+	# lines); moved down so the panel's Stamina readout no longer overlaps this caption.
 	_strips_caption = Label.new()
 	_strips_caption.text = "Action reels"
-	_strips_caption.position = Vector2(40, 208)
+	_strips_caption.position = Vector2(40, 256)
 	add_child(_strips_caption)
 
 	_strips_box = HBoxContainer.new()
-	_strips_box.position = Vector2(40, 234)
+	_strips_box.position = Vector2(40, 280)
 	_strips_box.add_theme_constant_override("separation", 14)
 	add_child(_strips_box)
 
 	_phase_label = Label.new()
-	_phase_label.position = Vector2(40, 432)
+	_phase_label.position = Vector2(40, 478)
 	add_child(_phase_label)
 
 	# Scrollable combat log — keeps the full history; scroll back to the start of the fight.
 	var log_bg := Panel.new()
-	log_bg.position = Vector2(40, 456)
-	log_bg.size = Vector2(820, 178)
+	log_bg.position = Vector2(40, 500)
+	log_bg.size = Vector2(820, 134)
 	add_child(log_bg)
 
 	_log_box = RichTextLabel.new()
 	_log_box.bbcode_enabled = false
 	_log_box.scroll_active = true
 	_log_box.scroll_following = true
-	_log_box.position = Vector2(48, 462)
-	_log_box.size = Vector2(806, 166)
+	_log_box.position = Vector2(48, 506)
+	_log_box.size = Vector2(806, 122)
 	add_child(_log_box)
 
 	_spin_button = Button.new()
@@ -283,7 +286,9 @@ func _on_spin_pressed() -> void:
 	_splice_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
-	_prepare_strips(_attacker.turn_reels)  # re-sync strips to the committed reels (incl. a spliced reel)
+	# No re-prepare here: the preview strips in _strips already match the committed reels (same count
+	# and tier composition), and re-preparing synchronously before _do_spin would read a stale child
+	# list. _do_spin spins _strips directly.
 	_phase_manager.proceed_to_combat()     # commit Main 1 → enter Combat
 	_do_spin()
 
@@ -326,28 +331,28 @@ func _refresh_main1_preview() -> void:
 ## Glows the strips that WOULD be wild at spin (staged fire ∪ carryover), per the plan's preview.
 func _highlight_preview_wild() -> void:
 	var wild: Array[int] = _plan.effective_wild_indices() if _plan != null else []
-	var strips: Array = _strips_box.get_children()
-	for i: int in range(strips.size()):
-		(strips[i] as ReelStrip).set_wild(i in wild)
+	for i: int in range(_strips.size()):
+		_strips[i].set_wild(i in wild)
 
 ## Glows the reel strips that are currently WILD (forced crit-success) for the active attacker.
 func _highlight_wild_strips() -> void:
 	var wild: Array[int] = _attacker.wild_reel_indices() if _attacker != null else []
-	var strips: Array = _strips_box.get_children()
-	for i: int in range(strips.size()):
-		(strips[i] as ReelStrip).set_wild(i in wild)
+	for i: int in range(_strips.size()):
+		_strips[i].set_wild(i in wild)
 
 func _prepare_strips(reels: Array[ActionReel]) -> void:
-	# Free immediately (not queue_free): callers read _strips_box.get_children() synchronously right
-	# after this returns (_do_spin, _highlight_preview_wild), so deferred deletion would leave stale
-	# strips in the child list and break the spin (the turn would hang on never-settled stale strips).
+	# queue_free (deferred) is required: at a turn boundary _prepare_strips runs from inside the
+	# previous turn's last strip_settled emission, and freeing a node during its own signal emission
+	# is illegal. We track the live strips in _strips so all logic (spin, wild glow) is independent of
+	# the tree's deferred-free timing — get_children() would still include the queued-for-free strips.
 	for child in _strips_box.get_children():
-		_strips_box.remove_child(child)
-		child.free()
+		child.queue_free()
+	_strips.clear()
 	for reel: ActionReel in reels:
 		var strip := ReelStrip.new()
 		_strips_box.add_child(strip)
 		strip.configure(reel)
+		_strips.append(strip)
 	_highlight_wild_strips()
 
 func _do_spin() -> void:
@@ -356,7 +361,7 @@ func _do_spin() -> void:
 	var reels: Array[ActionReel] = _attacker.turn_reels
 	var attacks: Array = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices())
 	_pending_strips = attacks.size()
-	var strips: Array = _strips_box.get_children()
+	var strips: Array = _strips
 	for i: int in range(attacks.size()):
 		var attack = attacks[i]
 		var face_index: int = reels[i].faces.find(attack.face)

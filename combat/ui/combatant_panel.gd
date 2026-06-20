@@ -15,10 +15,13 @@ var _combatant: Combatant
 var _meter_flash_tween: Tween
 
 func _ready() -> void:
-	custom_minimum_size = Vector2(260, 130)
+	# Tall enough to contain all rows (name, HP bar+text, Bonus Meter, Stamina, status effects)
+	# without spilling onto the Action-reels caption positioned below the panel.
+	custom_minimum_size = Vector2(260, 172)
+	size = custom_minimum_size
 	var box := VBoxContainer.new()
 	box.position = Vector2(10, 8)
-	box.custom_minimum_size = Vector2(240, 114)
+	box.custom_minimum_size = Vector2(240, 156)
 	add_child(box)
 
 	_name_label = Label.new()
