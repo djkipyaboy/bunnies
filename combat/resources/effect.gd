@@ -34,6 +34,14 @@ enum Kind { INITIATIVE_MOD, DAMAGE_OVER_TIME, MULTIPLIER_EDIT, REEL_FACE_EDIT }
 ## the flat [member magnitude]. [ASSUMPTION] data.
 @export var stack_magnitudes: Array[float] = []
 
+## DAMAGE_OVER_TIME: the source weapon's base damage, baked at application time (BLEED reads the
+## Warrior's equipped weapon base — spec §4B). Multiplied by [member dot_fractions] for the tick.
+@export var dot_base_damage: float = 0.0
+
+## DAMAGE_OVER_TIME: per-turn damage as a fraction of [member dot_base_damage], indexed by stack
+## count (TOTAL at that stack level, not increments). BLEED = [0.50, 0.80, 1.15]. [ASSUMPTION] data.
+@export var dot_fractions: Array[float] = []
+
 ## Live stack count on an attached effect (a freshly made effect is 1 stack). Grown by add_stack().
 var stacks: int = 1
 
@@ -56,6 +64,15 @@ func effective_magnitude() -> float:
 	for i: int in range(n):
 		total += stack_magnitudes[i]
 	return total
+
+## The per-turn damage this DoT deals at its current stack count (spec §4B). Returns 0 for non-DoT
+## effects or when no fractions are set. The fraction is the TOTAL for the current stacks (indexed,
+## not summed), times the baked source base damage, rounded UP (project convention).
+func dot_damage() -> int:
+	if kind != Kind.DAMAGE_OVER_TIME or dot_fractions.is_empty():
+		return 0
+	var idx: int = clampi(stacks, 1, dot_fractions.size()) - 1
+	return ceili(dot_base_damage * dot_fractions[idx])
 
 ## Adds one stack, up to [member max_stacks]. Returns false (no change) when already at the cap or
 ## for a non-stacking effect (max_stacks == 1).
