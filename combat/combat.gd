@@ -39,8 +39,9 @@ var _strips_caption: Label
 var _plan: MainPhasePlan
 
 ## Which CharacterClass the PC is built from (spec 2026-06-21). The end-card class picker sets this
-## and reloads the scene; default Warrior on first load.
-var _pc_class_id: StringName = &"warrior"
+## and reloads the scene; default Warrior on first load. STATIC so the choice survives
+## reload_current_scene() (a reload builds a fresh Combat node — an instance var would reset to Warrior).
+static var _pc_class_id: StringName = &"warrior"
 
 var _attacker: Combatant
 var _defender: Combatant
@@ -80,8 +81,9 @@ func _build_scenario() -> void:
 	# defense, meter, Stamina, and the Main-1 base ability. Gear is deferred to a later pass.
 	_pc = ClassLibrary.make(_pc_class_id).build_combatant(true)
 	# Enemy: Crushing weapon (2 reels), defends as Earth → PC's Slashing hits it for ×1.25.
-	# Both HP set to 100 [ASSUMPTION] so the fight lasts long enough to charge/test the Ultimate.
-	_enemy = _make_combatant("Cluny's Rat", false, 100, earth, _make_weapon(8.0, crushing, 2), false, Stats.new(), [])
+	# HP 300 [ASSUMPTION] (raised from 100) so a single fight runs long enough to test bleed stacks,
+	# the Ultimate, and each class's rhythm over many turns.
+	_enemy = _make_combatant("Cluny's Rat", false, 300, earth, _make_weapon(8.0, crushing, 2), false, Stats.new(), [])
 
 	_turn_manager.combatants = [_pc, _enemy]
 

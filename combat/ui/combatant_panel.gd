@@ -106,7 +106,9 @@ func refresh_status() -> void:
 	for e: Effect in _combatant.active_effects:
 		var colour: String = "#5fd35f" if e.beneficial else "#e08030"  # buff green / debuff orange
 		var stack_txt: String = (" x%d" % e.stacks) if e.stacks > 1 else ""
-		parts.append("[color=%s]%s %d%s (%d)[/color]" % [colour, String(e.id).to_upper(), int(e.effective_magnitude()), stack_txt, e.duration])
+		# DoT effects (BLEED) read their per-turn damage; others read their signed magnitude.
+		var value_txt: String = ("%d/turn" % e.dot_damage()) if e.kind == Effect.Kind.DAMAGE_OVER_TIME else ("%d" % int(e.effective_magnitude()))
+		parts.append("[color=%s]%s %s%s (%d)[/color]" % [colour, String(e.id).to_upper(), value_txt, stack_txt, e.duration])
 	if _combatant.stunned_this_turn:
 		parts.insert(0, "[color=#e0e040]STUNNED[/color]")
 	_status_label.text = "  ".join(parts)

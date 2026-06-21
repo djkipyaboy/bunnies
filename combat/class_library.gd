@@ -23,7 +23,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_stats = _stats(3, 2, 3, 1, 2, 1)
 			c.weapon_base_damage = 8.0; c.weapon_type = slashing; c.reel_count = 3
 			c.defense_type = slashing
-			c.base_max_hp = 100; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15
+			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"rend"
 			return c
@@ -34,7 +34,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_stats = _stats(4, 0, 5, 0, 3, 0)
 			c.weapon_base_damage = 15.0; c.weapon_type = crushing; c.reel_count = 2
 			c.defense_type = crushing
-			c.base_max_hp = 130; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15
+			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing (badger identity re-differentiated later)
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"heft"
 			return c
@@ -45,7 +45,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_stats = _stats(1, 5, 2, 2, 1, 1)
 			c.weapon_base_damage = 6.0; c.weapon_type = slashing; c.reel_count = 4
 			c.defense_type = slashing
-			c.base_max_hp = 90; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15
+			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"flurry"
 			return c
