@@ -167,26 +167,49 @@ These agents are installed (`~/.claude/agents/`). Use them when the task fits:
   round → MTG phase turn → **player-driven** Spin → scrolling Action reels → independent
   per-reel damage via the 6-type chart → Bonus Meter charges/arms → win/lose + restart.
 - 6 `DamageType` `.tres` (gentle placeholder chart, `[ASSUMPTION]`).
-- Headless test suite under `tests/`: bonus_meter, combatant, turn_manager, phase_manager,
-  and a full-loop integration test — all green. Run a test:
+- Headless test suite under `tests/` — **20 suites, all green.** Run a test:
   `Godot_v4.6.3-stable_win64 --headless --path bunnies --script res://tests/test_<name>.gd`.
-- Four combat threads, all headless-test-green (reviewed, merge-approved):
-  - **Effect + Crushing→Slow:** `Effect` resource + `EffectLibrary` (the `&"slow"` rider, −20/2);
-    `Combatant.current_initiative` now DERIVED from `base_initiative` + `INITIATIVE_MOD` effects;
-    resolver REPORTS the rider, orchestrator APPLIES it to the defender (authority rule §2 preserved).
-  - **ResourcePool:** Stamina-only prototype pool (regen in Upkeep, spent in Main 1, shown on panel).
-  - **Main-Phase Storm splice:** `PhaseManager` pauses at Main 1; `Combatant.try_splice_reel`
-    (additive, spends Stamina, 5-reel cap); spins resolve `turn_reels`.
-  - **Sticky-Wild Ultimate:** `Combatant.fire_sticky_wild` (costs ONLY the armed meter) + resolver
-    `wild_reel_indices` override; only the STICKY_WILD archetype is built.
-  - New suites: test_effect, test_resource_pool, test_crushing_slow, test_reel_splice, test_ultimate_sticky_wild.
+- **Ten combat systems** shipped this branch, all headless-test-green (each has a design spec in
+  `docs/superpowers/specs/`; autonomous balance calls in `docs/superpowers/DECISIONS-LOG.md`):
+  1. **Effect + Crushing→Slow** — `Effect` + `EffectLibrary` (`&"slow"` −20/2); `current_initiative`
+     DERIVED; resolver REPORTS the rider, orchestrator APPLIES it (authority rule §2).
+  2. **Stacking debuffs (merge-by-id)** — `attach_effect` merges by id; SLOW stacks −20/−10/−5 (cap
+     −35) + refreshes; non-stacking effects just refresh.
+  3. **ResourcePool** — Stamina-only (regen in Upkeep, spent in Main 1, on the panel).
+  4. **Staged Main Phase 1 (`MainPhasePlan`)** — Splice / Fire-Ultimate toggles only PREVIEW; SPIN
+     commits; `PhaseManager` pauses at Main 1.
+  5. **Main-Phase Storm splice** — `try_splice_reel`: additive +1 typed reel, 2 STA, 5-reel cap,
+     this-turn-only, excluded from the payline grid.
+  6. **Sticky-Wild Ultimate (redesigned)** — costs the full meter (cap **15**); wilds **ALL weapon
+     reels** crit-**biased ~65%** (not forced) for 2 spins.
+  7. **Paylines** — `PaylineLibrary` + `PaylineResolver` score the 3×W weapon grid: crit line →
+     bonus damage (`ceil`, length-scaled) + Inspirational buff (+5 init/2t); success → +1 meter;
+     neutral → refund 1 STA. `extra_lines` hook reserved for Luck.
+  8. **5+1 stats + Gear** — `Stats` (Might/Finesse/Vigor/Focus/Grit/Luck) + `Gear`; flat levers; the
+     Finesse→d10 initiative tie-break; Luck adds crit faces (`apply_luck`). Martin: Padded Jerkin.
+  9. **STUNNED** — start-of-turn init < −20 → STUNNED; Main-1 d100 gate (51+ recover / 01–50 lose);
+     anti-lock (no two stunned turns in a row).
+  10. **Reel-face shuffle** (balance-neutral) + **round-up (ceil)** all damage; window 1280×800,
+      centered victory/defeat card.
 
 **Verified-by-machine vs your call:** all logic + integration is test-green and the scene loads
 without errors. **Whether the spin is *fun*, and whether the scrolling reels feel right, is the
 human call (CLAUDE.md §5 hard ceiling)** — play `combat.tscn` and judge.
 
-**Next:** HUMAN PLAY-TEST for feel → tune the `[ASSUMPTION]` balance numbers (HP, base damage,
-charge weights, chart values, plus the new ones: Slow −20/2, Stamina 3/5 +1/round, splice 2 STA,
-sticky 2 spins); then candidates: the other five Ultimate archetypes, Focus/Mana resources, a
-reel-selection UI for the Ultimate (instead of auto-target reel 0), a guard against re-firing the
-Ultimate mid-window, a PC Crushing option (player-side Slow).
+**Next — PAUSING combat engineering to design CONTENT.** The systems prove the loop; they now need
+content to express. Design-first (per §5 and the combat-change standard procedure):
+- **Flesh out races, classes + specializations, abilities, and buffs/debuffs.** These ride the
+  deferred `DESIGN.md §8` world/meta classes (`Class`, `EncounterTable`, `RewardTable`, talents) —
+  do not build them speculatively yet (§7 YAGNI).
+
+When the content design is firmer, **RETURN to combat** to:
+1. **Implement the new content into the existing systems** (new `Effect`s, Main-1 abilities, the
+   other five Ultimate archetypes, Luck "+paylines" — all on existing hooks, not new architecture).
+2. **Build full N-vs-M party combat** (everything is already party-ready — `current_initiative`,
+   Inspirational-targets-all-allies, per-combatant effects/STUNNED; only the prototype *scenario* is
+   1v1). Add party (max 3 PCs) vs. multi-enemy, target selection, and N-frame UI.
+
+Also queued after the human play-test: tune all `[ASSUMPTION]` numbers (HP, base damage, charge
+weights, chart, Slow −20/−10/−5, Stamina 3/5/+1, splice 2 STA, meter cap 15, wild bias 0.65, Luck
++1 face/pt, Jerkin stats, STUN −20); the future UI polish is recorded in `ARCHITECTURE.md §9`.
+Full current snapshot: `HANDOFF.md`.

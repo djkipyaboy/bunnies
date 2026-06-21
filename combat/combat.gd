@@ -74,11 +74,12 @@ func _build_scenario() -> void:
 	add_child(_phase_manager)
 
 	# [ASSUMPTION] starter armor: Might 3 (noticeable +3/hit), Finesse 2 (wins the init tie vs the rat),
-	# Luck 2 (adds 2 crit-success faces to each weapon reel — a visible crit bump; see apply_luck).
+	# Luck 1 (adds 1 crit-success face to each weapon reel — kept low; 1pt/crit-face is strong, watch
+	# Luck items/classes for being overpowered — flagged for the content-design pass).
 	var jerkin_stats: Stats = Stats.new()
 	jerkin_stats.might = 3
 	jerkin_stats.finesse = 2
-	jerkin_stats.luck = 2
+	jerkin_stats.luck = 1
 	var jerkin: Gear = Gear.new()
 	jerkin.display_name = "Padded Jerkin"
 	jerkin.slot = Gear.Slot.ARMOR
