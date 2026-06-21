@@ -26,10 +26,11 @@ a **configured `Combatant`**, assembled inline in `combat.gd:_build_scenario`:
   in code today).
 
 **So "v1 of the class system" = a roster of these configurations + the design intent for each
-class's Ultimate**, expressed as data we can author. This spec deliberately stops short of inventing
-a `Class.gd` resource. **Open question for §9** — whether v1 introduces a thin `Class` resource
-(a data bundle that stamps a `Combatant`) or stays as named factory functions. My recommendation is
-the thin resource; flagged for your call.
+class's Ultimate**, expressed as data we can author. **Decided in the 2026-06-21 review (§9):** v1
+introduces a **thin `Class.gd` resource** (a data bundle that stamps a `Combatant` via
+`build_combatant()`), and the **first build cut is 3 classes — Warrior, Vanguard, Skirmisher** — each
+launching with the built Sticky-Wild Ultimate plus its own thematic Main-1 base ability (§4A). The
+full 7-class roster below stays as designed; the other four land in later passes.
 
 **Scope guard (YAGNI):** no talent trees, no level-up curves, no specialization branches, no
 encounter/reward tables. Those are later. v1 = the *starting* shape of each class at "level 1."
@@ -144,6 +145,37 @@ each so the design is real, and flag the build dependency.
 
 ---
 
+## 4A. Per-class base ability (Main-1 signature) — LOCKED 2026-06-21
+
+> **Decision (review, 2026-06-21):** all classes launch with the **Sticky-Wild Ultimate** as a
+> placeholder, but **each class gets its own thematic Main-1 base ability** (the slot Martin's
+> *Splice Storm reel* fills today). One per class, each riding a *different* existing combat hook —
+> so they're cheap to build and each showcases a distinct facet of "builds edit the reels."
+
+A base ability is a **Main-1 action** on the staged `MainPhasePlan` (toggle → preview → SPIN commits),
+spending **Stamina**, exactly like the current Storm splice. The three first-cut classes:
+
+| Class | Ability | What it does (v1, `[ASSUMPTION]` numbers) | Hook reused | Facet |
+|-------|---------|-------------------------------------------|-------------|-------|
+| **Warrior** | **Flurry** | Splice **+1 Slashing reel** (the weapon's own type) this turn — a disciplined extra swing. 2 STA, 5-reel cap. | `Combatant.try_splice_reel` *(BUILT)* | add-a-reel (offense) |
+| **Vanguard** | **Heft** | Edit this turn's reels: on each weapon reel, convert **one FAILURE face → SUCCESS face** — fewer whiffs from the 2 heavy hits. 2 STA. | per-turn reel-face edit *(new small helper, mirrors `apply_luck`)* | edit-faces (consistency) |
+| **Skirmisher** | **Rallying Cry** | Apply **Inspirational** (+5 init / 2 turns, non-stacking) to **all allies** — the Long Patrol rally. 2 STA. | `EffectLibrary.make(&"inspirational")` + `attach_effect` *(BUILT)* | apply-buff (utility) |
+
+**Notes & honesty:**
+- **Warrior's Flurry replaces Martin's current Storm splice.** The Storm splice was a generic demo
+  hook; re-typing it to the weapon's own type makes it the Warrior's *thematic* signature (an extra
+  swing, not a random storm). Mechanically near-identical to the built splice → cheapest of the three.
+- **Heft** is the only one needing new code: a helper that edits `turn_reels` faces for the turn
+  (swap one FAILURE→SUCCESS per reel). It mirrors the existing `apply_luck` face-editing pattern, so
+  it's a small, well-precedented addition — not new architecture.
+- **Rallying Cry** reuses the already-built Inspirational effect and the all-allies targeting pattern
+  from the payline crit-line reward — so in 1v1 it self-buffs (acts even earlier / sets up), and it's
+  immediately meaningful once party combat exists.
+- Each ability is a **MainPhasePlan toggle** so it previews before commit (the staged-Main-1 standard)
+  and is excluded from the payline grid where it adds/edits reels, consistent with the Storm splice.
+
+---
+
 ## 5. Starter weapon types — the menu classes pick from
 
 Per the **WoW-baseline memory** (Vanilla 1H/2H weapon classes; *cherry-pick, don't port all*) mapped
@@ -230,25 +262,24 @@ arrives with party combat.
 
 ---
 
-## 9. Open calls for your review (the decisions I made for you, flag any to change)
+## 9. Decisions — LOCKED 2026-06-21 review
 
-1. **`Class` resource vs factory functions.** *Recommend:* a thin `Class.gd` (`Resource`) that holds
-   the v1 fields (base_stats, starting weapon ref, defense type, ultimate archetype enum, display
-   name/species) and a `build_combatant()` that stamps a `Combatant`. Cleaner than 7 inline factories
-   and inspector-authorable. *Alternative:* keep `_make_combatant`-style functions. **Your call.**
-2. **7 classes now, or a smaller first cut?** I designed all 7 as requested. If that's too wide for
-   one integration pass, recommend shipping **Warrior + Vanguard + Skirmisher** first (3 maximally
-   distinct feels: balanced / heavy-slow / fast-many) and adding the rest after.
-3. **Ultimates: placeholder-then-incremental?** Only Sticky-Wild is built. Recommend all 7 classes
-   launch playable using **stats + weapon identity**, with Sticky-Wild as a stand-in Ultimate, then
-   land the 6 new archetypes one per cycle. The riskiest builds are **Hold-Respin** (lock UI) and
-   **Pick'em** (needs new heal/cleanse `Effect`s).
-4. **Grit = meter_floor coupling.** Today Grit *is* the floor. Fine, or decouple (give each class an
-   explicit floor independent of Grit)?
-5. **Martin's weapon:** standardize to the 3-reel One-Handed Sword (keeps the demo's reel count) vs
-   keep a themed 2-reel greatsword?
-6. **Weapon riders:** ship v1 weapons rider-less (only Crushing→Slow exists) and add Bleed/Root/etc.
-   as the buff/debuff content work lands — confirm that ordering.
+1. **`Class` resource — ✅ LOCKED: thin `Class.gd`.** A thin `Class.gd` (`Resource`) holds the v1
+   fields (base_stats, starting weapon ref, defense type, ultimate archetype enum, base ability id,
+   display name/species) and a `build_combatant()` that stamps a `Combatant`. Inspector-authorable.
+2. **First cut — ✅ LOCKED: Warrior + Vanguard + Skirmisher.** Three maximally distinct feels
+   (balanced / heavy-slow / fast-many). Ranger / Seer / Warden / Chancer follow in later passes.
+3. **Ultimates — ✅ LOCKED: Sticky-Wild placeholder + distinct base abilities.** All three launch
+   playable with the **built Sticky-Wild** as a stand-in Ultimate; each gets its **own thematic Main-1
+   base ability** (see **§4A** — Flurry / Heft / Rallying Cry). The six new Ultimate *archetypes* land
+   in later passes.
+4. **Weapon riders — ✅ LOCKED: deferred.** v1 weapons ship rider-less (only the built Crushing→Slow
+   carries a rider); Bleed/Root/Armor-pierce/etc. arrive with the later buff/debuff content pass.
+
+**Still-open (lower-stakes, my defaults stand unless you say otherwise):**
+- **Grit = meter_floor coupling.** Today Grit *is* the floor; keeping it coupled for v1.
+- **Martin's weapon:** standardizing to the 3-reel One-Handed Sword (keeps the demo's reel count).
+  His Storm splice becomes the Warrior's **Flurry** (own-type Slashing splice) per §4A.
 
 ---
 
