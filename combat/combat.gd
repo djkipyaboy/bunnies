@@ -374,9 +374,12 @@ func _on_spin_pressed() -> void:
 	_splice_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
-	# No re-prepare here: the preview strips in _strips already match the committed reels (same count
-	# and tier composition), and re-preparing synchronously before _do_spin would read a stale child
-	# list. _do_spin spins _strips directly.
+	# Re-prepare strips from the COMMITTED reels. The preview's spliced reel is a separate
+	# make_default() instance with a DIFFERENT shuffle than the committed one, so the strip must be
+	# rebuilt from turn_reels to match what _do_spin resolves (else the spliced reel's shown tier ≠
+	# logged tier). _do_spin reads the _strips member that _prepare_strips repopulates, so the old
+	# deferred-queue_free concern does not apply.
+	_prepare_strips(_attacker.turn_reels)
 	_phase_manager.proceed_to_combat()     # commit Main 1 → enter Combat
 	_do_spin()
 
