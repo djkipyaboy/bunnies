@@ -163,6 +163,8 @@ func _update_hp_text(hp: int, max_hp: int) -> void:
 
 func _on_meter_changed(value: int, cap: int) -> void:
 	_meter_bar.value = value
+	# Keep the caption in sync both ways — consuming the meter (value < cap) must clear "ARMED!".
+	_meter_caption.text = "Bonus Meter — ARMED!" if value >= cap else "Bonus Meter"
 
 func _on_meter_armed() -> void:
 	_meter_caption.text = "Bonus Meter — ARMED!"

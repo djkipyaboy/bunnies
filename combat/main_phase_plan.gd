@@ -9,7 +9,8 @@ extends RefCounted
 ## The base ability is read from [member Combatant.ability_id]:
 ##   • &"flurry" — splice +1 own-type reel (a normal extra swing). Skirmisher.
 ##   • &"rend"   — splice +1 own-type REND reel (no direct damage; applies BLEED on a hit). Warrior.
-##   • &"heft"   — edit this turn's reels (one FAILURE→SUCCESS each). Vanguard. Does not add a reel.
+##   • &"heft"   — edit this turn's reels (both failures + crit-failure → SUCCESS, i.e. all misses
+##                 removed). Vanguard. Does not add a reel.
 
 var combatant: Combatant
 var ability_id: StringName
@@ -18,8 +19,9 @@ var ability_cost: int
 var reel_cap: int
 var wild_spins: int
 
-## How many miss→hit conversions the Vanguard Rampage Ultimate applies per reel (matches Heft).
-const RAMPAGE_CONVERSIONS: int = 2
+## How many miss→hit conversions the Vanguard Rampage Ultimate applies per reel (matches Heft:
+## 2 failures + the crit-failure → all misses removed on each reel).
+const RAMPAGE_CONVERSIONS: int = 3
 ## Rampage is a single-turn Ultimate (AoE for the fired spin only).
 const RAMPAGE_SPINS: int = 1
 ## Crit-bias WILD spin counts, separated per class (spec 2026-06-21 iteration 2):

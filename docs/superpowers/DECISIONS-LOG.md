@@ -160,6 +160,15 @@ Spec: `specs/2026-06-21-class-system-v1-design.md` (§4A abilities, §4B BLEED).
 - **Sticky-wild still 2 spins for the Skirmisher** (kept, now legible via the per-turn log). The
   "endless chain" was the meter recharging too fast, addressed by the cap bump — not the spin count.
 
+## Class v1 playtest iteration 4 (2026-06-21, your playtest feedback)
+- **Ability/Ultimate buttons now label from the PC**, not the current attacker — so the enemy's turn
+  no longer shows Cluny's "Sticky Wild" on the player's Ultimate button.
+- **Meter "ARMED!" caption now clears on consume:** `_on_meter_changed` syncs the caption both ways
+  (was only set by `meter_armed`, never reset), so it no longer reads ARMED after firing the Ultimate.
+- **Heft buffed again → 3 conversions** (both failures **+ the crit-failure**): hefted reels have **no
+  miss faces at all**. `apply_heft` default conversions 2→3; `RAMPAGE_CONVERSIONS` 2→3 to match
+  (Rampage includes Heft). `[ASSUMPTION]` — strong by design, per your request.
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;

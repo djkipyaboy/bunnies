@@ -244,7 +244,7 @@ func weapon_type() -> DamageType:
 ## DEEP copy of each reel so the underlying weapon is never mutated (begin_turn's duplicate is shallow,
 ## so the ActionReel/ReelFace objects are shared with the weapon). Returns false (no change) if
 ## unaffordable.
-func apply_heft(cost: int, conversions: int = 2) -> bool:
+func apply_heft(cost: int, conversions: int = 3) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	_heft_turn_reels(conversions)

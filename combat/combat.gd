@@ -364,8 +364,10 @@ func _on_turn_started(c: Combatant) -> void:
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
 	_plan = MainPhasePlan.new(c, 2, 5, 2)  # [ASSUMPTION] ability cost 2, reel cap 5; sticky-wild 2 spins
-	_splice_button.text = _ability_label(c.ability_id)    # the generic base-ability button, per class
-	_ultimate_button.text = _ultimate_label(c.ultimate_id)  # per-class Ultimate label
+	# The ability/Ultimate buttons are the PLAYER's controls — always label them from the PC, never the
+	# current attacker (else the enemy's turn shows the enemy's Ultimate, e.g. Cluny's "Sticky Wild").
+	_splice_button.text = _ability_label(_pc.ability_id)
+	_ultimate_button.text = _ultimate_label(_pc.ultimate_id)
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
 	_end_turn_button.disabled = true
 	var is_stunned: bool = c.evaluate_stun(STUN_THRESHOLD)

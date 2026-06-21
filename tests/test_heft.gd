@@ -25,15 +25,18 @@ func _initialize() -> void:
 	c.resource_pool = ResourcePool.new(); c.resource_pool.stamina = 3; c.resource_pool.max_stamina = 5
 
 	var fail_before: int = _count(w.reels[0], ReelFace.ResultTier.FAILURE)
+	var critfail_before: int = _count(w.reels[0], ReelFace.ResultTier.CRIT_FAILURE)
 	var succ_before: int = _count(w.reels[0], ReelFace.ResultTier.SUCCESS)
+	var misses_before: int = fail_before + critfail_before  # default reel: 2 + 1 = 3
 
 	c.begin_turn()
-	var ok: bool = c.apply_heft(2)   # default 2 conversions per reel
+	var ok: bool = c.apply_heft(2)   # default 3 conversions per reel: both failures + the crit-failure
 	_check(ok, "apply_heft succeeded with 3 stamina")
 	_check(c.resource_pool.stamina == 1, "spent 2 stamina -> 1 left (got %d)" % c.resource_pool.stamina)
-	_check(_count(c.turn_reels[0], ReelFace.ResultTier.FAILURE) == fail_before - 2, "turn reel 0: TWO fewer FAILUREs (got %d, want %d)" % [_count(c.turn_reels[0], ReelFace.ResultTier.FAILURE), fail_before - 2])
-	_check(_count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS) == succ_before + 2, "turn reel 0: TWO more SUCCESS")
-	_check(_count(c.turn_reels[1], ReelFace.ResultTier.SUCCESS) == succ_before + 2, "turn reel 1 also hefted (+2)")
+	_check(_count(c.turn_reels[0], ReelFace.ResultTier.FAILURE) == 0, "turn reel 0: all FAILUREs removed (got %d)" % _count(c.turn_reels[0], ReelFace.ResultTier.FAILURE))
+	_check(_count(c.turn_reels[0], ReelFace.ResultTier.CRIT_FAILURE) == 0, "turn reel 0: crit-failure removed (got %d)" % _count(c.turn_reels[0], ReelFace.ResultTier.CRIT_FAILURE))
+	_check(_count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS) == succ_before + misses_before, "turn reel 0: +%d SUCCESS (got %d)" % [misses_before, _count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS)])
+	_check(_count(c.turn_reels[1], ReelFace.ResultTier.SUCCESS) == succ_before + misses_before, "turn reel 1 also fully hefted")
 	# Weapon untouched (deep-copy guard).
 	_check(_count(w.reels[0], ReelFace.ResultTier.FAILURE) == fail_before, "WEAPON reel 0 FAILURE unchanged (got %d, want %d)" % [_count(w.reels[0], ReelFace.ResultTier.FAILURE), fail_before])
 
