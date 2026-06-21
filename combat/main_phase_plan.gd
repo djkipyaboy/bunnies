@@ -22,6 +22,10 @@ var wild_spins: int
 const RAMPAGE_CONVERSIONS: int = 2
 ## Rampage is a single-turn Ultimate (AoE for the fired spin only).
 const RAMPAGE_SPINS: int = 1
+## Crit-bias WILD spin counts, separated per class (spec 2026-06-21 iteration 2):
+## the Warrior's &"wild" is single-spin; the Skirmisher's &"sticky_wild" rides for two.
+const WILD_SPINS: int = 1
+const STICKY_WILD_SPINS: int = 2
 
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
@@ -53,7 +57,21 @@ func can_stage_ability() -> bool:
 func can_stage_ultimate() -> bool:
 	return combatant != null and combatant.bonus_meter != null and combatant.bonus_meter.is_armed()
 
+## True when the active Ultimate is a crit-bias WILD variant (Warrior 1-spin / Skirmisher 2-spin sticky).
+func _is_wild_ultimate() -> bool:
+	return ultimate_id == &"wild" or ultimate_id == &"sticky_wild"
+
+## True when the Rampage Ultimate would include the Heft base ability (the Vanguard pairing).
+func _rampage_includes_heft() -> bool:
+	return ultimate_id == &"rampage" and ability_id == &"heft"
+
+## True while the base ability (Heft) is provided FREE by a staged Rampage — toggled on, no Stamina.
+func ability_is_free() -> bool:
+	return fire_ultimate_staged and _rampage_includes_heft()
+
 func toggle_ability() -> void:
+	if ability_is_free():
+		return  # Heft is locked ON (free) while Rampage is staged — controlled by the Ultimate toggle
 	if ability_staged:
 		ability_staged = false
 	elif can_stage_ability():
@@ -62,8 +80,12 @@ func toggle_ability() -> void:
 func toggle_ultimate() -> void:
 	if fire_ultimate_staged:
 		fire_ultimate_staged = false
+		if _rampage_includes_heft():
+			ability_staged = false   # untoggling Rampage untoggles the coupled Heft
 	elif can_stage_ultimate():
 		fire_ultimate_staged = true
+		if _rampage_includes_heft():
+			ability_staged = true    # toggling Rampage auto-toggles Heft (free, included)
 
 ## The reels the spin WOULD use. A staged reel-adding ability (flurry/rend) appends a previewed
 ## own-type reel (rend's preview reel is a no-damage BLEED reel). Heft edits faces in place on commit,
@@ -86,7 +108,8 @@ func preview_stamina() -> int:
 	if combatant == null or combatant.resource_pool == null:
 		return 0
 	var s: int = combatant.resource_pool.stamina
-	return (s - ability_cost) if ability_staged else s
+	# Heft included by Rampage costs no Stamina, so don't subtract it from the preview.
+	return (s - ability_cost) if (ability_staged and not ability_is_free()) else s
 
 ## True if committing WOULD consume the Bonus Meter (an Ultimate is staged this turn).
 func will_consume_meter() -> bool:
@@ -95,8 +118,8 @@ func will_consume_meter() -> bool:
 ## The reels that WOULD be wild at spin: already-active carryover wild unioned with a staged fire.
 func effective_wild_indices() -> Array[int]:
 	var out: Array[int] = combatant.wild_reel_indices().duplicate()
-	# Only the Sticky-Wild Ultimate produces wild reels; Rampage has no wild glow.
-	if fire_ultimate_staged and ultimate_id == &"sticky_wild":
+	# Only the crit-bias WILD Ultimates (Warrior &"wild" / Skirmisher &"sticky_wild") glow; Rampage doesn't.
+	if fire_ultimate_staged and _is_wild_ultimate():
 		for i: int in range(_weapon_reel_count()):
 			if not (i in out):
 				out.append(i)
@@ -112,7 +135,8 @@ func _weapon_reel_count() -> int:
 ## Applies the staged choices via committed Combatant methods. Called once, on SPIN. The methods
 ## carry their own guards; staging already validated, so they succeed. No-op when nothing is staged.
 func commit() -> void:
-	if ability_staged:
+	# When Heft is free-via-Rampage, skip the paid ability commit — fire_rampage applies the Heft itself.
+	if ability_staged and not ability_is_free():
 		match ability_id:
 			&"flurry":
 				combatant.try_splice_reel(combatant.weapon_type(), combatant.weapon.base_damage, ability_cost, reel_cap)
@@ -122,7 +146,9 @@ func commit() -> void:
 				combatant.apply_heft(ability_cost)
 	if fire_ultimate_staged:
 		match ultimate_id:
+			&"wild":
+				combatant.fire_sticky_wild(_weapon_reel_count(), WILD_SPINS)        # single spin (Warrior)
 			&"sticky_wild":
-				combatant.fire_sticky_wild(_weapon_reel_count(), wild_spins)
+				combatant.fire_sticky_wild(_weapon_reel_count(), STICKY_WILD_SPINS)  # two spins (Skirmisher)
 			&"rampage":
 				combatant.fire_rampage(combatant.weapon_type(), RAMPAGE_CONVERSIONS, RAMPAGE_SPINS)

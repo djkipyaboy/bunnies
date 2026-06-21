@@ -346,13 +346,15 @@ func _ability_name(id: StringName) -> String:
 func _ultimate_label(id: StringName) -> String:
 	match id:
 		&"rampage": return "ULTIMATE: Rampage (AoE)"
-		&"sticky_wild": return "ULTIMATE: Wild (crit-bias)"
+		&"wild": return "ULTIMATE: Wild (1 spin)"
+		&"sticky_wild": return "ULTIMATE: Sticky Wild (2 spins)"
 		_: return "Fire Ultimate"
 
 func _ultimate_name(id: StringName) -> String:
 	match id:
 		&"rampage": return "RAMPAGE (+1 reel, Heft-all, AoE)"
-		&"sticky_wild": return "WILD (all reels crit-biased, 2 spins)"
+		&"wild": return "WILD (all reels crit-biased, 1 spin)"
+		&"sticky_wild": return "STICKY WILD (all reels crit-biased, 2 spins)"
 		_: return "Ultimate"
 
 func _on_turn_started(c: Combatant) -> void:
@@ -504,9 +506,17 @@ func _refresh_main1_preview() -> void:
 	panel.set_meter_flash(_plan.will_consume_meter())
 
 	var is_player_main1: bool = _awaiting_player_spin and _attacker != null and _attacker.is_player
-	_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
+	# Base-ability button. When Rampage includes Heft for free, the button reads "included" + free,
+	# shows staged-green, and is locked (toggled by the Ultimate, not directly).
+	if _plan.ability_is_free():
+		_splice_button.text = "Heft: included by Rampage (0 STA)"
+		_splice_button.disabled = true
+		_splice_button.modulate = Color(0.6, 1.0, 0.6)
+	else:
+		_splice_button.text = _ability_label(_attacker.ability_id)
+		_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
+		_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.ability_staged else Color(1, 1, 1)
 	_ultimate_button.disabled = not (is_player_main1 and (_plan.fire_ultimate_staged or _plan.can_stage_ultimate()))
-	_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.ability_staged else Color(1, 1, 1)
 	_ultimate_button.modulate = Color(0.6, 1.0, 0.6) if _plan.fire_ultimate_staged else Color(1, 1, 1)
 
 ## Glows the strips that WOULD be wild at spin (staged fire ∪ carryover), per the plan's preview.

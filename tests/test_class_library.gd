@@ -16,7 +16,7 @@ func _initialize() -> void:
 	_check(warrior.display_name == "Martin (Mouse)", "warrior is Martin")
 	_check(warrior.weapon_base_damage == 8.0, "warrior sword base 8")
 
-	_check(warrior.ultimate_id == &"sticky_wild", "warrior ultimate = sticky_wild (placeholder)")
+	_check(warrior.ultimate_id == &"wild", "warrior ultimate = wild (single-spin)")
 
 	var vanguard: CharacterClass = ClassLibrary.make(&"vanguard")
 	_check(vanguard.reel_count == 2 and vanguard.base_stats.vigor == 5, "vanguard: 2 reels, Vigor 5")
@@ -29,7 +29,8 @@ func _initialize() -> void:
 	_check(skirmisher.reel_count == 4 and skirmisher.base_stats.finesse == 5, "skirmisher: 4 reels (dual-wield), Finesse 5")
 	_check(skirmisher.ability_id == &"flurry", "skirmisher ability = flurry")
 	_check(skirmisher.weapon_base_damage == 6.0, "skirmisher sabre base 6")
-	_check(skirmisher.meter_cap == 20, "skirmisher meter_cap 20 (raised — charges fast)")
+	_check(skirmisher.meter_cap == 30, "skirmisher meter_cap 30 (raised — charges fast)")
+	_check(skirmisher.ultimate_id == &"sticky_wild", "skirmisher ultimate = sticky_wild (2-spin)")
 
 	_check(ClassLibrary.make(&"nope") == null, "unknown id -> null")
 	_check(ClassLibrary.IDS.size() == 3, "3 v1 classes registered")

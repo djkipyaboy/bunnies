@@ -26,6 +26,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"rend"
+			c.ultimate_id = &"wild"  # single-spin crit-bias wild (distinct from the Skirmisher's 2-spin sticky wild)
 			return c
 		&"vanguard":
 			# Heavy badger: hits late but like a mountain; huge HP; high meter carryover. Ability Heft.
@@ -46,9 +47,10 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_stats = _stats(1, 5, 2, 2, 1, 1)
 			c.weapon_base_damage = 6.0; c.weapon_type = slashing; c.reel_count = 4
 			c.defense_type = slashing
-			# [ASSUMPTION] HP 300 for testing; meter_cap 20 (raised from 15) — the 4-reel skirmisher
-			# charges the meter fast, so its Ultimate costs more to feel earned.
-			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 20
+			# [ASSUMPTION] HP 300 for testing; meter_cap 30 (raised from 15→20→30) — the 4-reel
+			# skirmisher charges very fast; 30 stops endless back-to-back Ultimate chaining.
+			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 30
+			c.ultimate_id = &"sticky_wild"  # 2-spin sticky wild (distinct from the Warrior's 1-spin wild)
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"flurry"
 			return c
