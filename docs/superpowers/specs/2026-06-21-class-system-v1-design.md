@@ -48,7 +48,7 @@ is a 7th** that owns a brand-new archetype built on the Luck stat + the reserved
 |---|-------|---------|----------------------------------|-------------|-----------|--------------------------|
 | 1 | **Warrior** | Mouse | Expanding / **Sticky Wild** *(built)* | Slashing | 3 (typical) | **Martin (Mouse)** |
 | 2 | **Vanguard** (Berserker) | Badger | Cascading / Avalanche | Crushing | 2 (heavy) | **Sunflash (Badger)** |
-| 3 | **Skirmisher** | Hare | Free / Extra Spins | Slashing (light) | 5 (rapid) | **Basil Stag Hare** |
+| 3 | **Skirmisher** | Hare | Free / Extra Spins | Slashing (dual-wield) | 4 | **Basil Stag Hare** |
 | 4 | **Ranger** (Archer) | Squirrel | Hold & Win Respins | Piercing | 4 | **Jess (Squirrel)** |
 | 5 | **Seer** (Mystic) | Owl | Multiplier-on-Cascade | Mystic | 2 (big spell) | **Sir Harry the Muse (Owl)** |
 | 6 | **Warden** (Support) | Mole | Pick'em Bonus | Earth | 3 | **Foremole (Mole)** |
@@ -153,26 +153,60 @@ each so the design is real, and flag the build dependency.
 > so they're cheap to build and each showcases a distinct facet of "builds edit the reels."
 
 A base ability is a **Main-1 action** on the staged `MainPhasePlan` (toggle → preview → SPIN commits),
-spending **Stamina**, exactly like the current Storm splice. The three first-cut classes:
+spending **Stamina** (`[ASSUMPTION]` 2 STA each), exactly like the current Storm splice. The
+**2026-06-21 review reassigned the abilities** to fit each class's fantasy:
 
-| Class | Ability | What it does (v1, `[ASSUMPTION]` numbers) | Hook reused | Facet |
-|-------|---------|-------------------------------------------|-------------|-------|
-| **Warrior** | **Flurry** | Splice **+1 Slashing reel** (the weapon's own type) this turn — a disciplined extra swing. 2 STA, 5-reel cap. | `Combatant.try_splice_reel` *(BUILT)* | add-a-reel (offense) |
-| **Vanguard** | **Heft** | Edit this turn's reels: on each weapon reel, convert **one FAILURE face → SUCCESS face** — fewer whiffs from the 2 heavy hits. 2 STA. | per-turn reel-face edit *(new small helper, mirrors `apply_luck`)* | edit-faces (consistency) |
-| **Skirmisher** | **Rallying Cry** | Apply **Inspirational** (+5 init / 2 turns, non-stacking) to **all allies** — the Long Patrol rally. 2 STA. | `EffectLibrary.make(&"inspirational")` + `attach_effect` *(BUILT)* | apply-buff (utility) |
+| Class | Ability | What it does (v1, `[ASSUMPTION]` numbers) | Hook | Facet |
+|-------|---------|-------------------------------------------|------|-------|
+| **Warrior** | **Rend** | Splice **+1 own-type (Slashing) reel** that deals **no direct damage**; on a **hit (success/crit), applies a BLEED stack** to the enemy. Sustained pressure. 2 STA, 5-reel cap. | `try_splice_reel` + per-face rider + new BLEED Effect | add-a-reel → DoT |
+| **Vanguard** | **Heft** | Edit this turn's reels: on each weapon reel, convert **one FAILURE face → SUCCESS face** — fewer whiffs from the 2 heavy hits. 2 STA. | per-turn reel-face edit *(new helper, mirrors `apply_luck`)* | edit-faces (consistency) |
+| **Skirmisher** | **Flurry** | Splice **+1 own-type (Slashing) reel** that resolves as a **normal extra swing** — the wild, relentless second blade. 2 STA, 5-reel cap. | `Combatant.try_splice_reel` *(BUILT)* | add-a-reel (offense) |
 
 **Notes & honesty:**
-- **Warrior's Flurry replaces Martin's current Storm splice.** The Storm splice was a generic demo
-  hook; re-typing it to the weapon's own type makes it the Warrior's *thematic* signature (an extra
-  swing, not a random storm). Mechanically near-identical to the built splice → cheapest of the three.
-- **Heft** is the only one needing new code: a helper that edits `turn_reels` faces for the turn
-  (swap one FAILURE→SUCCESS per reel). It mirrors the existing `apply_luck` face-editing pattern, so
-  it's a small, well-precedented addition — not new architecture.
-- **Rallying Cry** reuses the already-built Inspirational effect and the all-allies targeting pattern
-  from the payline crit-line reward — so in 1v1 it self-buffs (acts even earlier / sets up), and it's
-  immediately meaningful once party combat exists.
-- Each ability is a **MainPhasePlan toggle** so it previews before commit (the staged-Main-1 standard)
-  and is excluded from the payline grid where it adds/edits reels, consistent with the Storm splice.
+- **Skirmisher = dual-wield** (two sabres, each swinging twice → 4 base reels), so **Flurry** — a
+  free extra strike — is the on-theme "relentless attacker" signature. Mechanically the built splice,
+  typed to the weapon's own Slashing → the cheapest ability.
+- **Warrior's Rend** is the most involved: it adds a reel whose purpose is to *apply* the new BLEED
+  DoT (see §4B), not to swing for damage. **Interpretation flagged:** the Rend reel deals **0 direct
+  weapon damage** (its value is the bleed); say so if you'd rather it *also* deal a normal hit.
+- **Heft** needs a small new `Combatant.apply_heft` that deep-copies each turn-reel before editing a
+  face (the per-turn reel array is a *shallow* copy of the weapon's, so a naive edit would corrupt the
+  weapon permanently). Mirrors the `apply_luck` face-editing pattern.
+- **Rallying Cry is shelved** (was the Skirmisher's): it returns when a support class (Warden/Hare)
+  lands, reusing the built Inspirational effect + all-allies targeting.
+- Each ability is a **MainPhasePlan toggle** so it previews before commit, and reel-adding abilities
+  (Rend/Flurry) are excluded from the payline grid (consistent with the Storm splice).
+
+---
+
+## 4B. The BLEED debuff (new DoT system) — LOCKED 2026-06-21
+
+> **Decision (review, 2026-06-21):** the Warrior's Rend applies **BLEED**, the first
+> damage-over-time effect. Exact design as specified:
+
+- **Trigger:** the Rend reel landing a **hit** (success or crit-success). On a hit it applies **one
+  BLEED stack** to the enemy. *(Multi-target "any/all enemies" is an N-vs-M concern — v1 1v1 applies
+  to the single defender; "all enemies on crit" is a flagged future option.)*
+- **Duration:** **3 turns** of the bearer's turns; **each new stack refreshes the duration** to 3.
+- **Damage:** dealt off-chart — **BLEED is NOT modified by the type-effectiveness chart** (it's flat
+  bleeding, neither raised nor lowered by type). Computed from the **Warrior's equipped weapon base
+  damage** at application time.
+- **Stacking (max 3), as a fraction of the Warrior's weapon base damage per bearer-turn:**
+  - **1 stack → 50%** of weapon base damage / turn
+  - **2 stacks → 80%**
+  - **3 stacks → 115%**
+  - These are **totals at that stack count** (not additive increments).
+- **Rounding:** **round UP** the per-turn bleed damage (`ceil`), per the project convention.
+- **Worked example (Warrior weapon base 8):** 1 stack → `ceil(8 × 0.50)` = **4/turn**; 2 stacks →
+  `ceil(8 × 0.80)` = **7/turn**; 3 stacks → `ceil(8 × 1.15)` = **10/turn**. A full 3-stack bleed left
+  to run = 30 damage over its 3 ticks. `[ASSUMPTION]` — tune by playtest.
+- **Tick timing:** at the bearer's **End phase** (the bearer takes bleed damage on each of their own
+  turn-ends), then the duration counts down. So a fresh 3-turn bleed deals damage on the enemy's next
+  3 turn-ends.
+- **Implementation seam:** extends the existing `Effect` (`Effect.Kind.DAMAGE_OVER_TIME` is already an
+  enum stub) with a baked `dot_base_damage` (the Warrior's weapon base) + a `dot_fractions`
+  `[0.50, 0.80, 1.15]` table indexed by stack count, and a `dot_damage()` accessor. The orchestrator
+  applies the bled damage at End (resolver REPORTS the rider, orchestrator APPLIES — authority rule).
 
 ---
 
@@ -191,7 +225,7 @@ Reel-band rule (DESIGN §4.3): **heavier → fewer, bigger reels; lighter → mo
 |--------|-----------|-------------|:-:|:-:|:-:|---------------------------|
 | **One-Handed Sword** | 1H Sword | Slashing | 8 | 3 | 1H | Bleed DoT *(unbuilt)* |
 | **Greatsword** | 2H Sword | Slashing | 14 | 2 | 2H | Bleed DoT *(unbuilt)* |
-| **Sabre** | 1H Sword (fast) | Slashing | 5 | 5 | 1H | — |
+| **Sabre (×2 dual-wield)** | 1H Sword (fast) | Slashing | 6 | 4 | dual 1H | — |
 | **Dagger** | Dagger | Piercing | 5 | 5 | 1H | Armor-pierce *(unbuilt)* |
 | **War Spear** | Polearm | Piercing | 10 | 3 | 2H | reach (init nudge) *(unbuilt)* |
 | **Hunting Bow** | Bow | Piercing | 7 | 4 | ranged | — |
@@ -209,7 +243,8 @@ Reel-band rule (DESIGN §4.3): **heavier → fewer, bigger reels; lighter → mo
   v1 standardizes him to the 3-reel typical sword so the demo's reel count is unchanged — flag if
   you'd rather keep him on a 2-reel greatsword.)*
 - Vanguard → **Great Maul** (Crushing 2, Slow). Heavy band; built rider.
-- Skirmisher → **Sabre** (Slashing 5). Light/fast (the high-end 5-reel band).
+- Skirmisher → **Sabre** (Slashing, base 6, **4 reels** — dual-wield: two sabres each swinging
+  twice). Flurry adds a 5th relentless swing.
 - Ranger → **Hunting Bow** (Piercing 4) *or* **War Spear** (Piercing 3) — recommend Bow for the
   ranged-archer fantasy.
 - Seer → **War Staff** (Mystic 2). Big-spell band.
