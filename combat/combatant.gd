@@ -22,6 +22,10 @@ signal defeated
 var display_name: String = ""
 var is_player: bool = false
 
+## The class's Main-1 base ability id (spec 2026-06-21 §4A): &"rend" / &"heft" / &"flurry".
+## Drives MainPhasePlan dispatch. Empty = no base ability.
+var ability_id: StringName = &""
+
 ## Max HP — flat pool seeded by class/race, scaling per level (DESIGN.md A1). Not reel-influenced.
 var max_hp: int = 1
 
