@@ -39,6 +39,17 @@ static func make_default(type: DamageType = null) -> ActionReel:
 	reel.faces.shuffle()
 	return reel
 
+## Builds the Warrior's "Rend" reel (spec §4A/§4B): same tier spread as the default strip, but its
+## HIT faces (success / crit-success) deal NO direct weapon damage (multiplier 0) and instead carry a
+## &"bleed" rider. So landing a hit on this reel applies a BLEED stack rather than swinging for damage.
+static func make_rend(type: DamageType = null) -> ActionReel:
+	var reel: ActionReel = make_default(type)
+	for face: ReelFace in reel.faces:
+		if face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			face.multiplier = 0.0
+			face.rider_effect_id = &"bleed"
+	return reel
+
 static func _make_face(tier: ReelFace.ResultTier, multiplier: float) -> ReelFace:
 	var face: ReelFace = ReelFace.new()
 	face.result_tier = tier

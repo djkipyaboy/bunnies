@@ -115,7 +115,9 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 
 	if face != null:
 		# Neutral and the failure tiers deal no weapon damage (their value is utility + meter).
-		if face.deals_damage():
+		# A HIT face with multiplier 0 (the Warrior's Rend reel) also deals no direct damage — its
+		# value is the rider it carries. Flat Might is added only to faces that deal weapon damage.
+		if face.deals_damage() and face.multiplier > 0.0:
 			var raw: float = base_damage * face.multiplier
 			var type_mult: float = reel.damage_type.multiplier_against(target_type) if reel.damage_type != null else 1.0
 			attack.final_damage = ceili(raw * type_mult) + flat_damage_bonus  # round UP (project convention)
@@ -124,6 +126,10 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 		# The resolver only REPORTS; the orchestrator attaches the Effect (ARCHITECTURE §2).
 		if face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS and reel.damage_type != null and reel.damage_type.inherent_rider_id != &"":
 			attack.rider_effect_id = reel.damage_type.inherent_rider_id
+		# Per-face rider (e.g. the Rend reel's &"bleed") reports on any HIT tier — orchestrator applies
+		# it. Takes precedence over the type's inherent rider when both are present.
+		if face.rider_effect_id != &"" and (face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS):
+			attack.rider_effect_id = face.rider_effect_id
 
 	return attack
 
