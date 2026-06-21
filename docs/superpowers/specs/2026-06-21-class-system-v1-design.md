@@ -108,11 +108,12 @@ each so the design is real, and flag the build dependency.
 1. **Sticky Wild — Warrior** *(BUILT).* All weapon reels crit-**biased ~65%** for 2 spins
    (`fire_sticky_wild`). No change.
 
-2. **Cascading / Avalanche — Vanguard.** *Bloodwrath.* On firing, the turn's spin resolves; **every
-   reel that landed success/crit triggers one extra bonus reel**, and those can chain again until a
-   spin adds no new hit. Models a badger's rising fury. *Build dep:* a resolver loop that re-spins
-   from a hit set; no new data, reuses `ActionReel.spin` + `CombatResolver`. Cap chain length
-   `[ASSUMPTION] 4` for legibility.
+2. **Rampage — Vanguard** *(BUILT 2026-06-21, your redesign — replaces the earlier Cascading idea).*
+   On firing: consume the meter, **+1 attack reel (2→3)**, apply the **Heft bonus to every reel**
+   (2 miss→hit conversions each), and make the spin **AoE — every reel hits ALL enemies** (damage
+   and debuffs). Single-spin. A badger's sweeping fury. *Built via per-class `ultimate_id` dispatch +
+   `Combatant.fire_rampage`. AoE loops all enemies (invisible in 1v1, N-vs-M-ready); per-target type
+   recompute is a flagged future refinement.*
 
 3. **Free / Extra Spins — Skirmisher.** **+2 Action reels this turn** (`[ASSUMPTION]`), spliced like
    the Storm splice but free and untyped (weapon type). *Build dep:* trivially rides

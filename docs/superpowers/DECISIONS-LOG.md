@@ -127,6 +127,26 @@ Spec: `specs/2026-06-21-class-system-v1-design.md` (§4A abilities, §4B BLEED).
   now innate). Gear/weapon-riders deferred. Enemy unchanged (Crushing/Earth) to preserve the demo.
 - **Class picker** lives on the end-card (cheapest); a pre-combat menu is a flagged fast-follow.
 
+## Class v1 playtest iteration 2 (2026-06-21, your playtest feedback)
+- **Heft buffed:** now converts **2** miss faces → hits per reel (was 1), per your ask. Shared
+  `_heft_turn_reels(conversions)` helper (reused by the Vanguard Ultimate).
+- **Vanguard Ultimate redesigned → "Rampage"** (your design, replaces the sticky-wild placeholder for
+  this class): consumes the meter, **+1 attack reel (2→3)**, applies the **Heft bonus to all reels**,
+  and makes the spin **AoE — every reel hits all enemies**. Single-spin. Per-class Ultimate dispatch
+  via `ultimate_id` (Warrior/Skirmisher still on sticky-wild). *AoE is implemented (loops all enemies)
+  but invisible in the 1v1 prototype — it's correct + N-vs-M-ready; per-target type recompute is a
+  flagged future refinement.*
+- **Skirmisher meter_cap 15 → 20** `[ASSUMPTION]` — the 4-reel skirmisher charges fast; costs more now.
+- **Sticky-Wild "bug" was working-as-designed** (2-spin wild; meter spent up front). Not changed —
+  instead the log now says **"WILD still active — N spin(s) remaining (meter already spent)"** so it no
+  longer reads as a stuck/empty-but-active state. Say if you'd rather it be 1 spin.
+- **Combat log clarity (your ask):** logs each ability/Ultimate activation (`⮞ uses …`, `★ fires
+  ULTIMATE — …`) and **`BM +#  (val/cap)`** on every meter gain (player only — enemy meter stays
+  hidden). DoT panel readout now shows per-turn damage (e.g. `BLEED 7/turn x2 (3)`).
+- **Martin's 13 dmg confirmed intended:** `ceil(8 base × 1.25 Slashing-vs-Earth) + 3 Might`. Reflects
+  the new base-8 sword + innate Might 3 (replacing the old base-10 sword + Jerkin).
+- **HP 300** for enemy + all 3 classes `[ASSUMPTION]` (was 100) — longer fights for testing.
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;
