@@ -167,7 +167,7 @@ These agents are installed (`~/.claude/agents/`). Use them when the task fits:
   round → MTG phase turn → **player-driven** Spin → scrolling Action reels → independent
   per-reel damage via the 6-type chart → Bonus Meter charges/arms → win/lose + restart.
 - 6 `DamageType` `.tres` (gentle placeholder chart, `[ASSUMPTION]`).
-- Headless test suite under `tests/` — **20 suites, all green.** Run a test:
+- Headless test suite under `tests/` — **27 suites, all green.** Run a test:
   `Godot_v4.6.3-stable_win64 --headless --path bunnies --script res://tests/test_<name>.gd`.
 - **Ten combat systems** shipped this branch, all headless-test-green (each has a design spec in
   `docs/superpowers/specs/`; autonomous balance calls in `docs/superpowers/DECISIONS-LOG.md`):
@@ -196,10 +196,17 @@ These agents are installed (`~/.claude/agents/`). Use them when the task fits:
 without errors. **Whether the spin is *fun*, and whether the scrolling reels feel right, is the
 human call (CLAUDE.md §5 hard ceiling)** — play `combat.tscn` and judge.
 
-**Next — PAUSING combat engineering to design CONTENT.** The systems prove the loop; they now need
-content to express. Design-first (per §5 and the combat-change standard procedure):
-- **Flesh out races, classes + specializations, abilities, and buffs/debuffs.** These ride the
-  deferred `DESIGN.md §8` world/meta classes (`Class`, `EncounterTable`, `RewardTable`, talents) —
+**Class system v1 SHIPPED (2026-06-21, branch `worktree-class-system-v1-design`).** First content:
+a thin **`CharacterClass`** resource + code **`ClassLibrary`** stamp three in-scene playable classes —
+**Warrior/Vanguard/Skirmisher** — each with stats, weapon, the placeholder Sticky-Wild Ultimate, and a
+distinct Main-1 base ability (**Rend** → new stacking **BLEED** DoT; **Heft** reel-edit; **Flurry**
+own-type splice). End-card class picker. Specs: `2026-06-21-class-system-v1-design.md` (§4A abilities,
+§4B BLEED); 7 new test suites. **Human play-test pending** (feel = your call, §5).
+
+**Next — more CONTENT, design-first** (per §5 and the combat-change standard procedure):
+- **The other 4 classes** (Ranger/Seer/Warden/Chancer — designed in the spec, not built), the
+  remaining **5 Ultimate archetypes**, **weapon riders**, **gear**, races + specializations. These
+  ride the deferred `DESIGN.md §8` world/meta classes (`EncounterTable`, `RewardTable`, talents) —
   do not build them speculatively yet (§7 YAGNI).
 
 When the content design is firmer, **RETURN to combat** to:

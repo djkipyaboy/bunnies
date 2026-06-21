@@ -105,6 +105,28 @@ Full design in `specs/2026-06-20-stat-system-design.md`. My notable calls:
   extra-line geometry isn't demonstrable yet. The resolver's `extra_lines` hook is reserved; revisit
   when larger weapon grids or non-straight bonus lines exist. (My scoping call.)
 
+## Class system v1 — Warrior/Vanguard/Skirmisher (2026-06-21, "good to go" + per-class abilities)
+Spec: `specs/2026-06-21-class-system-v1-design.md` (§4A abilities, §4B BLEED). My calls:
+- **`CharacterClass` not `Class`** (naming deviation from DESIGN/CLAUDE): `class` is a GDScript
+  keyword and a `Class` type name is confusing to reference. Easy rename if you want the literal.
+- **Code `ClassLibrary`** registry (mirrors `EffectLibrary`), not authored `.tres` yet —
+  `CharacterClass` is a Resource so it can migrate to `.tres` later.
+- **`[ASSUMPTION]` stat spreads** (~12-pt budgets): Warrior 3/2/3/1/2/1, Vanguard 4/0/5/0/3/0,
+  Skirmisher 1/5/2/2/1/1 (Might/Finesse/Vigor/Focus/Grit/Luck).
+- **`[ASSUMPTION]` weapon bases:** Warrior sword 8 (3 reels), Vanguard maul 15 (2 reels), Skirmisher
+  sabre 6 (**4 reels — dual-wield**, your call). HP: Warrior 100 / Vanguard 130 / Skirmisher 90.
+- **Base abilities (your reassignment):** Warrior **Rend**, Vanguard **Heft**, Skirmisher **Flurry**;
+  all cost **2 STA**. Rallying Cry shelved for a future support class.
+- **Rend interpretation (flagged):** the Rend reel deals **0 direct weapon damage** (mult 0, no Might);
+  its whole value is applying BLEED on a hit (success/crit). Say if you want it to also swing.
+- **BLEED (your spec, §4B):** 3-turn DoT, stacks 3× at **50/80/115%** of the Warrior's weapon base
+  damage/turn (totals, not increments), refresh on re-apply, **off the type chart**, **round up**,
+  ticks at the bearer's **End** phase. Resolver reads per-face riders; orchestrator bakes the caster's
+  weapon base + applies the damage (authority rule).
+- **Martin folded into the Warrior class** (dropped the Padded Jerkin gear; rough stat equivalents are
+  now innate). Gear/weapon-riders deferred. Enemy unchanged (Crushing/Earth) to preserve the demo.
+- **Class picker** lives on the end-card (cheapest); a pre-combat menu is a flagged fast-follow.
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;

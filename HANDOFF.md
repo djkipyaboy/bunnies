@@ -96,7 +96,7 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 - **Play the loop:** open the project in Godot and press play (or run `combat.tscn`). Judge feel here
   — *that's the human call* (CLAUDE.md §5 hard ceiling: Claude builds the loop, the human decides
   whether the spin is fun).
-- **Headless test suite — 20 suites, all green:**
+- **Headless test suite — 27 suites, all green:**
   ```bash
   Godot_v4.6.3-stable_win64 --headless --path bunnies --script res://tests/test_<name>.gd
   # after adding a NEW class_name, refresh the class cache first or --script can't resolve it:
@@ -106,16 +106,29 @@ meter (15) arms the **Sticky-Wild Ultimate**.
   `test_phase_manager`, `test_resource_pool`, `test_effect`, `test_crushing_slow`,
   `test_reel_splice`, `test_main_phase_plan`, `test_ultimate_sticky_wild`, `test_payline_library`,
   `test_payline_resolver`, `test_payline_grid`, `test_payline_rewards`, `test_stats`,
-  `test_initiative_tiebreak`, `test_might_damage`, `test_stun`, and `test_combat_loop` (full
-  integration through the real managers/resolver). Each prints `… TEST PASSED/FAILED` and exits
-  non-zero on failure. `tests/gen_damage_types.gd` regenerates the 6 type `.tres`.
+  `test_initiative_tiebreak`, `test_might_damage`, `test_stun`, `test_combat_loop` (full
+  integration through the real managers/resolver), and the **class-system v1** suites
+  `test_character_class`, `test_class_library`, `test_bleed`, `test_bleed_lifecycle`,
+  `test_rend_reel`, `test_heft`, `test_class_abilities_plan`. Each prints `… TEST PASSED/FAILED`
+  and exits non-zero on failure. `tests/gen_damage_types.gd` regenerates the 6 type `.tres`.
 
 ---
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-**We are PAUSING combat-prototype engineering to design CONTENT.** The systems above prove the loop;
-what they lack is *stuff to express*. The next block of work is **design-first** (per CLAUDE.md §5
+**SHIPPED 2026-06-21 — Class system v1 (first cut).** The content work began: a thin
+`CharacterClass` resource + code `ClassLibrary` now stamp three playable, in-scene classes —
+**Warrior (Martin)**, **Vanguard (Sunflash)**, **Skirmisher (Basil Stag Hare)** — each with its own
+stat spread, weapon, the (placeholder) Sticky-Wild Ultimate, and a distinct Main-1 base ability:
+**Rend** (Warrior → new stacking **BLEED** DoT, the first damage-over-time effect — `Effect`
+DoT fields + `make_rend` + resolver per-face riders), **Heft** (Vanguard reel-edit), **Flurry**
+(Skirmisher own-type splice). An end-card **class picker** replays as each. Design: spec
+`2026-06-21-class-system-v1-design.md` (§4A/§4B); calls in `DECISIONS-LOG.md`. **Human play-test
+pending** — judge each class's feel (CLAUDE.md §5). Branch: `worktree-class-system-v1-design`.
+
+**Still TO DESIGN/BUILD (the rest of the content):** the other 4 classes (Ranger/Seer/Warden/Chancer
+— designed in the spec, not built), the 6 new Ultimate archetypes, weapon riders, gear, and full
+N-vs-M party combat. The next block remains **design-first** (per CLAUDE.md §5
 and the combat-change standard procedure): flesh out
 
 - **Races** and their affinities,

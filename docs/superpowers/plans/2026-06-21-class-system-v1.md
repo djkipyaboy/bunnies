@@ -2,6 +2,14 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **STATUS: EXECUTED 2026-06-21 (test-green, 27 suites).** The 2026-06-21 review reassigned the
+> base abilities AFTER this plan was drafted, so the *as-built* design supersedes the task bodies
+> below where they differ. Final ability mapping: **Warrior = Rend** (adds a no-damage reel applying
+> stacking BLEED — §4B; new `make_rend` + resolver per-face rider + Effect DoT fields), **Vanguard =
+> Heft** (as planned), **Skirmisher = Flurry** (the splice-equivalent; Sabre base 6, **4 reels**).
+> Rallying Cry was shelved. `combat.gd` reuses the existing `_splice_button` as the generic ability
+> button (not renamed). Source of truth for the design: the spec (§4A/§4B).
+
 **Goal:** Add a thin `CharacterClass` resource and three playable classes — Warrior, Vanguard, Skirmisher — to the combat prototype, each with its own stats, weapon, the built Sticky-Wild Ultimate, and a distinct thematic Main-1 base ability, selectable in `combat.tscn`.
 
 **Architecture:** A `CharacterClass` (`Resource`) is a data bundle that stamps a `Combatant` via `build_combatant()` (mirrors the existing inline `_make_combatant`). A code-side `ClassLibrary` holds the three v1 classes (consistent with the existing `EffectLibrary` pattern; `CharacterClass` stays a `Resource` so classes can move to `.tres` later). The per-class **base ability** is generalized onto `MainPhasePlan` (today hard-wired to one Storm splice) as an `ability_id` dispatched at `commit()`: `flurry` (splice an own-type reel — reuses `try_splice_reel`), `heft` (edit this turn's reels — new `Combatant.apply_heft`), `rallying_cry` (buff all allies — reuses the built `inspirational` Effect, applied by the orchestrator). `combat.gd` builds the PC from a selected class and relabels/rewires its single ability button.
