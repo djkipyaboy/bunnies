@@ -38,6 +38,10 @@ var _storm_type: DamageType
 var _strips_caption: Label
 var _plan: MainPhasePlan
 
+## Which CharacterClass the PC is built from (spec 2026-06-21). The end-card class picker sets this
+## and reloads the scene; default Warrior on first load.
+var _pc_class_id: StringName = &"warrior"
+
 var _attacker: Combatant
 var _defender: Combatant
 var _awaiting_player_spin: bool = false
@@ -60,7 +64,6 @@ func _ready() -> void:
 # ---------------------------------------------------------------------------
 
 func _build_scenario() -> void:
-	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 	var storm: DamageType = load("res://combat/resources/types/storm.tres")
@@ -73,20 +76,9 @@ func _build_scenario() -> void:
 	_phase_manager = PhaseManager.new()
 	add_child(_phase_manager)
 
-	# [ASSUMPTION] starter armor: Might 3 (noticeable +3/hit), Finesse 2 (wins the init tie vs the rat),
-	# Luck 1 (adds 1 crit-success face to each weapon reel — kept low; 1pt/crit-face is strong, watch
-	# Luck items/classes for being overpowered — flagged for the content-design pass).
-	var jerkin_stats: Stats = Stats.new()
-	jerkin_stats.might = 3
-	jerkin_stats.finesse = 2
-	jerkin_stats.luck = 1
-	var jerkin: Gear = Gear.new()
-	jerkin.display_name = "Padded Jerkin"
-	jerkin.slot = Gear.Slot.ARMOR
-	jerkin.stat_bonuses = jerkin_stats
-
-	# Player: Slashing weapon (3 reels), defends as Slashing. Visible Bonus Meter. Wears the jerkin.
-	_pc = _make_combatant("Martin (Mouse)", true, 100, slashing, _make_weapon(10.0, slashing, 3), true, Stats.new(), [jerkin])
+	# Player: built from the selected CharacterClass (spec 2026-06-21). Class supplies stats, weapon,
+	# defense, meter, Stamina, and the Main-1 base ability. Gear is deferred to a later pass.
+	_pc = ClassLibrary.make(_pc_class_id).build_combatant(true)
 	# Enemy: Crushing weapon (2 reels), defends as Earth → PC's Slashing hits it for ×1.25.
 	# Both HP set to 100 [ASSUMPTION] so the fight lasts long enough to charge/test the Ultimate.
 	_enemy = _make_combatant("Cluny's Rat", false, 100, earth, _make_weapon(8.0, crushing, 2), false, Stats.new(), [])
@@ -221,7 +213,7 @@ func _build_ui() -> void:
 
 func _build_overlay() -> void:
 	# Centered result card (NOT a full-screen cover) so the combat log stays readable after the fight.
-	const OVERLAY_SIZE := Vector2(420, 200)
+	const OVERLAY_SIZE := Vector2(420, 270)
 	_overlay = Panel.new()
 	_overlay.size = OVERLAY_SIZE
 	var viewport: Vector2 = get_viewport_rect().size
@@ -245,6 +237,25 @@ func _build_overlay() -> void:
 	restart.custom_minimum_size = RESTART_SIZE
 	restart.pressed.connect(func() -> void: get_tree().reload_current_scene())
 	_overlay.add_child(restart)
+
+	# Class picker (spec §6): pick which class the PC is, then replay — so each class is play-testable.
+	var pick_label := Label.new()
+	pick_label.text = "Play as:"
+	pick_label.position = Vector2(20, 188)
+	_overlay.add_child(pick_label)
+
+	const PICK_SIZE := Vector2(120, 38)
+	var ids: Array[StringName] = ClassLibrary.IDS
+	for i: int in range(ids.size()):
+		var id: StringName = ids[i]
+		var b := Button.new()
+		b.text = String(id).capitalize()
+		b.position = Vector2(20 + i * 128, 214)
+		b.custom_minimum_size = PICK_SIZE
+		b.pressed.connect(func() -> void:
+			_pc_class_id = id
+			get_tree().reload_current_scene())
+		_overlay.add_child(b)
 
 ## Repositions the whole action-reels block (banner → caption → strips → phase → log) BELOW the
 ## actual measured panel height, so it can never overlap the panels again when they grow more rows.
@@ -294,6 +305,7 @@ func _bind_signals() -> void:
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 
 func _start_combat() -> void:
+	_log("Playing as: %s  [%s]" % [_pc.display_name, String(_pc_class_id).capitalize()])
 	_turn_manager.roll_initiative()
 	for c: Combatant in _turn_manager.combatants:
 		(_panels[c] as CombatantPanel).refresh_initiative()
@@ -312,13 +324,22 @@ func _on_round_started(n: int) -> void:
 	_log("— Round %d —" % n)
 	_turn_order_bar.set_order(_turn_manager.get_turn_order())
 
+## The label for the generic base-ability button, per the active class's ability (spec §4A).
+func _ability_label(id: StringName) -> String:
+	match id:
+		&"rend": return "Rend: +1 bleed reel (2 STA)"
+		&"heft": return "Heft: steady the reels (2 STA)"
+		&"flurry": return "Flurry: +1 swing (2 STA)"
+		_: return "Ability"
+
 func _on_turn_started(c: Combatant) -> void:
 	_attacker = c
 	_defender = _enemy if c == _pc else _pc
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
-	_plan = MainPhasePlan.new(c, _storm_type, 2, 5, 0, 2)  # [ASSUMPTION] splice cost 2, reel cap 5; Ultimate wilds ALL weapon reels for 2 spins
+	_plan = MainPhasePlan.new(c, 2, 5, 2)  # [ASSUMPTION] ability cost 2, reel cap 5; Ultimate wilds ALL weapon reels for 2 spins
+	_splice_button.text = _ability_label(c.ability_id)  # the generic base-ability button, per class
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
 	_end_turn_button.disabled = true
 	var is_stunned: bool = c.evaluate_stun(STUN_THRESHOLD)
@@ -357,8 +378,23 @@ func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	elif phase == PhaseManager.Phase.END:
+		_apply_dot(_attacker)  # bleed etc. tick on the bearer's own turn-end, BEFORE durations count down
 		_attacker.on_end()
 		(_panels[_attacker] as CombatantPanel).refresh_status()
+
+## Applies every active DAMAGE_OVER_TIME effect's per-turn damage to [param c] (spec §4B: BLEED ticks
+## at the bearer's End). Off the type chart — flat dot_damage. Logs + refreshes the HP bar; a lethal
+## tick fires the combatant's defeated signal, which the turn-advance combat-over check then resolves.
+func _apply_dot(c: Combatant) -> void:
+	if c == null or not c.is_alive():
+		return
+	for e: Effect in c.active_effects:
+		if e.kind == Effect.Kind.DAMAGE_OVER_TIME:
+			var dmg: int = e.dot_damage()
+			if dmg > 0:
+				c.take_damage(dmg)
+				_log("  %s suffers %d %s damage (×%d)." % [c.display_name, dmg, String(e.id).to_upper(), e.stacks])
+	(_panels[c] as CombatantPanel).refresh_status()
 
 func _on_spin_pressed() -> void:
 	if _awaiting_stun_check:
@@ -406,11 +442,11 @@ func _resolve_stun_check() -> void:
 		# Lose the turn: skip Combat, run Main 2 → End → advance. (No proceed_to_combat.)
 		_phase_manager.resume_after_combat()
 
-## Stages/un-stages the Storm splice (toggle). Applies nothing — commit happens on SPIN.
+## Stages/un-stages the active class's base ability (toggle). Applies nothing — commit on SPIN.
 func _on_splice_pressed() -> void:
 	if not _awaiting_player_spin or _plan == null:
 		return
-	_plan.toggle_splice()
+	_plan.toggle_ability()
 	_refresh_main1_preview()
 
 ## Stages/un-stages the Sticky-Wild Ultimate (toggle). Consumes nothing — commit happens on SPIN.
@@ -437,9 +473,9 @@ func _refresh_main1_preview() -> void:
 	panel.set_meter_flash(_plan.will_consume_meter())
 
 	var is_player_main1: bool = _awaiting_player_spin and _attacker != null and _attacker.is_player
-	_splice_button.disabled = not (is_player_main1 and (_plan.splice_staged or _plan.can_stage_splice()))
+	_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
 	_ultimate_button.disabled = not (is_player_main1 and (_plan.fire_ultimate_staged or _plan.can_stage_ultimate()))
-	_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.splice_staged else Color(1, 1, 1)
+	_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.ability_staged else Color(1, 1, 1)
 	_ultimate_button.modulate = Color(0.6, 1.0, 0.6) if _plan.fire_ultimate_staged else Color(1, 1, 1)
 
 ## Glows the strips that WOULD be wild at spin (staged fire ∪ carryover), per the plan's preview.
@@ -496,6 +532,10 @@ func _apply_attack(attack) -> void:
 	if attack.rider_effect_id != &"":
 		var rider: Effect = EffectLibrary.make(attack.rider_effect_id)
 		if rider != null:
+			# A DoT (the Warrior's Rend → BLEED) bakes the caster's weapon base damage at apply time,
+			# so its per-turn damage scales off the attacker's weapon (spec §4B). Off the type chart.
+			if rider.kind == Effect.Kind.DAMAGE_OVER_TIME and _attacker.weapon != null:
+				rider.dot_base_damage = _attacker.weapon.base_damage
 			_defender.attach_effect(rider)
 			_log("  %s is afflicted with %s (%d turns)." % [_defender.display_name, String(rider.id).to_upper(), rider.duration])
 			(_panels[_defender] as CombatantPanel).refresh_status()
