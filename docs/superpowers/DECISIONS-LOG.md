@@ -147,6 +147,19 @@ Spec: `specs/2026-06-21-class-system-v1-design.md` (§4A abilities, §4B BLEED).
   the new base-8 sword + innate Might 3 (replacing the old base-10 sword + Jerkin).
 - **HP 300** for enemy + all 3 classes `[ASSUMPTION]` (was 100) — longer fights for testing.
 
+## Class v1 playtest iteration 3 (2026-06-21, your playtest feedback)
+- **Separated the WILD Ultimates** (future-proofing, your call): Warrior `ultimate_id = &"wild"`
+  (**1 spin**), Skirmisher `&"sticky_wild"` (**2 spins**). Fixes Martin getting a 2-spin wild from
+  the shared ultimate. Spin counts are per-id constants in MainPhasePlan; each class owns its variant.
+- **Skirmisher meter_cap 20 → 30** `[ASSUMPTION]` — 20 still chained endlessly with 4 reels charging
+  fast; 30 makes the Ultimate feel earned.
+- **Vanguard Rampage now auto-includes Heft (free):** toggling **Rampage ON** auto-toggles **Heft ON**,
+  shown as **"Heft: included by Rampage (0 STA)"**, green, and **locked** (can't toggle independently).
+  Toggling Rampage OFF untoggles Heft and restores its normal 2-STA cost. `commit()` skips the paid
+  heft when it's free (fire_rampage already hefts), so no double-heft / no wasted Stamina.
+- **Sticky-wild still 2 spins for the Skirmisher** (kept, now legible via the per-turn log). The
+  "endless chain" was the meter recharging too fast, addressed by the cap bump — not the spin count.
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;
