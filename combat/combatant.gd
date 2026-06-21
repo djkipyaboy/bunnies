@@ -213,6 +213,42 @@ func try_splice_reel(type: DamageType, base_damage: float, cost: int, cap: int) 
 	turn_reels.append(ActionReel.make_default(type))
 	return true
 
+## Splices one [param type]-typed REND reel onto THIS turn (the Warrior's Rend ability). Same as
+## [method try_splice_reel] but the added reel deals no direct damage and applies BLEED on a hit
+## (see [method ActionReel.make_rend]).
+func try_rend_reel(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rend(type))
+	return true
+
+## The weapon's own damage type (its first reel's type), or null. Used by Flurry/Rend to splice an
+## own-type extra reel.
+func weapon_type() -> DamageType:
+	if weapon != null and not weapon.reels.is_empty():
+		return weapon.reels[0].damage_type
+	return null
+
+## Vanguard "Heft" (spec §4A): spends [param cost] Stamina and, on each reel of THIS turn, converts
+## its first FAILURE face into a SUCCESS face (mult 1.0) — fewer whiffs from the heavy hits. Edits a
+## DEEP copy of each reel so the underlying weapon is never mutated (begin_turn's duplicate is shallow,
+## so the ActionReel/ReelFace objects are shared with the weapon). Returns false (no change) if
+## unaffordable.
+func apply_heft(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	for i: int in range(turn_reels.size()):
+		var reel: ActionReel = turn_reels[i].duplicate(true)  # deep: its own faces
+		for face: ReelFace in reel.faces:
+			if face.result_tier == ReelFace.ResultTier.FAILURE:
+				face.result_tier = ReelFace.ResultTier.SUCCESS
+				face.multiplier = 1.0
+				break
+		turn_reels[i] = reel
+	return true
+
 # ---------------------------------------------------------------------------
 # Per-turn phase hooks (called by the orchestrator off PhaseManager.phase_changed)
 # ---------------------------------------------------------------------------
