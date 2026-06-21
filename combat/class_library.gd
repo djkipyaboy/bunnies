@@ -1,0 +1,53 @@
+class_name ClassLibrary
+extends RefCounted
+
+## Code registry of the v1 starter classes (spec 2026-06-21 §2/§3/§4A). Mirrors EffectLibrary:
+## returns a FRESH CharacterClass each call. Values are [ASSUMPTION] placeholders — tune by playtest.
+## (CharacterClass is a Resource, so these can migrate to authored .tres later.)
+
+const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher"]
+
+static func _stats(mi: int, fi: int, vi: int, fo: int, gr: int, lu: int) -> Stats:
+	var s: Stats = Stats.new()
+	s.might = mi; s.finesse = fi; s.vigor = vi; s.focus = fo; s.grit = gr; s.luck = lu
+	return s
+
+static func make(id: StringName) -> CharacterClass:
+	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
+	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
+	match id:
+		&"warrior":
+			# Balanced bruiser (the canonical Martin). Base ability Rend → stacking BLEED (§4B).
+			var c: CharacterClass = CharacterClass.new()
+			c.display_name = "Martin (Mouse)"; c.species = "Mouse"
+			c.base_stats = _stats(3, 2, 3, 1, 2, 1)
+			c.weapon_base_damage = 8.0; c.weapon_type = slashing; c.reel_count = 3
+			c.defense_type = slashing
+			c.base_max_hp = 100; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15
+			c.start_stamina = 3; c.stamina_regen = 1
+			c.ability_id = &"rend"
+			return c
+		&"vanguard":
+			# Heavy badger: hits late but like a mountain; huge HP; high meter carryover. Ability Heft.
+			var c: CharacterClass = CharacterClass.new()
+			c.display_name = "Sunflash (Badger)"; c.species = "Badger"
+			c.base_stats = _stats(4, 0, 5, 0, 3, 0)
+			c.weapon_base_damage = 15.0; c.weapon_type = crushing; c.reel_count = 2
+			c.defense_type = crushing
+			c.base_max_hp = 130; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15
+			c.start_stamina = 3; c.stamina_regen = 1
+			c.ability_id = &"heft"
+			return c
+		&"skirmisher":
+			# Dual-wield hare: fast, acts first, four small swings. Ability Flurry (relentless 5th strike).
+			var c: CharacterClass = CharacterClass.new()
+			c.display_name = "Basil Stag Hare"; c.species = "Hare"
+			c.base_stats = _stats(1, 5, 2, 2, 1, 1)
+			c.weapon_base_damage = 6.0; c.weapon_type = slashing; c.reel_count = 4
+			c.defense_type = slashing
+			c.base_max_hp = 90; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15
+			c.start_stamina = 3; c.stamina_regen = 1
+			c.ability_id = &"flurry"
+			return c
+		_:
+			return null
