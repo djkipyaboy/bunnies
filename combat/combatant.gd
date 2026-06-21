@@ -126,6 +126,25 @@ func apply_stats() -> void:
 	if bonus_meter != null:
 		bonus_meter.floor = base_meter_floor + s.grit
 
+## Edits this combatant's weapon reels to add crit-success faces equal to its Luck (the reel IS the
+## dice — Luck raises crit ODDS via more crit FACES, then reshuffles to distribute them). Mutates this
+## combatant's OWN weapon reels only (N-vs-M safe — each combatant has its own Weapon). Call ONCE at
+## setup (after gear/apply_stats); NOT idempotent — each call appends more faces, so do not re-apply.
+## [ASSUMPTION] +1 crit-success face (×2.0) per point of Luck.
+func apply_luck() -> void:
+	if weapon == null:
+		return
+	var n: int = effective_stats().luck
+	if n <= 0:
+		return
+	for reel: ActionReel in weapon.reels:
+		for i: int in range(n):
+			var f: ReelFace = ReelFace.new()
+			f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
+			f.multiplier = 2.0
+			reel.faces.append(f)
+		reel.faces.shuffle()
+
 # ---------------------------------------------------------------------------
 # Effects & turn-order
 # ---------------------------------------------------------------------------

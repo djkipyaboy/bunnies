@@ -73,10 +73,12 @@ func _build_scenario() -> void:
 	_phase_manager = PhaseManager.new()
 	add_child(_phase_manager)
 
-	# [ASSUMPTION] starter armor: Might 3 (noticeable +3/hit), Finesse 2 (wins the init tie vs the rat).
+	# [ASSUMPTION] starter armor: Might 3 (noticeable +3/hit), Finesse 2 (wins the init tie vs the rat),
+	# Luck 2 (adds 2 crit-success faces to each weapon reel — a visible crit bump; see apply_luck).
 	var jerkin_stats: Stats = Stats.new()
 	jerkin_stats.might = 3
 	jerkin_stats.finesse = 2
+	jerkin_stats.luck = 2
 	var jerkin: Gear = Gear.new()
 	jerkin.display_name = "Padded Jerkin"
 	jerkin.slot = Gear.Slot.ARMOR
@@ -119,6 +121,7 @@ func _make_combatant(name: String, is_player: bool, max_hp: int, defense: Damage
 	c.base_stats = base_stats
 	c.gear = items
 	c.apply_stats()       # derive max_hp / max_stamina / meter.floor from stats BEFORE seeding hp
+	c.apply_luck()        # edit weapon reels: +1 crit-success face per Luck. ONCE here — not idempotent.
 	c.start_combat()
 	return c
 

@@ -90,7 +90,7 @@ func _refresh_stats() -> void:
 	if _stats_label == null or _combatant == null:
 		return
 	var s: Stats = _combatant.effective_stats()
-	_stats_label.text = "MGT %d  FIN %d  VIG %d  FOC %d  GRT %d" % [s.might, s.finesse, s.vigor, s.focus, s.grit]
+	_stats_label.text = "MGT %d  FIN %d  VIG %d  FOC %d  GRT %d  LCK %d" % [s.might, s.finesse, s.vigor, s.focus, s.grit, s.luck]
 
 ## Refreshes the initiative shown in the name (after an initiative roll).
 func refresh_initiative() -> void:
