@@ -26,6 +26,10 @@ var is_player: bool = false
 ## Drives MainPhasePlan dispatch. Empty = no base ability.
 var ability_id: StringName = &""
 
+## The class's Ultimate archetype id. &"sticky_wild" (Warrior/Skirmisher placeholder) or &"rampage"
+## (Vanguard: +1 reel, Heft-all, AoE). Drives MainPhasePlan's ultimate dispatch.
+var ultimate_id: StringName = &"sticky_wild"
+
 ## Max HP — flat pool seeded by class/race, scaling per level (DESIGN.md A1). Not reel-influenced.
 var max_hp: int = 1
 
@@ -80,6 +84,10 @@ var turn_reels: Array[ActionReel] = []
 ## at fire time); 0 = none. sticky_wild_spins_remaining counts the spins the wild still applies for.
 var sticky_wild_count: int = 0
 var sticky_wild_spins_remaining: int = 0
+
+## Vanguard "Rampage" Ultimate state (spec §4A): while > 0, this combatant's attacks this spin are
+## Area-of-Effect (hit ALL enemies). Set by [method fire_rampage], consumed by [method consume_aoe_spin].
+var aoe_spins_remaining: int = 0
 
 ## STUNNED is a per-turn condition (NOT a duration Effect): set at turn start when current_initiative
 ## is below the threshold and the combatant wasn't STUNNED last turn (anti-lock). DESIGN spec 2026-06-20.
@@ -236,18 +244,30 @@ func weapon_type() -> DamageType:
 ## DEEP copy of each reel so the underlying weapon is never mutated (begin_turn's duplicate is shallow,
 ## so the ActionReel/ReelFace objects are shared with the weapon). Returns false (no change) if
 ## unaffordable.
-func apply_heft(cost: int) -> bool:
+func apply_heft(cost: int, conversions: int = 2) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
+	_heft_turn_reels(conversions)
+	return true
+
+## Converts up to [param conversions] "miss" faces (FAILURE first, then CRIT_FAILURE) into SUCCESS
+## faces on each of THIS turn's reels. Edits a DEEP copy of each reel so the weapon is never mutated
+## (begin_turn's duplicate is shallow). Shared by Heft and the Vanguard Ultimate; no Stamina cost.
+func _heft_turn_reels(conversions: int) -> void:
 	for i: int in range(turn_reels.size()):
 		var reel: ActionReel = turn_reels[i].duplicate(true)  # deep: its own faces
-		for face: ReelFace in reel.faces:
-			if face.result_tier == ReelFace.ResultTier.FAILURE:
-				face.result_tier = ReelFace.ResultTier.SUCCESS
-				face.multiplier = 1.0
+		var done: int = 0
+		for tier: ReelFace.ResultTier in [ReelFace.ResultTier.FAILURE, ReelFace.ResultTier.CRIT_FAILURE]:
+			if done >= conversions:
 				break
+			for face: ReelFace in reel.faces:
+				if done >= conversions:
+					break
+				if face.result_tier == tier:
+					face.result_tier = ReelFace.ResultTier.SUCCESS
+					face.multiplier = 1.0
+					done += 1
 		turn_reels[i] = reel
-	return true
 
 # ---------------------------------------------------------------------------
 # Per-turn phase hooks (called by the orchestrator off PhaseManager.phase_changed)
@@ -307,3 +327,29 @@ func consume_wild_spin() -> void:
 		sticky_wild_spins_remaining -= 1
 		if sticky_wild_spins_remaining == 0:
 			sticky_wild_count = 0
+
+# ---------------------------------------------------------------------------
+# Vanguard "Rampage" Ultimate (spec §4A) — costs ONLY the Bonus Meter
+# ---------------------------------------------------------------------------
+
+## Fires the Rampage Ultimate if the meter is armed: consumes the full meter, splices one extra
+## [param extra_reel_type] reel onto this turn (e.g. 2 → 3), applies the Heft bonus ([param
+## conversions] miss→hit per reel) to ALL of this turn's reels, and marks the next [param spins]
+## spins as Area-of-Effect (attacks hit ALL enemies). Returns false if not armed.
+func fire_rampage(extra_reel_type: DamageType, conversions: int, spins: int) -> bool:
+	if bonus_meter == null or not bonus_meter.is_armed():
+		return false
+	bonus_meter.consume()
+	turn_reels.append(ActionReel.make_default(extra_reel_type))  # +1 attack reel for the Rampage turn
+	_heft_turn_reels(conversions)                                # Heft bonus on every reel (incl. the new one)
+	aoe_spins_remaining = spins
+	return true
+
+## True while a Rampage AoE spin is pending (this combatant's attacks hit all enemies).
+func is_aoe_active() -> bool:
+	return aoe_spins_remaining > 0
+
+## Consumes one Rampage AoE spin. Call once per resolved spin.
+func consume_aoe_spin() -> void:
+	if aoe_spins_remaining > 0:
+		aoe_spins_remaining -= 1

@@ -37,6 +37,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing (badger identity re-differentiated later)
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"heft"
+			c.ultimate_id = &"rampage"  # +1 reel, Heft-all, AoE (spec §4A) — not the sticky-wild placeholder
 			return c
 		&"skirmisher":
 			# Dual-wield hare: fast, acts first, four small swings. Ability Flurry (relentless 5th strike).
@@ -45,7 +46,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_stats = _stats(1, 5, 2, 2, 1, 1)
 			c.weapon_base_damage = 6.0; c.weapon_type = slashing; c.reel_count = 4
 			c.defense_type = slashing
-			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing
+			# [ASSUMPTION] HP 300 for testing; meter_cap 20 (raised from 15) — the 4-reel skirmisher
+			# charges the meter fast, so its Ultimate costs more to feel earned.
+			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 20
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"flurry"
 			return c

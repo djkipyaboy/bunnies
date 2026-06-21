@@ -35,6 +35,9 @@ extends Resource
 ## The class's Main-1 base ability (spec §4A): &"rend" / &"heft" / &"flurry".
 @export var ability_id: StringName = &""
 
+## The class's Ultimate archetype: &"sticky_wild" (default placeholder) or &"rampage" (Vanguard).
+@export var ultimate_id: StringName = &"sticky_wild"
+
 ## Stamps a fresh [Combatant] from this class. Mirrors combat.gd's former inline _make_combatant:
 ## derive stats, edit reels for Luck, seed full HP. [param is_player] toggles meter visibility +
 ## the Stamina pool (enemies have neither in the prototype).
@@ -44,6 +47,7 @@ func build_combatant(is_player: bool) -> Combatant:
 	c.is_player = is_player
 	c.defense_type = defense_type
 	c.ability_id = ability_id
+	c.ultimate_id = ultimate_id
 	c.base_stats = base_stats
 
 	var w: Weapon = Weapon.new()

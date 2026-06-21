@@ -13,9 +13,15 @@ extends RefCounted
 
 var combatant: Combatant
 var ability_id: StringName
+var ultimate_id: StringName
 var ability_cost: int
 var reel_cap: int
 var wild_spins: int
+
+## How many miss→hit conversions the Vanguard Rampage Ultimate applies per reel (matches Heft).
+const RAMPAGE_CONVERSIONS: int = 2
+## Rampage is a single-turn Ultimate (AoE for the fired spin only).
+const RAMPAGE_SPINS: int = 1
 
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
@@ -23,6 +29,7 @@ var fire_ultimate_staged: bool = false
 func _init(c: Combatant, p_ability_cost: int = 2, p_reel_cap: int = 5, p_wild_spins: int = 2) -> void:
 	combatant = c
 	ability_id = c.ability_id if c != null else &""
+	ultimate_id = c.ultimate_id if c != null else &"sticky_wild"
 	ability_cost = p_ability_cost
 	reel_cap = p_reel_cap
 	wild_spins = p_wild_spins
@@ -69,6 +76,9 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_default(combatant.weapon_type()))
 			&"rend":
 				reels.append(ActionReel.make_rend(combatant.weapon_type()))
+	# The Rampage Ultimate previews its +1 attack reel too (Heft/AoE aren't shown as strips).
+	if fire_ultimate_staged and ultimate_id == &"rampage" and reels.size() < reel_cap:
+		reels.append(ActionReel.make_default(combatant.weapon_type()))
 	return reels
 
 ## The Stamina the combatant WOULD have after committing (current minus a staged ability cost).
@@ -85,7 +95,8 @@ func will_consume_meter() -> bool:
 ## The reels that WOULD be wild at spin: already-active carryover wild unioned with a staged fire.
 func effective_wild_indices() -> Array[int]:
 	var out: Array[int] = combatant.wild_reel_indices().duplicate()
-	if fire_ultimate_staged:
+	# Only the Sticky-Wild Ultimate produces wild reels; Rampage has no wild glow.
+	if fire_ultimate_staged and ultimate_id == &"sticky_wild":
 		for i: int in range(_weapon_reel_count()):
 			if not (i in out):
 				out.append(i)
@@ -110,4 +121,8 @@ func commit() -> void:
 			&"heft":
 				combatant.apply_heft(ability_cost)
 	if fire_ultimate_staged:
-		combatant.fire_sticky_wild(_weapon_reel_count(), wild_spins)
+		match ultimate_id:
+			&"sticky_wild":
+				combatant.fire_sticky_wild(_weapon_reel_count(), wild_spins)
+			&"rampage":
+				combatant.fire_rampage(combatant.weapon_type(), RAMPAGE_CONVERSIONS, RAMPAGE_SPINS)

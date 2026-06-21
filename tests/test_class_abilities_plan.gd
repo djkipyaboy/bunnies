@@ -58,7 +58,7 @@ func _initialize() -> void:
 	_check(ph.preview_reels().size() == 2, "heft preview keeps 2 reels (no added strip)")
 	ph.commit()
 	_check(v.resource_pool.stamina == 1, "heft commit spent 2 STA")
-	_check(_count(v.turn_reels[0], ReelFace.ResultTier.FAILURE) == fail_before - 1, "heft commit removed a FAILURE face from reel 0")
+	_check(_count(v.turn_reels[0], ReelFace.ResultTier.FAILURE) == fail_before - 2, "heft commit removed TWO FAILURE faces from reel 0 (got %d, want %d)" % [_count(v.turn_reels[0], ReelFace.ResultTier.FAILURE), fail_before - 2])
 
 	# Unknown/empty ability cannot stage.
 	var n: Combatant = _pc(&"", 3, slashing)

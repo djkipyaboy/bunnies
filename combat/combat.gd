@@ -334,14 +334,36 @@ func _ability_label(id: StringName) -> String:
 		&"flurry": return "Flurry: +1 swing (2 STA)"
 		_: return "Ability"
 
+## Short ability name for the combat log.
+func _ability_name(id: StringName) -> String:
+	match id:
+		&"rend": return "Rend (bleed reel)"
+		&"heft": return "Heft (steady reels)"
+		&"flurry": return "Flurry (extra swing)"
+		_: return "ability"
+
+## Ultimate button label + log name, per the active class's Ultimate.
+func _ultimate_label(id: StringName) -> String:
+	match id:
+		&"rampage": return "ULTIMATE: Rampage (AoE)"
+		&"sticky_wild": return "ULTIMATE: Wild (crit-bias)"
+		_: return "Fire Ultimate"
+
+func _ultimate_name(id: StringName) -> String:
+	match id:
+		&"rampage": return "RAMPAGE (+1 reel, Heft-all, AoE)"
+		&"sticky_wild": return "WILD (all reels crit-biased, 2 spins)"
+		_: return "Ultimate"
+
 func _on_turn_started(c: Combatant) -> void:
 	_attacker = c
 	_defender = _enemy if c == _pc else _pc
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
-	_plan = MainPhasePlan.new(c, 2, 5, 2)  # [ASSUMPTION] ability cost 2, reel cap 5; Ultimate wilds ALL weapon reels for 2 spins
-	_splice_button.text = _ability_label(c.ability_id)  # the generic base-ability button, per class
+	_plan = MainPhasePlan.new(c, 2, 5, 2)  # [ASSUMPTION] ability cost 2, reel cap 5; sticky-wild 2 spins
+	_splice_button.text = _ability_label(c.ability_id)    # the generic base-ability button, per class
+	_ultimate_button.text = _ultimate_label(c.ultimate_id)  # per-class Ultimate label
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
 	_end_turn_button.disabled = true
 	var is_stunned: bool = c.evaluate_stun(STUN_THRESHOLD)
@@ -406,7 +428,14 @@ func _on_spin_pressed() -> void:
 		return
 	_awaiting_player_spin = false
 	if _plan != null:
+		# Capture what's staged BEFORE commit clears nothing (the flags persist, but log intent here).
+		var did_ability: bool = _plan.ability_staged
+		var did_ultimate: bool = _plan.fire_ultimate_staged
 		_plan.commit()  # spends Stamina / consumes meter / appends reel / arms wild — the ONLY apply point
+		if did_ability:
+			_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(_attacker.ability_id)])
+		if did_ultimate:
+			_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
 	_spin_button.disabled = true
 	_splice_button.disabled = true
 	_ultimate_button.disabled = true
@@ -524,30 +553,57 @@ func _do_spin() -> void:
 
 func _apply_attack(attack) -> void:
 	var tier_name: String = ReelFace.ResultTier.keys()[attack.face.result_tier]
+	# Rampage Ultimate makes the spin AoE: each reel hits every enemy. Otherwise just the defender.
+	# (final_damage was computed vs the primary defender's type; per-target type recompute is a future
+	# N-vs-M refinement — identical in the current 1v1.)
+	var targets: Array[Combatant] = _targets_for(_attacker)
+	var aoe_tag: String = " [AoE→all]" if (_attacker.is_aoe_active() and targets.size() > 1) else ""
 	if attack.final_damage > 0:
-		_defender.take_damage(attack.final_damage)
-		_log("  %s reel → %s for %d damage." % [_attacker.display_name, tier_name, attack.final_damage])
+		for t: Combatant in targets:
+			t.take_damage(attack.final_damage)
+		_log("  %s reel → %s for %d damage%s." % [_attacker.display_name, tier_name, attack.final_damage, aoe_tag])
 	else:
 		_log("  %s reel → %s (no damage)." % [_attacker.display_name, tier_name])
+	# Bonus Meter charge (attacker only). Log BM gains for the player (enemy meter is hidden).
 	if _attacker.bonus_meter != null:
+		var before: int = _attacker.bonus_meter.value
 		_attacker.bonus_meter.charge(attack.face.result_tier)
+		var added: int = _attacker.bonus_meter.value - before
+		if added > 0 and _attacker.bonus_meter.is_visible:
+			_log("    BM +%d  (%d/%d)" % [added, _attacker.bonus_meter.value, _attacker.bonus_meter.cap])
 	if attack.rider_effect_id != &"":
-		var rider: Effect = EffectLibrary.make(attack.rider_effect_id)
-		if rider != null:
-			# A DoT (the Warrior's Rend → BLEED) bakes the caster's weapon base damage at apply time,
-			# so its per-turn damage scales off the attacker's weapon (spec §4B). Off the type chart.
-			if rider.kind == Effect.Kind.DAMAGE_OVER_TIME and _attacker.weapon != null:
-				rider.dot_base_damage = _attacker.weapon.base_damage
-			_defender.attach_effect(rider)
-			_log("  %s is afflicted with %s (%d turns)." % [_defender.display_name, String(rider.id).to_upper(), rider.duration])
-			(_panels[_defender] as CombatantPanel).refresh_status()
-			_turn_order_bar.set_order(_turn_manager.get_turn_order())
-			# Sync the panel name label's "(init N)" to the new current_initiative after the Slow rider.
-			(_panels[_defender] as CombatantPanel).refresh_initiative()
+		for t: Combatant in targets:
+			var rider: Effect = EffectLibrary.make(attack.rider_effect_id)
+			if rider != null:
+				# A DoT (the Warrior's Rend → BLEED) bakes the caster's weapon base damage at apply time,
+				# so its per-turn damage scales off the attacker's weapon (spec §4B). Off the type chart.
+				if rider.kind == Effect.Kind.DAMAGE_OVER_TIME and _attacker.weapon != null:
+					rider.dot_base_damage = _attacker.weapon.base_damage
+				t.attach_effect(rider)
+				_log("  %s is afflicted with %s (%d turns)." % [t.display_name, String(rider.id).to_upper(), rider.duration])
+				(_panels[t] as CombatantPanel).refresh_status()
+				# Sync the panel name label's "(init N)" to the new current_initiative after the rider.
+				(_panels[t] as CombatantPanel).refresh_initiative()
+		_turn_order_bar.set_order(_turn_manager.get_turn_order())
 
 	_pending_strips -= 1
 	if _pending_strips <= 0:
 		_finish_spin()
+
+## The targets of [param attacker]'s attacks this spin: ALL living enemies when a Rampage AoE is
+## active, otherwise just the primary defender. (1v1: both are the single enemy.)
+func _targets_for(attacker: Combatant) -> Array[Combatant]:
+	if attacker.is_aoe_active():
+		return _enemies_of(attacker)
+	return [_defender]
+
+## All living combatants on the opposite side of [param c].
+func _enemies_of(c: Combatant) -> Array[Combatant]:
+	var out: Array[Combatant] = []
+	for other: Combatant in _turn_manager.combatants:
+		if other.is_player != c.is_player and other.is_alive():
+			out.append(other)
+	return out
 
 ## Applies payline rewards after the spin's per-reel attacks (the resolver reports; we apply).
 ## [ASSUMPTION] reward values — tune by playtest (CLAUDE.md §4).
@@ -616,7 +672,12 @@ func _append_banner(tag: String) -> void:
 	_payline_banner.text = ("Lines: " + tag) if _payline_banner.text == "" else (_payline_banner.text + "  •  " + tag)
 
 func _finish_spin() -> void:
+	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
+	# Clarify the Sticky-Wild's multi-spin nature in the log (the meter is spent up front; the WILD
+	# then rides for N spins — so it can look "active but uncharged" on the next turn).
+	if _attacker.sticky_wild_spins_remaining > 0:
+		_log("  ◇ WILD still active — %d spin(s) remaining (meter already spent)." % _attacker.sticky_wild_spins_remaining)
 	_highlight_wild_strips()
 	_splice_button.disabled = true
 	_ultimate_button.disabled = true

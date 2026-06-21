@@ -28,12 +28,12 @@ func _initialize() -> void:
 	var succ_before: int = _count(w.reels[0], ReelFace.ResultTier.SUCCESS)
 
 	c.begin_turn()
-	var ok: bool = c.apply_heft(2)
+	var ok: bool = c.apply_heft(2)   # default 2 conversions per reel
 	_check(ok, "apply_heft succeeded with 3 stamina")
 	_check(c.resource_pool.stamina == 1, "spent 2 stamina -> 1 left (got %d)" % c.resource_pool.stamina)
-	_check(_count(c.turn_reels[0], ReelFace.ResultTier.FAILURE) == fail_before - 1, "turn reel 0: one fewer FAILURE")
-	_check(_count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS) == succ_before + 1, "turn reel 0: one more SUCCESS")
-	_check(_count(c.turn_reels[1], ReelFace.ResultTier.SUCCESS) == succ_before + 1, "turn reel 1 also hefted")
+	_check(_count(c.turn_reels[0], ReelFace.ResultTier.FAILURE) == fail_before - 2, "turn reel 0: TWO fewer FAILUREs (got %d, want %d)" % [_count(c.turn_reels[0], ReelFace.ResultTier.FAILURE), fail_before - 2])
+	_check(_count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS) == succ_before + 2, "turn reel 0: TWO more SUCCESS")
+	_check(_count(c.turn_reels[1], ReelFace.ResultTier.SUCCESS) == succ_before + 2, "turn reel 1 also hefted (+2)")
 	# Weapon untouched (deep-copy guard).
 	_check(_count(w.reels[0], ReelFace.ResultTier.FAILURE) == fail_before, "WEAPON reel 0 FAILURE unchanged (got %d, want %d)" % [_count(w.reels[0], ReelFace.ResultTier.FAILURE), fail_before])
 
