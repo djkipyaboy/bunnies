@@ -2,6 +2,10 @@
 .godot/
 .nomedia
 
+# Build output (exported executables) and parallel-session worktrees
+dist/
+.claude/worktrees/
+
 # Godot-specific ignores
 .import/
 export.cfg
