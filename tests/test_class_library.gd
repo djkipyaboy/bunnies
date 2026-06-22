@@ -40,5 +40,11 @@ func _initialize() -> void:
 		var c: Combatant = ClassLibrary.make(id).build_combatant(true)
 		_check(c.is_alive() and c.weapon.reels.size() >= 2, "%s builds a live combatant" % id)
 
+	# Vanguard charges +2 on NEUTRAL (index 2); Warrior/Skirmisher keep the default +1.
+	var van: Combatant = ClassLibrary.make(&"vanguard").build_combatant(true)
+	_check(van.bonus_meter.charge_weights[ReelFace.ResultTier.NEUTRAL] == 2, "vanguard neutral meter gain = 2 (got %d)" % van.bonus_meter.charge_weights[ReelFace.ResultTier.NEUTRAL])
+	var war: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
+	_check(war.bonus_meter.charge_weights[ReelFace.ResultTier.NEUTRAL] == 1, "warrior neutral meter gain = 1 (default, got %d)" % war.bonus_meter.charge_weights[ReelFace.ResultTier.NEUTRAL])
+
 	print(("CLASS LIBRARY TEST PASSED" if _failures == 0 else "CLASS LIBRARY TEST FAILED: %d" % _failures))
 	quit(_failures)

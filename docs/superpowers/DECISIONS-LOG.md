@@ -169,6 +169,12 @@ Spec: `specs/2026-06-21-class-system-v1-design.md` (§4A abilities, §4B BLEED).
   miss faces at all**. `apply_heft` default conversions 2→3; `RAMPAGE_CONVERSIONS` 2→3 to match
   (Rampage includes Heft). `[ASSUMPTION]` — strong by design, per your request.
 
+## Class v1 playtest iteration 5 (2026-06-21, your playtest feedback)
+- All 3 classes confirmed balanced (≈ equal turn counts over dozens of runs). **Vanguard neutral
+  Bonus-Meter gain 1 → 2** (per-class `meter_charge_weights = [0,0,2,2,3]` via a new optional
+  `CharacterClass.meter_charge_weights` override; Warrior/Skirmisher keep the default +1).
+- Branch merged to `main` and pushed; combat prototype exported as a shareable executable.
+
 ## Earlier features (recap of autonomous calls already surfaced to you)
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;

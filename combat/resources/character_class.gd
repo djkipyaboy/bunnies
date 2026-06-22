@@ -38,6 +38,10 @@ extends Resource
 ## The class's Ultimate archetype: &"sticky_wild" (default placeholder) or &"rampage" (Vanguard).
 @export var ultimate_id: StringName = &"sticky_wild"
 
+## Optional per-class Bonus-Meter charge weights by result tier [critfail, fail, neutral, success,
+## critsuccess]. Empty = use the BonusMeter default [0,0,1,2,3]. (Vanguard charges +2 on neutral.)
+@export var meter_charge_weights: Array[int] = []
+
 ## Stamps a fresh [Combatant] from this class. Mirrors combat.gd's former inline _make_combatant:
 ## derive stats, edit reels for Luck, seed full HP. [param is_player] toggles meter visibility +
 ## the Stamina pool (enemies have neither in the prototype).
@@ -61,6 +65,8 @@ func build_combatant(is_player: bool) -> Combatant:
 	var meter: BonusMeter = BonusMeter.new()
 	meter.cap = meter_cap
 	meter.is_visible = is_player
+	if not meter_charge_weights.is_empty():
+		meter.charge_weights = meter_charge_weights.duplicate()  # per-class override (fresh copy)
 	c.bonus_meter = meter
 
 	if is_player:

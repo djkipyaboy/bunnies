@@ -39,6 +39,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"heft"
 			c.ultimate_id = &"rampage"  # +1 reel, Heft-all, AoE (spec §4A) — not the sticky-wild placeholder
+			c.meter_charge_weights = [0, 0, 2, 2, 3]  # neutral charges +2 (was +1) — Vanguard meter identity
 			return c
 		&"skirmisher":
 			# Dual-wield hare: fast, acts first, four small swings. Ability Flurry (relentless 5th strike).
