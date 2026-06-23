@@ -20,7 +20,7 @@ static func make(id: StringName) -> CharacterClass:
 			# Balanced bruiser (the canonical Martin). Base ability Rend → stacking BLEED (§4B).
 			var c: CharacterClass = CharacterClass.new()
 			c.display_name = "Martin (Mouse)"; c.species = "Mouse"
-			c.base_stats = _stats(3, 2, 3, 1, 2, 1)
+			c.base_stats = _stats(3, 2, 3, 1, 2, 0)
 			c.weapon_base_damage = 8.0; c.weapon_type = slashing; c.reel_count = 3
 			c.defense_type = slashing
 			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing
@@ -45,7 +45,7 @@ static func make(id: StringName) -> CharacterClass:
 			# Dual-wield hare: fast, acts first, four small swings. Ability Flurry (relentless 5th strike).
 			var c: CharacterClass = CharacterClass.new()
 			c.display_name = "Basil Stag Hare"; c.species = "Hare"
-			c.base_stats = _stats(1, 5, 2, 2, 1, 1)
+			c.base_stats = _stats(1, 5, 2, 2, 1, 0)
 			c.weapon_base_damage = 6.0; c.weapon_type = slashing; c.reel_count = 4
 			c.defense_type = slashing
 			# [ASSUMPTION] HP 300 for testing; meter_cap 30 (raised from 15→20→30) — the 4-reel
