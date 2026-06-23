@@ -97,6 +97,13 @@ var sticky_wild_spins_remaining: int = 0
 ## Area-of-Effect (hit ALL enemies). Set by [method fire_rampage], consumed by [method consume_aoe_spin].
 var aoe_spins_remaining: int = 0
 
+## Chancer post-spin state (spec §3.1). reroll_pending: the base Re-roll ability re-rolls the single
+## worst reel after the spin (refunding reroll_cost if nothing qualified). wildcard_gamble_pending: the
+## Ultimate re-rolls every non-crit reel (double-or-nothing). Both are consumed/cleared post-spin.
+var reroll_pending: bool = false
+var reroll_cost: int = 0
+var wildcard_gamble_pending: bool = false
+
 ## STUNNED is a per-turn condition (NOT a duration Effect): set at turn start when current_initiative
 ## is below the threshold and the combatant wasn't STUNNED last turn (anti-lock). DESIGN spec 2026-06-20.
 var stunned_this_turn: bool = false
@@ -435,3 +442,39 @@ func is_aoe_active() -> bool:
 func consume_aoe_spin() -> void:
 	if aoe_spins_remaining > 0:
 		aoe_spins_remaining -= 1
+
+# ---------------------------------------------------------------------------
+# Chancer reroll / Wildcard Gamble (spec §3.1) — reroll costs Stamina; gamble costs the meter
+# ---------------------------------------------------------------------------
+
+## Stages the Re-roll base ability: spends [param cost] Stamina and flags a post-spin re-roll of the
+## worst reel. Returns false (no change) if unaffordable. The orchestrator runs the re-roll after the
+## spin resolves, and calls refund_reroll() if no reel qualified.
+func stage_reroll(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	reroll_pending = true
+	reroll_cost = cost
+	return true
+
+## Refunds a staged Re-roll's Stamina (no reel qualified) and clears its state.
+func refund_reroll() -> void:
+	if reroll_cost > 0 and resource_pool != null:
+		resource_pool.refund({&"stamina": reroll_cost})
+	reroll_pending = false
+	reroll_cost = 0
+
+## Fires the Wildcard Gamble Ultimate if the meter is armed: consumes the full meter and flags the
+## post-spin double-or-nothing re-roll of every non-crit reel. Returns false if not armed.
+func fire_wildcard_gamble() -> bool:
+	if bonus_meter == null or not bonus_meter.is_armed():
+		return false
+	bonus_meter.consume()
+	wildcard_gamble_pending = true
+	return true
+
+## Clears post-spin reroll/gamble flags (no refund). Call after the orchestrator has applied them.
+func clear_reroll_state() -> void:
+	reroll_pending = false
+	reroll_cost = 0
+	wildcard_gamble_pending = false
