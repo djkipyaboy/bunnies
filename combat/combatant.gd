@@ -245,6 +245,14 @@ func tick_effects() -> void:
 	active_effects = active_effects.filter(func(e: Effect) -> bool: return not e.is_expired())
 	recompute_initiative()
 
+## Removes all non-beneficial (debuff) effects, keeping buffs, then refreshes the derived sort key.
+## Returns the number of effects removed. Used by the Warden Pick'em Ultimate (spec §3.3).
+func cleanse() -> int:
+	var before: int = active_effects.size()
+	active_effects = active_effects.filter(func(e: Effect) -> bool: return e != null and e.beneficial)
+	recompute_initiative()
+	return before - active_effects.size()
+
 # ---------------------------------------------------------------------------
 # Per-turn reel loadout (Main-Phase editing — DESIGN.md §4.8)
 # ---------------------------------------------------------------------------
