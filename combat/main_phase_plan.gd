@@ -155,6 +155,8 @@ func commit() -> void:
 				combatant.try_rend_reel(combatant.weapon_type(), ability_cost, reel_cap)
 			&"heft":
 				combatant.apply_heft(ability_cost)
+			&"reroll":
+				combatant.stage_reroll(ability_cost)
 	if fire_ultimate_staged:
 		match ultimate_id:
 			&"wild":
@@ -163,3 +165,5 @@ func commit() -> void:
 				combatant.fire_sticky_wild(_weapon_reel_count(), STICKY_WILD_SPINS)  # two spins (Skirmisher)
 			&"rampage":
 				combatant.fire_rampage(combatant.weapon_type(), RAMPAGE_CONVERSIONS, RAMPAGE_SPINS)
+			&"wildcard_gamble":
+				combatant.fire_wildcard_gamble()
