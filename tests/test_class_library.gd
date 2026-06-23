@@ -33,7 +33,7 @@ func _initialize() -> void:
 	_check(skirmisher.ultimate_id == &"sticky_wild", "skirmisher ultimate = sticky_wild (2-spin)")
 
 	_check(ClassLibrary.make(&"nope") == null, "unknown id -> null")
-	_check(ClassLibrary.IDS.size() == 3, "3 v1 classes registered")
+	_check(ClassLibrary.IDS.size() == 4, "4 classes registered (Warrior/Vanguard/Skirmisher + Chancer)")
 
 	# Each class builds a valid combatant end-to-end.
 	for id: StringName in ClassLibrary.IDS:
