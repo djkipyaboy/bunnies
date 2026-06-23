@@ -143,6 +143,17 @@ func apply_shield(amount: int, turns: int) -> void:
 	shield_turns = turns
 	shield_changed.emit(shield_hp, shield_turns)
 
+## Restores [param amount] HP, clamped to max_hp. Returns the OVERFLOW (amount that exceeded max) so a
+## caller (e.g. Big Bang) can convert it to a shield. No-op (returns 0) if dead or amount ≤ 0.
+func heal(amount: int) -> int:
+	if amount <= 0 or hp <= 0:
+		return 0
+	var before: int = hp
+	hp = mini(hp + amount, max_hp)
+	if hp != before:
+		hp_changed.emit(hp, max_hp)
+	return amount - (hp - before)
+
 ## True while this combatant still has HP.
 func is_alive() -> bool:
 	return hp > 0
