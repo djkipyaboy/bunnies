@@ -5,7 +5,7 @@ extends RefCounted
 ## returns a FRESH CharacterClass each call. Values are [ASSUMPTION] placeholders — tune by playtest.
 ## (CharacterClass is a Resource, so these can migrate to authored .tres later.)
 
-const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher"]
+const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer"]
 
 static func _stats(mi: int, fi: int, vi: int, fo: int, gr: int, lu: int) -> Stats:
 	var s: Stats = Stats.new()
@@ -15,6 +15,7 @@ static func _stats(mi: int, fi: int, vi: int, fo: int, gr: int, lu: int) -> Stat
 static func make(id: StringName) -> CharacterClass:
 	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
+	var storm: DamageType = load("res://combat/resources/types/storm.tres")
 	match id:
 		&"warrior":
 			# Balanced bruiser (the canonical Martin). Base ability Rend → stacking BLEED (§4B).
@@ -57,6 +58,18 @@ static func make(id: StringName) -> CharacterClass:
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"flurry"
 			c.ability_cost = 2
+			return c
+		&"chancer":
+			# Luck otter: four Storm cards, extra crit faces (Luck 4), post-spin re-rolls.
+			var c: CharacterClass = CharacterClass.new()
+			c.display_name = "Cheek (Otter)"; c.species = "Otter"
+			c.base_stats = _stats(2, 3, 2, 1, 0, 4)
+			c.weapon_base_damage = 6.0; c.weapon_type = storm; c.reel_count = 4
+			c.defense_type = storm
+			c.base_max_hp = 300; c.base_max_stamina = 6; c.base_meter_floor = 3; c.meter_cap = 30  # [ASSUMPTION] 4-reel + Luck charges fast → 30 cap like Skirmisher
+			c.start_stamina = 3; c.stamina_regen = 1
+			c.ability_id = &"reroll"; c.ability_cost = 4; c.ability_resource = &"stamina"
+			c.ultimate_id = &"wildcard_gamble"
 			return c
 		_:
 			return null
