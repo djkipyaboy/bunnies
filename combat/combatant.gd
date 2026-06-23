@@ -15,6 +15,9 @@ signal hp_changed(hp: int, max_hp: int)
 ## Emitted once when this combatant drops to 0 HP.
 signal defeated
 
+## Emitted whenever shield_hp or shield_turns changes, for shield-chip UI binding.
+signal shield_changed(shield_hp: int, shield_turns: int)
+
 # ---------------------------------------------------------------------------
 # Identity & configuration
 # ---------------------------------------------------------------------------
@@ -95,6 +98,12 @@ var aoe_spins_remaining: int = 0
 var stunned_this_turn: bool = false
 var stunned_last_turn: bool = false
 
+## SHIELDED buff (spec 2026-06-22 §1.2): a damage-absorbing pool. take_damage spends shield_hp before
+## HP; shield_turns counts down in on_end. Higher-total-overrides on re-apply (apply_shield). Combatant
+## STATE (not an Effect) because the absorb math lives in take_damage.
+var shield_hp: int = 0
+var shield_turns: int = 0
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -104,15 +113,35 @@ func start_combat() -> void:
 	hp = max_hp
 	hp_changed.emit(hp, max_hp)
 
-## Applies [param amount] damage, clamped so HP never goes negative. Emits [signal hp_changed],
-## and [signal defeated] once when HP reaches 0. No-op if already dead or amount ≤ 0.
+## Applies [param amount] damage. SHIELDED absorbs first (and the shield clears if fully spent), then
+## the remainder hits HP, clamped so HP never goes negative. Emits [signal hp_changed], and
+## [signal defeated] once when HP reaches 0. No-op if already dead or amount ≤ 0.
 func take_damage(amount: int) -> void:
 	if amount <= 0 or hp <= 0:
 		return
-	hp = maxi(hp - amount, 0)
+	var remaining: int = amount
+	if shield_hp > 0:
+		var absorbed: int = mini(shield_hp, remaining)
+		shield_hp -= absorbed
+		remaining -= absorbed
+		if shield_hp == 0:
+			shield_turns = 0
+		shield_changed.emit(shield_hp, shield_turns)
+	if remaining <= 0:
+		return
+	hp = maxi(hp - remaining, 0)
 	hp_changed.emit(hp, max_hp)
 	if hp == 0:
 		defeated.emit()
+
+## Applies a SHIELDED buff of [param amount] HP for [param turns] turns. Higher-total-overrides
+## (spec §1.2 / §3.3): replaces the current shield only if [param amount] exceeds it; otherwise no-op.
+func apply_shield(amount: int, turns: int) -> void:
+	if amount <= 0 or amount <= shield_hp:
+		return
+	shield_hp = amount
+	shield_turns = turns
+	shield_changed.emit(shield_hp, shield_turns)
 
 ## True while this combatant still has HP.
 func is_alive() -> bool:
@@ -286,6 +315,11 @@ func on_upkeep() -> void:
 ## carry the STUNNED flag forward for the anti-lock (this turn's stun becomes last turn's immunity).
 func on_end() -> void:
 	tick_effects()
+	if shield_turns > 0:
+		shield_turns -= 1
+		if shield_turns == 0:
+			shield_hp = 0
+		shield_changed.emit(shield_hp, shield_turns)
 	stunned_last_turn = stunned_this_turn
 	stunned_this_turn = false
 
