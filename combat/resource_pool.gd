@@ -16,35 +16,51 @@ var stamina: int = 0
 var max_stamina: int = 0
 var regen_per_turn: int = 0
 
-## True if every entry in [param cost] is currently affordable.
-func can_afford(cost: Dictionary) -> bool:
-	return stamina >= int(cost.get(&"stamina", 0))
+## Mana rail — parallel to Stamina, for caster classes (Seer/Warden). Same cost-dictionary shape.
+var mana: int = 0
+var max_mana: int = 0
+var mana_regen_per_turn: int = 0
 
-## Spends [param cost] atomically. Returns false and changes nothing if unaffordable.
+## True if every entry in [param cost] is currently affordable on its rail.
+func can_afford(cost: Dictionary) -> bool:
+	return stamina >= int(cost.get(&"stamina", 0)) and mana >= int(cost.get(&"mana", 0))
+
+## Spends [param cost] atomically across both rails. Returns false and changes nothing if unaffordable.
 func spend(cost: Dictionary) -> bool:
 	if not can_afford(cost):
 		return false
-	var amount: int = int(cost.get(&"stamina", 0))
-	if amount == 0:
-		return true  # nothing to spend, no signal churn
-	stamina -= amount
-	pool_changed.emit(&"stamina", stamina, max_stamina)
+	var sta: int = int(cost.get(&"stamina", 0))
+	if sta != 0:
+		stamina -= sta
+		pool_changed.emit(&"stamina", stamina, max_stamina)
+	var man: int = int(cost.get(&"mana", 0))
+	if man != 0:
+		mana -= man
+		pool_changed.emit(&"mana", mana, max_mana)
 	return true
 
-## Adds resources back (e.g. a payline neutral-line refund), clamped to the maximum. Mirrors the
-## cost-dictionary shape of [method spend].
+## Adds resources back on each rail, clamped to that rail's maximum.
 func refund(cost: Dictionary) -> void:
-	var amount: int = int(cost.get(&"stamina", 0))
-	if amount <= 0:
-		return
-	var before: int = stamina
-	stamina = mini(stamina + amount, max_stamina)
-	if stamina != before:
-		pool_changed.emit(&"stamina", stamina, max_stamina)
+	var sta: int = int(cost.get(&"stamina", 0))
+	if sta > 0:
+		var before_s: int = stamina
+		stamina = mini(stamina + sta, max_stamina)
+		if stamina != before_s:
+			pool_changed.emit(&"stamina", stamina, max_stamina)
+	var man: int = int(cost.get(&"mana", 0))
+	if man > 0:
+		var before_m: int = mana
+		mana = mini(mana + man, max_mana)
+		if mana != before_m:
+			pool_changed.emit(&"mana", mana, max_mana)
 
-## Upkeep regeneration: adds [member regen_per_turn], clamped at [member max_stamina].
+## Upkeep regeneration: bumps each rail by its per-turn amount, clamped at its maximum.
 func regen() -> void:
-	var before: int = stamina
+	var before_s: int = stamina
 	stamina = mini(stamina + regen_per_turn, max_stamina)
-	if stamina != before:
+	if stamina != before_s:
 		pool_changed.emit(&"stamina", stamina, max_stamina)
+	var before_m: int = mana
+	mana = mini(mana + mana_regen_per_turn, max_mana)
+	if mana != before_m:
+		pool_changed.emit(&"mana", mana, max_mana)
