@@ -54,6 +54,7 @@ var gear: Array[Gear] = []
 ## Pre-stat seeds; the live max_hp / pool max / meter floor are DERIVED in [method apply_stats].
 var base_max_hp: int = 1
 var base_max_stamina: int = 0
+var base_max_mana: int = 0
 var base_meter_floor: int = 0
 
 # ---------------------------------------------------------------------------
@@ -135,6 +136,8 @@ func apply_stats() -> void:
 	if resource_pool != null:
 		resource_pool.max_stamina = base_max_stamina + s.focus
 		resource_pool.stamina = mini(resource_pool.stamina, resource_pool.max_stamina)
+		resource_pool.max_mana = base_max_mana + s.focus
+		resource_pool.mana = mini(resource_pool.mana, resource_pool.max_mana)
 	if bonus_meter != null:
 		bonus_meter.floor = base_meter_floor + s.grit
 
