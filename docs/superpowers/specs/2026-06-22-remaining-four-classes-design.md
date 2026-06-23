@@ -187,6 +187,10 @@ and exact costs/magnitudes are `[ASSUMPTION]`.
 
 ## 5. Open `[ASSUMPTION]`s to tune by playtest
 
+- **SHIELDED `apply_shield` higher-overrides compares HP only, not turns** (built in Phase 1): a large-but-short
+  shield blocks a small-but-long refresh (e.g. existing `(30hp, 1turn)` rejects a new `(10hp, 99turn)`). Matches the
+  "higher-total" wording, but the Warden (Rallying Cry) and Seer (Big Bang) shield plans should account for this — a
+  player re-casting a weaker-but-longer shield will see it ignored. Revisit if it surprises in playtest.
 - Rallying Cry shield duration (2 turns), Pick'em Heal/Buff magnitudes, Big Bang heal fraction (1/6) & shield
   duration (2), Hunter's Mark duration (3) & "HIT" face swap, Wildcard Gamble double/zero odds (inherit reel
   faces), Collateral splash fraction (1/2), all costs (reroll 4, mark 3, select-fate 6, rallying-cry 4),
