@@ -31,5 +31,21 @@ func _initialize() -> void:
 	_check(c2.resource_pool.max_mana == 11, "max_mana = 9 + 2 = 11 (got %d)" % c2.resource_pool.max_mana)
 	_check(c2.resource_pool.mana == 11, "mana clamped down to 11 (got %d)" % c2.resource_pool.mana)
 
+	# CharacterClass round-trip: a built caster starts at full mana.
+	var cls: CharacterClass = CharacterClass.new()
+	cls.base_stats = (func() -> Stats: var st: Stats = Stats.new(); st.focus = 6; return st).call()
+	cls.weapon_type = load("res://combat/resources/types/mystic.tres")
+	cls.reel_count = 2
+	cls.base_max_hp = 300
+	cls.base_max_stamina = 0
+	cls.base_max_mana = 9
+	cls.start_mana = 15
+	cls.mana_regen = 1
+	var built: Combatant = cls.build_combatant(true)
+	_check(built.resource_pool != null, "built caster has a resource pool")
+	_check(built.resource_pool.max_mana == 15, "built max_mana 15 (got %d)" % built.resource_pool.max_mana)
+	_check(built.resource_pool.mana == 15, "built starts at full mana 15 (got %d)" % built.resource_pool.mana)
+	_check(built.resource_pool.mana_regen_per_turn == 1, "built mana regen 1 (got %d)" % built.resource_pool.mana_regen_per_turn)
+
 	print(("MANA DERIVATION TEST PASSED" if _failures == 0 else "MANA DERIVATION TEST FAILED: %d" % _failures))
 	quit(_failures)

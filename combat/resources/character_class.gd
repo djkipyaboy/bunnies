@@ -32,6 +32,12 @@ extends Resource
 @export var start_stamina: int = 3
 @export var stamina_regen: int = 1
 
+## Starting / regenerating Mana (caster Main-1 economy). max_mana derives as base_max_mana + Focus
+## in Combatant.apply_stats; set start_mana to the intended full total (the clamp keeps it in range).
+@export var base_max_mana: int = 0
+@export var start_mana: int = 0
+@export var mana_regen: int = 0
+
 ## The class's Main-1 base ability (spec §4A): &"rend" / &"heft" / &"flurry".
 @export var ability_id: StringName = &""
 
@@ -73,8 +79,11 @@ func build_combatant(is_player: bool) -> Combatant:
 		var pool: ResourcePool = ResourcePool.new()
 		pool.stamina = start_stamina
 		pool.regen_per_turn = stamina_regen
+		pool.mana = start_mana
+		pool.mana_regen_per_turn = mana_regen
 		c.resource_pool = pool
 		c.base_max_stamina = base_max_stamina
+		c.base_max_mana = base_max_mana
 
 	c.apply_stats()   # derive max_hp / max_stamina / meter.floor BEFORE seeding hp
 	c.apply_luck()    # edit weapon reels: +1 crit face per Luck. ONCE — not idempotent.
