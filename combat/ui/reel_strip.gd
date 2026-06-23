@@ -97,6 +97,28 @@ func play_to(target_index: int, delay: float = 0.0) -> void:
 func set_wild(on: bool) -> void:
 	modulate = Color(1.6, 1.4, 0.4) if on else Color(1, 1, 1)
 
+## Toggles a visible "RE-ROLL" tag on this strip (Chancer post-spin Re-roll / Wildcard Gamble target).
+## Legibility pillar: the player must always see which reel was re-rolled. Cosmetic only; the result is
+## owned by [CombatResolver]. Placeholder styling — judged in play-test. A persistent child (not a tween)
+## so it stays visible while the spin is reviewed; toggling off removes it.
+func set_rerolled(on: bool) -> void:
+	var existing: Node = get_node_or_null("RerollTag")
+	if on:
+		if existing != null:
+			return
+		var tag := Label.new()
+		tag.name = "RerollTag"
+		tag.text = "RE-ROLL"
+		tag.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		tag.add_theme_font_size_override("font_size", 14)
+		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tag.size = Vector2(110, 18)
+		tag.position = Vector2(0, -20)  # sits just above the strip window
+		tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(tag)
+	elif existing != null:
+		existing.queue_free()
+
 ## Briefly highlights one of the 3 visible window cells (row 0=top,1=center,2=bottom) as part of a
 ## winning payline. Cosmetic only. Exact styling is placeholder — judged in play-test.
 func flash_cell(row: int) -> void:

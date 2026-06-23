@@ -45,6 +45,7 @@ static var _pc_class_id: StringName = &"warrior"
 
 var _attacker: Combatant
 var _defender: Combatant
+var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
 var _awaiting_stun_check: bool = false
@@ -332,6 +333,7 @@ func _ability_label(id: StringName) -> String:
 		&"rend": return "Rend: +1 bleed reel (2 STA)"
 		&"heft": return "Heft: steady the reels (2 STA)"
 		&"flurry": return "Flurry: +1 swing (2 STA)"
+		&"reroll": return "Re-roll worst reel (4 STA)"
 		_: return "Ability"
 
 ## Short ability name for the combat log.
@@ -340,6 +342,7 @@ func _ability_name(id: StringName) -> String:
 		&"rend": return "Rend (bleed reel)"
 		&"heft": return "Heft (steady reels)"
 		&"flurry": return "Flurry (extra swing)"
+		&"reroll": return "Re-roll (worst reel)"
 		_: return "ability"
 
 ## Ultimate button label + log name, per the active class's Ultimate.
@@ -348,6 +351,7 @@ func _ultimate_label(id: StringName) -> String:
 		&"rampage": return "ULTIMATE: Rampage (AoE)"
 		&"wild": return "ULTIMATE: Wild (1 spin)"
 		&"sticky_wild": return "ULTIMATE: Sticky Wild (2 spins)"
+		&"wildcard_gamble": return "ULTIMATE: Wildcard Gamble"
 		_: return "Fire Ultimate"
 
 func _ultimate_name(id: StringName) -> String:
@@ -355,6 +359,7 @@ func _ultimate_name(id: StringName) -> String:
 		&"rampage": return "RAMPAGE (+1 reel, Heft-all, AoE)"
 		&"wild": return "WILD (all reels crit-biased, 1 spin)"
 		&"sticky_wild": return "STICKY WILD (all reels crit-biased, 2 spins)"
+		&"wildcard_gamble": return "WILDCARD GAMBLE (re-roll non-crits, double-or-nothing)"
 		_: return "Ultimate"
 
 func _on_turn_started(c: Combatant) -> void:
@@ -554,14 +559,55 @@ func _do_spin() -> void:
 	_payline_banner.text = ""
 	var reels: Array[ActionReel] = _attacker.turn_reels
 	var weapon_count: int = _attacker.weapon.reels.size()
-	var attacks: Array = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might)
+	# Defer paylines: a Chancer reroll/gamble can change a reel's result AFTER the spin resolves, so the
+	# strips must animate to the FINAL post-reroll indices and paylines must score the FINAL grid.
+	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, [], true)
+	# Post-spin Chancer pass (no-op for every other class — their flags are false). Overwrites attacks[i]
+	# IN PLACE so strips animate to the final index and damage applies once on settle.
+	_rerolled_indices = _apply_post_spin_rerolls(reels, attacks, weapon_count)
+	# Re-score paylines on the FINAL grid and emit (the resolver deferred the emit above).
+	_resolver.paylines_resolved.emit(_resolver.evaluate_paylines(reels, attacks, weapon_count, []))
 	_pending_strips = attacks.size()
 	var strips: Array = _strips
 	for i: int in range(attacks.size()):
 		var attack = attacks[i]
 		var strip: ReelStrip = strips[i]
+		strip.set_rerolled(i in _rerolled_indices)  # visible RE-ROLL tag on changed strips (legibility)
 		strip.strip_settled.connect(_apply_attack.bind(attack), CONNECT_ONE_SHOT)
 		strip.play_to(attack.landed_index, float(i) * STRIP_STAGGER)  # resolver owns the index (screen == grid)
+
+## Runs the Chancer's post-spin Re-roll (base ability) and/or Wildcard Gamble (Ultimate) on the resolved
+## [param attacks] IN PLACE, before the strips animate. Returns the indices that changed (for the RE-ROLL
+## tag). A no-op for every non-Chancer attacker (reroll_pending / wildcard_gamble_pending both false).
+## Base Re-roll: re-roll the single worst reel; refund if none qualified. Gamble: re-roll every non-crit
+## reel, double-or-nothing. Both re-roll via the resolver and overwrite attacks[i] (so the strip animates
+## to the final index, damage applies once on settle, paylines score the final grid).
+func _apply_post_spin_rerolls(reels: Array[ActionReel], attacks: Array[CombatResolver.AttackResult], weapon_count: int) -> Array[int]:
+	var changed: Array[int] = []
+	var base: float = _attacker.weapon.base_damage
+	var might: int = _attacker.effective_stats().might
+	if _attacker.reroll_pending:
+		var idx: int = Combatant.worst_reroll_index(attacks)
+		if idx >= 0 and idx < reels.size():
+			attacks[idx] = _resolver.reresolve_reel(reels[idx], base, _defender.defense_type, might)
+			changed.append(idx)
+			_log("  ♻ %s RE-ROLLS reel %d → %s." % [_attacker.display_name, idx + 1, ReelFace.ResultTier.keys()[attacks[idx].face.result_tier]])
+		else:
+			_attacker.refund_reroll()
+			_log("  ♻ %s Re-roll: no bad reel to re-roll — %d Stamina refunded." % [_attacker.display_name, _attacker.ability_cost])
+			(_panels[_attacker] as CombatantPanel).refresh_resources()
+	if _attacker.wildcard_gamble_pending:
+		for i: int in range(mini(weapon_count, reels.size())):
+			if attacks[i].face != null and attacks[i].face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+				continue  # crit reels are not gambled
+			var orig: int = attacks[i].final_damage
+			var rolled: CombatResolver.AttackResult = _resolver.reresolve_reel(reels[i], base, _defender.defense_type, might)
+			rolled.final_damage = Combatant.gamble_final_damage(rolled.face.result_tier, orig)
+			attacks[i] = rolled
+			if i not in changed:
+				changed.append(i)
+		_log("  🎲 %s WILDCARD GAMBLE — every non-crit reel re-rolled (double-or-nothing)!" % _attacker.display_name)
+	return changed
 
 func _apply_attack(attack) -> void:
 	var tier_name: String = ReelFace.ResultTier.keys()[attack.face.result_tier]
@@ -686,6 +732,7 @@ func _append_banner(tag: String) -> void:
 func _finish_spin() -> void:
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
+	_attacker.clear_reroll_state()  # Chancer reroll/gamble were applied in _do_spin's post-spin pass
 	# Clarify the Sticky-Wild's multi-spin nature in the log (the meter is spent up front; the WILD
 	# then rides for N spins — so it can look "active but uncharged" on the next turn).
 	if _attacker.sticky_wild_spins_remaining > 0:
