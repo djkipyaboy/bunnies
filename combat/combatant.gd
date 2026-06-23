@@ -294,6 +294,28 @@ func weapon_type() -> DamageType:
 		return weapon.reels[0].damage_type
 	return null
 
+## Index of the single worst reel to re-roll (Chancer): priority CRIT_FAILURE > FAILURE > NEUTRAL,
+## first occurrence on a tie. Returns -1 when no reel landed any of those tiers (nothing to re-roll).
+## Static + pure (operates on an Array of CombatResolver.AttackResult) so it is trivially testable.
+static func worst_reroll_index(attacks: Array) -> int:
+	var priority: Array = [ReelFace.ResultTier.CRIT_FAILURE, ReelFace.ResultTier.FAILURE, ReelFace.ResultTier.NEUTRAL]
+	for tier in priority:
+		for i: int in range(attacks.size()):
+			var a = attacks[i]
+			if a != null and a.face != null and a.face.result_tier == tier:
+				return i
+	return -1
+
+## Wildcard Gamble (Chancer Ultimate) double-or-nothing transform for ONE re-rolled reel: a crit-success
+## re-roll doubles the reel's original damage; a fail/crit-fail re-roll zeroes it; anything else leaves
+## the original standing. Static + pure.
+static func gamble_final_damage(rerolled_tier: int, original_final_damage: int) -> int:
+	if rerolled_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+		return original_final_damage * 2
+	if rerolled_tier == ReelFace.ResultTier.FAILURE or rerolled_tier == ReelFace.ResultTier.CRIT_FAILURE:
+		return 0
+	return original_final_damage
+
 ## Vanguard "Heft" (spec §4A): spends [param cost] Stamina and, on each reel of THIS turn, converts
 ## its first FAILURE face into a SUCCESS face (mult 1.0) — fewer whiffs from the heavy hits. Edits a
 ## DEEP copy of each reel so the underlying weapon is never mutated (begin_turn's duplicate is shallow,
