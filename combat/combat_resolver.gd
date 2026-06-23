@@ -147,6 +147,16 @@ func evaluate_paylines(reels: Array[ActionReel], attacks: Array[AttackResult], w
 	lines.append_array(extra_lines)
 	return PaylineResolver.evaluate(last_grid, lines)
 
+## Scores a given line set against the spin, dispatching by matching mode. Rebuilds last_grid (like
+## evaluate_paylines) then uses left-aligned run scoring ([param left_align]) or whole-line matching.
+## The orchestrator supplies [param lines] from the attacker's payline profile. Does not emit.
+func evaluate_paylines_profile(reels: Array[ActionReel], attacks: Array[AttackResult], weapon_reel_count: int, lines: Array, left_align: bool, min_run: int) -> Array:
+	var wcount: int = mini(weapon_reel_count, reels.size())
+	last_grid = _build_grid(reels, attacks, wcount)
+	if left_align:
+		return PaylineResolver.evaluate_left_align(last_grid, lines, min_run)
+	return PaylineResolver.evaluate(last_grid, lines)
+
 ## Looks up the Bonus-Meter charge for a result tier, guarding the weights array length.
 func _meter_gain_for(tier: ReelFace.ResultTier) -> int:
 	if tier >= 0 and tier < meter_charge_weights.size():
