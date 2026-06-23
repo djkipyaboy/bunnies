@@ -65,7 +65,7 @@ const WILD_CRIT_CHANCE: float = 0.65  # [ASSUMPTION]
 ## using [param base_damage] as the weapon base. Returns the per-reel [AttackResult]s and emits
 ## [signal spin_started] → [signal damage_applied] (per reel) → [signal meter_charged] →
 ## [signal spin_resolved].
-func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = [], weapon_reel_count: int = -1, flat_damage_bonus: int = 0, extra_lines: Array = []) -> Array[AttackResult]:
+func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = [], weapon_reel_count: int = -1, flat_damage_bonus: int = 0, extra_lines: Array = [], defer_paylines: bool = false) -> Array[AttackResult]:
 	spin_started.emit()
 
 	var attacks: Array[AttackResult] = []
@@ -81,13 +81,12 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 	meter_charged.emit(total_meter)
 	spin_resolved.emit(attacks)
 
-	# Build the weapon grid (first weapon_reel_count reels; -1 = all) and evaluate paylines.
+	# Build the weapon grid + evaluate paylines (unless deferred for a post-spin reroll path).
 	var wcount: int = weapon_reel_count if weapon_reel_count >= 0 else reels.size()
 	wcount = mini(wcount, reels.size())
-	last_grid = _build_grid(reels, attacks, wcount)
-	var lines: Array = PaylineLibrary.lines_for(wcount)
-	lines.append_array(extra_lines)
-	paylines_resolved.emit(PaylineResolver.evaluate(last_grid, lines))
+	var hits: Array = evaluate_paylines(reels, attacks, wcount, extra_lines)
+	if not defer_paylines:
+		paylines_resolved.emit(hits)
 	return attacks
 
 # ---------------------------------------------------------------------------
@@ -132,6 +131,21 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 			attack.rider_effect_id = face.rider_effect_id
 
 	return attack
+
+## Re-resolves ONE reel into a fresh AttackResult with a normal (non-wild) weighted spin. Used by the
+## Chancer's post-spin Re-roll ability and Wildcard Gamble Ultimate. Pure: mutates nothing but the reel's
+## own last-index (same as a normal spin).
+func reresolve_reel(reel: ActionReel, base_damage: float, target_type: DamageType, flat_damage_bonus: int = 0) -> AttackResult:
+	return _resolve_single(reel, base_damage, target_type, false, flat_damage_bonus)
+
+## Rebuilds last_grid from the given attacks' landed indices and returns the payline hits (does not emit).
+## Lets the orchestrator re-score paylines after swapping a reel's result (the reroll path).
+func evaluate_paylines(reels: Array[ActionReel], attacks: Array[AttackResult], weapon_reel_count: int, extra_lines: Array = []) -> Array:
+	var wcount: int = mini(weapon_reel_count, reels.size())
+	last_grid = _build_grid(reels, attacks, wcount)
+	var lines: Array = PaylineLibrary.lines_for(wcount)
+	lines.append_array(extra_lines)
+	return PaylineResolver.evaluate(last_grid, lines)
 
 ## Looks up the Bonus-Meter charge for a result tier, guarding the weights array length.
 func _meter_gain_for(tier: ReelFace.ResultTier) -> int:
