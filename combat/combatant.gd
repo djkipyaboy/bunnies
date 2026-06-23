@@ -29,6 +29,10 @@ var is_player: bool = false
 ## Drives MainPhasePlan dispatch. Empty = no base ability.
 var ability_id: StringName = &""
 
+## Cost + rail of the Main-1 base ability (set from CharacterClass). Drives MainPhasePlan.
+var ability_cost: int = 2
+var ability_resource: StringName = &"stamina"
+
 ## The class's Ultimate archetype id. &"sticky_wild" (Warrior/Skirmisher placeholder) or &"rampage"
 ## (Vanguard: +1 reel, Heft-all, AoE). Drives MainPhasePlan's ultimate dispatch.
 var ultimate_id: StringName = &"sticky_wild"

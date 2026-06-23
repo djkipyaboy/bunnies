@@ -26,6 +26,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"rend"
+			c.ability_cost = 2
 			c.ultimate_id = &"wild"  # single-spin crit-bias wild (distinct from the Skirmisher's 2-spin sticky wild)
 			return c
 		&"vanguard":
@@ -38,6 +39,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing (badger identity re-differentiated later)
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"heft"
+			c.ability_cost = 2
 			c.ultimate_id = &"rampage"  # +1 reel, Heft-all, AoE (spec §4A) — not the sticky-wild placeholder
 			c.meter_charge_weights = [0, 0, 2, 2, 3]  # neutral charges +2 (was +1) — Vanguard meter identity
 			return c
@@ -54,6 +56,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.ultimate_id = &"sticky_wild"  # 2-spin sticky wild (distinct from the Warrior's 1-spin wild)
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"flurry"
+			c.ability_cost = 2
 			return c
 		_:
 			return null

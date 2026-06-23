@@ -363,7 +363,7 @@ func _on_turn_started(c: Combatant) -> void:
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
-	_plan = MainPhasePlan.new(c, 2, 5, 2)  # [ASSUMPTION] ability cost 2, reel cap 5; sticky-wild 2 spins
+	_plan = MainPhasePlan.new(c, c.ability_cost, 5, 2)  # ability cost from class; reel cap 5; wild 2 spins
 	# The ability/Ultimate buttons are the PLAYER's controls — always label them from the PC, never the
 	# current attacker (else the enemy's turn shows the enemy's Ultimate, e.g. Cluny's "Sticky Wild").
 	_splice_button.text = _ability_label(_pc.ability_id)

@@ -40,6 +40,11 @@ func _init(c: Combatant, p_ability_cost: int = 2, p_reel_cap: int = 5, p_wild_sp
 	reel_cap = p_reel_cap
 	wild_spins = p_wild_spins
 
+## The cost dictionary for this combatant's base ability (amount on its declared rail).
+func _ability_cost_dict() -> Dictionary:
+	var res: StringName = combatant.ability_resource if combatant != null else &"stamina"
+	return {res: ability_cost}
+
 ## Whether this ability adds a reel to the attacker's own loadout (previewable as an extra strip).
 func _ability_adds_reel() -> bool:
 	return ability_id == &"flurry" or ability_id == &"rend"
@@ -49,7 +54,7 @@ func _ability_adds_reel() -> bool:
 func can_stage_ability() -> bool:
 	if combatant == null or combatant.resource_pool == null or ability_id == &"":
 		return false
-	if not combatant.resource_pool.can_afford({&"stamina": ability_cost}):
+	if not combatant.resource_pool.can_afford(_ability_cost_dict()):
 		return false
 	if _ability_adds_reel() and combatant.turn_reels.size() >= reel_cap:
 		return false
@@ -105,13 +110,17 @@ func preview_reels() -> Array[ActionReel]:
 		reels.append(ActionReel.make_default(combatant.weapon_type()))
 	return reels
 
-## The Stamina the combatant WOULD have after committing (current minus a staged ability cost).
-func preview_stamina() -> int:
+## The combatant's value on the ABILITY's rail after committing (current minus a staged cost).
+func preview_resource() -> int:
 	if combatant == null or combatant.resource_pool == null:
 		return 0
-	var s: int = combatant.resource_pool.stamina
-	# Heft included by Rampage costs no Stamina, so don't subtract it from the preview.
-	return (s - ability_cost) if (ability_staged and not ability_is_free()) else s
+	var res: StringName = combatant.ability_resource
+	var cur: int = combatant.resource_pool.mana if res == &"mana" else combatant.resource_pool.stamina
+	return (cur - ability_cost) if (ability_staged and not ability_is_free()) else cur
+
+## Back-compat alias used by the current UI (stamina-only classes). Returns preview_resource().
+func preview_stamina() -> int:
+	return preview_resource()
 
 ## True if committing WOULD consume the Bonus Meter (an Ultimate is staged this turn).
 func will_consume_meter() -> bool:

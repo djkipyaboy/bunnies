@@ -41,6 +41,10 @@ extends Resource
 ## The class's Main-1 base ability (spec §4A): &"rend" / &"heft" / &"flurry".
 @export var ability_id: StringName = &""
 
+## Cost of the Main-1 base ability and which rail it spends. [ASSUMPTION] per-class.
+@export var ability_cost: int = 2
+@export var ability_resource: StringName = &"stamina"
+
 ## The class's Ultimate archetype: &"sticky_wild" (default placeholder) or &"rampage" (Vanguard).
 @export var ultimate_id: StringName = &"sticky_wild"
 
@@ -57,6 +61,8 @@ func build_combatant(is_player: bool) -> Combatant:
 	c.is_player = is_player
 	c.defense_type = defense_type
 	c.ability_id = ability_id
+	c.ability_cost = ability_cost
+	c.ability_resource = ability_resource
 	c.ultimate_id = ultimate_id
 	c.base_stats = base_stats
 
