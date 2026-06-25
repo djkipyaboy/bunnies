@@ -30,6 +30,8 @@ var _spin_button: Button
 var _end_turn_button: Button
 var _splice_button: Button
 var _ultimate_button: Button
+var _paylines_button: Button
+var _payline_cycle_index: int = -1   # which payline the toggle is currently previewing (-1 = none)
 var _payline_banner: Label
 var _strips_box: HBoxContainer
 var _strips: Array[ReelStrip] = []   # the live strips; tracked explicitly, independent of tree free-timing
@@ -210,6 +212,12 @@ func _build_ui() -> void:
 	_ultimate_button.disabled = true
 	add_child(_ultimate_button)
 
+	_paylines_button = Button.new()
+	_paylines_button.text = "Paylines"
+	_paylines_button.position = Vector2(900, 584)
+	_paylines_button.custom_minimum_size = Vector2(210, 52)
+	add_child(_paylines_button)
+
 	_build_overlay()
 
 	(_panels[_pc] as CombatantPanel).bind(_pc)
@@ -307,6 +315,7 @@ func _bind_signals() -> void:
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
 	_splice_button.pressed.connect(_on_splice_pressed)
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
+	_paylines_button.pressed.connect(_on_paylines_pressed)
 
 func _start_combat() -> void:
 	_log("Playing as: %s  [%s]" % [_pc.display_name, String(_pc_class_id).capitalize()])
@@ -437,6 +446,8 @@ func _on_spin_pressed() -> void:
 	if not _awaiting_player_spin:
 		return
 	_awaiting_player_spin = false
+	_payline_cycle_index = -1
+	_clear_payline_preview()
 	if _plan != null:
 		# Capture what's staged BEFORE commit clears nothing (the flags persist, but log intent here).
 		var did_ability: bool = _plan.ability_staged
@@ -553,6 +564,33 @@ func _prepare_strips(reels: Array[ActionReel]) -> void:
 		strip.configure(reel)
 		_strips.append(strip)
 	_highlight_wild_strips()
+
+## Cycles the current PC's payline patterns one at a time over the reels (legibility: one line, not all).
+## Each press advances to the next line; after the last it clears. Uses the player's profile line set.
+func _on_paylines_pressed() -> void:
+	var pc: Combatant = _pc
+	if pc == null or pc.weapon == null:
+		return
+	var width: int = pc.weapon.reels.size()
+	var lines: Array = PaylineLibrary.lines_for_profile(pc.payline_profile_id, width)
+	_clear_payline_preview()
+	if lines.is_empty():
+		return
+	_payline_cycle_index += 1
+	if _payline_cycle_index >= lines.size():
+		_payline_cycle_index = -1
+		_payline_banner.text = ""
+		return
+	var line: Array = lines[_payline_cycle_index]
+	for cell: Vector2i in line:
+		if cell.x >= 0 and cell.x < _strips.size():
+			_strips[cell.x].highlight_path_cell(cell.y)
+	_payline_banner.text = "Paylines: %d / %d" % [_payline_cycle_index + 1, lines.size()]
+
+## Clears any payline-preview highlight on all strips.
+func _clear_payline_preview() -> void:
+	for s in _strips:
+		(s as ReelStrip).clear_path_highlight()
 
 func _do_spin() -> void:
 	if _phase_manager.current_phase != PhaseManager.Phase.COMBAT:

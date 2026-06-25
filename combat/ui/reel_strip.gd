@@ -131,3 +131,20 @@ func flash_cell(row: int) -> void:
 	var tw := create_tween()
 	tw.tween_interval(1.2)
 	tw.tween_callback(marker.queue_free)
+
+## Persistent payline-preview highlight on one window cell (row 0=top,1=center,2=bottom). Unlike
+## flash_cell (which fades), this stays until cleared — used by the Paylines toggle to draw one line.
+func highlight_path_cell(row: int) -> void:
+	clear_path_highlight()
+	var marker := ColorRect.new()
+	marker.name = "PathHL"
+	marker.color = Color(0.3, 0.7, 1.0, 0.40)
+	marker.size = Vector2(110, CELL_HEIGHT)
+	marker.position = Vector2(0, CELL_HEIGHT * float(row))
+	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(marker)
+
+func clear_path_highlight() -> void:
+	var hl: Node = get_node_or_null("PathHL")
+	if hl != null:
+		hl.queue_free()
