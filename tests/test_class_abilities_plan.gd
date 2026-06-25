@@ -66,5 +66,33 @@ func _initialize() -> void:
 	pn.toggle_ability()
 	_check(not pn.ability_staged, "empty ability_id cannot stage")
 
+	# ULTIMATE LOCK (spec 2026-06-25 §5): staging a non-Rampage Ultimate un-stages + locks the base ability.
+	var u: Combatant = _pc(&"flurry", 4, slashing)
+	u.ultimate_id = &"sticky_wild"
+	u.bonus_meter = BonusMeter.new(); u.bonus_meter.cap = 10; u.bonus_meter.add_flat(10)  # arm it
+	var pu: MainPhasePlan = MainPhasePlan.new(u, 2, 5, 2)
+	pu.toggle_ability()
+	_check(pu.ability_staged, "flurry stages before the ultimate")
+	pu.toggle_ultimate()
+	_check(pu.fire_ultimate_staged, "ultimate stages")
+	_check(not pu.ability_staged, "staging the ultimate UN-stages the base ability")
+	_check(pu.ability_locked_by_ultimate(), "base ability is locked while the ultimate is staged")
+	pu.toggle_ability()
+	_check(not pu.ability_staged, "ability toggle is a no-op while locked by the ultimate")
+	pu.toggle_ultimate()  # un-stage the ultimate
+	_check(not pu.fire_ultimate_staged and not pu.ability_locked_by_ultimate(), "un-staging the ultimate unlocks the ability")
+	pu.toggle_ability()
+	_check(pu.ability_staged, "ability stages again once the ultimate is un-staged")
+
+	# RAMPAGE still BAKES IN Heft (Vanguard) — included/free, NOT locked-out.
+	var vg: Combatant = _pc(&"heft", 2, crushing)
+	vg.ultimate_id = &"rampage"
+	vg.bonus_meter = BonusMeter.new(); vg.bonus_meter.cap = 10; vg.bonus_meter.add_flat(10)
+	var pvg: MainPhasePlan = MainPhasePlan.new(vg, 2, 5, 2)
+	pvg.toggle_ultimate()
+	_check(pvg.fire_ultimate_staged and pvg.ability_staged, "rampage auto-stages Heft (included)")
+	_check(pvg.ability_is_free(), "Heft is free while Rampage is staged")
+	_check(not pvg.ability_locked_by_ultimate(), "Rampage-Heft is 'included', not 'locked'")
+
 	print(("CLASS ABILITIES PLAN TEST PASSED" if _failures == 0 else "CLASS ABILITIES PLAN TEST FAILED: %d" % _failures))
 	quit(_failures)

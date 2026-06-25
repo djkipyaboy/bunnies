@@ -52,6 +52,8 @@ func _ability_adds_reel() -> bool:
 ## True if the ability can be newly STAGED: there IS an ability, it's affordable, and (for reel-adding
 ## abilities) the loadout is under the cap. Un-staging is always allowed.
 func can_stage_ability() -> bool:
+	if ability_locked_by_ultimate():
+		return false  # disabled while the Ultimate is staged (UI greys the toggle)
 	if combatant == null or combatant.resource_pool == null or ability_id == &"":
 		return false
 	if not combatant.resource_pool.can_afford(_ability_cost_dict()):
@@ -76,9 +78,15 @@ func _rampage_includes_heft() -> bool:
 func ability_is_free() -> bool:
 	return fire_ultimate_staged and _rampage_includes_heft()
 
+## True when a staged Ultimate locks OUT the base ability (every class except the Vanguard's Rampage,
+## which instead bakes Heft in — that's ability_is_free, not locked). The Ultimate is the turn's big
+## play; you take it OR the base ability, not both (spec 2026-06-25 §5; pillar §4 trade-offs).
+func ability_locked_by_ultimate() -> bool:
+	return fire_ultimate_staged and ability_id != &"" and not ability_is_free()
+
 func toggle_ability() -> void:
-	if ability_is_free():
-		return  # Heft is locked ON (free) while Rampage is staged — controlled by the Ultimate toggle
+	if ability_is_free() or ability_locked_by_ultimate():
+		return  # ability is controlled by the Ultimate toggle (included by Rampage, or locked out)
 	if ability_staged:
 		ability_staged = false
 	elif can_stage_ability():
@@ -93,6 +101,8 @@ func toggle_ultimate() -> void:
 		fire_ultimate_staged = true
 		if _rampage_includes_heft():
 			ability_staged = true    # toggling Rampage auto-toggles Heft (free, included)
+		else:
+			ability_staged = false   # every other class: the Ultimate cancels a staged base ability
 
 ## The reels the spin WOULD use. A staged reel-adding ability (flurry/rend) appends a previewed
 ## own-type reel (rend's preview reel is a no-damage BLEED reel). Heft edits faces in place on commit,
