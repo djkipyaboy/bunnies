@@ -1,0 +1,30 @@
+Bunnies New Class Info
+
+
+Ranger: piercing, bow and arrows, 4 attack reels, stamina gauge totaling at 10.
+
+base ability : hunter's mark - (similar to the Heft base ability of the Vanguard), increases the chance to hit on a specific enemy target for ALL allied combatants for 3 turns. This debuff applied to an enemy will replace the critical failure reel face off of any weapon reels when an attack is targetting the debuffed enemy. This bonus does not affect attacks that are strictly AOE (The vanguard's Rampage attack will not benefit from the hunter's mark effect for example) This stamina cost of this ability should be 3
+
+Ultimate ability: Collateral Damage - Add an additional attack reel (4 -> 5). Primary target of ability will receive full weapon damage as they normally would from this attack. ALL other enemy combatants will recieve HALF of that total damage dealt, rounded up, as piercing damage. (flavor: explosive shot)
+
+
+Seer: Mystic, war staff, 2 attack reels MANA gauge instead of stamina: starting at 15/15. 
+
+base ability: Select your Fate! - add an additional attack reel. This additional attack reel will be included with the weapon reel spin in terms of paylines. The special factor of this ability is that the character will be able to choose from the 6 available damage types to convert their attack this turn entirely into that selected damage type. For example, a typical 2 reel spin would be 2 attacks that land as Mystic damage. When choosing to activate this base ability, the attack reels go up from 2 -> 3 and the damage type of each reel is determined by the choice the player makes. Each cast of this ability should cost the seer 6 mana, with 1 mana regenerating each turn (similar to stamina resource)
+
+
+Ultimate ability: the big bang - roll 4 total attack reels (that are critical strike biased i.e. WILD). Deal the expected damage outcome to all Enemy combatants. Summ the total damage dealt by this attack, and heal each ALLY party member for 1/6 of that total damage (rounded up). Any excess healing (a character at full hp would have no need for a heal) can be converted into a SHIELDED buff that lasts for 2 turns or until the SHIELDED HP value is lost by the affected character. For example, a character at 295/300 HP receiving a 20 hp heal from Ultimate- the big bang, would have 300/300 HP and a 15 HP SHIELDED buff.
+
+Warden: earth, Earthstave, 3 attack reels MANA gauge instead of stamina: starting at 12/12.
+
+base ability: Rallying Cry - spawns a fourth reel when active. This fourth reel will have 2 critical success faces and 8 HIT or normal success faces. On normal success: half of the Warden's weapon damage is applied as a SHIELDED buff to all ally combatants (including the warden). On a critical success, apply the full warden's weapon damage as a SHIELDED buff to all ally combatants (including the warden). This ability should cost 4 mana. If a new instance of the SHIELDED buff is to be applied to a character with a current SHIELDED buff, the SHIELDED buff with the higher HP total will override an existing or prevent a new buff from being applied.
+
+
+Ultimate ability: unchanged
+
+Chancer: storm, weapon type Thrown (playing cards), 4 attack reels, stamina gauge totaling at 7.
+
+base ability: re-roll one (1) reel that lands with the worst neutral or negative result (game can auto-select, order of priority is : Critical fail, neutral). If multiple reel results are of an equal level of failure (two reels landed on critical fail) select the FIRST reel with that result and re-roll that attack reel only. While the re-roll ability is active, if there are no critical fails or miss/neutral results, the stamina cost of this ability is refunded. The stamina cost of this ability should be 4.
+
+
+ultimate ability: unchanged
