@@ -37,6 +37,9 @@ var ability_resource: StringName = &"stamina"
 ## (Vanguard: +1 reel, Heft-all, AoE). Drives MainPhasePlan's ultimate dispatch.
 var ultimate_id: StringName = &"sticky_wild"
 
+## Payline profile (spec 2026-06-23): &"default" or &"casino" (Chancer). Drives orchestrator scoring.
+var payline_profile_id: StringName = &"default"
+
 ## Max HP — flat pool seeded by class/race, scaling per level (DESIGN.md A1). Not reel-influenced.
 var max_hp: int = 1
 

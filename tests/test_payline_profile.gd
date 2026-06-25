@@ -31,5 +31,13 @@ func _initialize() -> void:
 	var hits2: Array = r.evaluate_paylines_profile(reels, attacks, 4, deflines, false, 3)
 	_check(hits2 != null, "whole-line profile returns an Array")
 
+	# Class wiring: Chancer is casino; the other classes are default.
+	_check(ClassLibrary.make(&"chancer").payline_profile_id == &"casino", "Chancer profile = casino")
+	for id: StringName in [&"warrior", &"vanguard", &"skirmisher"]:
+		_check(ClassLibrary.make(id).payline_profile_id == &"default", "%s profile = default" % id)
+	var built: Combatant = ClassLibrary.make(&"chancer").build_combatant(true)
+	_check(built.payline_profile_id == &"casino", "built Chancer combatant carries casino profile")
+
+	r.free()
 	print(("PAYLINE PROFILE TEST PASSED" if _failures == 0 else "PAYLINE PROFILE TEST FAILED: %d" % _failures))
 	quit(_failures)

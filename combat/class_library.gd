@@ -70,6 +70,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"reroll"; c.ability_cost = 4; c.ability_resource = &"stamina"
 			c.ultimate_id = &"wildcard_gamble"
+			c.payline_profile_id = &"casino"
 			return c
 		_:
 			return null
