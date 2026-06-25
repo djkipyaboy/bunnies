@@ -60,13 +60,13 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_cost = 2
 			return c
 		&"chancer":
-			# Luck otter: four Storm cards, extra crit faces (Luck 4), post-spin re-rolls.
+			# Luck otter: four Storm cards, extra crit faces (Luck 1), post-spin re-rolls.
 			var c: CharacterClass = CharacterClass.new()
 			c.display_name = "Cheek (Otter)"; c.species = "Otter"
-			c.base_stats = _stats(2, 3, 2, 1, 0, 4)
+			c.base_stats = _stats(2, 3, 2, 1, 0, 1)  # [ASSUMPTION] Luck 1 (was 4 — playtest: crit too often)
 			c.weapon_base_damage = 6.0; c.weapon_type = storm; c.reel_count = 4
 			c.defense_type = storm
-			c.base_max_hp = 300; c.base_max_stamina = 6; c.base_meter_floor = 3; c.meter_cap = 30  # [ASSUMPTION] 4-reel + Luck charges fast → 30 cap like Skirmisher
+			c.base_max_hp = 300; c.base_max_stamina = 6; c.base_meter_floor = 3; c.meter_cap = 30  # [ASSUMPTION] 4-reel charges fast → 30 cap like Skirmisher
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"reroll"; c.ability_cost = 4; c.ability_resource = &"stamina"
 			c.ultimate_id = &"wildcard_gamble"

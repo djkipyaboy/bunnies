@@ -1,6 +1,6 @@
 extends SceneTree
 
-# Headless: the Chancer class builds with the right profile (Storm, 4 reels, Luck 4, reroll/gamble ids).
+# Headless: the Chancer class builds with the right profile (Storm, 4 reels, Luck 1, reroll/gamble ids).
 # Run:
 # "/c/Bunnies/bunnies-main/Godot_v4.6.3-stable_win64_console.exe" --headless --path . --script res://tests/test_chancer_class.gd
 
@@ -16,7 +16,7 @@ func _initialize() -> void:
 	var storm: DamageType = load("res://combat/resources/types/storm.tres")
 	_check(cls.weapon_type == storm, "weapon type is Storm")
 	_check(cls.reel_count == 4, "4 reels (got %d)" % cls.reel_count)
-	_check(cls.base_stats.luck == 4, "Luck 4 (got %d)" % cls.base_stats.luck)
+	_check(cls.base_stats.luck == 1, "Luck 1 (got %d)" % cls.base_stats.luck)
 	_check(cls.ability_id == &"reroll", "ability is reroll")
 	_check(cls.ability_cost == 4 and cls.ability_resource == &"stamina", "reroll costs 4 stamina")
 	_check(cls.ultimate_id == &"wildcard_gamble", "ultimate is wildcard_gamble")
@@ -25,11 +25,12 @@ func _initialize() -> void:
 	var c: Combatant = cls.build_combatant(true)
 	_check(c.resource_pool.max_stamina == 7, "total stamina 7 (got %d)" % c.resource_pool.max_stamina)
 	_check(c.weapon.reels.size() == 4, "4 weapon reels (got %d)" % c.weapon.reels.size())
-	# apply_luck appended 4 crit-success faces per reel beyond the default composition.
+	# apply_luck appended 1 crit-success face per reel (Luck 1) beyond the default composition's single
+	# crit face — so reel 0 carries 2 crit-success faces.
 	var crit: int = 0
 	for f: ReelFace in c.weapon.reels[0].faces:
 		if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS: crit += 1
-	_check(crit >= 4, "Luck added >=4 crit faces (got %d)" % crit)
+	_check(crit == 2, "Luck 1 → 2 crit faces on reel 0 (got %d)" % crit)
 
 	print(("CHANCER CLASS TEST PASSED" if _failures == 0 else "CHANCER CLASS TEST FAILED: %d" % _failures))
 	quit(_failures)
