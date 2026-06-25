@@ -51,10 +51,15 @@ Rationale: each class's Ultimate is the turn's big play; you take it *or* the ba
 non-Rampage Ultimate; `can_stage_ability()` returns false while locked.
 
 ### 6. Extra weapon-attack reels count toward paylines — all classes *(rule)*
-Added action reels that **deal the class's weapon damage on a hit** (the Vanguard Rampage +1 reel; the
-Skirmisher Flurry splice) must be part of the payline grid. The no-damage **Rend** reel (BLEED, mult 0)
-stays excluded. Implementation:
-- `ActionReel.deals_weapon_damage: bool = true`; `make_rend` sets it `false`.
+Added action reels whose **hit is a direct weapon swing** (the Vanguard Rampage +1 reel; the Skirmisher
+Flurry splice) must be part of the payline grid. The **Rend** reel stays excluded — and this is the
+subtle case (clarified in re-playtest): Rend's hit applies a BLEED debuff that ticks for *weapon-type*
+damage, so it deals weapon-type damage yet is **not a weapon attack**. The payline criterion is "is a
+direct weapon swing," not "deals weapon-type damage." Implementation:
+- `ActionReel.is_weapon_attack: bool = true` (named for the criterion, not "deals damage", so future
+  ability authors don't pull a weapon-typed *debuff* reel into the grid); `make_rend` sets it `false`.
+  GENERAL RULE: any future ability/Ultimate reel whose hit is utility/control (buff, debuff, heal,
+  convert) sets `is_weapon_attack = false` even when its effect deals weapon-type damage.
 - The payline grid width is no longer `weapon.reels.size()` — it's the **leading run of weapon-attack
   reels** in the actual spin loadout (`combat.gd::_weapon_attack_count(reels)`). Weapon-attack reels are
   always the prefix (Rend is appended last), so the count is the grid width. Used in both `_do_spin`
@@ -67,5 +72,5 @@ stays excluded. Implementation:
 - `test_chancer_class` — updated for Luck 1.
 - `test_class_abilities_plan` — extended: Ultimate-staged locks/un-stages the base ability (non-Rampage);
   Rampage still includes Heft (free, not locked).
-- New `test_weapon_attack_reels` — `make_default().deals_weapon_damage == true`, `make_rend() == false`.
+- New `test_weapon_attack_reels` — `make_default().is_weapon_attack == true`, `make_rend() == false`.
 - Full headless suite green; `combat.tscn` loads headless; human re-playtest (the casino-feel call, §5).

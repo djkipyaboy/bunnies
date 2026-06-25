@@ -601,13 +601,13 @@ func _on_paylines_pressed() -> void:
 			_strips[cell.x].highlight_path_cell(cell.y)
 	_payline_banner.text = "Paylines: %d / %d   %s" % [_payline_cycle_index + 1, lines.size(), _describe_cells(line)]
 
-## Leading run of reels that deal this class's weapon damage on a hit — the payline grid width. Base
-## weapon reels plus weapon-attack additions (Flurry splice, Rampage +1) all count; the no-damage Rend
-## reel (deals_weapon_damage = false) is appended last and ends the run, so it's excluded from paylines.
+## Leading run of WEAPON-ATTACK reels — the payline grid width. Base weapon reels plus weapon-attack
+## additions (Flurry splice, Rampage +1) all count; a utility reel like Rend (is_weapon_attack = false,
+## applies BLEED rather than swinging) is appended last and ends the run, so it's excluded from paylines.
 func _weapon_attack_count(reels: Array[ActionReel]) -> int:
 	var n: int = 0
 	for r: ActionReel in reels:
-		if r != null and r.deals_weapon_damage:
+		if r != null and r.is_weapon_attack:
 			n += 1
 		else:
 			break
