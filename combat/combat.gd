@@ -10,6 +10,7 @@ extends Control
 const STRIP_STAGGER: float = 0.25
 const ENEMY_THINK_DELAY: float = 0.6
 const STUN_THRESHOLD: int = -20   # [ASSUMPTION] start-of-turn initiative below this → STUNNED
+const CASINO_MIN_RUN: int = 3  # [ASSUMPTION] Chancer casino lines pay on a left-aligned run of >=3
 
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
@@ -565,8 +566,15 @@ func _do_spin() -> void:
 	# Post-spin Chancer pass (no-op for every other class — their flags are false). Overwrites attacks[i]
 	# IN PLACE so strips animate to the final index and damage applies once on settle.
 	_rerolled_indices = _apply_post_spin_rerolls(reels, attacks, weapon_count)
-	# Re-score paylines on the FINAL grid and emit (the resolver deferred the emit above).
-	_resolver.paylines_resolved.emit(_resolver.evaluate_paylines(reels, attacks, weapon_count, []))
+	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
+	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
+	# deferred the emit above.)
+	var payline_hits: Array
+	if _attacker.payline_profile_id == &"casino":
+		payline_hits = _resolver.evaluate_paylines_profile(reels, attacks, weapon_count, PaylineLibrary.casino_lines(weapon_count), true, CASINO_MIN_RUN)
+	else:
+		payline_hits = _resolver.evaluate_paylines(reels, attacks, weapon_count, [])
+	_resolver.paylines_resolved.emit(payline_hits)
 	_pending_strips = attacks.size()
 	var strips: Array = _strips
 	for i: int in range(attacks.size()):
@@ -589,9 +597,10 @@ func _apply_post_spin_rerolls(reels: Array[ActionReel], attacks: Array[CombatRes
 	if _attacker.reroll_pending:
 		var idx: int = Combatant.worst_reroll_index(attacks)
 		if idx >= 0 and idx < reels.size():
+			var prev: String = ReelFace.ResultTier.keys()[attacks[idx].face.result_tier]
 			attacks[idx] = _resolver.reresolve_reel(reels[idx], base, _defender.defense_type, might)
 			changed.append(idx)
-			_log("  ♻ %s RE-ROLLS reel %d → %s." % [_attacker.display_name, idx + 1, ReelFace.ResultTier.keys()[attacks[idx].face.result_tier]])
+			_log("  ♻ %s RE-ROLLS reel %d: was %s → %s." % [_attacker.display_name, idx + 1, prev, ReelFace.ResultTier.keys()[attacks[idx].face.result_tier]])
 		else:
 			_attacker.refund_reroll()
 			_log("  ♻ %s Re-roll: no bad reel to re-roll — %d Stamina refunded." % [_attacker.display_name, _attacker.ability_cost])
@@ -600,9 +609,13 @@ func _apply_post_spin_rerolls(reels: Array[ActionReel], attacks: Array[CombatRes
 		for i: int in range(mini(weapon_count, reels.size())):
 			if attacks[i].face != null and attacks[i].face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 				continue  # crit reels are not gambled
+			var prev_tier: String = ReelFace.ResultTier.keys()[attacks[i].face.result_tier]
 			var orig: int = attacks[i].final_damage
 			var rolled: CombatResolver.AttackResult = _resolver.reresolve_reel(reels[i], base, _defender.defense_type, might)
 			rolled.final_damage = Combatant.gamble_final_damage(rolled.face.result_tier, orig)
+			var rolled_tier: String = ReelFace.ResultTier.keys()[rolled.face.result_tier]
+			var outcome: String = ("×2" if rolled.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS else ("lost" if rolled.final_damage == 0 and orig > 0 else "kept"))
+			_log("    R%d was %s → gamble → %s (%s)." % [i + 1, prev_tier, rolled_tier, outcome])
 			attacks[i] = rolled
 			if i not in changed:
 				changed.append(i)
