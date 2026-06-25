@@ -531,6 +531,11 @@ func _refresh_main1_preview() -> void:
 		_splice_button.text = "Heft: included by Rampage (0 STA)"
 		_splice_button.disabled = true
 		_splice_button.modulate = Color(0.6, 1.0, 0.6)
+	elif _plan.ability_locked_by_ultimate():
+		# The Ultimate is staged and subsumes the base ability — lock the toggle (spec 2026-06-25 §5).
+		_splice_button.text = "Base ability locked (Ultimate staged)"
+		_splice_button.disabled = true
+		_splice_button.modulate = Color(0.5, 0.5, 0.5)
 	else:
 		_splice_button.text = _ability_label(_attacker.ability_id)
 		_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
@@ -571,7 +576,16 @@ func _on_paylines_pressed() -> void:
 	var pc: Combatant = _pc
 	if pc == null or pc.weapon == null:
 		return
-	var width: int = pc.weapon.reels.size()
+	# Width = weapon-attack reels in the loadout the player is actually looking at: the staged preview
+	# during their own Main 1 (so a staged Rampage/Flurry reel is counted), else the live turn reels.
+	var loadout: Array[ActionReel]
+	if _plan != null and _attacker == pc:
+		loadout = _plan.preview_reels()
+	elif not pc.turn_reels.is_empty():
+		loadout = pc.turn_reels
+	else:
+		loadout = pc.weapon.reels
+	var width: int = _weapon_attack_count(loadout)
 	var lines: Array = PaylineLibrary.lines_for_profile(pc.payline_profile_id, width)
 	_clear_payline_preview()
 	if lines.is_empty():
@@ -585,7 +599,19 @@ func _on_paylines_pressed() -> void:
 	for cell: Vector2i in line:
 		if cell.x >= 0 and cell.x < _strips.size():
 			_strips[cell.x].highlight_path_cell(cell.y)
-	_payline_banner.text = "Paylines: %d / %d" % [_payline_cycle_index + 1, lines.size()]
+	_payline_banner.text = "Paylines: %d / %d   %s" % [_payline_cycle_index + 1, lines.size(), _describe_cells(line)]
+
+## Leading run of reels that deal this class's weapon damage on a hit — the payline grid width. Base
+## weapon reels plus weapon-attack additions (Flurry splice, Rampage +1) all count; the no-damage Rend
+## reel (deals_weapon_damage = false) is appended last and ends the run, so it's excluded from paylines.
+func _weapon_attack_count(reels: Array[ActionReel]) -> int:
+	var n: int = 0
+	for r: ActionReel in reels:
+		if r != null and r.deals_weapon_damage:
+			n += 1
+		else:
+			break
+	return n
 
 ## Clears any payline-preview highlight on all strips.
 func _clear_payline_preview() -> void:
@@ -597,7 +623,9 @@ func _do_spin() -> void:
 		_phase_manager.proceed_to_combat()  # enemy auto-commit (player committed in _on_spin_pressed)
 	_payline_banner.text = ""
 	var reels: Array[ActionReel] = _attacker.turn_reels
-	var weapon_count: int = _attacker.weapon.reels.size()
+	# Payline grid width = weapon-attack reels in THIS spin (base + Flurry/Rampage additions; the
+	# no-damage Rend reel is excluded). Equals weapon.reels.size() on a normal turn (no regression).
+	var weapon_count: int = _weapon_attack_count(reels)
 	# Defer paylines: a Chancer reroll/gamble can change a reel's result AFTER the spin resolves, so the
 	# strips must animate to the FINAL post-reroll indices and paylines must score the FINAL grid.
 	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, [], true)
@@ -768,9 +796,14 @@ func _highlight_payline(hit) -> void:
 ## Notates a payline's cells for the combat log, e.g. "[R1-top, R2-mid, R3-bot]" (reel#, row).
 ## Placeholder for the eventual flashing path-line overlay (slot-machine style).
 func _describe_line(hit) -> String:
+	return _describe_cells(hit.cells)
+
+## Notates an Array[Vector2i] of cells as "[R1-top, R2-mid, …]" (reel#, row). Shared by the combat-log
+## payline tags and the Paylines toggle's "which cells am I showing" indicator.
+func _describe_cells(cells: Array) -> String:
 	var row_names: Array[String] = ["top", "mid", "bot"]
 	var parts: PackedStringArray = []
-	for cell: Vector2i in hit.cells:
+	for cell: Vector2i in cells:
 		parts.append("R%d-%s" % [cell.x + 1, row_names[cell.y]])
 	return "[" + ", ".join(parts) + "]"
 

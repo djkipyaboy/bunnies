@@ -132,19 +132,30 @@ func flash_cell(row: int) -> void:
 	tw.tween_interval(1.2)
 	tw.tween_callback(marker.queue_free)
 
+## Group every payline-preview marker so clear_path_highlight can free them by group rather than by a
+## fixed node name (a fixed name + deferred queue_free orphaned re-added markers — the old clear bug).
+const PATH_HL_GROUP := "payline_path_hl"
+
 ## Persistent payline-preview highlight on one window cell (row 0=top,1=center,2=bottom). Unlike
 ## flash_cell (which fades), this stays until cleared — used by the Paylines toggle to draw one line.
+## A thick WHITE OUTLINE (not a fill) so the path reads over any tier color underneath.
 func highlight_path_cell(row: int) -> void:
-	clear_path_highlight()
-	var marker := ColorRect.new()
-	marker.name = "PathHL"
-	marker.color = Color(0.3, 0.7, 1.0, 0.40)
+	var marker := Panel.new()
+	marker.add_to_group(PATH_HL_GROUP)
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(0, 0, 0, 0)        # transparent fill — the reel face shows through
+	box.set_border_width_all(4)
+	box.border_color = Color(1, 1, 1)       # bright white outline, legible over every tier color
+	marker.add_theme_stylebox_override("panel", box)
 	marker.size = Vector2(110, CELL_HEIGHT)
 	marker.position = Vector2(0, CELL_HEIGHT * float(row))
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(marker)
 
+## Removes every payline-preview marker on this strip immediately (remove_child detaches now; queue_free
+## reclaims it), so cycling past the last line leaves no lingering highlight.
 func clear_path_highlight() -> void:
-	var hl: Node = get_node_or_null("PathHL")
-	if hl != null:
-		hl.queue_free()
+	for child: Node in get_children():
+		if child.is_in_group(PATH_HL_GROUP):
+			remove_child(child)
+			child.queue_free()
