@@ -6,8 +6,8 @@
 > doc disagrees). The detailed per-feature record lives in `docs/superpowers/specs/` and
 > `docs/superpowers/DECISIONS-LOG.md`.
 >
-> **This is a CURRENT snapshot** (branch `worktree-combat-open-threads`). It supersedes the old
-> pre-prototype snapshot.
+> **This is a CURRENT snapshot** (branch `remaining-four-classes`, updated 2026-06-25). It supersedes
+> all earlier snapshots.
 
 ---
 
@@ -96,81 +96,105 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 - **Play the loop:** open the project in Godot and press play (or run `combat.tscn`). Judge feel here
   — *that's the human call* (CLAUDE.md §5 hard ceiling: Claude builds the loop, the human decides
   whether the spin is fun).
-- **Headless test suite — 27 suites, all green:**
+- **Headless test suite — 45 suites, all green** (each prints `… TEST PASSED/FAILED`, exits non-zero
+  on failure). To run one:
   ```bash
-  Godot_v4.6.3-stable_win64 --headless --path bunnies --script res://tests/test_<name>.gd
-  # after adding a NEW class_name, refresh the class cache first or --script can't resolve it:
-  Godot_v4.6.3-stable_win64 --headless --path bunnies --editor --quit
+  Godot_v4.6.3-stable_win64_console.exe --headless --path . --script res://tests/test_<name>.gd
   ```
-  Suites: `test_action_reel`, `test_bonus_meter`, `test_combatant`, `test_turn_manager`,
-  `test_phase_manager`, `test_resource_pool`, `test_effect`, `test_crushing_slow`,
-  `test_reel_splice`, `test_main_phase_plan`, `test_ultimate_sticky_wild`, `test_payline_library`,
-  `test_payline_resolver`, `test_payline_grid`, `test_payline_rewards`, `test_stats`,
-  `test_initiative_tiebreak`, `test_might_damage`, `test_stun`, `test_combat_loop` (full
-  integration through the real managers/resolver), and the **class-system v1** suites
-  `test_character_class`, `test_class_library`, `test_bleed`, `test_bleed_lifecycle`,
-  `test_rend_reel`, `test_heft`, `test_class_abilities_plan`. Each prints `… TEST PASSED/FAILED`
-  and exits non-zero on failure. `tests/gen_damage_types.gd` regenerates the 6 type `.tres`.
+  **Test-runner gotchas (learned 2026-06-25):**
+  1. **Use the `_console.exe` build to CAPTURE output.** The plain `Godot_v4.6.3-stable_win64.exe` is
+     GUI-subsystem and writes nothing to a redirected stream — looks empty/successful but you never see
+     `… TEST PASSED`. The `_console.exe` build writes to stdout.
+  2. **A parse error hangs the run forever.** A test script that fails to compile (e.g. references a
+     not-yet-implemented field) never runs `_initialize`, so `quit()` is never reached and the SceneTree
+     idles indefinitely. Bound every run with a `timeout` (e.g. `timeout 60 …`). To run the whole suite,
+     loop `tests/test_*.gd` each under `timeout 60`.
+  3. After adding a NEW `class_name`, refresh the class cache first or `--script` can't resolve it:
+     `Godot_v4.6.3-stable_win64_console.exe --headless --path . --editor --quit`.
+
+  Coverage spans foundation (`test_action_reel`, `test_bonus_meter`, `test_combatant`,
+  `test_turn_manager`, `test_phase_manager`, `test_resource_pool`, `test_stats`,
+  `test_initiative_tiebreak`, `test_might_damage`), effects (`test_effect`, `test_crushing_slow`,
+  `test_bleed`/`test_bleed_lifecycle`, `test_heal`, `test_shielded`, `test_cleanse`, `test_stun`),
+  resources (`test_mana_pool`, `test_mana_derivation`, `test_ability_cost`), Main-1 + abilities
+  (`test_main_phase_plan`, `test_class_abilities_plan`, `test_reel_splice`, `test_rend_reel`,
+  `test_heft`, `test_rampage`, `test_reroll_ability`/`test_reroll_selection`, `test_reresolve_reel`),
+  Ultimates (`test_ultimate_sticky_wild`, `test_ultimate_variants`, `test_wildcard_gamble`), paylines
+  (`test_payline_library`, `test_payline_resolver`, `test_payline_grid`, `test_payline_rewards`,
+  `test_casino_lines`, `test_payline_casino`, `test_payline_profile`, `test_weapon_attack_reels`),
+  classes (`test_character_class`, `test_class_library`, `test_chancer_class`, `test_luck_cleanup`),
+  and the full `test_combat_loop` integration. `tests/gen_damage_types.gd` regenerates the 6 type `.tres`.
 
 ---
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-**SHIPPED 2026-06-21 — Class system v1 (first cut).** The content work began: a thin
-`CharacterClass` resource + code `ClassLibrary` now stamp three playable, in-scene classes —
-**Warrior (Martin)**, **Vanguard (Sunflash)**, **Skirmisher (Basil Stag Hare)** — each with its own
-stat spread, weapon, the (placeholder) Sticky-Wild Ultimate, and a distinct Main-1 base ability:
-**Rend** (Warrior → new stacking **BLEED** DoT, the first damage-over-time effect — `Effect`
-DoT fields + `make_rend` + resolver per-face riders), **Heft** (Vanguard reel-edit), **Flurry**
-(Skirmisher own-type splice). An end-card **class picker** replays as each. Design: spec
-`2026-06-21-class-system-v1-design.md` (§4A/§4B); calls in `DECISIONS-LOG.md`. **Human play-test
-pending** — judge each class's feel (CLAUDE.md §5). Branch: `worktree-class-system-v1-design`.
+**FOUR of seven classes are LIVE, in-scene, and playtested** (end-card class picker replays as each):
 
-**Still TO DESIGN/BUILD (the rest of the content):** the other 4 classes (Ranger/Seer/Warden/Chancer
-— designed in the spec, not built), the 6 new Ultimate archetypes, weapon riders, gear, and full
-N-vs-M party combat. The next block remains **design-first** (per CLAUDE.md §5
-and the combat-change standard procedure): flesh out
+- **Warrior (Martin)** — Slashing, 3 reels. Base **Rend** → stacking **BLEED** DoT. Ultimate `wild`.
+- **Vanguard (Sunflash)** — Crushing, 2 reels, heavy. Base **Heft** (reel-edit, removes misses).
+  Ultimate **Rampage** (`rampage`: +1 reel, Heft-all, AoE) — its +1 reel now counts toward paylines.
+- **Skirmisher (Basil Stag Hare)** — Slashing, 4 reels, fast. Base **Flurry** (own-type splice).
+  Ultimate `sticky_wild` (2-spin).
+- **Chancer (Cheek the Otter)** — Storm, 4 reels, **Luck 1** (was 4 — tuned down post-playtest). Base
+  **Re-roll** (worst reel, refund if none bad). Ultimate **Wildcard Gamble** (`wildcard_gamble`).
+  **Casino payline profile** (`payline_profile_id = &"casino"`): ~20 left-to-right lines scored as
+  left-aligned runs (≥3). **Playtested 2026-06-25 — the casino feel is GOOD (human-approved).**
 
-- **Races** and their affinities,
-- **Classes** and specialization branches (Warrior/Archer/Healer shapes, etc.),
-- **Abilities** (Main-1 actions beyond Splice; the other five Ultimate archetypes),
-- **Buffs / debuffs** (more `Effect`s beyond Slow + Inspirational; DoT and the rest of
-  `Effect.Kind`).
+**SHIPPED 2026-06-23/25 — Casino paylines + payline-toggle polish** (specs
+`2026-06-23-chancer-casino-paylines-design.md`, `2026-06-25-payline-toggle-polish-and-reel-rules-design.md`):
+per-class `payline_profile_id` (`&"default"` whole-line vs `&"casino"` left-aligned); a **Paylines
+toggle button** that walks one line at a time over the reels (white-outline highlight, reliable clear,
+a `[R1-top, R2-mid, …]` cell readout); the payline grid width is now the **leading run of weapon-attack
+reels** so Flurry/Rampage additions join the grid while the no-damage Rend reel stays out
+(`ActionReel.is_weapon_attack`); and **staging any Ultimate now locks out the base-ability toggle**
+(generalized from Vanguard's Rampage-includes-Heft — you take the big play OR the base ability).
 
-These ride on the **deferred** world/meta classes (`Class`, `EncounterTable`, `RewardTable`, the
-talent system) — sketched in `DESIGN.md §8`, **not yet designed in code** (don't build them
-speculatively — CLAUDE.md §7 YAGNI).
+**Supporting effect/resource systems already built** (groundwork for the caster classes — see the
+suite list in §5): **Mana** pool + derivation, **Heal**, **Shielded** buff, **Cleanse**. So the new
+classes mostly compose existing hooks, not new architecture.
 
-**When the content design is firmer, RETURN to combat to:**
+**NEXT SESSION — build the remaining three classes, ONE AT A TIME, design-first → spec → implement →
+playtest** (CLAUDE.md §5; raw design input committed as `Bunnies New Class Info.txt`):
 
-1. **Implement the new content into the existing combat systems.** The hooks are already in place:
-   effects merge by id; reels are data-edited (splice / Luck); the Ultimate is one archetype of a
-   planned six; paylines have an `extra_lines` hook (Luck "+paylines"); gear/stats feed flat levers.
-   New abilities are new `Effect`s / Main-1 actions / Ultimate archetypes, not new architecture.
-2. **Build full N-vs-M party combat.** Everything is already architected party-ready
-   (`current_initiative` sorts arbitrary combatant counts; Inspirational targets *all allies*;
-   STUNNED/effects are per-combatant) — but the prototype only *runs* 1v1. Stand up a real multi-PC
-   (max 3) vs. multi-enemy scenario, a target-selection layer, and the UI to read N party frames.
+- **Ranger** — Piercing, bow, 4 reels, **stamina 10**. Base **Hunter's Mark** (party-wide accuracy
+  debuff on one enemy: replaces the crit-fail face on weapon reels attacking the marked target, 3 turns,
+  non-AoE; 3 STA). Ultimate **Collateral Damage** (+1 reel; primary takes full damage, all other enemies
+  take half rounded up as Piercing).
+- **Seer** — Mystic, war staff, 2 reels, **Mana 15/15** (+1 regen). Base **Select your Fate!** (+1 reel,
+  choose one of 6 damage types for the whole spin; 6 mana). Ultimate **The Big Bang** (4 WILD reels, AoE;
+  heal each ally 1/6 of total dealt, excess → Shielded 2t).
+- **Warden** — Earth, Earthstave, 3 reels, **Mana 12/12**. Base **Rallying Cry** (+1 reel: 2 crit / 8 hit
+  faces; success → half-weapon Shielded to all allies, crit → full; higher Shielded value wins; 4 mana).
+  Ultimate unchanged (placeholder wild for now).
 
-**Also queued (after the human play-test tunes feel):** tune all `[ASSUMPTION]` balance numbers
-(HP, base damage, charge weights, chart values, Slow −20/−10/−5, Stamina 3/5/+1, splice 2 STA,
-meter cap 15, wild bias 0.65, Luck +1 face/pt, Padded Jerkin stats, STUN threshold −20). The future
-UI polish (scrolling reel-strips for the Initiative + STUNNED rolls, WoW-party-frame buff/debuff
-icons with tooltips) is recorded in `ARCHITECTURE.md §9`, not yet built.
+Each class ships **with its own headless suites**, then a **cross-class playtest to confirm fun AND
+fairness between classes** (the human call, §5) before moving to the next.
+
+**Still deferred (don't build speculatively — §7 YAGNI):** the 6th Ultimate archetype polish, weapon
+riders, gear beyond the Padded Jerkin, races + specialization branches, and full **N-vs-M party combat**
+(everything is architected party-ready — `current_initiative`, Inspirational-targets-all-allies,
+per-combatant effects/Shielded — but the prototype still *runs* 1v1; party + target-selection + N-frame
+UI come after the roster). Plus tuning all `[ASSUMPTION]` balance numbers post-playtest, and the UI
+polish recorded in `ARCHITECTURE.md §9`.
 
 ---
 
 ## 7. Detailed record — where to read more
 
-- **Per-feature design specs:** `docs/superpowers/specs/2026-06-19-combat-open-threads-design.md`,
-  `…-main1-staging-design.md`, `…-stacking-debuffs-design.md`,
-  `docs/superpowers/specs/2026-06-20-paylines-design.md`, `…-stat-system-design.md`,
-  `…-stunned-mechanic-design.md`; plan `docs/superpowers/plans/2026-06-20-crit-diversity-luck.md`.
+- **Per-feature design specs** (`docs/superpowers/specs/`): `2026-06-19-combat-open-threads-design.md`,
+  `…-main1-staging-design.md`, `…-stacking-debuffs-design.md`, `2026-06-20-paylines-design.md`,
+  `…-stat-system-design.md`, `…-stunned-mechanic-design.md`, `2026-06-21-class-system-v1-design.md`,
+  `2026-06-22-remaining-four-classes-design.md`, `2026-06-22-remaining-classes-and-weapons-roadmap.md`,
+  `2026-06-23-chancer-casino-paylines-design.md`,
+  `2026-06-25-payline-toggle-polish-and-reel-rules-design.md`. Raw class input: `Bunnies New Class Info.txt`.
 - **Autonomous balance/design calls + `[ASSUMPTION]` values:** `docs/superpowers/DECISIONS-LOG.md`.
 - **As-built code map:** `ARCHITECTURE.md`. **Conventions:** `CLAUDE.md`. **Full design / source of
   truth:** `DESIGN.md`.
 
 ---
 
-*Snapshot taken on the `worktree-combat-open-threads` branch, prototype code-complete + test-green,
-pausing for content design. Open `DESIGN.md` for the authoritative detail behind every line above.*
+*Snapshot updated 2026-06-25 on branch `remaining-four-classes`: 4 of 7 classes live + playtested,
+casino paylines + toggle polish shipped and human-approved, 45 suites green. Next session builds
+Ranger/Seer/Warden one at a time (spec → implement → cross-class fairness playtest). Open `DESIGN.md`
+for the authoritative detail behind every line above.*

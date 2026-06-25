@@ -196,27 +196,33 @@ These agents are installed (`~/.claude/agents/`). Use them when the task fits:
 without errors. **Whether the spin is *fun*, and whether the scrolling reels feel right, is the
 human call (CLAUDE.md §5 hard ceiling)** — play `combat.tscn` and judge.
 
-**Class system v1 SHIPPED (2026-06-21, branch `worktree-class-system-v1-design`).** First content:
-a thin **`CharacterClass`** resource + code **`ClassLibrary`** stamp three in-scene playable classes —
-**Warrior/Vanguard/Skirmisher** — each with stats, weapon, the placeholder Sticky-Wild Ultimate, and a
-distinct Main-1 base ability (**Rend** → new stacking **BLEED** DoT; **Heft** reel-edit; **Flurry**
-own-type splice). End-card class picker. Specs: `2026-06-21-class-system-v1-design.md` (§4A abilities,
-§4B BLEED); 7 new test suites. **Human play-test pending** (feel = your call, §5).
+**FOUR of seven classes LIVE + playtested (as of 2026-06-25, branch `remaining-four-classes`).** A thin
+**`CharacterClass`** resource + code **`ClassLibrary`** stamp playable, in-scene classes via an end-card
+picker: **Warrior** (Rend → stacking BLEED), **Vanguard** (Heft reel-edit; Rampage Ultimate), **Skirmisher**
+(Flurry splice; 2-spin sticky-wild), and **Chancer** (Storm/Thrown, Luck 1, Re-roll + Wildcard Gamble).
+**Chancer ships the `&"casino"` payline profile** (~20 left-aligned lines) — **playtested 2026-06-25, the
+casino feel is human-approved.** Supporting effect/resource systems already built for the casters:
+**Mana**, **Heal**, **Shielded**, **Cleanse**. Specs: `2026-06-21-class-system-v1-design.md`,
+`2026-06-23-chancer-casino-paylines-design.md`, `2026-06-25-payline-toggle-polish-and-reel-rules-design.md`.
 
-**Next — more CONTENT, design-first** (per §5 and the combat-change standard procedure):
-- **The other 4 classes** (Ranger/Seer/Warden/Chancer — designed in the spec, not built), the
-  remaining **5 Ultimate archetypes**, **weapon riders**, **gear**, races + specializations. These
-  ride the deferred `DESIGN.md §8` world/meta classes (`EncounterTable`, `RewardTable`, talents) —
-  do not build them speculatively yet (§7 YAGNI).
+**Payline rules (locked 2026-06-25):** per-class `payline_profile_id` (`&"default"` whole-line | `&"casino"`
+left-aligned); the grid width is the **leading run of weapon-attack reels** (`ActionReel.is_weapon_attack` —
+Flurry/Rampage additions count; the utility Rend reel does not, even though its BLEED deals weapon-type
+damage). **Staging any Ultimate locks out the base-ability toggle** (one big play OR the base ability).
 
-When the content design is firmer, **RETURN to combat** to:
-1. **Implement the new content into the existing systems** (new `Effect`s, Main-1 abilities, the
-   other five Ultimate archetypes, Luck "+paylines" — all on existing hooks, not new architecture).
-2. **Build full N-vs-M party combat** (everything is already party-ready — `current_initiative`,
-   Inspirational-targets-all-allies, per-combatant effects/STUNNED; only the prototype *scenario* is
-   1v1). Add party (max 3 PCs) vs. multi-enemy, target selection, and N-frame UI.
+**NEXT SESSION — build the remaining 3 classes, ONE AT A TIME** (design-first per §5: spec → implement →
+**cross-class fun/fairness playtest** before the next). Raw design input: `Bunnies New Class Info.txt`.
+- **Ranger** — Piercing bow, 4 reels, stamina 10. Base **Hunter's Mark** (party-wide accuracy debuff:
+  replaces the crit-fail face vs the marked enemy, 3t, non-AoE). Ultimate **Collateral Damage** (+1 reel;
+  others take half as Piercing).
+- **Seer** — Mystic staff, 2 reels, Mana 15. Base **Select your Fate!** (+1 reel, choose the spin's damage
+  type). Ultimate **The Big Bang** (4 WILD reels, AoE; heal allies 1/6 of total, excess → Shielded).
+- **Warden** — Earth, 3 reels, Mana 12. Base **Rallying Cry** (+1 reel: success → half-weapon Shielded to
+  all allies, crit → full; higher Shielded wins). Ultimate unchanged.
 
-Also queued after the human play-test: tune all `[ASSUMPTION]` numbers (HP, base damage, charge
-weights, chart, Slow −20/−10/−5, Stamina 3/5/+1, splice 2 STA, meter cap 15, wild bias 0.65, Luck
-+1 face/pt, Jerkin stats, STUN −20); the future UI polish is recorded in `ARCHITECTURE.md §9`.
+**Still deferred (§7 YAGNI):** weapon riders, gear beyond the Padded Jerkin, races + specialization branches,
+the deferred world/meta classes (`EncounterTable`/`RewardTable`/talents), and full **N-vs-M party combat**
+(architected party-ready — `current_initiative`, Inspirational-targets-all-allies, per-combatant effects —
+but the prototype still *runs* 1v1; party + target-selection + N-frame UI come after the roster). Plus
+tuning all `[ASSUMPTION]` numbers post-playtest; UI polish recorded in `ARCHITECTURE.md §9`.
 Full current snapshot: `HANDOFF.md`.
