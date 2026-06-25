@@ -12,6 +12,11 @@ extends Reel
 ## spin reels of differing types — e.g. a heavy weapon plus an ability-added Storm reel (§4.6).
 @export var damage_type: DamageType
 
+## True when a HIT on this reel swings for the class's weapon damage (the normal attack reel). False for
+## utility reels like Rend (BLEED, no direct damage). Paylines score only weapon-attack reels, so this
+## flag decides whether an ability/Ultimate-added reel joins the payline grid (spec 2026-06-25 §6).
+@export var deals_weapon_damage: bool = true
+
 ## Builds a first-pass Action reel as a physical 10-face strip. Odds = how many of each symbol
 ## sit on the reel (the reel IS the dice — no hidden weights). Crits are rare (1 each → 10%):
 ##   1 crit-failure · 2 failure · 2 neutral/utility · 4 success · 1 crit-success.
@@ -44,6 +49,7 @@ static func make_default(type: DamageType = null) -> ActionReel:
 ## &"bleed" rider. So landing a hit on this reel applies a BLEED stack rather than swinging for damage.
 static func make_rend(type: DamageType = null) -> ActionReel:
 	var reel: ActionReel = make_default(type)
+	reel.deals_weapon_damage = false  # Rend hits apply BLEED, not weapon damage — excluded from paylines
 	for face: ReelFace in reel.faces:
 		if face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 			face.multiplier = 0.0
