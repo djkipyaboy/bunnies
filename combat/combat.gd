@@ -1051,6 +1051,10 @@ func _do_spin() -> void:
 	# so _finish_spin can shield the party. rallying_cry_reel is null unless Rallying Cry was committed.
 	_rallying_cry_tier = -1
 	if _attacker.rallying_cry_reel != null:
+		# Identity-match the rally reel in this turn's loadout. Safe across the Hunter's-Mark rebuild
+		# above: hunters_mark_reels deep-copies only is_weapon_attack reels and passes the (non-attack)
+		# rally reel through BY REFERENCE, so find() still resolves. If that helper ever starts
+		# duplicating every reel, switch this to a stable marker instead of object identity.
 		var rc_idx: int = reels.find(_attacker.rallying_cry_reel)
 		if rc_idx >= 0 and rc_idx < attacks.size():
 			_rallying_cry_tier = attacks[rc_idx].face.result_tier
