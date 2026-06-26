@@ -27,6 +27,7 @@ func _count(reel: ActionReel, tier: ReelFace.ResultTier) -> int:
 func _initialize() -> void:
 	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
+	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 
 	# FLURRY: previews +1 own-type (Slashing) reel; commit appends a normal damaging reel + spends STA.
 	var w: Combatant = _pc(&"flurry", 4, slashing)
@@ -162,8 +163,63 @@ func _initialize() -> void:
 	pcb.toggle_ultimate()
 	_check(not pcb.fire_ultimate_staged and pcb.selected_fate_type == null, "un-staging Big Bang clears the type choice")
 
+	# WARDEN — Rallying Cry (base, mana): previews +1 utility reel (out of paylines); commit appends it
+	# + spends 4 mana.
+	var rc: Combatant = _warden(3, earth)
+	var prc: MainPhasePlan = MainPhasePlan.new(rc, 4, 5, 1)
+	prc.toggle_ability()
+	_check(prc.ability_staged, "rallying_cry stages via toggle")
+	_check(prc.preview_reels().size() == 4, "rallying_cry preview: 3 → 4 reels (got %d)" % prc.preview_reels().size())
+	_check(not prc.preview_reels()[3].is_weapon_attack, "rallying_cry preview reel is a non-weapon-attack (utility) reel")
+	prc.commit()
+	_check(rc.turn_reels.size() == 4 and rc.resource_pool.mana == 8, "rallying_cry commit: 4 reels, 4 mana spent (got %d mana)" % rc.resource_pool.mana)
+	_check(rc.rallying_cry_reel != null, "rallying_cry commit records the reel for the orchestrator")
+
+	# WARDEN — Earthquake (Ultimate): preview tops to 4 reels, all 4 glow WILD; commit consumes meter,
+	# +1 reel, NOT AoE, earthquake active.
+	var eq: Combatant = _warden(3, earth)
+	eq.ultimate_id = &"earthquake"
+	eq.bonus_meter = BonusMeter.new(); eq.bonus_meter.cap = 15; eq.bonus_meter.add_flat(15)
+	var peq: MainPhasePlan = MainPhasePlan.new(eq, 4, 5, 1)
+	peq.toggle_ultimate()
+	_check(peq.fire_ultimate_staged, "earthquake stages")
+	_check(peq.preview_reels().size() == 4, "earthquake preview: 3 → 4 reels (got %d)" % peq.preview_reels().size())
+	_check(peq.effective_wild_indices() == [0, 1, 2, 3], "earthquake glows all 4 reels wild (got %s)" % str(peq.effective_wild_indices()))
+	peq.commit()
+	_check(eq.bonus_meter.value == 0, "earthquake commit consumed the meter")
+	_check(eq.turn_reels.size() == 4 and eq.is_earthquake_active() and not eq.is_aoe_active(), "earthquake commit: 4 reels, active, not AoE")
+
+	# WARDEN — Earthquake does NOT subsume Rallying Cry (independent: nuke vs party-shield) → they STACK.
+	var both: Combatant = _warden(3, earth)
+	both.ultimate_id = &"earthquake"
+	both.bonus_meter = BonusMeter.new(); both.bonus_meter.cap = 15; both.bonus_meter.add_flat(15)
+	var pboth: MainPhasePlan = MainPhasePlan.new(both, 4, 5, 1)
+	pboth.toggle_ability()
+	pboth.toggle_ultimate()
+	_check(pboth.ability_staged and pboth.fire_ultimate_staged, "Rallying Cry stays staged alongside Earthquake")
+	_check(not pboth.ability_locked_by_ultimate(), "Earthquake does not lock Rallying Cry")
+	_check(pboth.preview_reels().size() == 5, "combo preview: 3 → 5 reels (4 attack + 1 utility, got %d)" % pboth.preview_reels().size())
+	_check(pboth.preview_reels()[4].is_weapon_attack == false, "combo preview keeps the utility reel at the tail")
+	_check(pboth.effective_wild_indices() == [0, 1, 2, 3], "combo glows only the 4 attack reels (got %s)" % str(pboth.effective_wild_indices()))
+	pboth.commit()
+	_check(both.turn_reels.size() == 5, "combo commit: 5 reels (got %d)" % both.turn_reels.size())
+	_check(both.turn_reels[3].is_weapon_attack and not both.turn_reels[4].is_weapon_attack, "combo commit: attack reel at 3, utility reel at tail")
+	_check(both.resource_pool.mana == 8 and both.bonus_meter.value == 0, "combo commit spent 4 mana AND the meter")
+
 	print(("CLASS ABILITIES PLAN TEST PASSED" if _failures == 0 else "CLASS ABILITIES PLAN TEST FAILED: %d" % _failures))
 	quit(_failures)
+
+## A mana-only Warden PC for the Rallying-Cry / Earthquake plan tests: Earth reels + a full mana pool.
+func _warden(reel_count: int, type: DamageType) -> Combatant:
+	var c: Combatant = Combatant.new()
+	c.ability_id = &"rallying_cry"
+	c.ability_resource = &"mana"
+	var w: Weapon = Weapon.new(); w.base_damage = 9.0
+	for i: int in range(reel_count): w.reels.append(ActionReel.make_default(type))
+	c.weapon = w
+	c.resource_pool = ResourcePool.new(); c.resource_pool.mana = 12; c.resource_pool.max_mana = 12
+	c.begin_turn()
+	return c
 
 ## A mana-only caster PC (Seer) for the Select-Fate / Big-Bang plan tests: mystic reels + a full mana pool.
 func _seer(reel_count: int, type: DamageType) -> Combatant:

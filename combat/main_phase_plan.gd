@@ -29,6 +29,8 @@ const COLLATERAL_SPINS: int = 1
 ## The Big Bang (Seer) tops the loadout to 4 crit-biased WILD reels for one AoE spin (spec 2026-06-27 §4).
 const BIG_BANG_REELS: int = 4
 const BIG_BANG_SPINS: int = 1
+## Earthquake (Warden) is a single-turn Ultimate (+1 WILD reel, splash + stun for the fired spin only).
+const EARTHQUAKE_SPINS: int = 1
 ## Crit-bias WILD spin counts, separated per class (spec 2026-06-21 iteration 2):
 ## the Warrior's &"wild" is single-spin; the Skirmisher's &"sticky_wild" rides for two.
 const WILD_SPINS: int = 1
@@ -57,7 +59,7 @@ func _ability_cost_dict() -> Dictionary:
 ## Whether this ability adds a reel to the attacker's own loadout (previewable as an extra strip).
 ## Select your Fate adds a reel too — and unlike Flurry/Rend its reel JOINS the payline grid.
 func _ability_adds_reel() -> bool:
-	return ability_id == &"flurry" or ability_id == &"rend" or ability_id == &"select_fate"
+	return ability_id == &"flurry" or ability_id == &"rend" or ability_id == &"select_fate" or ability_id == &"rallying_cry"
 
 ## True if the ability can be newly STAGED: there IS an ability, it's affordable, and (for reel-adding
 ## abilities) the loadout is under the cap. Un-staging is always allowed.
@@ -171,10 +173,18 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_rend(combatant.weapon_type()))
 			&"select_fate":
 				reels.append(ActionReel.make_default(selected_fate_type))  # joins paylines (a weapon-attack reel)
-	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't shown as
-	# strips) and Collateral Damage (the splash isn't a strip). Both add one own-type weapon reel.
-	if fire_ultimate_staged and (ultimate_id == &"rampage" or ultimate_id == &"collateral") and reels.size() < reel_cap:
-		reels.append(ActionReel.make_default(combatant.weapon_type()))
+			&"rallying_cry":
+				reels.append(ActionReel.make_rallying_cry(combatant.weapon_type()))  # utility reel (out of paylines, tail)
+	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't strips),
+	# Collateral (the splash isn't a strip), and Earthquake (+1 WILD attack reel). All add one own-type
+	# weapon-attack reel. Insert BEFORE any trailing utility reel (e.g. a staged Rallying Cry) so the
+	# weapon-attack run stays contiguous (matching the commit-time insert).
+	if fire_ultimate_staged and (ultimate_id == &"rampage" or ultimate_id == &"collateral" or ultimate_id == &"earthquake") and reels.size() < reel_cap:
+		var pos: int = 0
+		for i: int in range(reels.size()):
+			if reels[i].is_weapon_attack:
+				pos = i + 1
+		reels.insert(pos, ActionReel.make_default(combatant.weapon_type()))
 	# The Big Bang tops the loadout up to 4 reels (the Seer's 2 → 4) — preview the added strips.
 	if fire_ultimate_staged and ultimate_id == &"big_bang":
 		while reels.size() < mini(BIG_BANG_REELS, reel_cap):
@@ -213,6 +223,14 @@ func effective_wild_indices() -> Array[int]:
 			if not (i in out):
 				out.append(i)
 		out.sort()
+	# Earthquake makes every weapon-attack reel WILD — glow the leading attack run (the previewed
+	# weapon-attack reels; the trailing utility reel is excluded).
+	elif fire_ultimate_staged and ultimate_id == &"earthquake":
+		var preview: Array[ActionReel] = preview_reels()
+		for i: int in range(preview.size()):
+			if preview[i].is_weapon_attack and not (i in out):
+				out.append(i)
+		out.sort()
 	return out
 
 ## How many WEAPON reels the Ultimate would make wild (splices/ability reels excluded).
@@ -239,6 +257,8 @@ func commit() -> void:
 				combatant.stage_hunters_mark(ability_cost)  # orchestrator attaches the mark to the defender
 			&"select_fate":
 				combatant.apply_select_fate(selected_fate_type, ability_cost)  # +1 reel, retype loadout (Seer)
+			&"rallying_cry":
+				combatant.apply_rallying_cry(ability_cost, reel_cap)  # +1 utility reel; orchestrator shields the party
 	if fire_ultimate_staged:
 		match ultimate_id:
 			&"wild":
@@ -253,6 +273,8 @@ func commit() -> void:
 				combatant.fire_collateral(combatant.weapon_type(), COLLATERAL_SPINS)  # +1 reel; orchestrator splashes
 			&"big_bang":
 				combatant.fire_big_bang(combatant.weapon_type(), BIG_BANG_REELS, BIG_BANG_SPINS)  # 4 wild AoE reels (Seer)
+			&"earthquake":
+				combatant.fire_earthquake(combatant.weapon_type(), EARTHQUAKE_SPINS)  # +1 WILD reel; orchestrator splashes + stuns
 	# The Big Bang's own type picker (free) retypes the FINAL loadout — including the reels fire_big_bang
 	# just appended. Runs after the Ultimate fires. Standalone Select your Fate already retyped in
 	# apply_select_fate (and is locked out while Big Bang is staged), so this is the Big Bang path only.
