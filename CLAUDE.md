@@ -196,20 +196,25 @@ These agents are installed (`~/.claude/agents/`). Use them when the task fits:
 without errors. **Whether the spin is *fun*, and whether the scrolling reels feel right, is the
 human call (CLAUDE.md §5 hard ceiling)** — play `combat.tscn` and judge.
 
-**SIX of seven classes LIVE (as of 2026-06-27, branch `remaining-four-classes`).** A thin
+**ALL SEVEN classes LIVE (full roster as of 2026-06-29, branch `warden-earthquake`).** A thin
 **`CharacterClass`** resource + code **`ClassLibrary`** stamp playable, in-scene classes: **Warrior** (Rend →
 stacking BLEED), **Vanguard** (Heft reel-edit; Rampage Ultimate), **Skirmisher** (Flurry splice; 2-spin
 sticky-wild), **Chancer** (Storm/Thrown, Luck 1, Re-roll + Wildcard Gamble, `&"casino"` paylines — human-
 approved), **Ranger** (Piercing bow, 4 reels, stamina 10; **Hunter's Mark** marks an enemy 3t so allies'
 crit-fails become hits vs it; **Collateral Damage** Ultimate = +1 reel, primary full + other enemies take
-half as Piercing), and **Seer** (Mystic War Staff, 2 reels, **mana-only 15/15**; **Select your Fate!** +1 reel
+half as Piercing), **Seer** (Mystic War Staff, 2 reels, **mana-only 15/15**; **Select your Fate!** +1 reel
 + pick the spin's damage type via a 6-type modal; **The Big Bang** Ultimate = 4 WILD AoE reels that heal each
-ally 1/6 of the total, excess → Shielded). Supporting systems for the casters already built: **Mana**,
-**Heal**, **Shielded**, **Cleanse** — and now the caster **UI** (rail-aware Mana line + shield chip on
-`CombatantPanel`). **55 headless suites green.** Specs: `2026-06-21-class-system-v1-design.md`,
+ally 1/6 of the total, excess → Shielded), and **Warden** (Earth Earthstave, 3 reels, **mana-only 12/12**,
+meter cap 15; **Rallying Cry** = +1 no-damage reel that shields all allies — half-weapon on success, full on
+crit, 2t; **Earthquake** Ultimate = +1 reel, all 4 reels crit-biased WILD + 4-line paylines, full damage to the
+primary + `ceil(total/2)` Earth to other enemies, and **STUNS every damaged enemy next turn WITHOUT altering
+its Initiative** — a one-shot `force_stun_next_turn` honored by `evaluate_stun`, bypassing the anti-lock; reuses
+Collateral's splash + the d100 stun gate; stacks with Rallying Cry for a 5-reel power turn). Supporting systems
+for the casters: **Mana**, **Heal**, **Shielded**, **Cleanse** + caster **UI** (rail-aware Mana line + shield
+chip on `CombatantPanel`). **60 headless suites green.** Specs: `2026-06-21-class-system-v1-design.md`,
 `2026-06-22-remaining-four-classes-design.md`, `2026-06-23-chancer-casino-paylines-design.md`,
 `2026-06-25-payline-toggle-polish-and-reel-rules-design.md`, `2026-06-27-seer-class-design.md`,
-`2026-06-28-type-chart-ui-design.md`.
+`2026-06-28-type-chart-ui-design.md`, `2026-06-29-warden-class-design.md`.
 
 **Type-effectiveness UI (2026-06-28).** The player's authored 6×6 chart (`type_chart_6x6_labeled.html`) is now
 the **live** chart — `gen_damage_types.gd` regenerates the six `.tres` from it (`test_type_chart` locks it).
@@ -235,14 +240,14 @@ each turn, floor at 1 HP via `Combatant.min_hp`, and are excluded from the win c
 and **N-vs-M target selection** (click an enemy panel to set the primary target; red outline; drives
 attacks/Hunter's Mark/Collateral). Combat still ends only when the PC or the real enemy dies.
 
-**NEXT SESSION — build the LAST class (Warden), after the Seer playtest** (design-first per §5: spec →
-implement → **cross-class fun/fairness playtest**). Raw design input: `Bunnies New Class Info.txt`.
-- **Warden** — Earth, Earthstave, 3 reels, **Mana 12/12**. Base **Rallying Cry** (`&"rallying_cry"`, 4 mana):
-  +1 reel with 2 crit + 8 success faces (no damage, out of paylines) — success → half-weapon Shielded to all
-  allies, crit → full weapon Shielded; higher-Shielded-wins. Ultimate: spec'd as **Pick'em Bonus** in
-  `2026-06-22-remaining-four-classes-design.md §3.3` (choose-1-of-3: Heal / Cleanse / party buff) — confirm
-  with the player whether to keep that or "unchanged" per the raw input. Reuse the Seer's mana/shield UI +
-  the existing Heal/Cleanse/Shielded primitives.
+**NEXT SESSION — whole-roster cross-class fun/fairness playtest** (the human call, §5 hard ceiling). All seven
+classes are built and test-green; the open question is whether they're *fun* and *fair against each other* —
+play `combat.tscn`, pick each class from the start overlay (and on the end card), and judge. The Warden's
+Earthquake (the newest, designed 2026-06-29) and the Seer/Ranger Ultimates have not yet had a human playtest.
+Tune `[ASSUMPTION]` balance numbers (per-class stats/HP/costs, Earthquake stun-bypasses-anti-lock, Rallying
+Cry's always-shields face mix, splash fractions) only AFTER the spins feel right — never balance-by-fiat (§4).
+The **Pick'em Bonus** Ultimate that was the Warden's old placeholder is **superseded** by Earthquake (player's
+2026-06-29 design).
 
 **Still deferred (§7 YAGNI):** weapon riders, gear beyond the Padded Jerkin, races + specialization branches,
 the deferred world/meta classes (`EncounterTable`/`RewardTable`/talents), and full **N-vs-M party combat**

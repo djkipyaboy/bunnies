@@ -129,7 +129,7 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-**SIX of seven classes are LIVE and in-scene** (class picker at start AND on the end card):
+**ALL SEVEN classes are LIVE and in-scene** (full roster; class picker at start AND on the end card):
 
 - **Warrior (Martin)** — Slashing, 3 reels. Base **Rend** → stacking **BLEED** DoT. Ultimate `wild`.
 - **Vanguard (Sunflash)** — Crushing, 2 reels, heavy. Base **Heft** (reel-edit, removes misses).
@@ -148,6 +148,21 @@ meter (15) arms the **Sticky-Wild Ultimate**.
   Ultimate **The Big Bang** (`big_bang`, full meter): tops to 4 WILD reels, AoE all enemies, heals each ally
   `ceil(total/6)` with overflow → a 2-turn Shielded. Combos with Select your Fate (typed AoE nuke). **Built
   2026-06-27 — awaiting cross-class fun/fairness playtest.** Spec `2026-06-27-seer-class-design.md`.
+- **Warden (Mole)** — Earth Earthstave, 3 reels, **mana-only 12/12** (regen 1), Focus 4, meter cap 15. Base
+  **Rallying Cry** (`rallying_cry`, 4 mana): +1 no-damage utility reel (2 crit + 8 success faces, out of
+  paylines, at the tail) → success shields all allies `ceil(weapon×0.5)`, crit `ceil(weapon)`, 2 turns,
+  higher-overrides. Ultimate **Earthquake** (`earthquake`, full meter): +1 reel inserted contiguous with the
+  attack run, all 4 weapon reels crit-biased **WILD** + the **4-line payline grid**; **NOT AoE** — primary
+  takes full per-reel damage, every other enemy takes `ceil(total/2)` Earth (reuses Collateral's splash); then
+  **every damaged enemy is STUNNED next turn via a one-shot `force_stun_next_turn` that `evaluate_stun` honors
+  WITHOUT changing `current_initiative`** (queue order preserved) and **bypasses the anti-lock**. Does NOT
+  subsume Rallying Cry → they stack (5-reel power turn). **Built 2026-06-29 — awaiting cross-class fun/fairness
+  playtest.** Spec `2026-06-29-warden-class-design.md`. (Replaces the old Pick'em Bonus placeholder.)
+
+**SHIPPED 2026-06-29 — Warden + Earthquake** (all 60 suites green): added `ActionReel.make_rallying_cry`,
+`Combatant.force_stun_next_turn`/`apply_rallying_cry`/`fire_earthquake`, a shared `_splash_half_to_others`
+orchestrator helper (refactored out of Collateral), and the Warden's labels/tooltips/picker entry. Completes
+the 7-class roster — the next step is the whole-roster fun/fairness playtest.
 
 **SHIPPED 2026-06-27 — Seer + caster UI** (all 52 suites green): added the rail-aware **Mana line** and the
 **🛡 SHIELD chip** to `CombatantPanel` (the caster logic shipped earlier without caster UI), and fixed
@@ -177,18 +192,13 @@ reels** so Flurry/Rampage additions join the grid while the no-damage Rend reel 
 suite list in §5): **Mana** pool + derivation, **Heal**, **Shielded** buff, **Cleanse**. So the new
 classes mostly compose existing hooks, not new architecture.
 
-**NEXT SESSION — build the remaining TWO classes (Seer, Warden), ONE AT A TIME, design-first → spec →
-implement → playtest** (CLAUDE.md §5; raw design input committed as `Bunnies New Class Info.txt`):
-
-- **Seer** — Mystic, war staff, 2 reels, **Mana 15/15** (+1 regen). Base **Select your Fate!** (+1 reel,
-  choose one of 6 damage types for the whole spin; 6 mana). Ultimate **The Big Bang** (4 WILD reels, AoE;
-  heal each ally 1/6 of total dealt, excess → Shielded 2t).
-- **Warden** — Earth, Earthstave, 3 reels, **Mana 12/12**. Base **Rallying Cry** (+1 reel: 2 crit / 8 hit
-  faces; success → half-weapon Shielded to all allies, crit → full; higher Shielded value wins; 4 mana).
-  Ultimate unchanged (placeholder wild for now).
-
-Each class ships **with its own headless suites**, then a **cross-class playtest to confirm fun AND
-fairness between classes** (the human call, §5) before moving to the next.
+**NEXT SESSION — whole-roster cross-class fun/fairness playtest** (CLAUDE.md §5 hard ceiling). All seven
+classes are built, each with its own headless suites (60 green total). The open question is the human call:
+are they **fun**, and **fair against each other**? Play `combat.tscn`, pick each class from the start overlay
+(and the end card), and judge. The Warden's Earthquake (built 2026-06-29) and the Seer/Ranger Ultimates have
+not yet had a human playtest. Tune `[ASSUMPTION]` numbers (per-class stats/HP/costs; Earthquake's
+stun-bypasses-anti-lock and "any-damage-stuns" calls; Rallying Cry's always-shields face mix; splash/heal
+fractions) only **after** the spins feel right — never balance-by-fiat (§4).
 
 **Still deferred (don't build speculatively — §7 YAGNI):** the 6th Ultimate archetype polish, weapon
 riders, gear beyond the Padded Jerkin, races + specialization branches, and full **N-vs-M party combat**
@@ -218,6 +228,10 @@ recorded in `ARCHITECTURE.md §9`.
   truth:** `DESIGN.md`.
 
 ---
+
+*Snapshot updated 2026-06-29 on branch `warden-earthquake`: ALL 7 classes live (Warden + Earthquake shipped),
+60 headless suites green; next step is the whole-roster fun/fairness playtest. Earlier note retained below for
+history.*
 
 *Snapshot updated 2026-06-25 on branch `remaining-four-classes`: 4 of 7 classes live + playtested,
 casino paylines + toggle polish shipped and human-approved, 45 suites green. Next session builds
