@@ -12,6 +12,7 @@ const ENEMY_THINK_DELAY: float = 0.6
 const STUN_THRESHOLD: int = -20   # [ASSUMPTION] start-of-turn initiative below this → STUNNED
 const CASINO_MIN_RUN: int = 3  # [ASSUMPTION] Chancer casino lines pay on a left-aligned run of >=3
 const BIG_BANG_SHIELD_TURNS: int = 2  # [ASSUMPTION] Seer Big Bang: heal-overflow shield duration
+const RALLYING_CRY_SHIELD_TURNS: int = 2  # [ASSUMPTION] Warden Rallying Cry: party shield duration
 
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
@@ -64,6 +65,8 @@ var _start_overlay: Panel
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
+var _earthquake_total: int = 0           # this spin's primary-target total, for the Warden Earthquake splash (half to other enemies) + stun
+var _rallying_cry_tier: int = -1         # the Warden Rallying Cry reel's landed tier this spin (-1 = none)
 var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
 var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds: &"ability" (Select your Fate) | &"ultimate" (The Big Bang)
 var _fate_picker_title: Label            # picker heading, re-captioned per mode
@@ -498,6 +501,7 @@ func _class_tooltip(id: StringName) -> String:
 		&"chancer": return "Chancer — Storm, 4 reels, Luck. Re-roll worst reel; Wildcard Gamble (casino lines)."
 		&"ranger": return "Ranger — Piercing, 4 reels. Hunter's Mark turns misses to hits; Collateral Damage (splash)."
 		&"seer": return "Seer — Mystic, 2 reels, Mana. Select your Fate! picks the spin's type; The Big Bang (AoE nuke + party heal)."
+		&"warden": return "Warden — Earth, 3 reels, Mana. Rallying Cry shields the party; Earthquake nukes one enemy, half-splashes the rest, and STUNS everyone it hits."
 		_: return "Playable class."
 
 ## Hover description for the base-ability button, per class (notes whether it stacks with the Ultimate).
@@ -509,6 +513,7 @@ func _ability_tooltip(id: StringName) -> String:
 		&"reroll": return "Re-roll (4 STA): after the spin, re-rolls your single worst reel (refunded if none were bad). Wildcard Gamble already re-rolls everything."
 		&"hunters_mark": return "Hunter's Mark (3 STA): marks the target 3 turns — allies' crit-fails become hits against it. Usable alongside your Ultimate."
 		&"select_fate": return "Select your Fate! (6 MANA): adds a reel (joins paylines) and converts this whole spin to a damage type you pick. Locked out while The Big Bang is staged — the Ultimate picks the type for free."
+		&"rallying_cry": return "Rallying Cry (4 MANA): adds a no-damage reel. On a hit it shields every ally for 2 turns — half your weapon's damage on a success, full on a crit. Usable alongside Earthquake."
 		_: return ""
 
 ## Hover description for the Ultimate button, per class (flags whether the base ability is wasted).
@@ -520,6 +525,7 @@ func _ultimate_tooltip(id: StringName) -> String:
 		&"wildcard_gamble": return "Wildcard Gamble (full meter): re-rolls every non-crit reel double-or-nothing. Replaces Re-roll — don't stage both."
 		&"collateral": return "Collateral Damage (full meter): +1 reel; primary takes full, all other enemies take half as Piercing. Hunter's Mark still works — fire both."
 		&"big_bang": return "The Big Bang (full meter): pick a damage type, then 4 crit-biased WILD reels of it hit ALL enemies; heals each ally 1/6 of the total, excess → a shield. (Type choice is free — no need to also cast Select your Fate.)"
+		&"earthquake": return "Earthquake (full meter): +1 reel, all 4 reels crit-biased WILD and feeding the 4-line paylines. Primary enemy takes full damage, all others take half (Earth). Every enemy hit is STUNNED next turn — its initiative (turn order) is unchanged."
 		_: return ""
 
 # ---------------------------------------------------------------------------
@@ -639,6 +645,7 @@ func _ability_label(id: StringName) -> String:
 		&"reroll": return "Re-roll worst reel (4 STA)"
 		&"hunters_mark": return "Hunter's Mark: debuff target (3 STA)"
 		&"select_fate": return "Select Fate: choose type (6 MANA)"
+		&"rallying_cry": return "Rallying Cry: party shield (4 MANA)"
 		_: return "Ability"
 
 ## Short ability name for the combat log.
@@ -650,6 +657,7 @@ func _ability_name(id: StringName) -> String:
 		&"reroll": return "Re-roll (worst reel)"
 		&"hunters_mark": return "Hunter's Mark (accuracy debuff)"
 		&"select_fate": return "Select your Fate"
+		&"rallying_cry": return "Rallying Cry (party shield)"
 		_: return "ability"
 
 ## Ultimate button label + log name, per the active class's Ultimate.
@@ -661,6 +669,7 @@ func _ultimate_label(id: StringName) -> String:
 		&"wildcard_gamble": return "ULTIMATE: Wildcard Gamble"
 		&"collateral": return "ULTIMATE: Collateral Damage"
 		&"big_bang": return "ULTIMATE: The Big Bang"
+		&"earthquake": return "ULTIMATE: Earthquake"
 		_: return "Fire Ultimate"
 
 func _ultimate_name(id: StringName) -> String:
@@ -671,6 +680,7 @@ func _ultimate_name(id: StringName) -> String:
 		&"wildcard_gamble": return "WILDCARD GAMBLE (re-roll non-crits, double-or-nothing)"
 		&"collateral": return "COLLATERAL DAMAGE (+1 reel, splash all enemies)"
 		&"big_bang": return "THE BIG BANG (4 wild reels, AoE, party heal)"
+		&"earthquake": return "EARTHQUAKE (+1 wild reel, splash, stun all hit)"
 		_: return "Ultimate"
 
 func _on_turn_started(c: Combatant) -> void:
@@ -1031,6 +1041,19 @@ func _do_spin() -> void:
 	if _attacker.is_big_bang_active():
 		for a in attacks:
 			_big_bang_total += a.final_damage
+	# Earthquake (Warden Ultimate): remember the primary total so _finish_spin can splash ceil(total/2)
+	# to every OTHER enemy as Earth and force-stun every damaged enemy. Computed AFTER any reroll.
+	_earthquake_total = 0
+	if _attacker.is_earthquake_active():
+		for a in attacks:
+			_earthquake_total += a.final_damage
+	# Warden Rallying Cry: read the utility reel's resolved tier (reels and attacks are index-aligned)
+	# so _finish_spin can shield the party. rallying_cry_reel is null unless Rallying Cry was committed.
+	_rallying_cry_tier = -1
+	if _attacker.rallying_cry_reel != null:
+		var rc_idx: int = reels.find(_attacker.rallying_cry_reel)
+		if rc_idx >= 0 and rc_idx < attacks.size():
+			_rallying_cry_tier = attacks[rc_idx].face.result_tier
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
 	# deferred the emit above.)
@@ -1144,6 +1167,25 @@ func _enemies_of(c: Combatant) -> Array[Combatant]:
 			out.append(other)
 	return out
 
+## Splashes ceil([param total] / 2) damage to every OTHER living enemy of [param attacker] (every enemy
+## except the primary [member _defender]) and logs each with [param type_label]. Off the type chart (flat
+## half) — the deferred N-vs-M per-target-type simplification. Returns the enemies actually damaged (for
+## Earthquake's follow-up force-stun). Shared by Ranger Collateral and Warden Earthquake. 1v1 → no-op.
+func _splash_half_to_others(attacker: Combatant, total: int, type_label: String) -> Array[Combatant]:
+	var damaged: Array[Combatant] = []
+	var splash: int = ceili(total / 2.0)
+	if splash <= 0:
+		return damaged
+	for other: Combatant in _enemies_of(attacker):
+		if other == _defender:
+			continue
+		other.take_damage(splash)
+		damaged.append(other)
+		_log("  💥 splash → %s takes %d %s (half of %d)." % [other.display_name, splash, type_label, total])
+		if _panels.has(other):
+			(_panels[other] as CombatantPanel).refresh_status()
+	return damaged
+
 ## Applies payline rewards after the spin's per-reel attacks (the resolver reports; we apply).
 ## [ASSUMPTION] reward values — tune by playtest (CLAUDE.md §4).
 func _on_paylines_resolved(hits: Array) -> void:
@@ -1221,15 +1263,7 @@ func _finish_spin() -> void:
 	# the splash is verified headlessly with a synthetic 3-enemy setup. [ASSUMPTION] splash = total/2,
 	# off the type chart for now (per-target type recompute is the same future N-vs-M refinement as Rampage).
 	if _attacker.is_collateral_active():
-		var splash: int = ceili(_collateral_total / 2.0)
-		if splash > 0:
-			for other: Combatant in _enemies_of(_attacker):
-				if other == _defender:
-					continue
-				other.take_damage(splash)
-				_log("  💥 Collateral splash → %s takes %d Piercing (half of %d)." % [other.display_name, splash, _collateral_total])
-				if _panels.has(other):
-					(_panels[other] as CombatantPanel).refresh_status()
+		_splash_half_to_others(_attacker, _collateral_total, "Piercing")
 		_attacker.consume_collateral_spin()
 	# The Big Bang (Seer Ultimate): the spin already hit all enemies (AoE). Now heal each ally ceil(total/6),
 	# converting any heal overflow into a 2-turn SHIELDED (higher-overrides). 1v1 → the Seer heals itself.
@@ -1248,6 +1282,36 @@ func _finish_spin() -> void:
 				(_panels[ally] as CombatantPanel).refresh_status()
 				(_panels[ally] as CombatantPanel).refresh_shield()
 		_attacker.consume_big_bang_spin()
+	# Earthquake (Warden Ultimate, spec 2026-06-29 §4): the primary took full per-reel damage; now splash
+	# half (ceil) to every OTHER enemy as Earth, then STUN every enemy this spin damaged — without touching
+	# their Initiative (force_stun_next_turn; they keep their queue position and roll the d100 gate on their
+	# turn). "Successful attack" = the spin dealt that enemy > 0 damage.
+	if _attacker.is_earthquake_active():
+		var quaked: Array[Combatant] = _splash_half_to_others(_attacker, _earthquake_total, "Earth")
+		if _earthquake_total > 0 and _defender.is_alive():
+			_defender.force_stun_next_turn = true
+			_log("  ☷ EARTHQUAKE → %s is STUNNED next turn (initiative unchanged)." % _defender.display_name)
+		for other: Combatant in quaked:
+			if other.is_alive():
+				other.force_stun_next_turn = true
+				_log("  ☷ EARTHQUAKE → %s is STUNNED next turn (initiative unchanged)." % other.display_name)
+		_attacker.consume_earthquake_spin()
+	# Warden Rallying Cry (spec 2026-06-29 §3): read the utility reel's tier and shield every ally.
+	# SUCCESS → half-weapon shield, CRIT_SUCCESS → full-weapon shield, 2 turns, higher-total-overrides.
+	if _attacker.rallying_cry_reel != null and _rallying_cry_tier != -1:
+		var base: float = _attacker.weapon.base_damage
+		var amount: int = 0
+		if _rallying_cry_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			amount = ceili(base)
+		elif _rallying_cry_tier == ReelFace.ResultTier.SUCCESS:
+			amount = ceili(base * 0.5)
+		if amount > 0:
+			_log("  ⛨ RALLYING CRY → %d shield to all allies (2 turns)." % amount)
+			for ally: Combatant in _allies_of(_attacker):
+				ally.apply_shield(amount, RALLYING_CRY_SHIELD_TURNS)
+				if _panels.has(ally):
+					(_panels[ally] as CombatantPanel).refresh_status()
+					(_panels[ally] as CombatantPanel).refresh_shield()
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	_attacker.clear_reroll_state()  # Chancer reroll/gamble were applied in _do_spin's post-spin pass
