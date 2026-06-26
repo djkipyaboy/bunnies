@@ -5,7 +5,7 @@ extends RefCounted
 ## returns a FRESH CharacterClass each call. Values are [ASSUMPTION] placeholders — tune by playtest.
 ## (CharacterClass is a Resource, so these can migrate to authored .tres later.)
 
-const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer", &"ranger", &"seer"]
+const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer", &"ranger", &"seer", &"warden"]
 
 static func _stats(mi: int, fi: int, vi: int, fo: int, gr: int, lu: int) -> Stats:
 	var s: Stats = Stats.new()
@@ -18,6 +18,7 @@ static func make(id: StringName) -> CharacterClass:
 	var storm: DamageType = load("res://combat/resources/types/storm.tres")
 	var piercing: DamageType = load("res://combat/resources/types/piercing.tres")
 	var mystic: DamageType = load("res://combat/resources/types/mystic.tres")
+	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 	match id:
 		&"warrior":
 			# Balanced bruiser (the canonical Martin). Base ability Rend → stacking BLEED (§4B).
@@ -103,6 +104,21 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_mana = 9; c.start_mana = 15; c.mana_regen = 2
 			c.ability_id = &"select_fate"; c.ability_cost = 6; c.ability_resource = &"mana"
 			c.ultimate_id = &"big_bang"
+			return c
+		&"warden":
+			# Earth caster-guardian: 3-reel Earthstave, mana-only. Base Rallying Cry shields the party;
+			# Ultimate Earthquake nukes one + half-splashes others + STUNS every enemy hit (spec 2026-06-29).
+			var c: CharacterClass = CharacterClass.new()
+			c.display_name = "Warden (Mole)"; c.species = "Mole"
+			c.base_stats = _stats(1, 1, 3, 4, 2, 0)
+			c.weapon_base_damage = 9.0; c.weapon_type = earth; c.reel_count = 3
+			c.defense_type = earth
+			# [ASSUMPTION] HP 300 for testing; meter_cap 15 — match the Seer per player directive (15/15).
+			c.base_max_hp = 300; c.base_max_stamina = 0; c.base_meter_floor = 3; c.meter_cap = 15
+			# Mana-only: max = base 8 + Focus 4 = 12, starts full, +1/turn. [ASSUMPTION] tune by playtest.
+			c.base_max_mana = 8; c.start_mana = 12; c.mana_regen = 1
+			c.ability_id = &"rallying_cry"; c.ability_cost = 4; c.ability_resource = &"mana"
+			c.ultimate_id = &"earthquake"
 			return c
 		_:
 			return null

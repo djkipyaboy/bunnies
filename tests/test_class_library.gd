@@ -48,7 +48,15 @@ func _initialize() -> void:
 	_check(seer.base_max_stamina == 0 and seer.base_max_mana == 9, "seer is mana-only (sta 0, mana base 9)")
 
 	_check(ClassLibrary.make(&"nope") == null, "unknown id -> null")
-	_check(ClassLibrary.IDS.size() == 6, "6 classes registered (+ Seer)")
+	_check(ClassLibrary.IDS.size() == 7, "7 classes registered (full roster incl. Warden)")
+
+	# Warden: Earth Earthstave, 3 reels, mana-only 12, Rallying Cry (mana) + Earthquake.
+	var warden: CharacterClass = ClassLibrary.make(&"warden")
+	_check(warden.reel_count == 3 and warden.weapon_base_damage == 9.0, "warden: 3 reels, Earthstave base 9")
+	_check(warden.ability_id == &"rallying_cry" and warden.ability_cost == 4 and warden.ability_resource == &"mana", "warden ability = rallying_cry (4 mana)")
+	_check(warden.ultimate_id == &"earthquake", "warden ultimate = earthquake")
+	_check(warden.base_max_stamina == 0 and warden.base_max_mana == 8, "warden is mana-only (sta 0, mana base 8)")
+	_check(warden.meter_cap == 15, "warden meter cap 15 (match Seer)")
 
 	# Each class builds a valid combatant end-to-end.
 	for id: StringName in ClassLibrary.IDS:
