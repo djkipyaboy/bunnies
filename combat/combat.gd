@@ -18,11 +18,15 @@ var _resolver: CombatResolver
 var _turn_manager: TurnManager
 var _phase_manager: PhaseManager
 
+## Party combat (spec 2026-06-29-nvm-party-combat): the player's party (1–3) and the enemy party (1–3),
+## in selection order. _pc / _enemy stay as convenience anchors = the first member of each side.
+var _pcs: Array[Combatant] = []
+var _enemies: Array[Combatant] = []
 var _pc: Combatant
 var _enemy: Combatant
 var _panels: Dictionary = {}     # Combatant -> CombatantPanel
-var _pc_panel: CombatantPanel
-var _enemy_panel: CombatantPanel
+var _pc_panel: CombatantPanel    # = _panels[_pcs[0]] (first party panel; relayout/anchor convenience)
+var _enemy_panel: CombatantPanel # = _panels[_enemies[0]]
 var _log_bg: Panel
 
 var _turn_order_bar: TurnOrderBar
@@ -46,21 +50,24 @@ var _plan: MainPhasePlan
 ## Which CharacterClass the PC is built from (spec 2026-06-21). The end-card class picker sets this
 ## and reloads the scene; default Warrior on first load. STATIC so the choice survives
 ## reload_current_scene() (a reload builds a fresh Combat node — an instance var would reset to Warrior).
-static var _pc_class_id: StringName = &"warrior"
+## The selected party (ordered class ids, 1–3) and enemy roster (ordered enemy ids, 1–3). STATIC so the
+## selection survives reload_current_scene() (a reload builds a fresh Combat node). Defaults = today's 1v1.
+static var _pc_class_ids: Array[StringName] = [&"warrior"]
+static var _enemy_ids: Array[StringName] = [&"rat"]
 
 ## Debug/testing toggle (spec: target dummies): when on, two immortal "Target Dummy" enemies (30 HP,
 ## heal-to-full each turn, retain 1 HP) join the fight so AoE/splash (Collateral, Rampage, Big Bang) can
-## be seen landing. STATIC so the choice survives reload_current_scene() like _pc_class_id.
+## be seen landing. STATIC so the choice survives reload_current_scene() like _pc_class_ids.
 static var _dummies_enabled: bool = false
 var _dummies: Array[Combatant] = []
 var _dummy_toggle_button: Button
 
 var _attacker: Combatant
 var _defender: Combatant
-## The enemy the PLAYER has selected as their primary target (N-vs-M targeting). Persists across the
-## player's turns; defaults to the main enemy. Clicking an enemy panel during the player's pre-spin
-## window retargets it. Drives _defender on the PC's turn (so attacks/Hunter's Mark/Collateral aim here).
-var _player_target: Combatant
+## Per-PC primary target (N-vs-M targeting, spec §3): each PC remembers its own chosen enemy across
+## turns. Clicking an enemy panel during that PC's pre-spin window updates ITS entry. Drives _defender on
+## that PC's turn (so attacks/Hunter's Mark/Collateral aim there); defaults to the first living enemy.
+var _player_targets: Dictionary = {}   # Combatant(PC) -> Combatant(enemy)
 var _start_overlay: Panel
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
@@ -79,24 +86,20 @@ var _pending_strips: int = 0
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	_build_scenario()
-	_build_ui()
+	_build_scenario()       # managers only — the party/enemies aren't chosen until BEGIN
+	_build_ui()             # center band, buttons, log, overlays (party columns are built at BEGIN)
 	_bind_signals()
-	_build_start_overlay()  # pick a class (and toggle dummies) BEFORE the fight begins
-	# Reposition the action-reels block below the (now-built+bound) panels' real height. Deferred so
-	# the panels' size has settled first — runs after this frame's layout pass.
+	_build_start_overlay()  # the selection screen — choose party + enemies, then BEGIN
 	_relayout_action_block.call_deferred()
 
 # ---------------------------------------------------------------------------
 # Scenario (placeholder content + balance — all [ASSUMPTION])
 # ---------------------------------------------------------------------------
 
+## Builds the per-fight managers. The combatants themselves are built at BEGIN (after the player picks the
+## party + enemies on the selection screen) — see [method _build_combatants].
 func _build_scenario() -> void:
-	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
-	var earth: DamageType = load("res://combat/resources/types/earth.tres")
-	var storm: DamageType = load("res://combat/resources/types/storm.tres")
-	_storm_type = storm
-
+	_storm_type = load("res://combat/resources/types/storm.tres")  # Skirmisher/Chancer Storm splice
 	_resolver = CombatResolver.new()
 	add_child(_resolver)
 	_turn_manager = TurnManager.new()
@@ -104,15 +107,26 @@ func _build_scenario() -> void:
 	_phase_manager = PhaseManager.new()
 	add_child(_phase_manager)
 
-	# Player: built from the selected CharacterClass (spec 2026-06-21). Class supplies stats, weapon,
-	# defense, meter, Stamina, and the Main-1 base ability. Gear is deferred to a later pass.
-	_pc = ClassLibrary.make(_pc_class_id).build_combatant(true)
-	# Enemy: Crushing weapon (2 reels), defends as Earth → PC's Slashing hits it for ×1.25.
-	# HP 300 [ASSUMPTION] (raised from 100) so a single fight runs long enough to test bleed stacks,
-	# the Ultimate, and each class's rhythm over many turns.
-	_enemy = _make_combatant("Cluny's Rat", false, 300, earth, _make_weapon(8.0, crushing, 2), false, Stats.new(), [])
+## Builds the chosen party + enemies (+ dummies) into the turn manager. Called at BEGIN, once the
+## selection screen has set _pc_class_ids / _enemy_ids (spec §5).
+func _build_combatants() -> void:
+	var earth: DamageType = load("res://combat/resources/types/earth.tres")
+	# Player party: one Combatant per selected class, in selection order. ClassLibrary supplies stats,
+	# weapon, defense, meter, resources, and the Main-1 base ability. Gear is deferred.
+	_pcs.clear()
+	for id: StringName in _pc_class_ids:
+		_pcs.append(ClassLibrary.make(id).build_combatant(true))
+	# Enemy party (§5.1): one Combatant per selected enemy id, in selection order.
+	_enemies.clear()
+	for id: StringName in _enemy_ids:
+		_enemies.append(EnemyLibrary.make(id))
+	# Anchors = first member of each side (defaults / first-panel references; control reads the active one).
+	_pc = _pcs[0]
+	_enemy = _enemies[0]
 
-	_turn_manager.combatants = [_pc, _enemy]
+	_turn_manager.combatants = []
+	_turn_manager.combatants.append_array(_pcs)
+	_turn_manager.combatants.append_array(_enemies)
 
 	# Debug: two immortal target dummies (30 HP) so AoE/splash is visible. They heal to full on their turn
 	# and never drop below 1 HP; excluded from the win check so they can't stall combat.
@@ -122,6 +136,17 @@ func _build_scenario() -> void:
 		_dummies.append(_make_dummy("Target Dummy 2", earth))
 		for d: Combatant in _dummies:
 			_turn_manager.combatants.append(d)
+
+## Lays out both party columns (left PCs / right enemies + dummies), sets the panel anchors, and wires the
+## enemy click-catchers. Called at BEGIN after [method _build_combatants].
+func _build_party_columns() -> void:
+	_place_party_column(_pcs, 24.0)
+	var right: Array[Combatant] = _enemies.duplicate()
+	right.append_array(_dummies)
+	_place_party_column(right, 1276.0)
+	_pc_panel = _panels[_pc]
+	_enemy_panel = _panels[_enemy]
+	_build_target_click_catchers()
 
 ## Builds a target dummy: 30 HP, no weapon (never attacks), is_target_dummy + min_hp 1 (never dies).
 func _make_dummy(dummy_name: String, defense: DamageType) -> Combatant:
@@ -173,133 +198,109 @@ func _build_ui() -> void:
 	bg.color = Color(0.10, 0.11, 0.14)
 	add_child(bg)
 
+	# N-vs-M party layout (spec §2): combatant panels go in VERTICAL COLUMNS at BEGIN (player party LEFT,
+	# enemy party + dummies RIGHT — see _build_party_columns), freeing this center band for reels/log/buttons.
+	const CENTER_X: float = 350.0   # left edge of the center band (clear of the 300px left column at x=24)
+
 	_turn_order_bar = TurnOrderBar.new()
-	_turn_order_bar.position = Vector2(126, 12)
+	_turn_order_bar.position = Vector2(CENTER_X, 14)
 	add_child(_turn_order_bar)
 
-	_pc_panel = CombatantPanel.new()
-	_pc_panel.position = Vector2(40, 80)
-	add_child(_pc_panel)
-	_panels[_pc] = _pc_panel
-
-	# Enemy panel anchors the right column (the action buttons stack beneath it).
-	_enemy_panel = CombatantPanel.new()
-	_enemy_panel.position = Vector2(1280, 80)
-	add_child(_enemy_panel)
-	_panels[_enemy] = _enemy_panel
-
-	# Target-dummy panels sit in the free center gap between the PC and enemy panels (same top, so the
-	# action-reels relayout below the panels is unaffected). Each is a normal CombatantPanel so every
-	# existing _panels[c] refresh path works unchanged.
-	var dummy_positions: Array[Vector2] = [Vector2(360, 80), Vector2(700, 80)]
-	for i: int in range(_dummies.size()):
-		var dp := CombatantPanel.new()
-		dp.position = dummy_positions[i] if i < dummy_positions.size() else Vector2(360 + i * 340, 80)
-		add_child(dp)
-		_panels[_dummies[i]] = dp
-
-	# Action-reels block sits below the combatant panels (which grew taller with the Stamina/effect
-	# lines); moved down so the panel's Stamina readout no longer overlaps this caption.
-	# Payline win banner — placeholder feedback sitting just above the reels block.
+	# Center band: payline banner → reels → phase label → button bar → combat log.
 	_payline_banner = Label.new()
-	_payline_banner.position = Vector2(40, 232)
+	_payline_banner.position = Vector2(CENTER_X, 58)
 	_payline_banner.add_theme_font_size_override("font_size", 20)
 	add_child(_payline_banner)
 
 	_strips_caption = Label.new()
 	_strips_caption.text = "Action reels"
-	_strips_caption.position = Vector2(40, 256)
+	_strips_caption.position = Vector2(CENTER_X, 86)
 	add_child(_strips_caption)
 
 	_strips_box = HBoxContainer.new()
-	_strips_box.position = Vector2(40, 280)
+	_strips_box.position = Vector2(CENTER_X + 80.0, 112)   # nudged right so 2–5 strips sit centred in the band
 	_strips_box.add_theme_constant_override("separation", 14)
 	add_child(_strips_box)
 
 	_phase_label = Label.new()
-	_phase_label.position = Vector2(40, 478)
+	_phase_label.position = Vector2(CENTER_X, 314)
 	add_child(_phase_label)
 
-	# Scrollable combat log — keeps the full history; scroll back to the start of the fight. Width runs
-	# up to (but clear of) the right-hand button column; height is set by _relayout_action_block.
-	_log_bg = Panel.new()
-	_log_bg.position = Vector2(40, 540)
-	_log_bg.size = Vector2(1220, 134)
-	add_child(_log_bg)
-
-	_log_box = RichTextLabel.new()
-	_log_box.bbcode_enabled = false
-	_log_box.scroll_active = true
-	_log_box.scroll_following = true
-	_log_box.position = Vector2(48, 546)
-	_log_box.size = Vector2(1206, 122)
-	add_child(_log_box)
-
-	# Right-hand action-button column, stacked beneath the enemy panel. BTN_X aligns with the enemy panel;
-	# the column starts at y=340 so it clears the 238px-tall panel (bottom y=318) — the taller caster panels
-	# (mana line + shield chip) had pushed the panel into the old y=300 Ultimate button (playtest 2026-06-29).
-	const BTN_X: float = 1280.0
-	const BTN_SIZE := Vector2(230, 50)
+	# Action-button bar (spec §2.3): centred, just above the combat log. Two rows so all 7 controls fit
+	# inside the center band without crowding the log. (Positions in _relayout_action_block / here.)
+	const BTN_W: float = 215.0
+	const BTN_GAP: float = 9.0
+	const ROW1_Y: float = 352.0
+	const ROW2_Y: float = 410.0
+	var col_x: Callable = func(i: int) -> float: return CENTER_X + float(i) * (BTN_W + BTN_GAP)
 
 	_ultimate_button = Button.new()
 	_ultimate_button.text = "Fire Ultimate (WILD)"
-	_ultimate_button.position = Vector2(BTN_X, 340)
-	_ultimate_button.custom_minimum_size = BTN_SIZE
+	_ultimate_button.position = Vector2(col_x.call(0), ROW1_Y)
+	_ultimate_button.custom_minimum_size = Vector2(BTN_W, 50)
 	_ultimate_button.disabled = true
 	add_child(_ultimate_button)
 
 	_splice_button = Button.new()
 	_splice_button.text = "Splice Storm reel (2 STA)"
-	_splice_button.position = Vector2(BTN_X, 400)
-	_splice_button.custom_minimum_size = BTN_SIZE
+	_splice_button.position = Vector2(col_x.call(1), ROW1_Y)
+	_splice_button.custom_minimum_size = Vector2(BTN_W, 50)
 	_splice_button.disabled = true
 	add_child(_splice_button)
 
 	_spin_button = Button.new()
 	_spin_button.text = "SPIN"
-	_spin_button.position = Vector2(BTN_X, 470)
-	_spin_button.custom_minimum_size = BTN_SIZE
+	_spin_button.position = Vector2(col_x.call(2), ROW1_Y)
+	_spin_button.custom_minimum_size = Vector2(BTN_W, 50)
 	_spin_button.disabled = true
 	_spin_button.tooltip_text = "Resolve the Combat phase — spin every action reel as its own attack."
 	add_child(_spin_button)
 
 	_end_turn_button = Button.new()
 	_end_turn_button.text = "END TURN"
-	_end_turn_button.position = Vector2(BTN_X, 530)
-	_end_turn_button.custom_minimum_size = BTN_SIZE
+	_end_turn_button.position = Vector2(col_x.call(3), ROW1_Y)
+	_end_turn_button.custom_minimum_size = Vector2(BTN_W, 50)
 	_end_turn_button.disabled = true
 	_end_turn_button.tooltip_text = "Finish your turn after reviewing the spin's results."
 	add_child(_end_turn_button)
 
 	_paylines_button = Button.new()
 	_paylines_button.text = "Paylines"
-	_paylines_button.position = Vector2(BTN_X, 590)
-	_paylines_button.custom_minimum_size = BTN_SIZE
+	_paylines_button.position = Vector2(col_x.call(0), ROW2_Y)
+	_paylines_button.custom_minimum_size = Vector2(BTN_W, 44)
 	_paylines_button.tooltip_text = "Cycle through this loadout's payline patterns one at a time (legibility aid)."
 	add_child(_paylines_button)
+
+	# Type-chart toggle: show/hide the 6×6 effectiveness graphic (floats over the center while on).
+	_type_chart_button = Button.new()
+	_type_chart_button.text = "Type Chart: OFF"
+	_type_chart_button.position = Vector2(col_x.call(1), ROW2_Y)
+	_type_chart_button.custom_minimum_size = Vector2(BTN_W, 44)
+	_type_chart_button.tooltip_text = "Show/hide the 6×6 type-effectiveness chart (row attacks column). Stays visible while on."
+	add_child(_type_chart_button)
 
 	# Debug toggle: add/remove the two target dummies, then reload so the change takes effect.
 	_dummy_toggle_button = Button.new()
 	_dummy_toggle_button.text = "Target dummies: %s" % ("ON" if _dummies_enabled else "OFF")
-	_dummy_toggle_button.position = Vector2(BTN_X, 650)
-	_dummy_toggle_button.custom_minimum_size = Vector2(230, 44)
+	_dummy_toggle_button.position = Vector2(col_x.call(2), ROW2_Y)
+	_dummy_toggle_button.custom_minimum_size = Vector2(BTN_W, 44)
 	_dummy_toggle_button.tooltip_text = "Add/remove two immortal 30-HP target dummies for testing AoE/splash. Reloads the fight."
 	add_child(_dummy_toggle_button)
 
-	# Type-chart toggle: show/hide the 6×6 effectiveness graphic in the free center space (stays up while on).
-	_type_chart_button = Button.new()
-	_type_chart_button.text = "Type Chart: OFF"
-	_type_chart_button.position = Vector2(BTN_X, 700)
-	_type_chart_button.custom_minimum_size = Vector2(230, 44)
-	_type_chart_button.tooltip_text = "Show/hide the 6×6 type-effectiveness chart (row attacks column). Stays visible while on."
-	add_child(_type_chart_button)
+	# Scrollable combat log — keeps the full history; fills the center band below the button bar (its bottom
+	# close to but not touching the buttons above). Positioned/sized in _relayout_action_block.
+	_log_bg = Panel.new()
+	add_child(_log_bg)
 
-	# The chart graphic itself — built once, hidden until toggled. Sits in the free top-center band between
-	# the PC panel (ends x340) and the enemy panel (x1280), above the reels — clear in the default (no-dummy)
-	# layout. While toggled on it draws on top (move_child to front), so it floats over the dummies if those
-	# are also enabled.
+	_log_box = RichTextLabel.new()
+	_log_box.bbcode_enabled = false
+	_log_box.scroll_active = true
+	_log_box.scroll_following = true
+	add_child(_log_box)
+
+	# The chart graphic itself — built once, hidden until toggled. Floats over the center band on demand.
 	_type_chart = TypeChartPanel.new()
-	_type_chart.position = Vector2(690, 90)
+	_type_chart.position = Vector2(CENTER_X + 120.0, 112)
 	_type_chart.visible = false
 	add_child(_type_chart)
 	_type_chart.build()
@@ -307,41 +308,58 @@ func _build_ui() -> void:
 	_build_overlay()
 	_build_fate_picker()
 
-	(_panels[_pc] as CombatantPanel).bind(_pc)
-	(_panels[_enemy] as CombatantPanel).bind(_enemy)
-	for d: Combatant in _dummies:
-		(_panels[d] as CombatantPanel).bind(d)
-	_build_target_click_catchers()
+## Places combatant panels in a vertical column at [param x] (top-down, in [param members] order) and
+## binds each. Panel height 238 + 14px gap (spec §2). Used for both party columns (left PCs / right enemies).
+func _place_party_column(members: Array[Combatant], x: float) -> void:
+	var y: float = 80.0
+	for c: Combatant in members:
+		var p := CombatantPanel.new()
+		p.position = Vector2(x, y)
+		add_child(p)
+		_panels[c] = p
+		p.bind(c)
+		y += 238.0 + 14.0
 
-## Shared class picker: a "Play as:" label + a wrapped grid of class buttons added to [param parent]
-## starting at [param top_y]. Each button reloads the scene as that class (the static survives reload);
-## the current class is highlighted green. Returns the Y just below the grid (so callers can stack more).
-func _build_class_picker(parent: Control, top_y: float) -> float:
-	var pick_label := Label.new()
-	pick_label.text = "Play as:"
-	pick_label.position = Vector2(24, top_y)
-	parent.add_child(pick_label)
-	const PER_ROW: int = 4
-	const PICK_SIZE := Vector2(112, 38)
-	const COL_STEP: float = 118.0
-	const ROW_STEP: float = 44.0
-	var grid_top: float = top_y + 26.0
-	var ids: Array[StringName] = ClassLibrary.IDS
+## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
+## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
+## membership in [param selected] (ordered, max [param max_n]) via [RosterSelection]; each button
+## re-renders to "<n>.  <label>" in green when selected (the order number = its party slot), plain
+## otherwise. [param labeler] maps an id → display text; [param on_change] fires after any toggle
+## (used to re-gate BEGIN). Returns the Y just below the list. Spec §5.2.
+func _build_roster_list(parent: Control, heading: String, x: float, top_y: float, ids: Array[StringName], selected: Array, max_n: int, labeler: Callable, on_change: Callable) -> float:
+	const BTN := Vector2(320, 40)
+	const STEP: float = 46.0
+	var head := Label.new()
+	head.text = heading
+	head.position = Vector2(x, top_y)
+	head.add_theme_font_size_override("font_size", 22)
+	parent.add_child(head)
+	var list_top: float = top_y + 34.0
+	var buttons: Array[Button] = []
+	var refresh: Callable = func() -> void:
+		for i: int in range(ids.size()):
+			var rid: StringName = ids[i]
+			var ord: int = selected.find(rid)
+			var bb: Button = buttons[i]
+			if ord >= 0:
+				bb.text = "%d.  %s" % [ord + 1, labeler.call(rid)]
+				bb.modulate = Color(0.6, 1.0, 0.6)
+			else:
+				bb.text = String(labeler.call(rid))
+				bb.modulate = Color(1, 1, 1)
 	for i: int in range(ids.size()):
 		var id: StringName = ids[i]
 		var b := Button.new()
-		b.text = String(id).capitalize()
-		b.position = Vector2(24 + (i % PER_ROW) * COL_STEP, grid_top + (i / PER_ROW) * ROW_STEP)
-		b.custom_minimum_size = PICK_SIZE
-		b.tooltip_text = _class_tooltip(id)
-		if id == _pc_class_id:
-			b.modulate = Color(0.6, 1.0, 0.6)  # highlight the current selection
+		b.position = Vector2(x, list_top + i * STEP)
+		b.custom_minimum_size = BTN
 		b.pressed.connect(func() -> void:
-			_pc_class_id = id
-			get_tree().reload_current_scene())
+			RosterSelection.toggle(selected, id, max_n)
+			refresh.call()
+			on_change.call())
 		parent.add_child(b)
-	var rows: int = (ids.size() + PER_ROW - 1) / PER_ROW
-	return grid_top + rows * ROW_STEP
+		buttons.append(b)
+	refresh.call()
+	return list_top + ids.size() * STEP
 
 func _build_overlay() -> void:
 	# Centered result card (NOT a full-screen cover) so the combat log stays readable after the fight.
@@ -360,17 +378,14 @@ func _build_overlay() -> void:
 	result_label.add_theme_font_size_override("font_size", 46)
 	_overlay.add_child(result_label)
 
-	const RESTART_SIZE := Vector2(180, 52)
+	const RESTART_SIZE := Vector2(280, 52)
 	var restart := Button.new()
-	restart.text = "Fight again"
-	restart.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 112)
+	restart.text = "Fight again (re-pick rosters)"
+	restart.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 150)
 	restart.custom_minimum_size = RESTART_SIZE
-	restart.tooltip_text = "Restart the fight as the highlighted class."
+	restart.tooltip_text = "Return to the party / enemy selection screen and fight again."
 	restart.pressed.connect(func() -> void: get_tree().reload_current_scene())
 	_overlay.add_child(restart)
-
-	# Class picker (spec §6): pick which class the PC is, then replay — so each class is play-testable.
-	_build_class_picker(_overlay, 182)
 
 ## Builds the Seer "Select your Fate!" type-picker: a centered modal with the 6 damage-type buttons and a
 ## Cancel. Hidden until the player stages Select your Fate; choosing a type stages the ability with it.
@@ -449,50 +464,69 @@ func _choose_fate_type(dt: DamageType) -> void:
 	_fate_picker.visible = false
 	_refresh_main1_preview()
 
-## Pre-combat screen: choose a class (and toggle dummies), then BEGIN FIGHT starts the round. Lets the
-## tester pick a class at the START of a session instead of only on the end card (player request).
+## Start-of-encounter selection screen (spec §5.2): two mirrored ordered roster lists — "Choose your
+## Party" (7 classes, LEFT) and "Enemy Combatants" (3 enemies, RIGHT) — each 1–3, selection-ordered.
+## BEGIN FIGHT is gated until both sides have 1–3 members; a dummy toggle rides along.
 func _build_start_overlay() -> void:
-	const SZ := Vector2(560, 340)
+	var view: Vector2 = get_viewport_rect().size
 	_start_overlay = Panel.new()
-	_start_overlay.size = SZ
-	_start_overlay.position = (get_viewport_rect().size - SZ) * 0.5
+	_start_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(_start_overlay)
 
 	var title := Label.new()
-	title.text = "Combat Prototype"
+	title.text = "Combat Prototype — set up the encounter"
 	title.position = Vector2(0, 24)
-	title.size = Vector2(SZ.x, 40)
+	title.size = Vector2(view.x, 40)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_font_size_override("font_size", 32)
 	_start_overlay.add_child(title)
 
 	var sub := Label.new()
-	sub.text = "Pick a class, set up the fight, then begin."
-	sub.position = Vector2(0, 70)
-	sub.size = Vector2(SZ.x, 24)
+	sub.text = "Pick 1–3 party members and 1–3 enemies (click to add/remove; the number is the party order)."
+	sub.position = Vector2(0, 68)
+	sub.size = Vector2(view.x, 24)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_start_overlay.add_child(sub)
 
-	var below: float = _build_class_picker(_start_overlay, 104)
-
-	var dummy_btn := Button.new()
-	dummy_btn.text = "Target dummies: %s" % ("ON" if _dummies_enabled else "OFF")
-	dummy_btn.position = Vector2(24, below + 16)
-	dummy_btn.custom_minimum_size = Vector2(230, 44)
-	dummy_btn.tooltip_text = "Add two immortal 30-HP dummies to test AoE/splash. Reloads."
-	dummy_btn.pressed.connect(_on_dummy_toggle_pressed)
-	_start_overlay.add_child(dummy_btn)
-
-	const BEGIN_SIZE := Vector2(200, 52)
+	# BEGIN button (built first so the on_change gating closures can reference it).
+	const BEGIN_SIZE := Vector2(240, 56)
 	var begin := Button.new()
 	begin.text = "BEGIN FIGHT"
-	begin.position = Vector2(SZ.x - BEGIN_SIZE.x - 24, below + 12)
+	begin.position = Vector2((view.x - BEGIN_SIZE.x) * 0.5, view.y - 110.0)
 	begin.custom_minimum_size = BEGIN_SIZE
-	begin.tooltip_text = "Start combat as the highlighted class."
+	begin.tooltip_text = "Start combat with the selected party vs the selected enemies."
 	begin.pressed.connect(func() -> void:
 		_start_overlay.visible = false
 		_start_combat())
 	_start_overlay.add_child(begin)
+
+	var update_begin: Callable = func() -> void:
+		var ok: bool = _pc_class_ids.size() >= 1 and _pc_class_ids.size() <= 3 \
+			and _enemy_ids.size() >= 1 and _enemy_ids.size() <= 3
+		begin.disabled = not ok
+
+	# LEFT — Choose your Party (7 classes); label = "<display_name> — <Class>".
+	var class_label: Callable = func(id: StringName) -> String:
+		return "%s — %s" % [ClassLibrary.make(id).display_name, String(id).capitalize()]
+	_build_roster_list(_start_overlay, "Choose your Party  (1–3)", 80.0, 120.0,
+		ClassLibrary.IDS, _pc_class_ids, 3, class_label, update_begin)
+
+	# RIGHT — Enemy Combatants (3 enemies); label = the enemy's display name.
+	var enemy_label: Callable = func(id: StringName) -> String:
+		return EnemyLibrary.label(id)
+	_build_roster_list(_start_overlay, "Enemy Combatants  (1–3)", view.x - 400.0, 120.0,
+		EnemyLibrary.IDS, _enemy_ids, 3, enemy_label, update_begin)
+
+	# Dummy toggle (permanent testing aid) near BEGIN.
+	var dummy_btn := Button.new()
+	dummy_btn.text = "Target dummies: %s" % ("ON" if _dummies_enabled else "OFF")
+	dummy_btn.position = Vector2((view.x - 240.0) * 0.5, view.y - 48.0)
+	dummy_btn.custom_minimum_size = Vector2(240, 36)
+	dummy_btn.tooltip_text = "Add two immortal 30-HP dummies to test AoE/splash. Reloads."
+	dummy_btn.pressed.connect(_on_dummy_toggle_pressed)
+	_start_overlay.add_child(dummy_btn)
+
+	update_begin.call()
 
 ## Per-class one-line summaries for the class-picker button tooltips.
 func _class_tooltip(id: StringName) -> String:
@@ -545,22 +579,23 @@ func _build_target_click_catchers() -> void:
 		hit.flat = true
 		hit.modulate = Color(1, 1, 1, 0)  # invisible; input is gated by mouse_filter, not alpha
 		hit.position = panel.position
-		hit.custom_minimum_size = Vector2(300, 192)
-		hit.size = Vector2(300, 192)
-		hit.tooltip_text = "Click to make %s your primary target." % c.display_name
+		hit.custom_minimum_size = Vector2(300, 238)   # full panel height (spec §3 targeting)
+		hit.size = Vector2(300, 238)
+		hit.tooltip_text = "Click to make %s the active PC's primary target." % c.display_name
 		hit.pressed.connect(_select_target.bind(c))
 		add_child(hit)
 
-## Selects [param enemy] as the player's primary target — only during the player's own pre-spin window.
+## Selects [param enemy] as the ACTIVE PC's primary target — only during that PC's own pre-spin window.
+## Each PC remembers its own target (spec §3).
 func _select_target(enemy: Combatant) -> void:
 	if enemy == null or not enemy.is_alive() or enemy.is_player:
 		return
-	if not (_awaiting_player_spin and _attacker == _pc):
+	if not (_awaiting_player_spin and _attacker != null and _attacker.is_player):
 		return
-	_player_target = enemy
+	_player_targets[_attacker] = enemy
 	_defender = enemy
 	_refresh_target_highlight()
-	_log("  ◎ Target: %s." % enemy.display_name)
+	_log("  ◎ %s targets %s." % [_attacker.display_name, enemy.display_name])
 
 ## Outlines the current primary-target enemy panel (and clears the others).
 func _refresh_target_highlight() -> void:
@@ -568,35 +603,42 @@ func _refresh_target_highlight() -> void:
 		if _panels.has(c):
 			(_panels[c] as CombatantPanel).set_targeted(c == _defender and not c.is_player)
 
-## Repositions the whole action-reels block (banner → caption → strips → phase → log) BELOW the
-## actual measured panel height, so it can never overlap the panels again when they grow more rows.
-## Driven off the live panel size (not a hard-coded Y), so it's self-correcting. Deferred + awaited so
-## the panels' [member Control.size] has settled from their own [code]_ready[/code] layout pass.
+## Picks which living PC an enemy attacks this turn. PLACEHOLDER policy (real enemy AI = a later
+## iteration, spec §4): the first living PC in party order. Isolated so a future policy swaps only this.
+func _enemy_pick_target(c: Combatant) -> Combatant:
+	return Combat.first_living(_enemies_of(c))   # _enemies_of(enemy) = the living PCs
+
+## The PC whose controls are active: the current attacker if it's a player, else the first party member.
+func _active_pc() -> Combatant:
+	if _attacker != null and _attacker.is_player:
+		return _attacker
+	return _pc
+
+## Pure: the first living combatant in [param cands] (null if none). Drives the enemy-target placeholder;
+## unit-tested without a scene (spec §4).
+static func first_living(cands: Array[Combatant]) -> Combatant:
+	for x: Combatant in cands:
+		if x.is_alive():
+			return x
+	return null
+
+## Sizes/places the combat log to fill the center band BELOW the action-button bar (spec §2.3): its top
+## sits just under the buttons' 2nd row, its bottom close to the viewport edge, its width spanning the
+## gap between the two party columns. The banner/caption/strips/phase/buttons are at fixed positions in
+## _build_ui; only the log is computed here (it depends on the viewport height). Deferred so layout has
+## settled. (Columns live on the window edges, so no panel-height measuring is needed anymore.)
 func _relayout_action_block() -> void:
 	await get_tree().process_frame
-	if _pc_panel == null or _enemy_panel == null:
-		return
-
-	var panel_bottom: float = maxf(
-		_pc_panel.position.y + _pc_panel.size.y,
-		_enemy_panel.position.y + _enemy_panel.size.y) + 12.0
-
-	_payline_banner.position.y = panel_bottom
-	_strips_caption.position.y = panel_bottom + 24.0
-	_strips_box.position.y = panel_bottom + 48.0
-
-	# Strip height = ReelStrip.CELL_HEIGHT * ReelStrip.VISIBLE_CELLS (64 * 3 = 192).
-	var strip_height: float = ReelStrip.CELL_HEIGHT * float(ReelStrip.VISIBLE_CELLS)
-	_phase_label.position.y = _strips_box.position.y + strip_height + 6.0
-
-	# Log panel + box just below the phase label; clamp the height so its bottom stays on-screen.
-	var log_top: float = _phase_label.position.y + 22.0
-	var viewport_h: float = get_viewport_rect().size.y
-	var log_height: float = maxf(80.0, (viewport_h - 14.0) - log_top)
-	_log_bg.position.y = log_top
-	_log_bg.size.y = log_height
-	_log_box.position.y = log_top + 6.0
-	_log_box.size.y = maxf(10.0, log_height - 12.0)
+	const CENTER_X: float = 350.0
+	const RIGHT_COL_X: float = 1276.0
+	var view: Vector2 = get_viewport_rect().size
+	var log_top: float = 470.0   # below the button bar (row 2 at y=410, height 44 → bottom 454)
+	var log_w: float = (RIGHT_COL_X - 16.0) - CENTER_X
+	var log_h: float = maxf(120.0, (view.y - 14.0) - log_top)
+	_log_bg.position = Vector2(CENTER_X, log_top)
+	_log_bg.size = Vector2(log_w, log_h)
+	_log_box.position = Vector2(CENTER_X + 8.0, log_top + 6.0)
+	_log_box.size = Vector2(log_w - 16.0, log_h - 12.0)
 
 # ---------------------------------------------------------------------------
 # Wiring
@@ -619,7 +661,16 @@ func _bind_signals() -> void:
 	_type_chart_button.pressed.connect(_on_type_chart_toggle_pressed)
 
 func _start_combat() -> void:
-	_log("Playing as: %s  [%s]" % [_pc.display_name, String(_pc_class_id).capitalize()])
+	_build_combatants()      # build the chosen party + enemies (+ dummies) now that selection is locked
+	_build_party_columns()   # lay them out in the left/right columns + wire targeting
+	var party: PackedStringArray = []
+	for c: Combatant in _pcs:
+		party.append(c.display_name)
+	var foes: PackedStringArray = []
+	for c: Combatant in _enemies:
+		foes.append(c.display_name)
+	_log("Party: %s" % ", ".join(party))
+	_log("Enemies: %s" % ", ".join(foes))
 	_turn_manager.roll_initiative()
 	for c: Combatant in _turn_manager.combatants:
 		(_panels[c] as CombatantPanel).refresh_initiative()
@@ -687,25 +738,29 @@ func _ultimate_name(id: StringName) -> String:
 
 func _on_turn_started(c: Combatant) -> void:
 	_attacker = c
-	# Primary target: on the PC's turn it's the player-selected enemy (default the main enemy), refreshed
-	# if it died; on an enemy/dummy turn the PC is the target. Drives attacks/Hunter's Mark/Collateral.
-	if c == _pc:
-		if _player_target == null or not _player_target.is_alive() or _player_target.is_player:
-			_player_target = _enemy
-		_defender = _player_target
+	# Primary target (spec §3/§4): on a PC's turn it's THAT PC's remembered enemy (default first living
+	# enemy), refreshed if it died; on an enemy turn the placeholder AI picks a living PC. Drives
+	# attacks/Hunter's Mark/Collateral.
+	if c.is_player:
+		var want: Combatant = _player_targets.get(c, null)
+		if want == null or not want.is_alive() or want.is_player:
+			want = Combat.first_living(_enemies_of(c))
+		_player_targets[c] = want
+		_defender = want
 	else:
-		_defender = _pc
+		_defender = _enemy_pick_target(c)
 	_refresh_target_highlight()
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
 	_plan = MainPhasePlan.new(c, c.ability_cost, 5, 2)  # ability cost from class; reel cap 5; wild 2 spins
-	# The ability/Ultimate buttons are the PLAYER's controls — always label them from the PC, never the
-	# current attacker (else the enemy's turn shows the enemy's Ultimate, e.g. Cluny's "Sticky Wild").
-	_splice_button.text = _ability_label(_pc.ability_id)
-	_splice_button.tooltip_text = _ability_tooltip(_pc.ability_id)
-	_ultimate_button.text = _ultimate_label(_pc.ultimate_id)
-	_ultimate_button.tooltip_text = _ultimate_tooltip(_pc.ultimate_id)
+	# The ability/Ultimate buttons follow the ACTIVE PC (the controller this turn); on an enemy turn they're
+	# disabled, so label them from the active party member (the current PC, else the first party member).
+	var ctrl: Combatant = c if c.is_player else _pc
+	_splice_button.text = _ability_label(ctrl.ability_id)
+	_splice_button.tooltip_text = _ability_tooltip(ctrl.ability_id)
+	_ultimate_button.text = _ultimate_label(ctrl.ultimate_id)
+	_ultimate_button.tooltip_text = _ultimate_tooltip(ctrl.ultimate_id)
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
 	_end_turn_button.disabled = true
 	# Target dummies don't fight — they just heal to full and pass. Handle before the stun/spin flow.
@@ -766,7 +821,7 @@ func _on_type_chart_toggle_pressed() -> void:
 	_type_chart_button.text = "Type Chart: %s" % ("ON" if showing else "OFF")
 	_type_chart_button.modulate = Color(0.6, 1.0, 0.6) if showing else Color(1, 1, 1)
 	if showing:
-		var pc_atk: DamageType = _pc.weapon_type()
+		var pc_atk: DamageType = _active_pc().weapon_type()
 		_type_chart.highlight_attacker(pc_atk.type if pc_atk != null else -1)
 		move_child(_type_chart, get_child_count() - 1)  # draw over the reel area while up
 
@@ -872,7 +927,7 @@ func _resolve_stun_check() -> void:
 func _on_splice_pressed() -> void:
 	if not _awaiting_player_spin or _plan == null:
 		return
-	if _pc.ability_id == &"select_fate" and not _plan.ability_staged:
+	if _attacker.ability_id == &"select_fate" and not _plan.ability_staged:
 		_show_fate_picker()
 		return
 	_plan.toggle_ability()
@@ -884,7 +939,7 @@ func _on_ultimate_pressed() -> void:
 		return
 	# The Big Bang picks the AoE spin's damage type as part of the Ultimate (free): pressing it while
 	# un-staged opens the same 6-type picker as Select your Fate; choosing a type stages the Ultimate.
-	if _pc.ultimate_id == &"big_bang" and not _plan.fire_ultimate_staged:
+	if _attacker.ultimate_id == &"big_bang" and not _plan.fire_ultimate_staged:
 		if _plan.can_stage_ultimate():
 			_show_fate_picker(&"ultimate")
 		return
@@ -928,10 +983,10 @@ func _refresh_main1_preview() -> void:
 		_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
 		_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.ability_staged else Color(1, 1, 1)
 	# The Big Bang shows the chosen damage type once staged (its picker is the Ultimate's, not the ability's).
-	if _pc.ultimate_id == &"big_bang" and _plan.fire_ultimate_staged and _plan.selected_fate_type != null:
+	if _attacker.ultimate_id == &"big_bang" and _plan.fire_ultimate_staged and _plan.selected_fate_type != null:
 		_ultimate_button.text = "The Big Bang: %s (AoE)" % _type_name(_plan.selected_fate_type)
 	else:
-		_ultimate_button.text = _ultimate_label(_pc.ultimate_id)
+		_ultimate_button.text = _ultimate_label(_attacker.ultimate_id)
 	_ultimate_button.disabled = not (is_player_main1 and (_plan.fire_ultimate_staged or _plan.can_stage_ultimate()))
 	_ultimate_button.modulate = Color(0.6, 1.0, 0.6) if _plan.fire_ultimate_staged else Color(1, 1, 1)
 
@@ -965,7 +1020,7 @@ func _prepare_strips(reels: Array[ActionReel]) -> void:
 ## Cycles the current PC's payline patterns one at a time over the reels (legibility: one line, not all).
 ## Each press advances to the next line; after the last it clears. Uses the player's profile line set.
 func _on_paylines_pressed() -> void:
-	var pc: Combatant = _pc
+	var pc: Combatant = _active_pc()
 	if pc == null or pc.weapon == null:
 		return
 	# Width = weapon-attack reels in the loadout the player is actually looking at: the staged preview

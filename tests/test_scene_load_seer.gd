@@ -5,7 +5,8 @@ extends SceneTree
 # Run: "/c/Bunnies/bunnies-main/Godot_v4.6.3-stable_win64_console.exe" --headless --path . --script res://tests/test_scene_load_seer.gd
 
 func _initialize() -> void:
-	Combat._pc_class_id = &"seer"   # build the scene as the Seer
+	Combat._pc_class_ids = [&"seer"]   # build the scene with a 1-Seer party
+	Combat._enemy_ids = [&"rat"]       # vs a single enemy
 	var scene: PackedScene = load("res://combat/combat.tscn")
 	var inst: Node = scene.instantiate()
 	get_root().add_child(inst)
