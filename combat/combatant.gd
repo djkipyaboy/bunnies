@@ -137,6 +137,12 @@ var big_bang_spins_remaining: int = 0
 var stunned_this_turn: bool = false
 var stunned_last_turn: bool = false
 
+## Earthquake (Warden Ultimate, spec 2026-06-29 §4.3) force-stun: a one-shot flag set by the
+## orchestrator on every enemy the Earthquake damaged. evaluate_stun honors it to STUN the bearer next
+## turn REGARDLESS of initiative and WITHOUT changing current_initiative (queue position preserved),
+## bypassing the anti-lock so the expensive Ultimate reliably lands. Consumed when evaluated.
+var force_stun_next_turn: bool = false
+
 ## SHIELDED buff (spec 2026-06-22 §1.2): a damage-absorbing pool. take_damage spends shield_hp before
 ## HP; shield_turns counts down in on_end. Higher-total-overrides on re-apply (apply_shield). Combatant
 ## STATE (not an Effect) because the absorb math lives in take_damage.
@@ -459,7 +465,11 @@ func on_end() -> void:
 ## immune (immune = STUNNED last turn — the anti-lock that prevents a permanent lockout). Returns
 ## the new stunned_this_turn. Call at turn start, after on_upkeep has recomputed initiative.
 func evaluate_stun(threshold: int) -> bool:
-	stunned_this_turn = current_initiative < threshold and not stunned_last_turn
+	var forced: bool = force_stun_next_turn
+	force_stun_next_turn = false  # one-shot: consume on evaluation
+	# Forced (Earthquake) stun bypasses the anti-lock; init-based stun still respects it (the spiral case).
+	var by_initiative: bool = current_initiative < threshold and not stunned_last_turn
+	stunned_this_turn = forced or by_initiative
 	return stunned_this_turn
 
 ## The d100 "shake off" gate: a roll of 51+ recovers (takes the turn); 01–50 loses the turn.
