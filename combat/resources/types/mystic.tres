@@ -6,5 +6,9 @@
 script = ExtResource("1_sjxs8")
 type = 4
 effectiveness = {
-1: 1.25
+0: 1.25,
+1: 1.25,
+2: 0.5,
+3: 1.25,
+5: 0.75
 }

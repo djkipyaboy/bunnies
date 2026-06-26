@@ -260,3 +260,21 @@ test_collateral); full suite 45 → **48 green**.
 - **Tests:** `test_seer_class`, `test_select_fate`, `test_big_bang` (synthetic 3-ally heal/shield),
   `test_scene_load_seer` (scene smoke), + Seer cases in `test_class_abilities_plan` / `test_class_library`.
   **52 suites green.** Live spin feel is the human playtest (CLAUDE.md §5).
+
+## Type-effectiveness UI + chart reconciliation (2026-06-28) — spec `2026-06-28-type-chart-ui-design.md`
+- **Adopted the player's authored 6×6 chart** (`type_chart_6x6_labeled.html`) as the LIVE chart: updated
+  `gen_damage_types.gd` to that matrix and regenerated the six `.tres`. The old `gen` values were explicit
+  placeholders ("real 6×6 is a separate deliverable") — this is adopting the player's design, not balancing-
+  by-fiat. Notable new cells: Mystic ×0.5 vs Crushing, Mystic strong vs Slash/Pierce/Storm, richer rows for
+  every type. `test_type_chart.gd` locks the full 6×6 via `multiplier_against`. No existing test regressed.
+- **`TypeVisuals` (`combat/ui/type_visuals.gd`)** — shared static name / short-name / per-type identity color
+  / effectiveness tier color. The one place type→presentation lives; `combat.gd._type_name` now delegates to
+  it. Placeholder text + colors stand in for the future per-type icons.
+- **`TypeChartPanel` (`combat/ui/type_chart_panel.gd`)** — toggleable 6×6 graphic rendered from live
+  `DamageType` data (display can't drift from combat math), color-coded by tier, with headers + legend.
+  A **"Type Chart" toggle** (right button column) shows/hides it in the free top-center band (x690,y90,
+  354×234); stays up while on, floats on top, highlights the PC's attacker row.
+- **ATK/DEF badges** on `CombatantPanel`: a `⚔ <off> · 🛡 <def>` line, each type in its identity color, so
+  every combatant's offense/defense reads at a glance. Panel height 192 → 238 to keep the target outline
+  wrapping all rows (added the badge line + the Seer shield chip).
+- **Tests:** `test_type_chart`, `test_type_visuals`, `test_type_chart_panel`. **55 suites green.**

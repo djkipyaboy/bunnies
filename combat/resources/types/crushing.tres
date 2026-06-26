@@ -7,5 +7,6 @@ script = ExtResource("1_7ldao")
 type = 2
 inherent_rider_id = &"slow"
 effectiveness = {
-0: 1.25
+0: 1.25,
+1: 0.75
 }

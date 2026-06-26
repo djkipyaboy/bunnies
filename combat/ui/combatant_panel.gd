@@ -13,6 +13,7 @@ var _status_label: RichTextLabel
 var _stamina_label: Label
 var _shield_label: Label
 var _stats_label: Label
+var _types_label: RichTextLabel
 var _combatant: Combatant
 var _meter_flash_tween: Tween
 
@@ -22,11 +23,13 @@ func _ready() -> void:
 	# 2026-06-26). Tall enough for every row without spilling onto the Action-reels caption below.
 	const PANEL_W: float = 300.0
 	const ROW_W: float = 280.0
-	custom_minimum_size = Vector2(PANEL_W, 192)
+	# Height grew with the ATK/DEF type-badge row + the SHIELD chip (spec 2026-06-28) — kept tall enough
+	# that the target-selection outline still wraps every row without spilling onto the reels below.
+	custom_minimum_size = Vector2(PANEL_W, 238)
 	size = custom_minimum_size
 	var box := VBoxContainer.new()
 	box.position = Vector2(10, 8)
-	box.custom_minimum_size = Vector2(ROW_W, 176)
+	box.custom_minimum_size = Vector2(ROW_W, 222)
 	add_child(box)
 
 	_name_label = Label.new()
@@ -36,6 +39,15 @@ func _ready() -> void:
 	_stats_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.7))
 	_stats_label.add_theme_font_size_override("font_size", 13)  # fit the 6-stat line within ROW_W
 	box.add_child(_stats_label)
+
+	# ATK/DEF type badges (spec 2026-06-28) — each type name in its identity color, foreshadowing the icons.
+	_types_label = RichTextLabel.new()
+	_types_label.bbcode_enabled = true
+	_types_label.fit_content = true
+	_types_label.scroll_active = false
+	_types_label.custom_minimum_size = Vector2(ROW_W, 18)
+	_types_label.add_theme_font_size_override("normal_font_size", 13)
+	box.add_child(_types_label)
 
 	_hp_bar = ProgressBar.new()
 	_hp_bar.show_percentage = false
@@ -95,6 +107,7 @@ func bind(c: Combatant) -> void:
 	refresh_resources()
 	refresh_shield()
 	_refresh_stats()
+	_refresh_types()
 
 ## Refreshes the effective-stats readout (placeholder; feel judged in play-test).
 func _refresh_stats() -> void:
@@ -102,6 +115,21 @@ func _refresh_stats() -> void:
 		return
 	var s: Stats = _combatant.effective_stats()
 	_stats_label.text = "MGT %d  FIN %d  VIG %d  FOC %d  GRT %d  LCK %d" % [s.might, s.finesse, s.vigor, s.focus, s.grit, s.luck]
+
+## Renders the ATK/DEF type badges ("⚔ Slashing · 🛡 Earth"), each type in its identity color. Offensive
+## type = the weapon's type; defensive = defense_type. Static for the fight (types don't change mid-combat).
+## A weaponless combatant (target dummy) shows only the defensive half.
+func _refresh_types() -> void:
+	if _types_label == null or _combatant == null:
+		return
+	var parts: PackedStringArray = []
+	var atk: DamageType = _combatant.weapon_type()
+	if atk != null:
+		parts.append("⚔ [color=%s]%s[/color]" % [TypeVisuals.type_color_hex(atk.type), TypeVisuals.type_name(atk)])
+	var def: DamageType = _combatant.defense_type
+	if def != null:
+		parts.append("🛡 [color=%s]%s[/color]" % [TypeVisuals.type_color_hex(def.type), TypeVisuals.type_name(def)])
+	_types_label.text = "  ".join(parts)
 
 ## Refreshes the initiative shown in the name (after an initiative roll).
 func refresh_initiative() -> void:

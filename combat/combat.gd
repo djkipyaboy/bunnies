@@ -65,6 +65,8 @@ var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer 
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
 var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
+var _type_chart: TypeChartPanel          # toggleable 6×6 type-effectiveness graphic (hidden until toggled on)
+var _type_chart_button: Button
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
 var _awaiting_stun_check: bool = false
@@ -277,6 +279,24 @@ func _build_ui() -> void:
 	_dummy_toggle_button.tooltip_text = "Add/remove two immortal 30-HP target dummies for testing AoE/splash. Reloads the fight."
 	add_child(_dummy_toggle_button)
 
+	# Type-chart toggle: show/hide the 6×6 effectiveness graphic in the free center space (stays up while on).
+	_type_chart_button = Button.new()
+	_type_chart_button.text = "Type Chart: OFF"
+	_type_chart_button.position = Vector2(BTN_X, 660)
+	_type_chart_button.custom_minimum_size = Vector2(230, 44)
+	_type_chart_button.tooltip_text = "Show/hide the 6×6 type-effectiveness chart (row attacks column). Stays visible while on."
+	add_child(_type_chart_button)
+
+	# The chart graphic itself — built once, hidden until toggled. Sits in the free top-center band between
+	# the PC panel (ends x340) and the enemy panel (x1280), above the reels — clear in the default (no-dummy)
+	# layout. While toggled on it draws on top (move_child to front), so it floats over the dummies if those
+	# are also enabled.
+	_type_chart = TypeChartPanel.new()
+	_type_chart.position = Vector2(690, 90)
+	_type_chart.visible = false
+	add_child(_type_chart)
+	_type_chart.build()
+
 	_build_overlay()
 	_build_fate_picker()
 
@@ -391,11 +411,10 @@ func _build_fate_picker() -> void:
 	cancel.pressed.connect(func() -> void: _fate_picker.visible = false)
 	_fate_picker.add_child(cancel)
 
-## Title-cases a damage type's enum name ("Slashing", "Mystic", …) for buttons/labels.
+## Title-cases a damage type's enum name ("Slashing", "Mystic", …) for buttons/labels. Delegates to the
+## shared TypeVisuals helper (the one place type → presentation lives).
 func _type_name(dt: DamageType) -> String:
-	if dt == null:
-		return "?"
-	return String(DamageType.Type.keys()[dt.type]).capitalize()
+	return TypeVisuals.type_name(dt)
 
 ## Shows the type-picker on top (Seer staging Select your Fate).
 func _show_fate_picker() -> void:
@@ -578,6 +597,7 @@ func _bind_signals() -> void:
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 	_paylines_button.pressed.connect(_on_paylines_pressed)
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
+	_type_chart_button.pressed.connect(_on_type_chart_toggle_pressed)
 
 func _start_combat() -> void:
 	_log("Playing as: %s  [%s]" % [_pc.display_name, String(_pc_class_id).capitalize()])
@@ -712,6 +732,20 @@ func _take_dummy_turn(c: Combatant) -> void:
 	(_panels[c] as CombatantPanel).refresh_status()
 	# Brief beat, then skip Combat: Main 2 → End → turn_finished → advance.
 	get_tree().create_timer(ENEMY_THINK_DELAY).timeout.connect(_phase_manager.resume_after_combat, CONNECT_ONE_SHOT)
+
+## Toggles the type-effectiveness chart graphic on/off. While on, it floats over the free center space and
+## highlights the PC's offensive row so the player can read their own matchups.
+func _on_type_chart_toggle_pressed() -> void:
+	if _type_chart == null:
+		return
+	var showing: bool = not _type_chart.visible
+	_type_chart.visible = showing
+	_type_chart_button.text = "Type Chart: %s" % ("ON" if showing else "OFF")
+	_type_chart_button.modulate = Color(0.6, 1.0, 0.6) if showing else Color(1, 1, 1)
+	if showing:
+		var pc_atk: DamageType = _pc.weapon_type()
+		_type_chart.highlight_attacker(pc_atk.type if pc_atk != null else -1)
+		move_child(_type_chart, get_child_count() - 1)  # draw over the reel area while up
 
 ## Flips the target-dummy toggle and reloads so the scenario rebuilds with/without the dummies.
 func _on_dummy_toggle_pressed() -> void:

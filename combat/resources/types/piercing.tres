@@ -6,5 +6,7 @@
 script = ExtResource("1_tvbs5")
 type = 1
 effectiveness = {
-4: 1.25
+0: 0.75,
+2: 1.25,
+5: 0.75
 }

@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_r2id5")
 effectiveness = {
+1: 1.25,
 2: 0.75,
 5: 1.25
 }

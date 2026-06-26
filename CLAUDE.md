@@ -206,9 +206,17 @@ half as Piercing), and **Seer** (Mystic War Staff, 2 reels, **mana-only 15/15**;
 + pick the spin's damage type via a 6-type modal; **The Big Bang** Ultimate = 4 WILD AoE reels that heal each
 ally 1/6 of the total, excess → Shielded). Supporting systems for the casters already built: **Mana**,
 **Heal**, **Shielded**, **Cleanse** — and now the caster **UI** (rail-aware Mana line + shield chip on
-`CombatantPanel`). **52 headless suites green.** Specs: `2026-06-21-class-system-v1-design.md`,
+`CombatantPanel`). **55 headless suites green.** Specs: `2026-06-21-class-system-v1-design.md`,
 `2026-06-22-remaining-four-classes-design.md`, `2026-06-23-chancer-casino-paylines-design.md`,
-`2026-06-25-payline-toggle-polish-and-reel-rules-design.md`, `2026-06-27-seer-class-design.md`.
+`2026-06-25-payline-toggle-polish-and-reel-rules-design.md`, `2026-06-27-seer-class-design.md`,
+`2026-06-28-type-chart-ui-design.md`.
+
+**Type-effectiveness UI (2026-06-28).** The player's authored 6×6 chart (`type_chart_6x6_labeled.html`) is now
+the **live** chart — `gen_damage_types.gd` regenerates the six `.tres` from it (`test_type_chart` locks it).
+A shared **`TypeVisuals`** helper (name/short-name/identity-color/tier-color) feeds a toggleable **`TypeChartPanel`**
+(6×6 graphic, free top-center, "Type Chart" button) and **ATK/DEF type badges** on every `CombatantPanel`
+(`⚔ off · 🛡 def`). Both read live `DamageType` data so the display always matches combat math. First step
+toward per-type icons.
 
 **Payline rules (locked 2026-06-25):** per-class `payline_profile_id` (`&"default"` whole-line | `&"casino"`
 left-aligned); the grid width is the **leading run of weapon-attack reels** (`ActionReel.is_weapon_attack`).

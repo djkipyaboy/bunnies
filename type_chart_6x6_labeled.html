@@ -1,0 +1,58 @@
+<div style="padding: 1rem 0;">
+<h2 class="sr-only">A 6 by 6 type effectiveness chart. Rows are the attacking type, columns are the defending type. Cells show the damage multiplier the attacker deals to that defender.</h2>
+
+<div style="display:flex; flex-wrap:wrap; gap:14px; margin-bottom:1rem; font-size:12px; color:var(--color-text-secondary);">
+  <span style="display:flex; align-items:center; gap:5px;"><span style="width:11px;height:11px;border-radius:2px;background:#9FE1CB;border:0.5px solid #0F6E56;"></span>×1.25 super effective</span>
+  <span style="display:flex; align-items:center; gap:5px;"><span style="width:11px;height:11px;border-radius:2px;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);"></span>×1.0 neutral</span>
+  <span style="display:flex; align-items:center; gap:5px;"><span style="width:11px;height:11px;border-radius:2px;background:#F5C4B3;border:0.5px solid #993C1D;"></span>×0.75 not very effective</span>
+  <span style="display:flex; align-items:center; gap:5px;"><span style="width:11px;height:11px;border-radius:2px;background:#F09595;border:0.5px solid #A32D2D;"></span>×0.5 resisted</span>
+</div>
+
+<div style="overflow-x:auto;">
+<table style="border-collapse:collapse; font-size:13px; width:100%; min-width:600px;">
+<thead>
+<tr>
+<th rowspan="2" style="padding:6px; vertical-align:bottom; text-align:left; font-weight:500; color:var(--color-text-info); font-size:12px; width:84px;"><i class="ti ti-swords" style="font-size:15px; vertical-align:-2px; margin-right:3px;" aria-hidden="true"></i>Attacker</th>
+<th colspan="6" style="padding:6px 8px 8px; font-weight:500; color:var(--color-text-secondary); font-size:12px; text-align:center; border-bottom:0.5px solid var(--color-border-secondary);"><i class="ti ti-shield" style="font-size:15px; vertical-align:-2px; margin-right:4px;" aria-hidden="true"></i>Defender</th>
+</tr>
+<tr>
+<th style="padding:8px 6px; font-weight:500; color:var(--color-text-primary);">Slash</th>
+<th style="padding:8px 6px; font-weight:500; color:var(--color-text-primary);">Pierce</th>
+<th style="padding:8px 6px; font-weight:500; color:var(--color-text-primary);">Crush</th>
+<th style="padding:8px 6px; font-weight:500; color:var(--color-text-primary);">Storm</th>
+<th style="padding:8px 6px; font-weight:500; color:var(--color-text-primary);">Mystic</th>
+<th style="padding:8px 6px; font-weight:500; color:var(--color-text-primary);">Earth</th>
+</tr>
+</thead>
+<tbody id="chartbody"></tbody>
+</table>
+</div>
+<p style="font-size:12px; color:var(--color-text-tertiary); margin:0.85rem 0 0;">Read a row left to right: "when <span style="color:var(--color-text-secondary);">this type</span> attacks, it deals this multiplier against each defending type."</p>
+</div>
+
+<script>
+const types = ["Slash","Pierce","Crush","Storm","Mystic","Earth"];
+const M = {
+  Slash:  {Slash:1.0, Pierce:1.25, Crush:0.75, Storm:1.0,  Mystic:1.0,  Earth:1.25},
+  Pierce: {Slash:0.75,Pierce:1.0,  Crush:1.25, Storm:1.0,  Mystic:1.0,  Earth:0.75},
+  Crush:  {Slash:1.25,Pierce:0.75, Crush:1.0,  Storm:1.0,  Mystic:1.0,  Earth:1.0},
+  Storm:  {Slash:1.0, Pierce:1.0,  Crush:1.0,  Storm:1.0,  Mystic:0.75, Earth:1.25},
+  Mystic: {Slash:1.25,Pierce:1.25, Crush:0.5,  Storm:1.25, Mystic:1.0,  Earth:0.75},
+  Earth:  {Slash:1.0, Pierce:1.0,  Crush:1.25, Storm:0.75, Mystic:1.25, Earth:1.0}
+};
+function cell(v){
+  let bg="var(--color-background-primary)", fg="var(--color-text-secondary)", bd="var(--color-border-tertiary)";
+  if(v===1.5){bg="#5DCAA5";fg="#04342C";bd="#0F6E56";}
+  else if(v===1.25){bg="#9FE1CB";fg="#04342C";bd="#0F6E56";}
+  else if(v===0.75){bg="#F5C4B3";fg="#4A1B0C";bd="#993C1D";}
+  else if(v===0.5){bg="#F09595";fg="#501313";bd="#A32D2D";}
+  return `<td style="padding:10px 6px; text-align:center; background:${bg}; color:${fg}; border:0.5px solid ${bd}; border-radius:4px; font-weight:${v!==1.0?"500":"400"};">×${v}</td>`;
+}
+let html="";
+for(const a of types){
+  html+=`<tr><td style="padding:8px 6px; font-weight:500; color:var(--color-text-info); text-align:left;">${a}</td>`;
+  for(const d of types){ html+=cell(M[a][d]); }
+  html+="</tr>";
+}
+document.getElementById("chartbody").innerHTML=html;
+</script>
