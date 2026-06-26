@@ -132,6 +132,11 @@ var wildcard_gamble_pending: bool = false
 ## overflow → SHIELDED. Tracked separately from aoe/wild (which it sets) so the post-spin heal fires once.
 var big_bang_spins_remaining: int = 0
 
+## Warden "Rallying Cry" base ability (spec 2026-06-29 §3): the no-damage utility reel appended THIS
+## turn (null otherwise). The orchestrator reads its post-spin result tier to shield the party. Reset
+## each turn by begin_turn.
+var rallying_cry_reel: ActionReel = null
+
 ## STUNNED is a per-turn condition (NOT a duration Effect): set at turn start when current_initiative
 ## is below the threshold and the combatant wasn't STUNNED last turn (anti-lock). DESIGN spec 2026-06-20.
 var stunned_this_turn: bool = false
@@ -316,6 +321,7 @@ func begin_turn() -> void:
 		turn_reels = weapon.reels.duplicate()
 	else:
 		turn_reels.clear()
+	rallying_cry_reel = null  # Warden: clear last turn's recorded Rallying Cry reel
 
 ## Splices one extra [param type]-typed reel onto THIS turn (additive, never overwrites the weapon).
 ## Spends [param cost] Stamina and respects the [param cap]-reel band ceiling. Returns false (and
@@ -365,6 +371,21 @@ func convert_turn_reels_to(type: DamageType) -> void:
 		var r: ActionReel = turn_reels[i].duplicate(true)  # deep: its own faces
 		r.damage_type = type
 		turn_reels[i] = r
+
+## Warden "Rallying Cry" (spec 2026-06-29 §3): spends [param cost] Mana and appends one no-damage
+## utility reel ([method ActionReel.make_rallying_cry], own weapon type) onto THIS turn, recording it
+## on [member rallying_cry_reel] so the orchestrator can read its post-spin tier and shield the party.
+## Respects the [param cap]-reel ceiling. Returns false (and changes nothing) if at the cap or the Mana
+## is unaffordable.
+func apply_rallying_cry(cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	var reel: ActionReel = ActionReel.make_rallying_cry(weapon_type())
+	turn_reels.append(reel)
+	rallying_cry_reel = reel
+	return true
 
 ## Index of the single worst reel to re-roll (Chancer): priority CRIT_FAILURE > FAILURE > NEUTRAL,
 ## first occurrence on a tie. Returns -1 when no reel landed any of those tiers (nothing to re-roll).
