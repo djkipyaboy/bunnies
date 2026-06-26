@@ -137,6 +137,12 @@ var big_bang_spins_remaining: int = 0
 ## each turn by begin_turn.
 var rallying_cry_reel: ActionReel = null
 
+## Warden "Earthquake" Ultimate state (spec 2026-06-29 §4): while > 0, this combatant added a 4th
+## weapon-attack reel, made all weapon-attack reels WILD, and its spin splashes half its primary total
+## to every OTHER enemy + force-stuns every damaged enemy. Like Collateral (primary takes FULL; not an
+## AoE spin), distinct from aoe_spins_remaining. Set by fire_earthquake, consumed by consume_earthquake_spin.
+var earthquake_spins_remaining: int = 0
+
 ## STUNNED is a per-turn condition (NOT a duration Effect): set at turn start when current_initiative
 ## is below the threshold and the combatant wasn't STUNNED last turn (anti-lock). DESIGN spec 2026-06-20.
 var stunned_this_turn: bool = false
@@ -344,6 +350,17 @@ func try_rend_reel(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	turn_reels.append(ActionReel.make_rend(type))
 	return true
+
+## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
+## turn's loadout, so the weapon-attack reels stay CONTIGUOUS at the front even when a trailing utility
+## reel (e.g. Rallying Cry) is already present. Keeps the payline grid (leading weapon-attack run) and
+## the WILD glow (indices 0..n-1) correct regardless of Main-1 commit order. Used by Earthquake.
+func _insert_weapon_attack_reel(reel: ActionReel) -> void:
+	var pos: int = 0
+	for i: int in range(turn_reels.size()):
+		if turn_reels[i].is_weapon_attack:
+			pos = i + 1
+	turn_reels.insert(pos, reel)
 
 ## The weapon's own damage type (its first reel's type), or null. Used by Flurry/Rend to splice an
 ## own-type extra reel.
@@ -610,6 +627,39 @@ func is_big_bang_active() -> bool:
 func consume_big_bang_spin() -> void:
 	if big_bang_spins_remaining > 0:
 		big_bang_spins_remaining -= 1
+
+# ---------------------------------------------------------------------------
+# Warden "Earthquake" Ultimate (spec 2026-06-29 §4) — costs ONLY the Bonus Meter
+# ---------------------------------------------------------------------------
+
+## Fires the Earthquake Ultimate if the meter is armed: consumes the full meter, inserts one extra
+## [param extra_reel_type] WEAPON-ATTACK reel (the Warden's 3 → 4) contiguous with the attack run, makes
+## ALL weapon-attack reels crit-biased WILD for [param spins] spins (reuse the wild path), and flags the
+## next [param spins] spins as Earthquake. NOT an AoE spin (is_aoe_active stays false): the primary takes
+## FULL weapon damage; the orchestrator splashes half the primary total to every OTHER enemy and
+## force-stuns every damaged enemy. Returns false if not armed.
+func fire_earthquake(extra_reel_type: DamageType, spins: int) -> bool:
+	if bonus_meter == null or not bonus_meter.is_armed():
+		return false
+	bonus_meter.consume()
+	_insert_weapon_attack_reel(ActionReel.make_default(extra_reel_type))  # 3 → 4 weapon-attack reels
+	var attack_count: int = 0
+	for r: ActionReel in turn_reels:
+		if r.is_weapon_attack:
+			attack_count += 1
+	sticky_wild_count = attack_count            # every weapon-attack reel crit-biased (reuse the wild path)
+	sticky_wild_spins_remaining = spins
+	earthquake_spins_remaining = spins
+	return true
+
+## True while an Earthquake spin is pending (drives the orchestrator's splash + force-stun).
+func is_earthquake_active() -> bool:
+	return earthquake_spins_remaining > 0
+
+## Consumes one Earthquake spin. Call once per resolved spin (after the splash/stun has been applied).
+func consume_earthquake_spin() -> void:
+	if earthquake_spins_remaining > 0:
+		earthquake_spins_remaining -= 1
 
 # ---------------------------------------------------------------------------
 # Ranger "Hunter's Mark" base ability (spec §3.4) — costs Stamina; applied by the orchestrator
