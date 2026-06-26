@@ -205,7 +205,7 @@ crit-fails become hits vs it; **Collateral Damage** Ultimate = +1 reel, primary 
 half as Piercing), **Seer** (Mystic War Staff, 2 reels, **mana-only 15/15**; **Select your Fate!** +1 reel
 + pick the spin's damage type via a 6-type modal; **The Big Bang** Ultimate = 4 WILD AoE reels that heal each
 ally 1/6 of the total, excess → Shielded), and **Warden** (Earth Earthstave, 3 reels, **mana-only 12/12**,
-meter cap 15; **Rallying Cry** = +1 no-damage reel that shields all allies — half-weapon on success, full on
+meter cap 20; **Rallying Cry** = +1 no-damage reel (charges NO Bonus Meter) that shields all allies — half-weapon on success, full on
 crit, 2t; **Earthquake** Ultimate = +1 reel, all 4 reels crit-biased WILD + 4-line paylines, full damage to the
 primary + `ceil(total/2)` Earth to other enemies, and **STUNS every damaged enemy next turn WITHOUT altering
 its Initiative** — a one-shot `force_stun_next_turn` honored by `evaluate_stun`, bypassing the anti-lock; reuses

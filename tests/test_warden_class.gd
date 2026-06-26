@@ -18,7 +18,7 @@ func _initialize() -> void:
 	_check(cc.weapon_base_damage == 9.0, "Earthstave base 9 (got %s)" % str(cc.weapon_base_damage))
 	_check(cc.ability_id == &"rallying_cry" and cc.ability_resource == &"mana" and cc.ability_cost == 4, "Rallying Cry: 4 mana")
 	_check(cc.ultimate_id == &"earthquake", "Ultimate is Earthquake")
-	_check(cc.meter_cap == 15, "meter cap 15 (match Seer, got %d)" % cc.meter_cap)
+	_check(cc.meter_cap == 20, "meter cap 20 (raised from 15 — playtest 2026-06-29, got %d)" % cc.meter_cap)
 	_check(cc.base_max_stamina == 0, "mana-only (no stamina)")
 	_check(cc.base_stats.luck == 0, "Luck 0 (Chancer-exclusive)")
 
@@ -27,7 +27,7 @@ func _initialize() -> void:
 	_check(w.resource_pool.max_mana == 12, "max_mana = 8 + Focus 4 = 12 (got %d)" % w.resource_pool.max_mana)
 	_check(w.resource_pool.mana == 12, "starts at full mana (got %d)" % w.resource_pool.mana)
 	_check(w.resource_pool.max_stamina == 0, "no stamina rail (got %d)" % w.resource_pool.max_stamina)
-	_check(w.bonus_meter.cap == 15, "combatant meter cap 15")
+	_check(w.bonus_meter.cap == 20, "combatant meter cap 20")
 	_check(w.weapon.reels.size() == 3, "weapon has 3 reels")
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 	_check(w.weapon_type() == earth, "weapon type is Earth")

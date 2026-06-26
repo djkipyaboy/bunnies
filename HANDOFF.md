@@ -148,7 +148,8 @@ meter (15) arms the **Sticky-Wild Ultimate**.
   Ultimate **The Big Bang** (`big_bang`, full meter): tops to 4 WILD reels, AoE all enemies, heals each ally
   `ceil(total/6)` with overflow → a 2-turn Shielded. Combos with Select your Fate (typed AoE nuke). **Built
   2026-06-27 — awaiting cross-class fun/fairness playtest.** Spec `2026-06-27-seer-class-design.md`.
-- **Warden (Mole)** — Earth Earthstave, 3 reels, **mana-only 12/12** (regen 1), Focus 4, meter cap 15. Base
+- **Warden (Mole)** — Earth Earthstave, 3 reels, **mana-only 12/12** (regen 1), Focus 4, meter cap 20 (raised
+  from 15 in the 2026-06-29 playtest; the Rallying Cry reel also charges **no** meter — Earthquake refills fast). Base
   **Rallying Cry** (`rallying_cry`, 4 mana): +1 no-damage utility reel (2 crit + 8 success faces, out of
   paylines, at the tail) → success shields all allies `ceil(weapon×0.5)`, crit `ceil(weapon)`, 2 turns,
   higher-overrides. Ultimate **Earthquake** (`earthquake`, full meter): +1 reel inserted contiguous with the

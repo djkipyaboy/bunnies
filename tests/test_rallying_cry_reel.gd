@@ -30,6 +30,17 @@ func _initialize() -> void:
 	_check(all_zero, "every face deals zero direct damage")
 	var no_rider: bool = reel.faces.all(func(f: ReelFace) -> bool: return f.rider_effect_id == &"")
 	_check(no_rider, "no rider on any face (shield applied by orchestrator from tier)")
+	_check(not reel.charges_meter, "rally reel does NOT charge the Bonus Meter (its value is the party shield)")
+
+	# Resolver propagates charges_meter onto the AttackResult and zeroes meter_gain for the rally reel.
+	var resolver: CombatResolver = CombatResolver.new()
+	var rally_attacks: Array[CombatResolver.AttackResult] = resolver.resolve_combat_phase([reel], 9.0, earth)
+	_check(not rally_attacks[0].charges_meter, "resolved rally attack has charges_meter = false")
+	_check(rally_attacks[0].meter_gain == 0, "resolved rally attack contributes 0 meter (got %d)" % rally_attacks[0].meter_gain)
+
+	# A normal weapon reel still charges the meter (regression: the flag defaults true).
+	var normal: ActionReel = ActionReel.make_default(earth)
+	_check(normal.charges_meter, "default weapon reel charges the meter (flag defaults true)")
 
 	print(("RALLYING CRY REEL TEST PASSED" if _failures == 0 else "RALLYING CRY REEL TEST FAILED: %d" % _failures))
 	quit(_failures)

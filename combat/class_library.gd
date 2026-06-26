@@ -113,8 +113,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_stats = _stats(1, 1, 3, 4, 2, 0)
 			c.weapon_base_damage = 9.0; c.weapon_type = earth; c.reel_count = 3
 			c.defense_type = earth
-			# [ASSUMPTION] HP 300 for testing; meter_cap 15 — match the Seer per player directive (15/15).
-			c.base_max_hp = 300; c.base_max_stamina = 0; c.base_meter_floor = 3; c.meter_cap = 15
+			# [ASSUMPTION] HP 300 for testing; meter_cap 20 — raised from 15 (playtest 2026-06-29: Earthquake's
+				# 4 WILD reels recharge the meter fast; 20 curbs back-to-back Earthquakes).
+			c.base_max_hp = 300; c.base_max_stamina = 0; c.base_meter_floor = 3; c.meter_cap = 20
 			# Mana-only: max = base 8 + Focus 4 = 12, starts full, +1/turn. [ASSUMPTION] tune by playtest.
 			c.base_max_mana = 8; c.start_mana = 12; c.mana_regen = 1
 			c.ability_id = &"rallying_cry"; c.ability_cost = 4; c.ability_resource = &"mana"

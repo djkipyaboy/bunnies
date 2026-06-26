@@ -23,6 +23,12 @@ extends Reel
 ## deals weapon-type damage; set it true only when the hit directly swings for the weapon's damage.
 @export var is_weapon_attack: bool = true
 
+## Whether a hit on this reel charges the attacker's Bonus Meter. True for normal reels (incl. Rend).
+## The Warden's Rallying Cry reel sets this FALSE: its payoff is the party shield, and it would otherwise
+## let Earthquake (which already recharges fast off its 4 WILD reels) refill the meter too quickly
+## (playtest 2026-06-29). The resolver propagates this onto the AttackResult; the orchestrator honors it.
+@export var charges_meter: bool = true
+
 ## Builds a first-pass Action reel as a physical 10-face strip. Odds = how many of each symbol
 ## sit on the reel (the reel IS the dice — no hidden weights). Crits are rare (1 each → 10%):
 ##   1 crit-failure · 2 failure · 2 neutral/utility · 4 success · 1 crit-success.
@@ -71,6 +77,7 @@ static func make_rallying_cry(type: DamageType = null) -> ActionReel:
 	var reel: ActionReel = ActionReel.new()
 	reel.damage_type = type
 	reel.is_weapon_attack = false
+	reel.charges_meter = false  # the shield IS the payoff — don't also feed the Bonus Meter (playtest 2026-06-29)
 	for i: int in range(2):
 		reel.faces.append(_make_face(ReelFace.ResultTier.CRIT_SUCCESS, 0.0))
 	for i: int in range(8):

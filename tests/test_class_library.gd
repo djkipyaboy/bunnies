@@ -56,7 +56,7 @@ func _initialize() -> void:
 	_check(warden.ability_id == &"rallying_cry" and warden.ability_cost == 4 and warden.ability_resource == &"mana", "warden ability = rallying_cry (4 mana)")
 	_check(warden.ultimate_id == &"earthquake", "warden ultimate = earthquake")
 	_check(warden.base_max_stamina == 0 and warden.base_max_mana == 8, "warden is mana-only (sta 0, mana base 8)")
-	_check(warden.meter_cap == 15, "warden meter cap 15 (match Seer)")
+	_check(warden.meter_cap == 20, "warden meter cap 20 (raised from 15, playtest 2026-06-29)")
 
 	# Each class builds a valid combatant end-to-end.
 	for id: StringName in ClassLibrary.IDS:

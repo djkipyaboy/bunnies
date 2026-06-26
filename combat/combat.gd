@@ -235,27 +235,29 @@ func _build_ui() -> void:
 	_log_box.size = Vector2(1206, 122)
 	add_child(_log_box)
 
-	# Right-hand action-button column, stacked beneath the enemy panel. BTN_X aligns with the enemy panel.
+	# Right-hand action-button column, stacked beneath the enemy panel. BTN_X aligns with the enemy panel;
+	# the column starts at y=340 so it clears the 238px-tall panel (bottom y=318) — the taller caster panels
+	# (mana line + shield chip) had pushed the panel into the old y=300 Ultimate button (playtest 2026-06-29).
 	const BTN_X: float = 1280.0
 	const BTN_SIZE := Vector2(230, 50)
 
 	_ultimate_button = Button.new()
 	_ultimate_button.text = "Fire Ultimate (WILD)"
-	_ultimate_button.position = Vector2(BTN_X, 300)
+	_ultimate_button.position = Vector2(BTN_X, 340)
 	_ultimate_button.custom_minimum_size = BTN_SIZE
 	_ultimate_button.disabled = true
 	add_child(_ultimate_button)
 
 	_splice_button = Button.new()
 	_splice_button.text = "Splice Storm reel (2 STA)"
-	_splice_button.position = Vector2(BTN_X, 360)
+	_splice_button.position = Vector2(BTN_X, 400)
 	_splice_button.custom_minimum_size = BTN_SIZE
 	_splice_button.disabled = true
 	add_child(_splice_button)
 
 	_spin_button = Button.new()
 	_spin_button.text = "SPIN"
-	_spin_button.position = Vector2(BTN_X, 430)
+	_spin_button.position = Vector2(BTN_X, 470)
 	_spin_button.custom_minimum_size = BTN_SIZE
 	_spin_button.disabled = true
 	_spin_button.tooltip_text = "Resolve the Combat phase — spin every action reel as its own attack."
@@ -263,7 +265,7 @@ func _build_ui() -> void:
 
 	_end_turn_button = Button.new()
 	_end_turn_button.text = "END TURN"
-	_end_turn_button.position = Vector2(BTN_X, 490)
+	_end_turn_button.position = Vector2(BTN_X, 530)
 	_end_turn_button.custom_minimum_size = BTN_SIZE
 	_end_turn_button.disabled = true
 	_end_turn_button.tooltip_text = "Finish your turn after reviewing the spin's results."
@@ -271,7 +273,7 @@ func _build_ui() -> void:
 
 	_paylines_button = Button.new()
 	_paylines_button.text = "Paylines"
-	_paylines_button.position = Vector2(BTN_X, 550)
+	_paylines_button.position = Vector2(BTN_X, 590)
 	_paylines_button.custom_minimum_size = BTN_SIZE
 	_paylines_button.tooltip_text = "Cycle through this loadout's payline patterns one at a time (legibility aid)."
 	add_child(_paylines_button)
@@ -279,7 +281,7 @@ func _build_ui() -> void:
 	# Debug toggle: add/remove the two target dummies, then reload so the change takes effect.
 	_dummy_toggle_button = Button.new()
 	_dummy_toggle_button.text = "Target dummies: %s" % ("ON" if _dummies_enabled else "OFF")
-	_dummy_toggle_button.position = Vector2(BTN_X, 610)
+	_dummy_toggle_button.position = Vector2(BTN_X, 650)
 	_dummy_toggle_button.custom_minimum_size = Vector2(230, 44)
 	_dummy_toggle_button.tooltip_text = "Add/remove two immortal 30-HP target dummies for testing AoE/splash. Reloads the fight."
 	add_child(_dummy_toggle_button)
@@ -287,7 +289,7 @@ func _build_ui() -> void:
 	# Type-chart toggle: show/hide the 6×6 effectiveness graphic in the free center space (stays up while on).
 	_type_chart_button = Button.new()
 	_type_chart_button.text = "Type Chart: OFF"
-	_type_chart_button.position = Vector2(BTN_X, 660)
+	_type_chart_button.position = Vector2(BTN_X, 700)
 	_type_chart_button.custom_minimum_size = Vector2(230, 44)
 	_type_chart_button.tooltip_text = "Show/hide the 6×6 type-effectiveness chart (row attacks column). Stays visible while on."
 	add_child(_type_chart_button)
@@ -1131,7 +1133,8 @@ func _apply_attack(attack) -> void:
 	else:
 		_log("  %s reel → %s (no damage)." % [_attacker.display_name, tier_name])
 	# Bonus Meter charge (attacker only). Log BM gains for the player (enemy meter is hidden).
-	if _attacker.bonus_meter != null:
+	# A non-charging reel (the Warden's Rallying Cry reel) is skipped — its payoff is the party shield.
+	if _attacker.bonus_meter != null and attack.charges_meter:
 		var before: int = _attacker.bonus_meter.value
 		_attacker.bonus_meter.charge(attack.face.result_tier)
 		var added: int = _attacker.bonus_meter.value - before
