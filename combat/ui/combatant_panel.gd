@@ -16,13 +16,16 @@ var _combatant: Combatant
 var _meter_flash_tween: Tween
 
 func _ready() -> void:
-	# Tall enough to contain all rows (name, HP bar+text, Bonus Meter, Stamina, status effects)
-	# without spilling onto the Action-reels caption positioned below the panel.
-	custom_minimum_size = Vector2(260, 192)
+	# Wide enough that the widest row (the 6-stat line, which the VBox stretches every bar to) stays
+	# INSIDE the panel border — so the target-selection outline wraps all the content (player feedback
+	# 2026-06-26). Tall enough for every row without spilling onto the Action-reels caption below.
+	const PANEL_W: float = 300.0
+	const ROW_W: float = 280.0
+	custom_minimum_size = Vector2(PANEL_W, 192)
 	size = custom_minimum_size
 	var box := VBoxContainer.new()
 	box.position = Vector2(10, 8)
-	box.custom_minimum_size = Vector2(240, 176)
+	box.custom_minimum_size = Vector2(ROW_W, 176)
 	add_child(box)
 
 	_name_label = Label.new()
@@ -30,11 +33,12 @@ func _ready() -> void:
 
 	_stats_label = Label.new()
 	_stats_label.add_theme_color_override("font_color", Color(0.8, 0.85, 0.7))
+	_stats_label.add_theme_font_size_override("font_size", 13)  # fit the 6-stat line within ROW_W
 	box.add_child(_stats_label)
 
 	_hp_bar = ProgressBar.new()
 	_hp_bar.show_percentage = false
-	_hp_bar.custom_minimum_size = Vector2(240, 22)
+	_hp_bar.custom_minimum_size = Vector2(ROW_W, 22)
 	box.add_child(_hp_bar)
 
 	_hp_label = Label.new()
@@ -47,7 +51,7 @@ func _ready() -> void:
 
 	_meter_bar = ProgressBar.new()
 	_meter_bar.show_percentage = false
-	_meter_bar.custom_minimum_size = Vector2(240, 16)
+	_meter_bar.custom_minimum_size = Vector2(ROW_W, 16)
 	_meter_bar.modulate = Color(0.9, 0.8, 0.3)
 	box.add_child(_meter_bar)
 
@@ -59,7 +63,7 @@ func _ready() -> void:
 	_status_label.bbcode_enabled = true
 	_status_label.fit_content = true
 	_status_label.scroll_active = false
-	_status_label.custom_minimum_size = Vector2(240, 20)
+	_status_label.custom_minimum_size = Vector2(ROW_W, 20)
 	box.add_child(_status_label)
 
 ## Binds this panel to [param c] and wires its signals.

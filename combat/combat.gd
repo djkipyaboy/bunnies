@@ -174,17 +174,17 @@ func _build_ui() -> void:
 
 	# Enemy panel anchors the right column (the action buttons stack beneath it).
 	_enemy_panel = CombatantPanel.new()
-	_enemy_panel.position = Vector2(1310, 80)
+	_enemy_panel.position = Vector2(1280, 80)
 	add_child(_enemy_panel)
 	_panels[_enemy] = _enemy_panel
 
 	# Target-dummy panels sit in the free center gap between the PC and enemy panels (same top, so the
 	# action-reels relayout below the panels is unaffected). Each is a normal CombatantPanel so every
 	# existing _panels[c] refresh path works unchanged.
-	var dummy_positions: Array[Vector2] = [Vector2(370, 80), Vector2(700, 80)]
+	var dummy_positions: Array[Vector2] = [Vector2(360, 80), Vector2(700, 80)]
 	for i: int in range(_dummies.size()):
 		var dp := CombatantPanel.new()
-		dp.position = dummy_positions[i] if i < dummy_positions.size() else Vector2(370 + i * 330, 80)
+		dp.position = dummy_positions[i] if i < dummy_positions.size() else Vector2(360 + i * 340, 80)
 		add_child(dp)
 		_panels[_dummies[i]] = dp
 
@@ -214,7 +214,7 @@ func _build_ui() -> void:
 	# up to (but clear of) the right-hand button column; height is set by _relayout_action_block.
 	_log_bg = Panel.new()
 	_log_bg.position = Vector2(40, 540)
-	_log_bg.size = Vector2(1240, 134)
+	_log_bg.size = Vector2(1220, 134)
 	add_child(_log_bg)
 
 	_log_box = RichTextLabel.new()
@@ -222,11 +222,11 @@ func _build_ui() -> void:
 	_log_box.scroll_active = true
 	_log_box.scroll_following = true
 	_log_box.position = Vector2(48, 546)
-	_log_box.size = Vector2(1226, 122)
+	_log_box.size = Vector2(1206, 122)
 	add_child(_log_box)
 
 	# Right-hand action-button column, stacked beneath the enemy panel. BTN_X aligns with the enemy panel.
-	const BTN_X: float = 1310.0
+	const BTN_X: float = 1280.0
 	const BTN_SIZE := Vector2(230, 50)
 
 	_ultimate_button = Button.new()
@@ -431,8 +431,8 @@ func _build_target_click_catchers() -> void:
 		hit.flat = true
 		hit.modulate = Color(1, 1, 1, 0)  # invisible; input is gated by mouse_filter, not alpha
 		hit.position = panel.position
-		hit.custom_minimum_size = Vector2(260, 192)
-		hit.size = Vector2(260, 192)
+		hit.custom_minimum_size = Vector2(300, 192)
+		hit.size = Vector2(300, 192)
 		hit.tooltip_text = "Click to make %s your primary target." % c.display_name
 		hit.pressed.connect(_select_target.bind(c))
 		add_child(hit)
