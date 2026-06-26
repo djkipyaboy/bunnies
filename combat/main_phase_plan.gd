@@ -94,6 +94,11 @@ func _ultimate_subsumes_ability() -> bool:
 		return true
 	if ultimate_id == &"wildcard_gamble" and ability_id == &"reroll":
 		return true
+	# The Big Bang carries its OWN type picker (free) and tops to 4 reels, so it fully covers Select your
+	# Fate (the paid +1-reel/retype ability). Staging both would just waste 6 mana — lock the base ability
+	# out and let the Ultimate's picker choose the spin's type (player request 2026-06-26).
+	if ultimate_id == &"big_bang" and ability_id == &"select_fate":
+		return true
 	return false
 
 ## True while the base ability (Heft) is provided FREE by a staged Rampage — toggled on, no Stamina.
@@ -127,9 +132,22 @@ func stage_select_fate(type: DamageType) -> void:
 		selected_fate_type = type
 		ability_staged = true
 
+## Stages The Big Bang with a player-chosen damage type (from the Ultimate's type-picker modal — the same
+## 6-type chooser as Select your Fate, but free). No-op unless this is the Seer's big_bang and it's armed.
+func stage_big_bang(type: DamageType) -> void:
+	if ultimate_id != &"big_bang" or type == null:
+		return
+	if can_stage_ultimate():
+		selected_fate_type = type
+		fire_ultimate_staged = true
+		if _ultimate_subsumes_ability():
+			ability_staged = false   # Big Bang provides type choice + reels — don't also pay Select your Fate
+
 func toggle_ultimate() -> void:
 	if fire_ultimate_staged:
 		fire_ultimate_staged = false
+		if ultimate_id == &"big_bang":
+			selected_fate_type = null   # clear the Big Bang type choice on un-stage
 		if _rampage_includes_heft():
 			ability_staged = false   # untoggling Rampage untoggles the coupled Heft
 	elif can_stage_ultimate():
@@ -235,8 +253,8 @@ func commit() -> void:
 				combatant.fire_collateral(combatant.weapon_type(), COLLATERAL_SPINS)  # +1 reel; orchestrator splashes
 			&"big_bang":
 				combatant.fire_big_bang(combatant.weapon_type(), BIG_BANG_REELS, BIG_BANG_SPINS)  # 4 wild AoE reels (Seer)
-	# Combo: Select your Fate's chosen type covers Big Bang's appended reels too (it commits AFTER the
-	# ability, so re-run the retype over the final loadout when both are staged). Standalone select_fate
-	# already retyped in apply_select_fate; this second pass is a harmless idempotent retype.
-	if ability_staged and ability_id == &"select_fate" and selected_fate_type != null and fire_ultimate_staged:
+	# The Big Bang's own type picker (free) retypes the FINAL loadout — including the reels fire_big_bang
+	# just appended. Runs after the Ultimate fires. Standalone Select your Fate already retyped in
+	# apply_select_fate (and is locked out while Big Bang is staged), so this is the Big Bang path only.
+	if selected_fate_type != null and fire_ultimate_staged and ultimate_id == &"big_bang":
 		combatant.convert_turn_reels_to(selected_fate_type)

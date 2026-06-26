@@ -29,6 +29,7 @@ func _initialize() -> void:
 	_check(c.resource_pool.max_mana == 15, "total mana 15 (9 base + 6 Focus, got %d)" % c.resource_pool.max_mana)
 	_check(c.resource_pool.mana == 15, "starts full on mana (got %d)" % c.resource_pool.mana)
 	_check(c.resource_pool.max_stamina == 0, "no stamina rail (got %d)" % c.resource_pool.max_stamina)
+	_check(c.resource_pool.mana_regen_per_turn == 2, "mana regen 2/turn (playtest tuning, got %d)" % c.resource_pool.mana_regen_per_turn)
 	_check(c.weapon.reels.size() == 2, "2 weapon reels (got %d)" % c.weapon.reels.size())
 	var crit: int = 0
 	for f: ReelFace in c.weapon.reels[0].faces:

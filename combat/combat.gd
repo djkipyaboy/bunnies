@@ -65,6 +65,8 @@ var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer 
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
 var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
+var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds: &"ability" (Select your Fate) | &"ultimate" (The Big Bang)
+var _fate_picker_title: Label            # picker heading, re-captioned per mode
 var _type_chart: TypeChartPanel          # toggleable 6×6 type-effectiveness graphic (hidden until toggled on)
 var _type_chart_button: Button
 var _awaiting_player_spin: bool = false
@@ -375,11 +377,11 @@ func _build_fate_picker() -> void:
 	_fate_picker.visible = false
 	add_child(_fate_picker)
 
-	var title := Label.new()
-	title.text = "Select your Fate! — choose this spin's damage type"
-	title.position = Vector2(16, 14)
-	title.size = Vector2(SZ.x - 32, 24)
-	_fate_picker.add_child(title)
+	_fate_picker_title = Label.new()
+	_fate_picker_title.text = "Select your Fate! — choose this spin's damage type"
+	_fate_picker_title.position = Vector2(16, 14)
+	_fate_picker_title.size = Vector2(SZ.x - 32, 24)
+	_fate_picker.add_child(_fate_picker_title)
 
 	# 6 type buttons in a 3×2 grid, loaded from the canonical .tres set.
 	var type_paths: Array[String] = [
@@ -416,21 +418,30 @@ func _build_fate_picker() -> void:
 func _type_name(dt: DamageType) -> String:
 	return TypeVisuals.type_name(dt)
 
-## Shows the type-picker on top (Seer staging Select your Fate).
-func _show_fate_picker() -> void:
+## Shows the type-picker on top, captioned for the staging it feeds: the paid base ability (Select your
+## Fate) or the free Ultimate picker (The Big Bang). [param mode] is &"ability" or &"ultimate".
+func _show_fate_picker(mode: StringName = &"ability") -> void:
 	if _fate_picker == null:
 		return
+	_fate_picker_mode = mode
+	if _fate_picker_title != null:
+		_fate_picker_title.text = ("The Big Bang — choose this spin's damage type" if mode == &"ultimate"
+			else "Select your Fate! — choose this spin's damage type")
 	move_child(_fate_picker, get_child_count() - 1)
 	_fate_picker.visible = true
 
-## Stages Select your Fate with the chosen type, hides the picker, refreshes the Main-1 preview.
+## Stages the chosen type into whichever action opened the picker, hides it, refreshes the Main-1 preview.
 func _choose_fate_type(dt: DamageType) -> void:
 	if _plan == null or not _awaiting_player_spin:
 		_fate_picker.visible = false
 		return
-	_plan.stage_select_fate(dt)
+	if _fate_picker_mode == &"ultimate":
+		_plan.stage_big_bang(dt)
+		_log("  ✶ The Big Bang — this AoE spin lands as %s." % _type_name(dt))
+	else:
+		_plan.stage_select_fate(dt)
+		_log("  ◈ Select your Fate — this spin lands as %s." % _type_name(dt))
 	_fate_picker.visible = false
-	_log("  ◈ Select your Fate — this spin lands as %s." % _type_name(dt))
 	_refresh_main1_preview()
 
 ## Pre-combat screen: choose a class (and toggle dummies), then BEGIN FIGHT starts the round. Lets the
@@ -497,7 +508,7 @@ func _ability_tooltip(id: StringName) -> String:
 		&"flurry": return "Flurry (2 STA): adds one extra weapon swing this turn. Usable alongside your Ultimate."
 		&"reroll": return "Re-roll (4 STA): after the spin, re-rolls your single worst reel (refunded if none were bad). Wildcard Gamble already re-rolls everything."
 		&"hunters_mark": return "Hunter's Mark (3 STA): marks the target 3 turns — allies' crit-fails become hits against it. Usable alongside your Ultimate."
-		&"select_fate": return "Select your Fate! (6 MANA): adds a reel (joins paylines) and converts this whole spin to a damage type you pick. Usable alongside The Big Bang."
+		&"select_fate": return "Select your Fate! (6 MANA): adds a reel (joins paylines) and converts this whole spin to a damage type you pick. Locked out while The Big Bang is staged — the Ultimate picks the type for free."
 		_: return ""
 
 ## Hover description for the Ultimate button, per class (flags whether the base ability is wasted).
@@ -508,7 +519,7 @@ func _ultimate_tooltip(id: StringName) -> String:
 		&"rampage": return "Rampage (full meter): +1 reel, all misses removed (includes Heft free), hits ALL enemies."
 		&"wildcard_gamble": return "Wildcard Gamble (full meter): re-rolls every non-crit reel double-or-nothing. Replaces Re-roll — don't stage both."
 		&"collateral": return "Collateral Damage (full meter): +1 reel; primary takes full, all other enemies take half as Piercing. Hunter's Mark still works — fire both."
-		&"big_bang": return "The Big Bang (full meter): 4 crit-biased WILD reels hit ALL enemies; heals each ally 1/6 of the total, excess → a shield. Combos with Select your Fate."
+		&"big_bang": return "The Big Bang (full meter): pick a damage type, then 4 crit-biased WILD reels of it hit ALL enemies; heals each ally 1/6 of the total, excess → a shield. (Type choice is free — no need to also cast Select your Fate.)"
 		_: return ""
 
 # ---------------------------------------------------------------------------
@@ -859,6 +870,12 @@ func _on_splice_pressed() -> void:
 func _on_ultimate_pressed() -> void:
 	if not _awaiting_player_spin or _plan == null:
 		return
+	# The Big Bang picks the AoE spin's damage type as part of the Ultimate (free): pressing it while
+	# un-staged opens the same 6-type picker as Select your Fate; choosing a type stages the Ultimate.
+	if _pc.ultimate_id == &"big_bang" and not _plan.fire_ultimate_staged:
+		if _plan.can_stage_ultimate():
+			_show_fate_picker(&"ultimate")
+		return
 	_plan.toggle_ultimate()
 	_refresh_main1_preview()
 
@@ -898,6 +915,11 @@ func _refresh_main1_preview() -> void:
 			_splice_button.text = _ability_label(_attacker.ability_id)
 		_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
 		_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.ability_staged else Color(1, 1, 1)
+	# The Big Bang shows the chosen damage type once staged (its picker is the Ultimate's, not the ability's).
+	if _pc.ultimate_id == &"big_bang" and _plan.fire_ultimate_staged and _plan.selected_fate_type != null:
+		_ultimate_button.text = "The Big Bang: %s (AoE)" % _type_name(_plan.selected_fate_type)
+	else:
+		_ultimate_button.text = _ultimate_label(_pc.ultimate_id)
 	_ultimate_button.disabled = not (is_player_main1 and (_plan.fire_ultimate_staged or _plan.can_stage_ultimate()))
 	_ultimate_button.modulate = Color(0.6, 1.0, 0.6) if _plan.fire_ultimate_staged else Color(1, 1, 1)
 
@@ -1075,7 +1097,10 @@ func _apply_attack(attack) -> void:
 	if attack.final_damage > 0:
 		for t: Combatant in targets:
 			t.take_damage(attack.final_damage)
-		_log("  %s reel → %s for %d damage%s." % [_attacker.display_name, tier_name, attack.final_damage, aoe_tag])
+		# Surface the type matchup (vs the primary defender, which final_damage was computed against) so
+		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
+		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0
+		_log("  %s %s reel → %s for %d damage%s  %s" % [_attacker.display_name, _type_name(attack.damage_type), tier_name, attack.final_damage, aoe_tag, TypeVisuals.effectiveness_tag(mult)])
 	else:
 		_log("  %s reel → %s (no damage)." % [_attacker.display_name, tier_name])
 	# Bonus Meter charge (attacker only). Log BM gains for the player (enemy meter is hidden).

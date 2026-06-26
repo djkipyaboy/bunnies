@@ -24,9 +24,13 @@ const LEGEND_H: float = 18.0
 
 var _types: Array[DamageType] = []
 var _row_headers: Array[Panel] = []   # attacker row-header cells, for highlight_attacker
+var _dragging: bool = false           # the player is dragging the chart to reposition it
 
 ## Builds the whole widget. Call once after adding to the tree.
 func build() -> void:
+	# The whole panel is a drag handle: receive mouse input, show the move cursor over it.
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_default_cursor_shape = Control.CURSOR_MOVE
 	_types.clear()
 	for p: String in TYPE_PATHS:
 		_types.append(load(p))
@@ -37,7 +41,7 @@ func build() -> void:
 	size = custom_minimum_size
 
 	var title := Label.new()
-	title.text = "Type Chart — row attacks column"
+	title.text = "Type Chart — drag to move · row attacks column"
 	title.position = Vector2(PAD, PAD - 2.0)
 	title.add_theme_font_size_override("font_size", 13)
 	add_child(title)
@@ -65,6 +69,35 @@ func build() -> void:
 			_add_cell(mult, Vector2(grid_left + d * CELL_W, y))
 
 	_add_legend(Vector2(PAD, height - PAD - LEGEND_H + 2.0))
+
+	# All cells/labels are decorative — let mouse input fall through to the panel so a drag works anywhere
+	# on the chart (not just the bare gaps between cells).
+	_make_children_ignore_mouse(self)
+
+## Recursively sets every descendant Control (cells, headers, labels, legend) to ignore mouse input, so
+## the panel itself receives the press/drag. Skips the panel node ([param root] == self) so it stays a handle.
+func _make_children_ignore_mouse(node: Node) -> void:
+	for child: Node in node.get_children():
+		if child is Control:
+			(child as Control).mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_make_children_ignore_mouse(child)
+
+## Drag-to-reposition: hold the left button anywhere on the chart and move it. Position is clamped so the
+## chart can't be dragged off-screen (the player can always grab it again).
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		_dragging = (event as InputEventMouseButton).pressed
+		accept_event()
+	elif event is InputEventMouseMotion and _dragging:
+		position += (event as InputEventMouseMotion).relative
+		_clamp_to_viewport()
+		accept_event()
+
+## Keeps the chart fully on-screen after a drag (or if the window is smaller than the chart, pinned to 0,0).
+func _clamp_to_viewport() -> void:
+	var vp: Vector2 = get_viewport_rect().size
+	position.x = clampf(position.x, 0.0, maxf(0.0, vp.x - size.x))
+	position.y = clampf(position.y, 0.0, maxf(0.0, vp.y - size.y))
 
 ## A header cell (short type name on its identity color). Returns it so the row variant can be highlighted.
 func _add_header(type_enum: int, pos: Vector2, w: float, h: float) -> Panel:

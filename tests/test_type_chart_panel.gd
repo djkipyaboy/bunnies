@@ -27,6 +27,23 @@ func _initialize() -> void:
 	panel.highlight_attacker(-1)
 	_check(true, "highlight_attacker ran for several types + clear without error")
 
+	# Draggable: the panel is a STOP handle, its decorative children ignore mouse, and the clamp keeps
+	# the chart on-screen (player request 2026-06-26 — let the player place the chart where they want it).
+	_check(panel.mouse_filter == Control.MOUSE_FILTER_STOP, "panel itself receives mouse input (drag handle)")
+	var all_ignore: bool = true
+	for c: Node in panel.get_children():
+		if c is Control and (c as Control).mouse_filter != Control.MOUSE_FILTER_IGNORE:
+			all_ignore = false
+	_check(all_ignore, "decorative children ignore the mouse so a drag works anywhere on the chart")
+	var vp: Vector2 = panel.get_viewport_rect().size
+	panel.position = Vector2(99999, 99999)
+	panel._clamp_to_viewport()
+	_check(panel.position.x >= 0.0 and panel.position.x <= maxf(0.0, vp.x - panel.size.x) + 0.5, "clamp keeps the chart's X on-screen")
+	_check(panel.position.y >= 0.0 and panel.position.y <= maxf(0.0, vp.y - panel.size.y) + 0.5, "clamp keeps the chart's Y on-screen")
+	panel.position = Vector2(-500, -500)
+	panel._clamp_to_viewport()
+	_check(panel.position.x == 0.0 and panel.position.y == 0.0, "clamp pins a negative drag back to the top-left")
+
 	panel.queue_free()
 	print(("TYPE CHART PANEL TEST PASSED" if _failures == 0 else "TYPE CHART PANEL TEST FAILED: %d" % _failures))
 	quit(_failures)

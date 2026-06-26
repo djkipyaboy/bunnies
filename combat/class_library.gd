@@ -98,8 +98,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.defense_type = mystic
 			# [ASSUMPTION] HP 300 for testing; meter_cap 15 — a 2-reel class charges slowly (standard cap).
 			c.base_max_hp = 300; c.base_max_stamina = 0; c.base_meter_floor = 3; c.meter_cap = 15
-			# Mana-only: max = base 9 + Focus 6 = 15, starts full, +1/turn.
-			c.base_max_mana = 9; c.start_mana = 15; c.mana_regen = 1
+			# Mana-only: max = base 9 + Focus 6 = 15, starts full, +2/turn (playtest tuning 2026-06-26;
+			# future gear/stats/talents will adjust regen — 2 is enough for the prototype).
+			c.base_max_mana = 9; c.start_mana = 15; c.mana_regen = 2
 			c.ability_id = &"select_fate"; c.ability_cost = 6; c.ability_resource = &"mana"
 			c.ultimate_id = &"big_bang"
 			return c

@@ -33,5 +33,15 @@ func _initialize() -> void:
 		seen.append(col)
 	_check(TypeVisuals.type_color_hex(DamageType.Type.EARTH).begins_with("#"), "type_color_hex returns a #rrggbb string")
 
+	# Effectiveness phrase + combat-log tag (the percentage + Pokémon-style flavor).
+	_check(TypeVisuals.effectiveness_phrase(1.0) == "", "neutral ×1.0 has no flavor phrase")
+	_check(TypeVisuals.effectiveness_phrase(1.25) == "super effective!", "×1.25 = super effective")
+	_check(TypeVisuals.effectiveness_phrase(0.75) == "not very effective…", "×0.75 = not very effective")
+	_check(TypeVisuals.effectiveness_phrase(1.5).contains("devastating"), "×1.5 = devastatingly effective")
+	_check(TypeVisuals.effectiveness_phrase(0.5).contains("barely"), "×0.5 = barely effective")
+	_check(TypeVisuals.effectiveness_tag(1.0) == "(100%)", "neutral tag is just the percentage")
+	_check(TypeVisuals.effectiveness_tag(1.25) == "(125% — super effective!)", "strong tag shows percent + phrase")
+	_check(TypeVisuals.effectiveness_tag(0.75) == "(75% — not very effective…)", "weak tag shows percent + phrase")
+
 	print(("TYPE VISUALS TEST PASSED" if _failures == 0 else "TYPE VISUALS TEST FAILED: %d" % _failures))
 	quit(_failures)

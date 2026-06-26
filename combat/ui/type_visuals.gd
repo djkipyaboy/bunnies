@@ -31,6 +31,26 @@ static func type_color(t: int) -> Color:
 static func type_color_hex(t: int) -> String:
 	return "#" + type_color(t).to_html(false)
 
+## Pokémon-style effectiveness phrase for a type-chart multiplier. Empty for a neutral ×1.0 (no flavor
+## needed). Tiers mirror [method tier_color] so the wording and the color always agree.
+static func effectiveness_phrase(m: float) -> String:
+	if m >= 1.5:
+		return "devastatingly effective!"
+	if m >= 1.25:
+		return "super effective!"
+	if m <= 0.5:
+		return "barely effective…"
+	if m < 1.0:
+		return "not very effective…"
+	return ""
+
+## Combat-log effectiveness tag for a multiplier: the percentage plus the Pokémon-style phrase, e.g.
+## "(125% — super effective!)" or, on a neutral matchup, just "(100%)". The one place this format lives.
+static func effectiveness_tag(m: float) -> String:
+	var pct: int = int(round(m * 100.0))
+	var phrase: String = effectiveness_phrase(m)
+	return "(%d%% — %s)" % [pct, phrase] if phrase != "" else "(%d%%)" % pct
+
 ## Effectiveness fill color for a multiplier (white text reads on all five). [ASSUMPTION] tiers.
 static func tier_color(m: float) -> Color:
 	if m >= 1.5:

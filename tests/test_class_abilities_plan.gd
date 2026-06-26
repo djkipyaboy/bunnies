@@ -142,20 +142,25 @@ func _initialize() -> void:
 	_check(bb.bonus_meter.value == 0, "big_bang commit consumed the meter")
 	_check(bb.turn_reels.size() == 4 and bb.is_aoe_active() and bb.is_big_bang_active(), "big_bang commit: 4 reels, AoE, big-bang active")
 
-	# COMBO (player rule 2026-06-26): big_bang does NOT subsume select_fate — both stack, and the chosen
-	# type covers Big Bang's appended reels too (the combo retype in commit).
+	# TYPE PICKER (player request 2026-06-26): The Big Bang carries its OWN free type picker and tops to 4
+	# reels, so it SUBSUMES Select your Fate. stage_big_bang(type) stages the Ultimate with a chosen type,
+	# locks out the paid base ability, and applies the type FREE at commit (no mana spent).
 	var cb: Combatant = _seer(2, mystic)
 	cb.ultimate_id = &"big_bang"
 	cb.bonus_meter = BonusMeter.new(); cb.bonus_meter.cap = 15; cb.bonus_meter.add_flat(15)
 	var pcb: MainPhasePlan = MainPhasePlan.new(cb, 6, 5, 1)
-	pcb.stage_select_fate(storm)
-	pcb.toggle_ultimate()
-	_check(pcb.ability_staged and pcb.fire_ultimate_staged, "select_fate stays staged alongside big_bang (not subsumed)")
-	_check(not pcb.ability_locked_by_ultimate(), "select_fate is not locked by big_bang")
+	pcb.stage_big_bang(storm)
+	_check(pcb.fire_ultimate_staged and pcb.selected_fate_type == storm, "stage_big_bang stages the Ultimate with the chosen type")
+	_check(not pcb.ability_staged, "Big Bang does not stage the paid Select your Fate")
+	_check(pcb.ability_locked_by_ultimate(), "Select your Fate is locked while Big Bang is staged")
 	pcb.commit()
-	_check(cb.turn_reels.size() == 4, "combo commit: 4 reels (select_fate +1, big_bang tops to 4)")
-	var combo_storm: bool = cb.turn_reels.all(func(r: ActionReel) -> bool: return r.damage_type == storm)
-	_check(combo_storm, "combo retypes ALL 4 reels (incl. Big Bang's) to the chosen type")
+	_check(cb.resource_pool.mana == 15, "Big Bang's type choice is FREE — no mana spent (got %d)" % cb.resource_pool.mana)
+	_check(cb.turn_reels.size() == 4, "Big Bang commit: 4 reels")
+	var bb_storm: bool = cb.turn_reels.all(func(r: ActionReel) -> bool: return r.damage_type == storm)
+	_check(bb_storm, "Big Bang retypes ALL 4 reels to the chosen type (free)")
+	# Un-staging clears the chosen type.
+	pcb.toggle_ultimate()
+	_check(not pcb.fire_ultimate_staged and pcb.selected_fate_type == null, "un-staging Big Bang clears the type choice")
 
 	print(("CLASS ABILITIES PLAN TEST PASSED" if _failures == 0 else "CLASS ABILITIES PLAN TEST FAILED: %d" % _failures))
 	quit(_failures)
