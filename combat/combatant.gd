@@ -25,6 +25,11 @@ signal shield_changed(shield_hp: int, shield_turns: int)
 var display_name: String = ""
 var is_player: bool = false
 
+## A non-combat TARGET DUMMY (debug/testing aid): takes splash/AoE damage so the player can see it land,
+## never dies (see [member min_hp]), spends its turn healing to full, and is EXCLUDED from the combat-end
+## check (TurnManager._living) so immortal dummies can't stall a win. Not used in normal play.
+var is_target_dummy: bool = false
+
 ## The class's Main-1 base ability id (spec 2026-06-21 §4A): &"rend" / &"heft" / &"flurry".
 ## Drives MainPhasePlan dispatch. Empty = no base ability.
 var ability_id: StringName = &""
@@ -73,6 +78,10 @@ var base_meter_floor: int = 0
 
 var hp: int = 0
 
+## Floor HP can be reduced to by [method take_damage] (default 0 = can die). Target dummies set this to
+## 1 so they survive any hit (retain 1 HP) — a testing aid, not a normal combat mechanic.
+var min_hp: int = 0
+
 ## The live turn-order sort key (DESIGN.md §4.1) — DERIVED: base_initiative + active modifiers.
 ## Set via [method recompute_initiative]; never mutated directly by effects.
 var current_initiative: int = 0
@@ -99,6 +108,17 @@ var sticky_wild_spins_remaining: int = 0
 ## Vanguard "Rampage" Ultimate state (spec §4A): while > 0, this combatant's attacks this spin are
 ## Area-of-Effect (hit ALL enemies). Set by [method fire_rampage], consumed by [method consume_aoe_spin].
 var aoe_spins_remaining: int = 0
+
+## Ranger "Collateral Damage" Ultimate state (spec §3.4): while > 0, this combatant added a reel and
+## its spin splashes half its primary total to every OTHER enemy as Piercing. SEPARATE from
+## aoe_spins_remaining because the primary takes FULL damage (not half) and stays mark-eligible — only
+## the splash is the AoE portion. Set by [method fire_collateral], consumed by [method consume_collateral_spin].
+var collateral_spins_remaining: int = 0
+
+## Ranger "Hunter's Mark" base ability (spec §3.4): staged in Main 1, this flags that the orchestrator
+## should attach the &"hunters_mark" debuff to the current defender at commit. Stamina is spent here;
+## the orchestrator (which knows the enemy target) does the attach + clears the flag.
+var hunters_mark_pending: bool = false
 
 ## Chancer post-spin state (spec §3.1). reroll_pending: the base Re-roll ability re-rolls the single
 ## worst reel after the spin (refunding reroll_cost if nothing qualified). wildcard_gamble_pending: the
@@ -143,7 +163,7 @@ func take_damage(amount: int) -> void:
 		shield_changed.emit(shield_hp, shield_turns)
 	if remaining <= 0:
 		return
-	hp = maxi(hp - remaining, 0)
+	hp = maxi(hp - remaining, min_hp)  # min_hp > 0 (target dummies) survive any hit, retaining min_hp
 	hp_changed.emit(hp, max_hp)
 	if hp == 0:
 		defeated.emit()
@@ -252,6 +272,11 @@ func _find_effect(id: StringName) -> Effect:
 			return e
 	return null
 
+## True if an effect with [param id] is currently active on this combatant. Used by the orchestrator
+## to test the Ranger's Hunter's Mark on a defender before applying the crit-fail→hit reel swap.
+func has_effect(id: StringName) -> bool:
+	return _find_effect(id) != null
+
 ## Ticks every active effect one bearer-turn, drops the expired ones, and recomputes initiative.
 func tick_effects() -> void:
 	for e: Effect in active_effects:
@@ -272,8 +297,12 @@ func cleanse() -> int:
 # ---------------------------------------------------------------------------
 
 ## Resets this turn's reel set to the weapon baseline. Call at the start of the turn (Upkeep/Main 1).
+## A weaponless combatant (e.g. a target dummy) gets an empty loadout — clear() keeps the array's type.
 func begin_turn() -> void:
-	turn_reels = weapon.reels.duplicate() if weapon != null else []
+	if weapon != null:
+		turn_reels = weapon.reels.duplicate()
+	else:
+		turn_reels.clear()
 
 ## Splices one extra [param type]-typed reel onto THIS turn (additive, never overwrites the weapon).
 ## Spends [param cost] Stamina and respects the [param cap]-reel band ceiling. Returns false (and
@@ -315,6 +344,27 @@ static func worst_reroll_index(attacks: Array) -> int:
 			if a != null and a.face != null and a.face.result_tier == tier:
 				return i
 	return -1
+
+## Hunter's Mark (Ranger ability, spec §3.4) reel transform: returns a copy of [param reels] in which
+## every WEAPON-ATTACK reel has its CRIT_FAILURE faces converted to SUCCESS (×1.0) — the accuracy
+## debuff that turns an attacker's fumbles into hits while the target is marked. Weapon-attack reels are
+## DEEP-copied (their faces are edited on the copy; the originals/weapon are never mutated, matching the
+## Heft pattern); utility reels (is_weapon_attack == false, e.g. Rend) pass through untouched. Static +
+## pure so the N-vs-M face-swap is unit-testable; the orchestrator applies it pre-resolution when the
+## defender is marked and the attacker is not strictly-AoE.
+static func hunters_mark_reels(reels: Array) -> Array[ActionReel]:
+	var out: Array[ActionReel] = []
+	for r: ActionReel in reels:
+		if r != null and r.is_weapon_attack:
+			var copy: ActionReel = r.duplicate(true)  # deep: its own faces
+			for f: ReelFace in copy.faces:
+				if f.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
+					f.result_tier = ReelFace.ResultTier.SUCCESS
+					f.multiplier = 1.0
+			out.append(copy)
+		else:
+			out.append(r)
+	return out
 
 ## Wildcard Gamble (Chancer Ultimate) double-or-nothing transform for ONE re-rolled reel: a crit-success
 ## re-roll doubles the reel's original damage; a fail/crit-fail re-roll zeroes it; anything else leaves
@@ -445,6 +495,46 @@ func is_aoe_active() -> bool:
 func consume_aoe_spin() -> void:
 	if aoe_spins_remaining > 0:
 		aoe_spins_remaining -= 1
+
+# ---------------------------------------------------------------------------
+# Ranger "Collateral Damage" Ultimate (spec §3.4) — costs ONLY the Bonus Meter
+# ---------------------------------------------------------------------------
+
+## Fires the Collateral Damage Ultimate if the meter is armed: consumes the full meter, splices one
+## extra [param extra_reel_type] weapon-attack reel onto this turn (e.g. 4 → 5), and flags the next
+## [param spins] spins as Collateral. The primary defender takes FULL weapon damage (normal resolution);
+## the orchestrator then splashes half the primary total to every OTHER enemy as Piercing. NOT an AoE
+## spin (is_aoe_active stays false) so the primary hit remains Hunter's-Mark-eligible. Returns false if
+## not armed.
+func fire_collateral(extra_reel_type: DamageType, spins: int) -> bool:
+	if bonus_meter == null or not bonus_meter.is_armed():
+		return false
+	bonus_meter.consume()
+	turn_reels.append(ActionReel.make_default(extra_reel_type))  # +1 weapon-attack reel for the Collateral turn
+	collateral_spins_remaining = spins
+	return true
+
+## True while a Collateral splash spin is pending (this combatant's spin splashes to other enemies).
+func is_collateral_active() -> bool:
+	return collateral_spins_remaining > 0
+
+## Consumes one Collateral spin. Call once per resolved spin.
+func consume_collateral_spin() -> void:
+	if collateral_spins_remaining > 0:
+		collateral_spins_remaining -= 1
+
+# ---------------------------------------------------------------------------
+# Ranger "Hunter's Mark" base ability (spec §3.4) — costs Stamina; applied by the orchestrator
+# ---------------------------------------------------------------------------
+
+## Stages Hunter's Mark: spends [param cost] Stamina and flags a pending mark. The orchestrator (which
+## knows the enemy target) attaches the &"hunters_mark" debuff to the defender at commit and clears the
+## flag. Returns false (no change) if unaffordable.
+func stage_hunters_mark(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	hunters_mark_pending = true
+	return true
 
 # ---------------------------------------------------------------------------
 # Chancer reroll / Wildcard Gamble (spec §3.1) — reroll costs Stamina; gamble costs the meter

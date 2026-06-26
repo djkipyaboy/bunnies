@@ -42,5 +42,18 @@ static func make(id: StringName) -> Effect:
 			e.dot_fractions = [0.50, 0.80, 1.15]
 			e.beneficial = false
 			return e
+		&"hunters_mark":
+			# Ranger's Hunter's Mark (spec §3.4): a 3-turn accuracy debuff on ONE enemy. It carries no
+			# initiative/DoT payload — it's a MARKER. While the bearer is marked, any non-AoE attacker's
+			# weapon-attack reels have their crit-fail face swapped for a HIT (applied by the orchestrator
+			# via Combatant.hunters_mark_reels). Kind REEL_FACE_EDIT is inert in recompute_initiative and
+			# _apply_dot, so the effect only exists to be detected by has_effect + ticked over 3 turns.
+			var e: Effect = Effect.new()
+			e.id = &"hunters_mark"
+			e.kind = Effect.Kind.REEL_FACE_EDIT
+			e.duration = 3
+			e.max_stacks = 1
+			e.beneficial = false
+			return e
 		_:
 			return null

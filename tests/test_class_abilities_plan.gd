@@ -66,7 +66,8 @@ func _initialize() -> void:
 	pn.toggle_ability()
 	_check(not pn.ability_staged, "empty ability_id cannot stage")
 
-	# ULTIMATE LOCK (spec 2026-06-25 §5): staging a non-Rampage Ultimate un-stages + locks the base ability.
+	# NON-SUBSUMING ULTIMATE (player request 2026-06-26): Sticky Wild does NOT include Flurry, so the
+	# base ability stays usable ALONGSIDE the Ultimate — neither un-staged nor locked.
 	var u: Combatant = _pc(&"flurry", 4, slashing)
 	u.ultimate_id = &"sticky_wild"
 	u.bonus_meter = BonusMeter.new(); u.bonus_meter.cap = 10; u.bonus_meter.add_flat(10)  # arm it
@@ -75,14 +76,27 @@ func _initialize() -> void:
 	_check(pu.ability_staged, "flurry stages before the ultimate")
 	pu.toggle_ultimate()
 	_check(pu.fire_ultimate_staged, "ultimate stages")
-	_check(not pu.ability_staged, "staging the ultimate UN-stages the base ability")
-	_check(pu.ability_locked_by_ultimate(), "base ability is locked while the ultimate is staged")
+	_check(pu.ability_staged, "Sticky Wild keeps Flurry staged (usable alongside)")
+	_check(not pu.ability_locked_by_ultimate(), "Flurry is NOT locked by a non-subsuming Ultimate")
 	pu.toggle_ability()
-	_check(not pu.ability_staged, "ability toggle is a no-op while locked by the ultimate")
-	pu.toggle_ultimate()  # un-stage the ultimate
-	_check(not pu.fire_ultimate_staged and not pu.ability_locked_by_ultimate(), "un-staging the ultimate unlocks the ability")
+	_check(not pu.ability_staged, "Flurry can still be toggled off while the Ultimate is staged")
 	pu.toggle_ability()
-	_check(pu.ability_staged, "ability stages again once the ultimate is un-staged")
+	_check(pu.ability_staged, "Flurry can be re-staged while the Ultimate is staged")
+
+	# SUBSUMING ULTIMATE: Wildcard Gamble re-rolls every reel, so it locks out the single-reel Re-roll
+	# (staging both would waste Stamina). Staging the Ultimate un-stages + locks the base ability.
+	var cg: Combatant = _pc(&"reroll", 4, slashing)
+	cg.resource_pool.stamina = 5  # Re-roll costs 4 — ensure it's affordable to stage
+	cg.ultimate_id = &"wildcard_gamble"
+	cg.bonus_meter = BonusMeter.new(); cg.bonus_meter.cap = 10; cg.bonus_meter.add_flat(10)
+	var pcg: MainPhasePlan = MainPhasePlan.new(cg, 4, 5, 2)
+	pcg.toggle_ability()
+	_check(pcg.ability_staged, "reroll stages before the ultimate")
+	pcg.toggle_ultimate()
+	_check(not pcg.ability_staged, "Wildcard Gamble un-stages the subsumed Re-roll")
+	_check(pcg.ability_locked_by_ultimate(), "Re-roll is locked while Wildcard Gamble is staged")
+	pcg.toggle_ability()
+	_check(not pcg.ability_staged, "Re-roll toggle is a no-op while subsumed/locked")
 
 	# RAMPAGE still BAKES IN Heft (Vanguard) — included/free, NOT locked-out.
 	var vg: Combatant = _pc(&"heft", 2, crushing)

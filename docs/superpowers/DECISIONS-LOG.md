@@ -179,3 +179,49 @@ Spec: `specs/2026-06-21-class-system-v1-design.md` (§4A abilities, §4B BLEED).
 - **Sticky-Wild Ultimate auto-targets reel 0** (you delegated this choice). Reel-pick UI = later.
 - All earlier `[ASSUMPTION]` balance numbers (Slow −20/−10/−5 cap 3; Stamina 3/5/+1; splice cost 2;
   HP 100/100) are placeholders set to make the loop testable.
+
+## Ranger class (2026-06-25, branch `remaining-four-classes` — 5th of 7)
+Built design-first from `2026-06-22-remaining-four-classes-design.md §3.4` + `Bunnies New Class Info.txt`.
+All values `[ASSUMPTION]` (tune by playtest). +3 headless suites (test_ranger_class / test_hunters_mark /
+test_collateral); full suite 45 → **48 green**.
+- **Stats 2/4/2/2/1/0; Piercing Hunting Bow base 7, 4 reels; Stamina 8 base + 2 Focus = 10; meter_cap 30**
+  (4-reel class charges fast, matching Skirmisher/Chancer); Luck 0 (Chancer-exclusive). HP flat 300.
+- **Base — Hunter's Mark (3 STA):** a 3-turn `&"hunters_mark"` debuff (Effect.Kind.REEL_FACE_EDIT — inert
+  in initiative/DoT, just a marker) attached to the defender at Main-1 commit. While a target is marked,
+  any non-AoE attacker's **weapon-attack** reels have their crit-fail faces swapped for hits
+  (`Combatant.hunters_mark_reels`, pure/static, deep-copies so the weapon is never mutated; utility reels
+  like Rend pass through). The Ranger's own same-turn spin benefits (applied in `_do_spin`, idempotent).
+- **Ultimate — Collateral Damage:** consumes meter, +1 weapon-attack reel (4→5), **not** an AoE spin
+  (separate `collateral_spins_remaining` flag → primary takes full damage and stays mark-eligible). After
+  the spin, every OTHER enemy takes `ceil(primary_total / 2)` "as Piercing" — applied flat for now (no
+  per-target type recompute, same future N-vs-M refinement as Rampage). Splash sums reel `final_damage`
+  only (payline bonus excluded) `[ASSUMPTION]`. 1v1 degenerates to a clean +1-reel single-target hit;
+  the splash is verified with a synthetic 3-enemy headless setup.
+- **Lockout follows the 2026-06-25 §5 rule:** staging Collateral locks out Hunter's Mark (one big play
+  OR the base ability) — a deliberate trade-off, not a Ranger special-case.
+- **UI:** end-card class picker now **wraps** (4-per-row grid, taller card) so 5→7 classes fit inside the
+  result card instead of overflowing its right edge.
+
+## Playtest tooling + ability-lock rework (2026-06-26, player requests)
+- **Ability/Ultimate lock REWORKED (player call):** an Ultimate now locks the base ability ONLY when it
+  **subsumes** it. `MainPhasePlan._ultimate_subsumes_ability()` returns true for Rampage+Heft (handled as
+  free/coupled) and Wildcard Gamble+Re-roll (locked). Warrior (Wild+Rend), Ranger (Collateral+Hunter's
+  Mark), and Skirmisher (Sticky-Wild+Flurry) may now fire the Ultimate AND use their base ability — those
+  abilities aren't included in the Ultimate, so locking them out was needless. Tooltips state which combos
+  would waste a resource. (Replaces the blanket 2026-06-25 §5 "any Ultimate locks the base ability" rule.)
+- **Window 1600×900** (was 1280×800) + respaced UI: PC panel left, dummies in the center gap, enemy panel +
+  action buttons in a right column, wider combat log. `[ASSUMPTION]` sizing — tune in playtest.
+- **Tooltips** (`tooltip_text`) on every button (spin/end/ability/ultimate/paylines/dummy), the class-picker
+  buttons, and the target click-catchers — class-specific ability/ultimate text via `_ability_tooltip`/
+  `_ultimate_tooltip`/`_class_tooltip`.
+- **Start-of-session class select:** a pre-combat overlay (class picker + dummy toggle + BEGIN FIGHT) so the
+  tester picks a class before the first fight, not only on the end card. Shared `_build_class_picker` helper
+  feeds both the start and result overlays.
+- **Target dummies → PERMANENT** (player approved): toggle stays in the build. Two immortal 30-HP dummies,
+  heal-to-full each turn, floor at 1 HP (`Combatant.min_hp`), excluded from `TurnManager._living` so combat
+  still ends only when the PC or the real enemy dies. Exposed a latent `begin_turn()` type bug (untyped `[]`
+  → typed array) for weaponless combatants — fixed.
+- **N-vs-M target selection:** click an enemy panel to set the player's primary target (`_player_target`,
+  persists across turns, red outline via `CombatantPanel.set_targeted`). Drives normal attacks, Hunter's
+  Mark, and the Collateral primary; other enemies still get the splash. First real N-vs-M control surface
+  (the playable scene can now run 1-vs-3 against the dummies).

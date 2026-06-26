@@ -32,8 +32,15 @@ func _initialize() -> void:
 	_check(skirmisher.meter_cap == 30, "skirmisher meter_cap 30 (raised — charges fast)")
 	_check(skirmisher.ultimate_id == &"sticky_wild", "skirmisher ultimate = sticky_wild (2-spin)")
 
+	var ranger: CharacterClass = ClassLibrary.make(&"ranger")
+	_check(ranger.reel_count == 4 and ranger.base_stats.finesse == 4, "ranger: 4 reels, Finesse 4")
+	_check(ranger.ability_id == &"hunters_mark", "ranger ability = hunters_mark")
+	_check(ranger.ability_cost == 3 and ranger.ability_resource == &"stamina", "hunters_mark costs 3 stamina")
+	_check(ranger.ultimate_id == &"collateral", "ranger ultimate = collateral")
+	_check(ranger.weapon_base_damage == 7.0, "ranger bow base 7")
+
 	_check(ClassLibrary.make(&"nope") == null, "unknown id -> null")
-	_check(ClassLibrary.IDS.size() == 4, "4 classes registered (Warrior/Vanguard/Skirmisher + Chancer)")
+	_check(ClassLibrary.IDS.size() == 5, "5 classes registered (+ Ranger)")
 
 	# Each class builds a valid combatant end-to-end.
 	for id: StringName in ClassLibrary.IDS:

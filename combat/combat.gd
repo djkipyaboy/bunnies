@@ -46,9 +46,22 @@ var _plan: MainPhasePlan
 ## reload_current_scene() (a reload builds a fresh Combat node — an instance var would reset to Warrior).
 static var _pc_class_id: StringName = &"warrior"
 
+## Debug/testing toggle (spec: target dummies): when on, two immortal "Target Dummy" enemies (30 HP,
+## heal-to-full each turn, retain 1 HP) join the fight so AoE/splash (Collateral, Rampage, Big Bang) can
+## be seen landing. STATIC so the choice survives reload_current_scene() like _pc_class_id.
+static var _dummies_enabled: bool = false
+var _dummies: Array[Combatant] = []
+var _dummy_toggle_button: Button
+
 var _attacker: Combatant
 var _defender: Combatant
+## The enemy the PLAYER has selected as their primary target (N-vs-M targeting). Persists across the
+## player's turns; defaults to the main enemy. Clicking an enemy panel during the player's pre-spin
+## window retargets it. Drives _defender on the PC's turn (so attacks/Hunter's Mark/Collateral aim here).
+var _player_target: Combatant
+var _start_overlay: Panel
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
+var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
 var _awaiting_stun_check: bool = false
@@ -59,7 +72,7 @@ func _ready() -> void:
 	_build_scenario()
 	_build_ui()
 	_bind_signals()
-	_start_combat()
+	_build_start_overlay()  # pick a class (and toggle dummies) BEFORE the fight begins
 	# Reposition the action-reels block below the (now-built+bound) panels' real height. Deferred so
 	# the panels' size has settled first — runs after this frame's layout pass.
 	_relayout_action_block.call_deferred()
@@ -90,6 +103,22 @@ func _build_scenario() -> void:
 	_enemy = _make_combatant("Cluny's Rat", false, 300, earth, _make_weapon(8.0, crushing, 2), false, Stats.new(), [])
 
 	_turn_manager.combatants = [_pc, _enemy]
+
+	# Debug: two immortal target dummies (30 HP) so AoE/splash is visible. They heal to full on their turn
+	# and never drop below 1 HP; excluded from the win check so they can't stall combat.
+	_dummies.clear()
+	if _dummies_enabled:
+		_dummies.append(_make_dummy("Target Dummy 1", earth))
+		_dummies.append(_make_dummy("Target Dummy 2", earth))
+		for d: Combatant in _dummies:
+			_turn_manager.combatants.append(d)
+
+## Builds a target dummy: 30 HP, no weapon (never attacks), is_target_dummy + min_hp 1 (never dies).
+func _make_dummy(dummy_name: String, defense: DamageType) -> Combatant:
+	var c: Combatant = _make_combatant(dummy_name, false, 30, defense, null, false, Stats.new(), [])
+	c.is_target_dummy = true
+	c.min_hp = 1
+	return c
 
 func _make_weapon(base_damage: float, type: DamageType, reel_count: int) -> Weapon:
 	var w: Weapon = Weapon.new()
@@ -139,14 +168,25 @@ func _build_ui() -> void:
 	add_child(_turn_order_bar)
 
 	_pc_panel = CombatantPanel.new()
-	_pc_panel.position = Vector2(40, 70)
+	_pc_panel.position = Vector2(40, 80)
 	add_child(_pc_panel)
 	_panels[_pc] = _pc_panel
 
+	# Enemy panel anchors the right column (the action buttons stack beneath it).
 	_enemy_panel = CombatantPanel.new()
-	_enemy_panel.position = Vector2(852, 70)
+	_enemy_panel.position = Vector2(1310, 80)
 	add_child(_enemy_panel)
 	_panels[_enemy] = _enemy_panel
+
+	# Target-dummy panels sit in the free center gap between the PC and enemy panels (same top, so the
+	# action-reels relayout below the panels is unaffected). Each is a normal CombatantPanel so every
+	# existing _panels[c] refresh path works unchanged.
+	var dummy_positions: Array[Vector2] = [Vector2(370, 80), Vector2(700, 80)]
+	for i: int in range(_dummies.size()):
+		var dp := CombatantPanel.new()
+		dp.position = dummy_positions[i] if i < dummy_positions.size() else Vector2(370 + i * 330, 80)
+		add_child(dp)
+		_panels[_dummies[i]] = dp
 
 	# Action-reels block sits below the combatant panels (which grew taller with the Stamina/effect
 	# lines); moved down so the panel's Stamina readout no longer overlaps this caption.
@@ -170,104 +210,249 @@ func _build_ui() -> void:
 	_phase_label.position = Vector2(40, 478)
 	add_child(_phase_label)
 
-	# Scrollable combat log — keeps the full history; scroll back to the start of the fight.
+	# Scrollable combat log — keeps the full history; scroll back to the start of the fight. Width runs
+	# up to (but clear of) the right-hand button column; height is set by _relayout_action_block.
 	_log_bg = Panel.new()
-	_log_bg.position = Vector2(40, 500)
-	_log_bg.size = Vector2(820, 134)
+	_log_bg.position = Vector2(40, 540)
+	_log_bg.size = Vector2(1240, 134)
 	add_child(_log_bg)
 
 	_log_box = RichTextLabel.new()
 	_log_box.bbcode_enabled = false
 	_log_box.scroll_active = true
 	_log_box.scroll_following = true
-	_log_box.position = Vector2(48, 506)
-	_log_box.size = Vector2(806, 122)
+	_log_box.position = Vector2(48, 546)
+	_log_box.size = Vector2(1226, 122)
 	add_child(_log_box)
+
+	# Right-hand action-button column, stacked beneath the enemy panel. BTN_X aligns with the enemy panel.
+	const BTN_X: float = 1310.0
+	const BTN_SIZE := Vector2(230, 50)
+
+	_ultimate_button = Button.new()
+	_ultimate_button.text = "Fire Ultimate (WILD)"
+	_ultimate_button.position = Vector2(BTN_X, 300)
+	_ultimate_button.custom_minimum_size = BTN_SIZE
+	_ultimate_button.disabled = true
+	add_child(_ultimate_button)
+
+	_splice_button = Button.new()
+	_splice_button.text = "Splice Storm reel (2 STA)"
+	_splice_button.position = Vector2(BTN_X, 360)
+	_splice_button.custom_minimum_size = BTN_SIZE
+	_splice_button.disabled = true
+	add_child(_splice_button)
 
 	_spin_button = Button.new()
 	_spin_button.text = "SPIN"
-	_spin_button.position = Vector2(900, 456)
-	_spin_button.custom_minimum_size = Vector2(210, 52)
+	_spin_button.position = Vector2(BTN_X, 430)
+	_spin_button.custom_minimum_size = BTN_SIZE
 	_spin_button.disabled = true
+	_spin_button.tooltip_text = "Resolve the Combat phase — spin every action reel as its own attack."
 	add_child(_spin_button)
 
 	_end_turn_button = Button.new()
 	_end_turn_button.text = "END TURN"
-	_end_turn_button.position = Vector2(900, 520)
-	_end_turn_button.custom_minimum_size = Vector2(210, 52)
+	_end_turn_button.position = Vector2(BTN_X, 490)
+	_end_turn_button.custom_minimum_size = BTN_SIZE
 	_end_turn_button.disabled = true
+	_end_turn_button.tooltip_text = "Finish your turn after reviewing the spin's results."
 	add_child(_end_turn_button)
-
-	_splice_button = Button.new()
-	_splice_button.text = "Splice Storm reel (2 STA)"
-	_splice_button.position = Vector2(900, 392)
-	_splice_button.custom_minimum_size = Vector2(210, 52)
-	_splice_button.disabled = true
-	add_child(_splice_button)
-
-	_ultimate_button = Button.new()
-	_ultimate_button.text = "Fire Ultimate (WILD)"
-	_ultimate_button.position = Vector2(900, 328)
-	_ultimate_button.custom_minimum_size = Vector2(210, 52)
-	_ultimate_button.disabled = true
-	add_child(_ultimate_button)
 
 	_paylines_button = Button.new()
 	_paylines_button.text = "Paylines"
-	_paylines_button.position = Vector2(900, 584)
-	_paylines_button.custom_minimum_size = Vector2(210, 52)
+	_paylines_button.position = Vector2(BTN_X, 550)
+	_paylines_button.custom_minimum_size = BTN_SIZE
+	_paylines_button.tooltip_text = "Cycle through this loadout's payline patterns one at a time (legibility aid)."
 	add_child(_paylines_button)
+
+	# Debug toggle: add/remove the two target dummies, then reload so the change takes effect.
+	_dummy_toggle_button = Button.new()
+	_dummy_toggle_button.text = "Target dummies: %s" % ("ON" if _dummies_enabled else "OFF")
+	_dummy_toggle_button.position = Vector2(BTN_X, 610)
+	_dummy_toggle_button.custom_minimum_size = Vector2(230, 44)
+	_dummy_toggle_button.tooltip_text = "Add/remove two immortal 30-HP target dummies for testing AoE/splash. Reloads the fight."
+	add_child(_dummy_toggle_button)
 
 	_build_overlay()
 
 	(_panels[_pc] as CombatantPanel).bind(_pc)
 	(_panels[_enemy] as CombatantPanel).bind(_enemy)
+	for d: Combatant in _dummies:
+		(_panels[d] as CombatantPanel).bind(d)
+	_build_target_click_catchers()
 
-func _build_overlay() -> void:
-	# Centered result card (NOT a full-screen cover) so the combat log stays readable after the fight.
-	const OVERLAY_SIZE := Vector2(420, 270)
-	_overlay = Panel.new()
-	_overlay.size = OVERLAY_SIZE
-	var viewport: Vector2 = get_viewport_rect().size
-	_overlay.position = (viewport - OVERLAY_SIZE) * 0.5
-	_overlay.visible = false
-	add_child(_overlay)
-
-	# Centered, symmetric contents: title spans the card width (centered), button centered below it.
-	var result_label := Label.new()
-	result_label.name = "ResultLabel"
-	result_label.position = Vector2(0, 44)
-	result_label.size = Vector2(OVERLAY_SIZE.x, 60)
-	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	result_label.add_theme_font_size_override("font_size", 48)
-	_overlay.add_child(result_label)
-
-	const RESTART_SIZE := Vector2(180, 56)
-	var restart := Button.new()
-	restart.text = "Fight again"
-	restart.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 120)
-	restart.custom_minimum_size = RESTART_SIZE
-	restart.pressed.connect(func() -> void: get_tree().reload_current_scene())
-	_overlay.add_child(restart)
-
-	# Class picker (spec §6): pick which class the PC is, then replay — so each class is play-testable.
+## Shared class picker: a "Play as:" label + a wrapped grid of class buttons added to [param parent]
+## starting at [param top_y]. Each button reloads the scene as that class (the static survives reload);
+## the current class is highlighted green. Returns the Y just below the grid (so callers can stack more).
+func _build_class_picker(parent: Control, top_y: float) -> float:
 	var pick_label := Label.new()
 	pick_label.text = "Play as:"
-	pick_label.position = Vector2(20, 188)
-	_overlay.add_child(pick_label)
-
-	const PICK_SIZE := Vector2(120, 38)
+	pick_label.position = Vector2(24, top_y)
+	parent.add_child(pick_label)
+	const PER_ROW: int = 4
+	const PICK_SIZE := Vector2(112, 38)
+	const COL_STEP: float = 118.0
+	const ROW_STEP: float = 44.0
+	var grid_top: float = top_y + 26.0
 	var ids: Array[StringName] = ClassLibrary.IDS
 	for i: int in range(ids.size()):
 		var id: StringName = ids[i]
 		var b := Button.new()
 		b.text = String(id).capitalize()
-		b.position = Vector2(20 + i * 128, 214)
+		b.position = Vector2(24 + (i % PER_ROW) * COL_STEP, grid_top + (i / PER_ROW) * ROW_STEP)
 		b.custom_minimum_size = PICK_SIZE
+		b.tooltip_text = _class_tooltip(id)
+		if id == _pc_class_id:
+			b.modulate = Color(0.6, 1.0, 0.6)  # highlight the current selection
 		b.pressed.connect(func() -> void:
 			_pc_class_id = id
 			get_tree().reload_current_scene())
-		_overlay.add_child(b)
+		parent.add_child(b)
+	var rows: int = (ids.size() + PER_ROW - 1) / PER_ROW
+	return grid_top + rows * ROW_STEP
+
+func _build_overlay() -> void:
+	# Centered result card (NOT a full-screen cover) so the combat log stays readable after the fight.
+	const OVERLAY_SIZE := Vector2(520, 360)
+	_overlay = Panel.new()
+	_overlay.size = OVERLAY_SIZE
+	_overlay.position = (get_viewport_rect().size - OVERLAY_SIZE) * 0.5
+	_overlay.visible = false
+	add_child(_overlay)
+
+	var result_label := Label.new()
+	result_label.name = "ResultLabel"
+	result_label.position = Vector2(0, 40)
+	result_label.size = Vector2(OVERLAY_SIZE.x, 56)
+	result_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	result_label.add_theme_font_size_override("font_size", 46)
+	_overlay.add_child(result_label)
+
+	const RESTART_SIZE := Vector2(180, 52)
+	var restart := Button.new()
+	restart.text = "Fight again"
+	restart.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 112)
+	restart.custom_minimum_size = RESTART_SIZE
+	restart.tooltip_text = "Restart the fight as the highlighted class."
+	restart.pressed.connect(func() -> void: get_tree().reload_current_scene())
+	_overlay.add_child(restart)
+
+	# Class picker (spec §6): pick which class the PC is, then replay — so each class is play-testable.
+	_build_class_picker(_overlay, 182)
+
+## Pre-combat screen: choose a class (and toggle dummies), then BEGIN FIGHT starts the round. Lets the
+## tester pick a class at the START of a session instead of only on the end card (player request).
+func _build_start_overlay() -> void:
+	const SZ := Vector2(560, 340)
+	_start_overlay = Panel.new()
+	_start_overlay.size = SZ
+	_start_overlay.position = (get_viewport_rect().size - SZ) * 0.5
+	add_child(_start_overlay)
+
+	var title := Label.new()
+	title.text = "Combat Prototype"
+	title.position = Vector2(0, 24)
+	title.size = Vector2(SZ.x, 40)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 34)
+	_start_overlay.add_child(title)
+
+	var sub := Label.new()
+	sub.text = "Pick a class, set up the fight, then begin."
+	sub.position = Vector2(0, 70)
+	sub.size = Vector2(SZ.x, 24)
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_start_overlay.add_child(sub)
+
+	var below: float = _build_class_picker(_start_overlay, 104)
+
+	var dummy_btn := Button.new()
+	dummy_btn.text = "Target dummies: %s" % ("ON" if _dummies_enabled else "OFF")
+	dummy_btn.position = Vector2(24, below + 16)
+	dummy_btn.custom_minimum_size = Vector2(230, 44)
+	dummy_btn.tooltip_text = "Add two immortal 30-HP dummies to test AoE/splash. Reloads."
+	dummy_btn.pressed.connect(_on_dummy_toggle_pressed)
+	_start_overlay.add_child(dummy_btn)
+
+	const BEGIN_SIZE := Vector2(200, 52)
+	var begin := Button.new()
+	begin.text = "BEGIN FIGHT"
+	begin.position = Vector2(SZ.x - BEGIN_SIZE.x - 24, below + 12)
+	begin.custom_minimum_size = BEGIN_SIZE
+	begin.tooltip_text = "Start combat as the highlighted class."
+	begin.pressed.connect(func() -> void:
+		_start_overlay.visible = false
+		_start_combat())
+	_start_overlay.add_child(begin)
+
+## Per-class one-line summaries for the class-picker button tooltips.
+func _class_tooltip(id: StringName) -> String:
+	match id:
+		&"warrior": return "Warrior — Slashing, 3 reels. Rend stacks BLEED; Wild Ultimate (1 spin)."
+		&"vanguard": return "Vanguard — Crushing, 2 heavy reels. Heft removes misses; Rampage (AoE, includes Heft)."
+		&"skirmisher": return "Skirmisher — Slashing, 4 fast reels. Flurry adds a swing; Sticky Wild (2 spins)."
+		&"chancer": return "Chancer — Storm, 4 reels, Luck. Re-roll worst reel; Wildcard Gamble (casino lines)."
+		&"ranger": return "Ranger — Piercing, 4 reels. Hunter's Mark turns misses to hits; Collateral Damage (splash)."
+		_: return "Playable class."
+
+## Hover description for the base-ability button, per class (notes whether it stacks with the Ultimate).
+func _ability_tooltip(id: StringName) -> String:
+	match id:
+		&"rend": return "Rend (2 STA): adds a reel that applies stacking BLEED on a hit (no direct damage). Usable alongside your Ultimate."
+		&"heft": return "Heft (2 STA): converts this turn's miss faces into hits. Rampage already includes Heft for free."
+		&"flurry": return "Flurry (2 STA): adds one extra weapon swing this turn. Usable alongside your Ultimate."
+		&"reroll": return "Re-roll (4 STA): after the spin, re-rolls your single worst reel (refunded if none were bad). Wildcard Gamble already re-rolls everything."
+		&"hunters_mark": return "Hunter's Mark (3 STA): marks the target 3 turns — allies' crit-fails become hits against it. Usable alongside your Ultimate."
+		_: return ""
+
+## Hover description for the Ultimate button, per class (flags whether the base ability is wasted).
+func _ultimate_tooltip(id: StringName) -> String:
+	match id:
+		&"wild": return "Wild (full meter): all weapon reels crit-biased for 1 spin. Your base ability still works — fire both."
+		&"sticky_wild": return "Sticky Wild (full meter): all weapon reels crit-biased for 2 spins. Your base ability still works — fire both."
+		&"rampage": return "Rampage (full meter): +1 reel, all misses removed (includes Heft free), hits ALL enemies."
+		&"wildcard_gamble": return "Wildcard Gamble (full meter): re-rolls every non-crit reel double-or-nothing. Replaces Re-roll — don't stage both."
+		&"collateral": return "Collateral Damage (full meter): +1 reel; primary takes full, all other enemies take half as Piercing. Hunter's Mark still works — fire both."
+		_: return ""
+
+# ---------------------------------------------------------------------------
+# Target selection (N-vs-M): click an enemy panel to make it the primary target
+# ---------------------------------------------------------------------------
+
+## Adds an invisible click-catcher button over each enemy-side panel; clicking it selects that enemy as
+## the player's primary target. Built once after the panels are bound.
+func _build_target_click_catchers() -> void:
+	for c: Combatant in _turn_manager.combatants:
+		if c.is_player or not _panels.has(c):
+			continue
+		var panel: CombatantPanel = _panels[c]
+		var hit := Button.new()
+		hit.flat = true
+		hit.modulate = Color(1, 1, 1, 0)  # invisible; input is gated by mouse_filter, not alpha
+		hit.position = panel.position
+		hit.custom_minimum_size = Vector2(260, 192)
+		hit.size = Vector2(260, 192)
+		hit.tooltip_text = "Click to make %s your primary target." % c.display_name
+		hit.pressed.connect(_select_target.bind(c))
+		add_child(hit)
+
+## Selects [param enemy] as the player's primary target — only during the player's own pre-spin window.
+func _select_target(enemy: Combatant) -> void:
+	if enemy == null or not enemy.is_alive() or enemy.is_player:
+		return
+	if not (_awaiting_player_spin and _attacker == _pc):
+		return
+	_player_target = enemy
+	_defender = enemy
+	_refresh_target_highlight()
+	_log("  ◎ Target: %s." % enemy.display_name)
+
+## Outlines the current primary-target enemy panel (and clears the others).
+func _refresh_target_highlight() -> void:
+	for c: Combatant in _turn_manager.combatants:
+		if _panels.has(c):
+			(_panels[c] as CombatantPanel).set_targeted(c == _defender and not c.is_player)
 
 ## Repositions the whole action-reels block (banner → caption → strips → phase → log) BELOW the
 ## actual measured panel height, so it can never overlap the panels again when they grow more rows.
@@ -316,6 +501,7 @@ func _bind_signals() -> void:
 	_splice_button.pressed.connect(_on_splice_pressed)
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 	_paylines_button.pressed.connect(_on_paylines_pressed)
+	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
 
 func _start_combat() -> void:
 	_log("Playing as: %s  [%s]" % [_pc.display_name, String(_pc_class_id).capitalize()])
@@ -344,6 +530,7 @@ func _ability_label(id: StringName) -> String:
 		&"heft": return "Heft: steady the reels (2 STA)"
 		&"flurry": return "Flurry: +1 swing (2 STA)"
 		&"reroll": return "Re-roll worst reel (4 STA)"
+		&"hunters_mark": return "Hunter's Mark: debuff target (3 STA)"
 		_: return "Ability"
 
 ## Short ability name for the combat log.
@@ -353,6 +540,7 @@ func _ability_name(id: StringName) -> String:
 		&"heft": return "Heft (steady reels)"
 		&"flurry": return "Flurry (extra swing)"
 		&"reroll": return "Re-roll (worst reel)"
+		&"hunters_mark": return "Hunter's Mark (accuracy debuff)"
 		_: return "ability"
 
 ## Ultimate button label + log name, per the active class's Ultimate.
@@ -362,6 +550,7 @@ func _ultimate_label(id: StringName) -> String:
 		&"wild": return "ULTIMATE: Wild (1 spin)"
 		&"sticky_wild": return "ULTIMATE: Sticky Wild (2 spins)"
 		&"wildcard_gamble": return "ULTIMATE: Wildcard Gamble"
+		&"collateral": return "ULTIMATE: Collateral Damage"
 		_: return "Fire Ultimate"
 
 func _ultimate_name(id: StringName) -> String:
@@ -370,11 +559,20 @@ func _ultimate_name(id: StringName) -> String:
 		&"wild": return "WILD (all reels crit-biased, 1 spin)"
 		&"sticky_wild": return "STICKY WILD (all reels crit-biased, 2 spins)"
 		&"wildcard_gamble": return "WILDCARD GAMBLE (re-roll non-crits, double-or-nothing)"
+		&"collateral": return "COLLATERAL DAMAGE (+1 reel, splash all enemies)"
 		_: return "Ultimate"
 
 func _on_turn_started(c: Combatant) -> void:
 	_attacker = c
-	_defender = _enemy if c == _pc else _pc
+	# Primary target: on the PC's turn it's the player-selected enemy (default the main enemy), refreshed
+	# if it died; on an enemy/dummy turn the PC is the target. Drives attacks/Hunter's Mark/Collateral.
+	if c == _pc:
+		if _player_target == null or not _player_target.is_alive() or _player_target.is_player:
+			_player_target = _enemy
+		_defender = _player_target
+	else:
+		_defender = _pc
+	_refresh_target_highlight()
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
@@ -382,9 +580,15 @@ func _on_turn_started(c: Combatant) -> void:
 	# The ability/Ultimate buttons are the PLAYER's controls — always label them from the PC, never the
 	# current attacker (else the enemy's turn shows the enemy's Ultimate, e.g. Cluny's "Sticky Wild").
 	_splice_button.text = _ability_label(_pc.ability_id)
+	_splice_button.tooltip_text = _ability_tooltip(_pc.ability_id)
 	_ultimate_button.text = _ultimate_label(_pc.ultimate_id)
+	_ultimate_button.tooltip_text = _ultimate_tooltip(_pc.ultimate_id)
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
 	_end_turn_button.disabled = true
+	# Target dummies don't fight — they just heal to full and pass. Handle before the stun/spin flow.
+	if c.is_target_dummy:
+		_take_dummy_turn(c)
+		return
 	var is_stunned: bool = c.evaluate_stun(STUN_THRESHOLD)
 	(_panels[c] as CombatantPanel).refresh_status()  # reflect/clear the STUNNED tag now that it's evaluated
 	if is_stunned:
@@ -411,6 +615,28 @@ func _on_turn_started(c: Combatant) -> void:
 		get_tree().create_timer(ENEMY_THINK_DELAY).timeout.connect(_do_spin, CONNECT_ONE_SHOT)
 	# Render the preview AFTER _awaiting_player_spin is set — button states read it.
 	_refresh_main1_preview()
+
+## A target dummy's whole turn: spend it healing back to full, skip the Combat phase entirely, then end.
+func _take_dummy_turn(c: Combatant) -> void:
+	_spin_button.disabled = true
+	_splice_button.disabled = true
+	_ultimate_button.disabled = true
+	var none: Array[ActionReel] = []
+	_prepare_strips(none)  # no reels — the dummy doesn't spin
+	var missing: int = c.max_hp - c.hp
+	if missing > 0:
+		c.heal(missing)
+		_log("  %s heals to full (%d/%d)." % [c.display_name, c.hp, c.max_hp])
+	else:
+		_log("  %s is already at full HP (%d/%d)." % [c.display_name, c.hp, c.max_hp])
+	(_panels[c] as CombatantPanel).refresh_status()
+	# Brief beat, then skip Combat: Main 2 → End → turn_finished → advance.
+	get_tree().create_timer(ENEMY_THINK_DELAY).timeout.connect(_phase_manager.resume_after_combat, CONNECT_ONE_SHOT)
+
+## Flips the target-dummy toggle and reloads so the scenario rebuilds with/without the dummies.
+func _on_dummy_toggle_pressed() -> void:
+	_dummies_enabled = not _dummies_enabled
+	get_tree().reload_current_scene()
 
 func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 	_phase_label.text = "Phase: %s" % PhaseManager.Phase.keys()[phase]
@@ -457,6 +683,15 @@ func _on_spin_pressed() -> void:
 			_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(_attacker.ability_id)])
 		if did_ultimate:
 			_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
+		# Hunter's Mark applies its debuff to the defender NOW (Main-1 commit), so this turn's own spin
+		# already benefits from the crit-fail→hit swap (applied in _do_spin). The plan spent the Stamina;
+		# the orchestrator owns the enemy target, so it does the attach (ARCHITECTURE §2 authority rule).
+		if _attacker.hunters_mark_pending:
+			var mark: Effect = EffectLibrary.make(&"hunters_mark")
+			_defender.attach_effect(mark)
+			_attacker.hunters_mark_pending = false
+			_log("  ⊕ %s MARKS %s — allies' crit-fails become hits vs it (%d turns)." % [_attacker.display_name, _defender.display_name, mark.duration])
+			(_panels[_defender] as CombatantPanel).refresh_status()
 	_spin_button.disabled = true
 	_splice_button.disabled = true
 	_ultimate_button.disabled = true
@@ -622,6 +857,13 @@ func _do_spin() -> void:
 	if _phase_manager.current_phase != PhaseManager.Phase.COMBAT:
 		_phase_manager.proceed_to_combat()  # enemy auto-commit (player committed in _on_spin_pressed)
 	_payline_banner.text = ""
+	# Hunter's Mark (spec §3.4): if the defender is marked and this attack isn't strictly-AoE, swap the
+	# attacker's weapon-attack reels' crit-fail faces for hits BEFORE resolution. Idempotent (a swapped
+	# reel has no crit-fails left), so it's safe even though the player path already prepared strips —
+	# we re-prepare so the strips animate to the swapped faces (legibility: the fumble visibly vanishes).
+	if not _attacker.is_aoe_active() and _defender.has_effect(&"hunters_mark"):
+		_attacker.turn_reels = Combatant.hunters_mark_reels(_attacker.turn_reels)
+		_prepare_strips(_attacker.turn_reels)
 	var reels: Array[ActionReel] = _attacker.turn_reels
 	# Payline grid width = weapon-attack reels in THIS spin (base + Flurry/Rampage additions; the
 	# no-damage Rend reel is excluded). Equals weapon.reels.size() on a normal turn (no regression).
@@ -632,6 +874,12 @@ func _do_spin() -> void:
 	# Post-spin Chancer pass (no-op for every other class — their flags are false). Overwrites attacks[i]
 	# IN PLACE so strips animate to the final index and damage applies once on settle.
 	_rerolled_indices = _apply_post_spin_rerolls(reels, attacks, weapon_count)
+	# Collateral Damage (Ranger Ultimate): remember the primary-target total from this spin's reels so
+	# _finish_spin can splash half (ceil) to every OTHER enemy as Piercing. Computed AFTER any reroll.
+	_collateral_total = 0
+	if _attacker.is_collateral_active():
+		for a in attacks:
+			_collateral_total += a.final_damage
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
 	# deferred the emit above.)
@@ -814,6 +1062,21 @@ func _append_banner(tag: String) -> void:
 	_payline_banner.text = ("Lines: " + tag) if _payline_banner.text == "" else (_payline_banner.text + "  •  " + tag)
 
 func _finish_spin() -> void:
+	# Collateral Damage (Ranger Ultimate): the primary took full damage from each reel; now splash half
+	# its total (ceil) to every OTHER enemy as Piercing (spec §3.4). 1v1 has no other enemies → no-op;
+	# the splash is verified headlessly with a synthetic 3-enemy setup. [ASSUMPTION] splash = total/2,
+	# off the type chart for now (per-target type recompute is the same future N-vs-M refinement as Rampage).
+	if _attacker.is_collateral_active():
+		var splash: int = ceili(_collateral_total / 2.0)
+		if splash > 0:
+			for other: Combatant in _enemies_of(_attacker):
+				if other == _defender:
+					continue
+				other.take_damage(splash)
+				_log("  💥 Collateral splash → %s takes %d Piercing (half of %d)." % [other.display_name, splash, _collateral_total])
+				if _panels.has(other):
+					(_panels[other] as CombatantPanel).refresh_status()
+		_attacker.consume_collateral_spin()
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	_attacker.clear_reroll_state()  # Chancer reroll/gamble were applied in _do_spin's post-spin pass

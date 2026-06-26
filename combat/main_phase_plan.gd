@@ -24,6 +24,8 @@ var wild_spins: int
 const RAMPAGE_CONVERSIONS: int = 3
 ## Rampage is a single-turn Ultimate (AoE for the fired spin only).
 const RAMPAGE_SPINS: int = 1
+## Collateral Damage (Ranger) is a single-turn Ultimate (+1 reel, splash for the fired spin only).
+const COLLATERAL_SPINS: int = 1
 ## Crit-bias WILD spin counts, separated per class (spec 2026-06-21 iteration 2):
 ## the Warrior's &"wild" is single-spin; the Skirmisher's &"sticky_wild" rides for two.
 const WILD_SPINS: int = 1
@@ -74,15 +76,28 @@ func _is_wild_ultimate() -> bool:
 func _rampage_includes_heft() -> bool:
 	return ultimate_id == &"rampage" and ability_id == &"heft"
 
+## True when the staged Ultimate ALREADY performs the base ability, so staging both would waste the
+## player's resource. Rampage bakes in Heft (the free/coupled case); Wildcard Gamble re-rolls EVERY
+## reel, which subsumes the single-reel Re-roll. Every other Ultimate (Warrior Wild + Rend, Ranger
+## Collateral + Hunter's Mark, Skirmisher Sticky Wild + Flurry) leaves the base ability independently
+## useful, so it stays available ALONGSIDE the Ultimate (player request 2026-06-26).
+func _ultimate_subsumes_ability() -> bool:
+	if ultimate_id == &"rampage" and ability_id == &"heft":
+		return true
+	if ultimate_id == &"wildcard_gamble" and ability_id == &"reroll":
+		return true
+	return false
+
 ## True while the base ability (Heft) is provided FREE by a staged Rampage — toggled on, no Stamina.
 func ability_is_free() -> bool:
 	return fire_ultimate_staged and _rampage_includes_heft()
 
-## True when a staged Ultimate locks OUT the base ability (every class except the Vanguard's Rampage,
-## which instead bakes Heft in — that's ability_is_free, not locked). The Ultimate is the turn's big
-## play; you take it OR the base ability, not both (spec 2026-06-25 §5; pillar §4 trade-offs).
+## True when a staged Ultimate locks OUT the base ability. Only Ultimates that SUBSUME the ability lock
+## it (Chancer's Gamble over Re-roll) — taking both there just wastes the resource. Rampage's Heft is
+## "free" (ability_is_free), not "locked". Ultimates that don't include the ability never lock it, so
+## Warrior/Ranger/Skirmisher can fire their Ultimate AND use their base ability (pillar §4 trade-offs).
 func ability_locked_by_ultimate() -> bool:
-	return fire_ultimate_staged and ability_id != &"" and not ability_is_free()
+	return fire_ultimate_staged and ability_id != &"" and _ultimate_subsumes_ability() and not ability_is_free()
 
 func toggle_ability() -> void:
 	if ability_is_free() or ability_locked_by_ultimate():
@@ -101,8 +116,9 @@ func toggle_ultimate() -> void:
 		fire_ultimate_staged = true
 		if _rampage_includes_heft():
 			ability_staged = true    # toggling Rampage auto-toggles Heft (free, included)
-		else:
-			ability_staged = false   # every other class: the Ultimate cancels a staged base ability
+		elif _ultimate_subsumes_ability():
+			ability_staged = false   # the Ultimate already does it — drop the staged ability (no waste)
+		# else: leave the base ability as the player staged it — it's usable alongside this Ultimate
 
 ## The reels the spin WOULD use. A staged reel-adding ability (flurry/rend) appends a previewed
 ## own-type reel (rend's preview reel is a no-damage BLEED reel). Heft edits faces in place on commit,
@@ -115,8 +131,9 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_default(combatant.weapon_type()))
 			&"rend":
 				reels.append(ActionReel.make_rend(combatant.weapon_type()))
-	# The Rampage Ultimate previews its +1 attack reel too (Heft/AoE aren't shown as strips).
-	if fire_ultimate_staged and ultimate_id == &"rampage" and reels.size() < reel_cap:
+	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't shown as
+	# strips) and Collateral Damage (the splash isn't a strip). Both add one own-type weapon reel.
+	if fire_ultimate_staged and (ultimate_id == &"rampage" or ultimate_id == &"collateral") and reels.size() < reel_cap:
 		reels.append(ActionReel.make_default(combatant.weapon_type()))
 	return reels
 
@@ -167,6 +184,8 @@ func commit() -> void:
 				combatant.apply_heft(ability_cost)
 			&"reroll":
 				combatant.stage_reroll(ability_cost)
+			&"hunters_mark":
+				combatant.stage_hunters_mark(ability_cost)  # orchestrator attaches the mark to the defender
 	if fire_ultimate_staged:
 		match ultimate_id:
 			&"wild":
@@ -177,3 +196,5 @@ func commit() -> void:
 				combatant.fire_rampage(combatant.weapon_type(), RAMPAGE_CONVERSIONS, RAMPAGE_SPINS)
 			&"wildcard_gamble":
 				combatant.fire_wildcard_gamble()
+			&"collateral":
+				combatant.fire_collateral(combatant.weapon_type(), COLLATERAL_SPINS)  # +1 reel; orchestrator splashes

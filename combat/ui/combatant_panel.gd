@@ -136,6 +136,18 @@ func preview_resources(preview_stamina: int) -> void:
 	else:
 		_stamina_label.text = "STA %d/%d" % [cur, _combatant.resource_pool.max_stamina]
 
+## Outlines this panel when it's the player's selected primary target (N-vs-M targeting). A red border
+## via a stylebox override; removing the override restores the default panel look.
+func set_targeted(on: bool) -> void:
+	if on:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.17, 0.12, 0.12)
+		sb.border_color = Color(0.92, 0.42, 0.32)
+		sb.set_border_width_all(3)
+		add_theme_stylebox_override("panel", sb)
+	else:
+		remove_theme_stylebox_override("panel")
+
 ## Pulses the Bonus Meter bar while an Ultimate is staged (signals "will be consumed on SPIN").
 ## Steady (default colour) when off. Cosmetic only.
 func set_meter_flash(on: bool) -> void:

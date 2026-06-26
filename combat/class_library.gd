@@ -5,7 +5,7 @@ extends RefCounted
 ## returns a FRESH CharacterClass each call. Values are [ASSUMPTION] placeholders — tune by playtest.
 ## (CharacterClass is a Resource, so these can migrate to authored .tres later.)
 
-const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer"]
+const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer", &"ranger"]
 
 static func _stats(mi: int, fi: int, vi: int, fo: int, gr: int, lu: int) -> Stats:
 	var s: Stats = Stats.new()
@@ -16,6 +16,7 @@ static func make(id: StringName) -> CharacterClass:
 	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
 	var storm: DamageType = load("res://combat/resources/types/storm.tres")
+	var piercing: DamageType = load("res://combat/resources/types/piercing.tres")
 	match id:
 		&"warrior":
 			# Balanced bruiser (the canonical Martin). Base ability Rend → stacking BLEED (§4B).
@@ -71,6 +72,20 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"reroll"; c.ability_cost = 4; c.ability_resource = &"stamina"
 			c.ultimate_id = &"wildcard_gamble"
 			c.payline_profile_id = &"casino"
+			return c
+		&"ranger":
+			# Precision archer: four Piercing bow reels, marks a target so allies' fumbles become hits,
+			# Ultimate scatters an explosive shot. Base ability Hunter's Mark (spec §3.4).
+			var c: CharacterClass = CharacterClass.new()
+			c.display_name = "Ranger (Squirrel)"; c.species = "Squirrel"
+			c.base_stats = _stats(2, 4, 2, 2, 1, 0)
+			c.weapon_base_damage = 7.0; c.weapon_type = piercing; c.reel_count = 4
+			c.defense_type = piercing
+			# [ASSUMPTION] HP 300 for testing; meter_cap 30 — a 4-reel class charges fast (like Skirmisher/Chancer).
+			c.base_max_hp = 300; c.base_max_stamina = 8; c.base_meter_floor = 3; c.meter_cap = 30
+			c.start_stamina = 3; c.stamina_regen = 1  # base 8 + Focus 2 = 10 total stamina (spec §3.4)
+			c.ability_id = &"hunters_mark"; c.ability_cost = 3; c.ability_resource = &"stamina"
+			c.ultimate_id = &"collateral"
 			return c
 		_:
 			return null

@@ -96,7 +96,7 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 - **Play the loop:** open the project in Godot and press play (or run `combat.tscn`). Judge feel here
   — *that's the human call* (CLAUDE.md §5 hard ceiling: Claude builds the loop, the human decides
   whether the spin is fun).
-- **Headless test suite — 45 suites, all green** (each prints `… TEST PASSED/FAILED`, exits non-zero
+- **Headless test suite — 48 suites, all green** (each prints `… TEST PASSED/FAILED`, exits non-zero
   on failure). To run one:
   ```bash
   Godot_v4.6.3-stable_win64_console.exe --headless --path . --script res://tests/test_<name>.gd
@@ -129,17 +129,31 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-**FOUR of seven classes are LIVE, in-scene, and playtested** (end-card class picker replays as each):
+**FIVE of seven classes are LIVE and in-scene** (class picker at start AND on the end card):
 
 - **Warrior (Martin)** — Slashing, 3 reels. Base **Rend** → stacking **BLEED** DoT. Ultimate `wild`.
 - **Vanguard (Sunflash)** — Crushing, 2 reels, heavy. Base **Heft** (reel-edit, removes misses).
   Ultimate **Rampage** (`rampage`: +1 reel, Heft-all, AoE) — its +1 reel now counts toward paylines.
 - **Skirmisher (Basil Stag Hare)** — Slashing, 4 reels, fast. Base **Flurry** (own-type splice).
   Ultimate `sticky_wild` (2-spin).
-- **Chancer (Cheek the Otter)** — Storm, 4 reels, **Luck 1** (was 4 — tuned down post-playtest). Base
-  **Re-roll** (worst reel, refund if none bad). Ultimate **Wildcard Gamble** (`wildcard_gamble`).
-  **Casino payline profile** (`payline_profile_id = &"casino"`): ~20 left-to-right lines scored as
-  left-aligned runs (≥3). **Playtested 2026-06-25 — the casino feel is GOOD (human-approved).**
+- **Chancer (Cheek the Otter)** — Storm, 4 reels, **Luck 1**. Base **Re-roll** (worst reel, refund if none
+  bad). Ultimate **Wildcard Gamble**. **Casino payline profile** — human-approved 2026-06-25.
+- **Ranger (Squirrel)** — Piercing bow, 4 reels, stamina 10. Base **Hunter's Mark** (`hunters_mark`,
+  REEL_FACE_EDIT debuff, 3 turns, 3 STA): while an enemy is marked, any non-AoE attacker's weapon-attack
+  reels have crit-fails swapped for hits (`Combatant.hunters_mark_reels`). Ultimate **Collateral Damage**
+  (`collateral`): +1 reel, primary takes full, all other enemies take `ceil(total/2)` Piercing. **Built
+  2026-06-26 — awaiting cross-class fun/fairness playtest.**
+
+**SHIPPED 2026-06-26 — Ranger + playtest tooling** (all 48 suites green):
+- **Ability/Ultimate lock rule UPDATED:** an Ultimate locks the base ability ONLY if it **subsumes** it
+  (Vanguard Rampage=Heft free/coupled; Chancer Gamble→Re-roll locked). Warrior (Wild+Rend), Ranger
+  (Collateral+Mark), Skirmisher (Sticky-Wild+Flurry) can fire BOTH. Switch: `MainPhasePlan._ultimate_subsumes_ability()`.
+- **Window 1600×900**, respaced UI; **tooltips** on every button + class picker; **start-of-session
+  class-select overlay** (pick class + dummy toggle → BEGIN FIGHT).
+- **Target dummies (PERMANENT):** toggle adds two immortal 30-HP dummies (heal to full each turn, floor at
+  1 HP via `Combatant.min_hp`, excluded from `TurnManager._living` so they can't stall the win).
+- **N-vs-M target selection:** click an enemy panel to set the primary target (red outline; `_player_target`/
+  `CombatantPanel.set_targeted`); drives normal attacks + Hunter's Mark + Collateral primary.
 
 **SHIPPED 2026-06-23/25 — Casino paylines + payline-toggle polish** (specs
 `2026-06-23-chancer-casino-paylines-design.md`, `2026-06-25-payline-toggle-polish-and-reel-rules-design.md`):
@@ -154,13 +168,9 @@ reels** so Flurry/Rampage additions join the grid while the no-damage Rend reel 
 suite list in §5): **Mana** pool + derivation, **Heal**, **Shielded** buff, **Cleanse**. So the new
 classes mostly compose existing hooks, not new architecture.
 
-**NEXT SESSION — build the remaining three classes, ONE AT A TIME, design-first → spec → implement →
-playtest** (CLAUDE.md §5; raw design input committed as `Bunnies New Class Info.txt`):
+**NEXT SESSION — build the remaining TWO classes (Seer, Warden), ONE AT A TIME, design-first → spec →
+implement → playtest** (CLAUDE.md §5; raw design input committed as `Bunnies New Class Info.txt`):
 
-- **Ranger** — Piercing, bow, 4 reels, **stamina 10**. Base **Hunter's Mark** (party-wide accuracy
-  debuff on one enemy: replaces the crit-fail face on weapon reels attacking the marked target, 3 turns,
-  non-AoE; 3 STA). Ultimate **Collateral Damage** (+1 reel; primary takes full damage, all other enemies
-  take half rounded up as Piercing).
 - **Seer** — Mystic, war staff, 2 reels, **Mana 15/15** (+1 regen). Base **Select your Fate!** (+1 reel,
   choose one of 6 damage types for the whole spin; 6 mana). Ultimate **The Big Bang** (4 WILD reels, AoE;
   heal each ally 1/6 of total dealt, excess → Shielded 2t).

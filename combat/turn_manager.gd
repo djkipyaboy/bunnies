@@ -83,7 +83,9 @@ func winner_is_player() -> bool:
 func _living(is_player: bool) -> Array[Combatant]:
 	var out: Array[Combatant] = []
 	for c: Combatant in combatants:
-		if c.is_player == is_player and c.is_alive():
+		# Target dummies are excluded: they never die (min_hp 1), so counting them would mean the player
+		# could never clear the enemy side and win. They still take turns; they just don't gate combat end.
+		if c.is_player == is_player and c.is_alive() and not c.is_target_dummy:
 			out.append(c)
 	return out
 
