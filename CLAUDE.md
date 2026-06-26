@@ -240,14 +240,22 @@ each turn, floor at 1 HP via `Combatant.min_hp`, and are excluded from the win c
 and **N-vs-M target selection** (click an enemy panel to set the primary target; red outline; drives
 attacks/Hunter's Mark/Collateral). Combat still ends only when the PC or the real enemy dies.
 
-**NEXT SESSION — whole-roster cross-class fun/fairness playtest** (the human call, §5 hard ceiling). All seven
-classes are built and test-green; the open question is whether they're *fun* and *fair against each other* —
-play `combat.tscn`, pick each class from the start overlay (and on the end card), and judge. The Warden's
-Earthquake (the newest, designed 2026-06-29) and the Seer/Ranger Ultimates have not yet had a human playtest.
-Tune `[ASSUMPTION]` balance numbers (per-class stats/HP/costs, Earthquake stun-bypasses-anti-lock, Rallying
-Cry's always-shields face mix, splash fractions) only AFTER the spins feel right — never balance-by-fiat (§4).
-The **Pick'em Bonus** Ultimate that was the Warden's old placeholder is **superseded** by Earthquake (player's
-2026-06-29 design).
+**NEXT SESSION — build the N-vs-M PARTY-COMBAT prototype** (player direction 2026-06-29). All seven classes are
+built, test-green (60 suites), and the **Warden was human-playtested 2026-06-29** (Earthquake felt good; tuning
+applied that session — meter cap 15→20, Rallying Cry reel charges **no** Bonus Meter, action-button column
+lowered +40 to clear the taller caster panels). A **distributable single-file build** was exported to
+`dist/BunniesCombatPrototype.exe` (git-ignored) for in-person playtesters. The next build is **actual N-vs-M
+party combat** — see the locked party-UI plan below (vertical columns: player party LEFT, enemy party RIGHT).
+Everything is already architected party-ready (`current_initiative`, AoE/splash/heal/shield broadcast over the
+combatant list, per-combatant effects, click-to-select targeting); the prototype just still *runs* 1v1 + dummies.
+
+**Still-open per-class playtests (do alongside, not blocking):** the **Seer/Ranger Ultimates** have not had a
+dedicated human playtest yet. Tune `[ASSUMPTION]` numbers (stats/HP/costs, Earthquake stun-bypasses-anti-lock,
+Rallying Cry's always-shields face mix, splash/heal fractions) only AFTER the spins feel right (§4). The old
+**Pick'em Bonus** Warden placeholder is **superseded** by Earthquake.
+
+**Deferred UI polish (full-demo phase, not combat-scene phase):** button **hover-tooltip text wraps off the
+window** — re-flow tooltips when we shift from the bare combat scene to a full game demo (player note 2026-06-29).
 
 **Still deferred (§7 YAGNI):** weapon riders, gear beyond the Padded Jerkin, races + specialization branches,
 the deferred world/meta classes (`EncounterTable`/`RewardTable`/talents), and full **N-vs-M party combat**

@@ -193,13 +193,21 @@ reels** so Flurry/Rampage additions join the grid while the no-damage Rend reel 
 suite list in §5): **Mana** pool + derivation, **Heal**, **Shielded** buff, **Cleanse**. So the new
 classes mostly compose existing hooks, not new architecture.
 
-**NEXT SESSION — whole-roster cross-class fun/fairness playtest** (CLAUDE.md §5 hard ceiling). All seven
-classes are built, each with its own headless suites (60 green total). The open question is the human call:
-are they **fun**, and **fair against each other**? Play `combat.tscn`, pick each class from the start overlay
-(and the end card), and judge. The Warden's Earthquake (built 2026-06-29) and the Seer/Ranger Ultimates have
-not yet had a human playtest. Tune `[ASSUMPTION]` numbers (per-class stats/HP/costs; Earthquake's
-stun-bypasses-anti-lock and "any-damage-stuns" calls; Rallying Cry's always-shields face mix; splash/heal
-fractions) only **after** the spins feel right — never balance-by-fiat (§4).
+**NEXT SESSION — build the N-vs-M PARTY-COMBAT prototype** (player direction 2026-06-29). All seven classes are
+built and test-green (60 suites); the **Warden was human-playtested 2026-06-29** — Earthquake felt good. Tuning
+applied that session and merged to `main`: meter cap 15→20, the Rallying Cry reel charges **no** Bonus Meter
+(`ActionReel.charges_meter`), and the right-hand action-button column dropped +40px to clear the taller caster
+panels. A **single-file distributable** was exported to `dist/BunniesCombatPrototype.exe` (git-ignored) for
+in-person playtesters and confirmed to launch cleanly. The next build is **real N-vs-M party combat** per the
+locked party-UI plan below (vertical columns — player party LEFT, enemy party RIGHT). The systems are already
+party-ready (`current_initiative`, AoE/splash/heal/shield broadcast over the combatant list, per-combatant
+effects, click-to-select targeting); the prototype just still *runs* 1v1 + dummies.
+
+**Open per-class playtests (alongside, non-blocking):** the **Seer/Ranger** Ultimates haven't had a dedicated
+human playtest. Tune `[ASSUMPTION]` numbers (per-class stats/HP/costs; Earthquake's stun-bypasses-anti-lock and
+"any-damage-stuns" calls; Rallying Cry's always-shields face mix; splash/heal fractions) only **after** the
+spins feel right — never balance-by-fiat (§4). **Deferred to the full-demo phase:** button hover-tooltips wrap
+off the window — re-flow them when we move past the bare combat scene (player note 2026-06-29).
 
 **Still deferred (don't build speculatively — §7 YAGNI):** the 6th Ultimate archetype polish, weapon
 riders, gear beyond the Padded Jerkin, races + specialization branches, and full **N-vs-M party combat**
