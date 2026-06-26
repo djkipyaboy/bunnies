@@ -184,9 +184,15 @@ fairness between classes** (the human call, §5) before moving to the next.
 **Still deferred (don't build speculatively — §7 YAGNI):** the 6th Ultimate archetype polish, weapon
 riders, gear beyond the Padded Jerkin, races + specialization branches, and full **N-vs-M party combat**
 (everything is architected party-ready — `current_initiative`, Inspirational-targets-all-allies,
-per-combatant effects/Shielded — but the prototype still *runs* 1v1; party + target-selection + N-frame
-UI come after the roster). Plus tuning all `[ASSUMPTION]` balance numbers post-playtest, and the UI
-polish recorded in `ARCHITECTURE.md §9`.
+per-combatant effects/Shielded, and now **click-to-select primary targeting** — but the prototype still
+*runs* 1v1 + dummies). Plus tuning all `[ASSUMPTION]` balance numbers post-playtest, and the UI polish
+recorded in `ARCHITECTURE.md §9`.
+
+> **N-vs-M PARTY-UI PLAN (player request 2026-06-26, build with the party prototype):** lay combatant
+> panels out as **vertical columns — the player's party down the LEFT edge, the enemy party down the
+> RIGHT edge** of the window (replacing the current top-row PC | dummies | enemy strip). The center then
+> frees up for the reels/log. The panels were widened to 300px on 2026-06-26 so the target-selection
+> outline contains all rows (HP bar / 6-stat line / Bonus Meter); carry that width into the column layout.
 
 ---
 

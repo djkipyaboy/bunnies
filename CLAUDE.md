@@ -233,7 +233,11 @@ attacks/Hunter's Mark/Collateral). Combat still ends only when the PC or the rea
 
 **Still deferred (§7 YAGNI):** weapon riders, gear beyond the Padded Jerkin, races + specialization branches,
 the deferred world/meta classes (`EncounterTable`/`RewardTable`/talents), and full **N-vs-M party combat**
-(architected party-ready — `current_initiative`, Inspirational-targets-all-allies, per-combatant effects —
-but the prototype still *runs* 1v1; party + target-selection + N-frame UI come after the roster). Plus
-tuning all `[ASSUMPTION]` numbers post-playtest; UI polish recorded in `ARCHITECTURE.md §9`.
-Full current snapshot: `HANDOFF.md`.
+(architected party-ready — `current_initiative`, Inspirational-targets-all-allies, per-combatant effects,
+and now click-to-select targeting — but the prototype still *runs* 1v1 + dummies). Plus tuning all
+`[ASSUMPTION]` numbers post-playtest; UI polish recorded in `ARCHITECTURE.md §9`. Full snapshot: `HANDOFF.md`.
+
+**N-vs-M party-UI plan (player request 2026-06-26):** when the party prototype is built, arrange combatant
+panels as **vertical columns — player party down the LEFT edge, enemy party down the RIGHT edge** (instead
+of the current top row), freeing the center for reels/log. Panels are now 300px wide (the target outline
+must contain the HP bar / 6-stat line / Bonus Meter) — keep that width in the column layout.

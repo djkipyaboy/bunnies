@@ -225,3 +225,13 @@ test_collateral); full suite 45 → **48 green**.
   persists across turns, red outline via `CombatantPanel.set_targeted`). Drives normal attacks, Hunter's
   Mark, and the Collateral primary; other enemies still get the splash. First real N-vs-M control surface
   (the playable scene can now run 1-vs-3 against the dummies).
+
+## Panel-width fix + N-vs-M party-UI plan (2026-06-26)
+- **Combatant panel width 260 → 300** (rows 240 → 280, stats font 16 → 13): the VBox stretched the HP
+  bar / Bonus Meter / status row to the width of the 6-stat line, which overflowed the 260px panel border
+  — so the target-selection outline didn't contain all the content. Widened the panel + rows and trimmed
+  the stats font so everything sits inside the border. Reflowed panel/button/log X positions to suit.
+- **PLANNED (not built — for the N-vs-M party prototype, player request):** arrange combatant panels as
+  **vertical columns** — the player's party down the LEFT window edge, the enemy party down the RIGHT edge
+  — replacing the current top-row PC | dummies | enemy strip. Frees the center for the reels + log. Carry
+  the 300px panel width into that layout. Recorded in CLAUDE.md §8 and HANDOFF.md §6 deferred.
