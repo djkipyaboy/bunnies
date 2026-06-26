@@ -11,6 +11,7 @@ var _meter_caption: Label
 var _meter_bar: ProgressBar
 var _status_label: RichTextLabel
 var _stamina_label: Label
+var _shield_label: Label
 var _stats_label: Label
 var _combatant: Combatant
 var _meter_flash_tween: Tween
@@ -59,6 +60,10 @@ func _ready() -> void:
 	_stamina_label.add_theme_color_override("font_color", Color(0.5, 0.8, 0.9))
 	box.add_child(_stamina_label)
 
+	_shield_label = Label.new()
+	_shield_label.add_theme_color_override("font_color", Color(0.6, 0.85, 1.0))
+	box.add_child(_shield_label)
+
 	_status_label = RichTextLabel.new()
 	_status_label.bbcode_enabled = true
 	_status_label.fit_content = true
@@ -86,7 +91,9 @@ func bind(c: Combatant) -> void:
 
 	if c.resource_pool != null:
 		c.resource_pool.pool_changed.connect(_on_pool_changed)
+	c.shield_changed.connect(_on_shield_changed)
 	refresh_resources()
+	refresh_shield()
 	_refresh_stats()
 
 ## Refreshes the effective-stats readout (placeholder; feel judged in play-test).
@@ -117,28 +124,50 @@ func refresh_status() -> void:
 		parts.insert(0, "[color=#e0e040]STUNNED[/color]")
 	_status_label.text = "  ".join(parts)
 
-## Updates the Stamina readout (blank when the combatant has no pool). Call from bind()+on_upkeep.
+## Updates the resource readout from BOTH rails — "STA x/y" when the class uses stamina, "MANA x/y" when
+## it uses mana (a mana-only Seer shows only MANA). Blank when the combatant has no pool. Call from
+## bind()+on_upkeep.
 func refresh_resources() -> void:
-	if _stamina_label == null:
-		return
-	if _combatant == null or _combatant.resource_pool == null:
-		_stamina_label.text = ""
-		return
-	_stamina_label.text = "STA %d/%d" % [_combatant.resource_pool.stamina, _combatant.resource_pool.max_stamina]
+	preview_resources(-1)
 
-## Shows a pending Stamina change ("STA 3 → 1 / 5") while a cost is staged; falls back to the plain
-## readout when preview matches current. Cleared/refreshed by refresh_resources() after a commit.
-func preview_resources(preview_stamina: int) -> void:
+## Shows a pending change on the ABILITY's rail ("MANA 15 → 9 / 15") while a cost is staged; the other
+## rail (if any) reads plainly. [param preview_value] is the post-commit value on the combatant's
+## ability_resource rail; pass -1 to render the plain current values (no preview). Rail-aware so it works
+## for stamina classes, the mana-only Seer, and any future hybrid.
+func preview_resources(preview_value: int) -> void:
 	if _stamina_label == null:
 		return
 	if _combatant == null or _combatant.resource_pool == null:
 		_stamina_label.text = ""
 		return
-	var cur: int = _combatant.resource_pool.stamina
-	if preview_stamina != cur:
-		_stamina_label.text = "STA %d → %d / %d" % [cur, preview_stamina, _combatant.resource_pool.max_stamina]
+	var pool: ResourcePool = _combatant.resource_pool
+	var rail: StringName = _combatant.ability_resource
+	var parts: PackedStringArray = []
+	if pool.max_stamina > 0:
+		parts.append(_rail_text("STA", pool.stamina, pool.max_stamina, rail == &"stamina", preview_value))
+	if pool.max_mana > 0:
+		parts.append(_rail_text("MANA", pool.mana, pool.max_mana, rail == &"mana", preview_value))
+	_stamina_label.text = "   ".join(parts)
+
+## Formats one resource rail, showing a "cur → preview / max" delta when this is the ability rail and a
+## (non-negative, different) preview was supplied; otherwise the plain "cur / max".
+func _rail_text(tag: String, cur: int, max_v: int, is_ability_rail: bool, preview_value: int) -> String:
+	if is_ability_rail and preview_value >= 0 and preview_value != cur:
+		return "%s %d → %d / %d" % [tag, cur, preview_value, max_v]
+	return "%s %d/%d" % [tag, cur, max_v]
+
+## Updates the SHIELDED chip ("🛡 SHIELD n (m)" while a shield is up, blank otherwise). Bound to
+## shield_changed so a Big Bang shield applied mid-spin shows immediately.
+func refresh_shield() -> void:
+	if _shield_label == null:
+		return
+	if _combatant != null and _combatant.shield_hp > 0:
+		_shield_label.text = "🛡 SHIELD %d (%d)" % [_combatant.shield_hp, _combatant.shield_turns]
 	else:
-		_stamina_label.text = "STA %d/%d" % [cur, _combatant.resource_pool.max_stamina]
+		_shield_label.text = ""
+
+func _on_shield_changed(_shield_hp: int, _shield_turns: int) -> void:
+	refresh_shield()
 
 ## Outlines this panel when it's the player's selected primary target (N-vs-M targeting). A red border
 ## via a stylebox override; removing the override restores the default panel look.

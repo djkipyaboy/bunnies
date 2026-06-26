@@ -6,7 +6,7 @@
 > doc disagrees). The detailed per-feature record lives in `docs/superpowers/specs/` and
 > `docs/superpowers/DECISIONS-LOG.md`.
 >
-> **This is a CURRENT snapshot** (branch `remaining-four-classes`, updated 2026-06-25). It supersedes
+> **This is a CURRENT snapshot** (branch `remaining-four-classes`, updated 2026-06-27). It supersedes
 > all earlier snapshots.
 
 ---
@@ -129,7 +129,7 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-**FIVE of seven classes are LIVE and in-scene** (class picker at start AND on the end card):
+**SIX of seven classes are LIVE and in-scene** (class picker at start AND on the end card):
 
 - **Warrior (Martin)** — Slashing, 3 reels. Base **Rend** → stacking **BLEED** DoT. Ultimate `wild`.
 - **Vanguard (Sunflash)** — Crushing, 2 reels, heavy. Base **Heft** (reel-edit, removes misses).
@@ -143,6 +143,15 @@ meter (15) arms the **Sticky-Wild Ultimate**.
   reels have crit-fails swapped for hits (`Combatant.hunters_mark_reels`). Ultimate **Collateral Damage**
   (`collateral`): +1 reel, primary takes full, all other enemies take `ceil(total/2)` Piercing. **Built
   2026-06-26 — awaiting cross-class fun/fairness playtest.**
+- **Seer (Vole)** — Mystic War Staff, 2 reels, **mana-only 15/15** (regen 1), Focus 6. Base **Select your
+  Fate!** (`select_fate`, 6 mana): +1 reel (joins paylines) + a 6-type modal that retypes the whole spin.
+  Ultimate **The Big Bang** (`big_bang`, full meter): tops to 4 WILD reels, AoE all enemies, heals each ally
+  `ceil(total/6)` with overflow → a 2-turn Shielded. Combos with Select your Fate (typed AoE nuke). **Built
+  2026-06-27 — awaiting cross-class fun/fairness playtest.** Spec `2026-06-27-seer-class-design.md`.
+
+**SHIPPED 2026-06-27 — Seer + caster UI** (all 52 suites green): added the rail-aware **Mana line** and the
+**🛡 SHIELD chip** to `CombatantPanel` (the caster logic shipped earlier without caster UI), and fixed
+`apply_stats` so Focus boosts only a rail the class actually uses (no phantom stamina on a mana-only class).
 
 **SHIPPED 2026-06-26 — Ranger + playtest tooling** (all 48 suites green):
 - **Ability/Ultimate lock rule UPDATED:** an Ultimate locks the base ability ONLY if it **subsumes** it

@@ -11,6 +11,7 @@ const STRIP_STAGGER: float = 0.25
 const ENEMY_THINK_DELAY: float = 0.6
 const STUN_THRESHOLD: int = -20   # [ASSUMPTION] start-of-turn initiative below this → STUNNED
 const CASINO_MIN_RUN: int = 3  # [ASSUMPTION] Chancer casino lines pay on a left-aligned run of >=3
+const BIG_BANG_SHIELD_TURNS: int = 2  # [ASSUMPTION] Seer Big Bang: heal-overflow shield duration
 
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
@@ -62,6 +63,8 @@ var _player_target: Combatant
 var _start_overlay: Panel
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
+var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
+var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
 var _awaiting_stun_check: bool = false
@@ -275,6 +278,7 @@ func _build_ui() -> void:
 	add_child(_dummy_toggle_button)
 
 	_build_overlay()
+	_build_fate_picker()
 
 	(_panels[_pc] as CombatantPanel).bind(_pc)
 	(_panels[_enemy] as CombatantPanel).bind(_enemy)
@@ -341,6 +345,75 @@ func _build_overlay() -> void:
 	# Class picker (spec §6): pick which class the PC is, then replay — so each class is play-testable.
 	_build_class_picker(_overlay, 182)
 
+## Builds the Seer "Select your Fate!" type-picker: a centered modal with the 6 damage-type buttons and a
+## Cancel. Hidden until the player stages Select your Fate; choosing a type stages the ability with it.
+func _build_fate_picker() -> void:
+	const SZ := Vector2(420, 230)
+	_fate_picker = Panel.new()
+	_fate_picker.size = SZ
+	_fate_picker.position = (get_viewport_rect().size - SZ) * 0.5
+	_fate_picker.visible = false
+	add_child(_fate_picker)
+
+	var title := Label.new()
+	title.text = "Select your Fate! — choose this spin's damage type"
+	title.position = Vector2(16, 14)
+	title.size = Vector2(SZ.x - 32, 24)
+	_fate_picker.add_child(title)
+
+	# 6 type buttons in a 3×2 grid, loaded from the canonical .tres set.
+	var type_paths: Array[String] = [
+		"res://combat/resources/types/slashing.tres",
+		"res://combat/resources/types/piercing.tres",
+		"res://combat/resources/types/crushing.tres",
+		"res://combat/resources/types/storm.tres",
+		"res://combat/resources/types/mystic.tres",
+		"res://combat/resources/types/earth.tres",
+	]
+	const PER_ROW: int = 3
+	const BTN := Vector2(124, 48)
+	const COL: float = 132.0
+	const ROW: float = 56.0
+	for i: int in range(type_paths.size()):
+		var dt: DamageType = load(type_paths[i])
+		var b := Button.new()
+		b.text = _type_name(dt)
+		b.position = Vector2(16 + (i % PER_ROW) * COL, 48 + (i / PER_ROW) * ROW)
+		b.custom_minimum_size = BTN
+		b.tooltip_text = "Convert this whole spin to %s damage." % _type_name(dt)
+		b.pressed.connect(_choose_fate_type.bind(dt))
+		_fate_picker.add_child(b)
+
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.position = Vector2(SZ.x - 116, SZ.y - 44)
+	cancel.custom_minimum_size = Vector2(100, 32)
+	cancel.pressed.connect(func() -> void: _fate_picker.visible = false)
+	_fate_picker.add_child(cancel)
+
+## Title-cases a damage type's enum name ("Slashing", "Mystic", …) for buttons/labels.
+func _type_name(dt: DamageType) -> String:
+	if dt == null:
+		return "?"
+	return String(DamageType.Type.keys()[dt.type]).capitalize()
+
+## Shows the type-picker on top (Seer staging Select your Fate).
+func _show_fate_picker() -> void:
+	if _fate_picker == null:
+		return
+	move_child(_fate_picker, get_child_count() - 1)
+	_fate_picker.visible = true
+
+## Stages Select your Fate with the chosen type, hides the picker, refreshes the Main-1 preview.
+func _choose_fate_type(dt: DamageType) -> void:
+	if _plan == null or not _awaiting_player_spin:
+		_fate_picker.visible = false
+		return
+	_plan.stage_select_fate(dt)
+	_fate_picker.visible = false
+	_log("  ◈ Select your Fate — this spin lands as %s." % _type_name(dt))
+	_refresh_main1_preview()
+
 ## Pre-combat screen: choose a class (and toggle dummies), then BEGIN FIGHT starts the round. Lets the
 ## tester pick a class at the START of a session instead of only on the end card (player request).
 func _build_start_overlay() -> void:
@@ -394,6 +467,7 @@ func _class_tooltip(id: StringName) -> String:
 		&"skirmisher": return "Skirmisher — Slashing, 4 fast reels. Flurry adds a swing; Sticky Wild (2 spins)."
 		&"chancer": return "Chancer — Storm, 4 reels, Luck. Re-roll worst reel; Wildcard Gamble (casino lines)."
 		&"ranger": return "Ranger — Piercing, 4 reels. Hunter's Mark turns misses to hits; Collateral Damage (splash)."
+		&"seer": return "Seer — Mystic, 2 reels, Mana. Select your Fate! picks the spin's type; The Big Bang (AoE nuke + party heal)."
 		_: return "Playable class."
 
 ## Hover description for the base-ability button, per class (notes whether it stacks with the Ultimate).
@@ -404,6 +478,7 @@ func _ability_tooltip(id: StringName) -> String:
 		&"flurry": return "Flurry (2 STA): adds one extra weapon swing this turn. Usable alongside your Ultimate."
 		&"reroll": return "Re-roll (4 STA): after the spin, re-rolls your single worst reel (refunded if none were bad). Wildcard Gamble already re-rolls everything."
 		&"hunters_mark": return "Hunter's Mark (3 STA): marks the target 3 turns — allies' crit-fails become hits against it. Usable alongside your Ultimate."
+		&"select_fate": return "Select your Fate! (6 MANA): adds a reel (joins paylines) and converts this whole spin to a damage type you pick. Usable alongside The Big Bang."
 		_: return ""
 
 ## Hover description for the Ultimate button, per class (flags whether the base ability is wasted).
@@ -414,6 +489,7 @@ func _ultimate_tooltip(id: StringName) -> String:
 		&"rampage": return "Rampage (full meter): +1 reel, all misses removed (includes Heft free), hits ALL enemies."
 		&"wildcard_gamble": return "Wildcard Gamble (full meter): re-rolls every non-crit reel double-or-nothing. Replaces Re-roll — don't stage both."
 		&"collateral": return "Collateral Damage (full meter): +1 reel; primary takes full, all other enemies take half as Piercing. Hunter's Mark still works — fire both."
+		&"big_bang": return "The Big Bang (full meter): 4 crit-biased WILD reels hit ALL enemies; heals each ally 1/6 of the total, excess → a shield. Combos with Select your Fate."
 		_: return ""
 
 # ---------------------------------------------------------------------------
@@ -531,6 +607,7 @@ func _ability_label(id: StringName) -> String:
 		&"flurry": return "Flurry: +1 swing (2 STA)"
 		&"reroll": return "Re-roll worst reel (4 STA)"
 		&"hunters_mark": return "Hunter's Mark: debuff target (3 STA)"
+		&"select_fate": return "Select Fate: choose type (6 MANA)"
 		_: return "Ability"
 
 ## Short ability name for the combat log.
@@ -541,6 +618,7 @@ func _ability_name(id: StringName) -> String:
 		&"flurry": return "Flurry (extra swing)"
 		&"reroll": return "Re-roll (worst reel)"
 		&"hunters_mark": return "Hunter's Mark (accuracy debuff)"
+		&"select_fate": return "Select your Fate"
 		_: return "ability"
 
 ## Ultimate button label + log name, per the active class's Ultimate.
@@ -551,6 +629,7 @@ func _ultimate_label(id: StringName) -> String:
 		&"sticky_wild": return "ULTIMATE: Sticky Wild (2 spins)"
 		&"wildcard_gamble": return "ULTIMATE: Wildcard Gamble"
 		&"collateral": return "ULTIMATE: Collateral Damage"
+		&"big_bang": return "ULTIMATE: The Big Bang"
 		_: return "Fire Ultimate"
 
 func _ultimate_name(id: StringName) -> String:
@@ -560,6 +639,7 @@ func _ultimate_name(id: StringName) -> String:
 		&"sticky_wild": return "STICKY WILD (all reels crit-biased, 2 spins)"
 		&"wildcard_gamble": return "WILDCARD GAMBLE (re-roll non-crits, double-or-nothing)"
 		&"collateral": return "COLLATERAL DAMAGE (+1 reel, splash all enemies)"
+		&"big_bang": return "THE BIG BANG (4 wild reels, AoE, party heal)"
 		_: return "Ultimate"
 
 func _on_turn_started(c: Combatant) -> void:
@@ -730,8 +810,13 @@ func _resolve_stun_check() -> void:
 		_phase_manager.resume_after_combat()
 
 ## Stages/un-stages the active class's base ability (toggle). Applies nothing — commit on SPIN.
+## Select your Fate (Seer) needs a type choice, so pressing it opens the 6-type picker when not yet staged;
+## pressing it while staged un-stages (and clears the chosen type).
 func _on_splice_pressed() -> void:
 	if not _awaiting_player_spin or _plan == null:
+		return
+	if _pc.ability_id == &"select_fate" and not _plan.ability_staged:
+		_show_fate_picker()
 		return
 	_plan.toggle_ability()
 	_refresh_main1_preview()
@@ -772,7 +857,11 @@ func _refresh_main1_preview() -> void:
 		_splice_button.disabled = true
 		_splice_button.modulate = Color(0.5, 0.5, 0.5)
 	else:
-		_splice_button.text = _ability_label(_attacker.ability_id)
+		# Select your Fate shows the chosen type once staged (legibility — strips don't render type).
+		if _attacker.ability_id == &"select_fate" and _plan.ability_staged and _plan.selected_fate_type != null:
+			_splice_button.text = "Select Fate: %s (6 MANA)" % _type_name(_plan.selected_fate_type)
+		else:
+			_splice_button.text = _ability_label(_attacker.ability_id)
 		_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
 		_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.ability_staged else Color(1, 1, 1)
 	_ultimate_button.disabled = not (is_player_main1 and (_plan.fire_ultimate_staged or _plan.can_stage_ultimate()))
@@ -880,6 +969,12 @@ func _do_spin() -> void:
 	if _attacker.is_collateral_active():
 		for a in attacks:
 			_collateral_total += a.final_damage
+	# Big Bang (Seer Ultimate): remember the spin's total nominal damage so _finish_spin can heal each ally
+	# ceil(total/6) (overflow → shield). Sum of per-reel final_damage (NOT × enemy count) — spec §4.
+	_big_bang_total = 0
+	if _attacker.is_big_bang_active():
+		for a in attacks:
+			_big_bang_total += a.final_damage
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
 	# deferred the emit above.)
@@ -1077,6 +1172,23 @@ func _finish_spin() -> void:
 				if _panels.has(other):
 					(_panels[other] as CombatantPanel).refresh_status()
 		_attacker.consume_collateral_spin()
+	# The Big Bang (Seer Ultimate): the spin already hit all enemies (AoE). Now heal each ally ceil(total/6),
+	# converting any heal overflow into a 2-turn SHIELDED (higher-overrides). 1v1 → the Seer heals itself.
+	if _attacker.is_big_bang_active():
+		var heal_amt: int = ceili(_big_bang_total / 6.0)
+		_log("  ✶ THE BIG BANG: %d total damage → heal %d to each ally (1/6)." % [_big_bang_total, heal_amt])
+		for ally: Combatant in _allies_of(_attacker):
+			var overflow: int = ally.heal(heal_amt)
+			var restored: int = heal_amt - overflow
+			if overflow > 0:
+				ally.apply_shield(overflow, BIG_BANG_SHIELD_TURNS)
+				_log("    %s +%d HP, excess %d → SHIELD %d (%d turns)." % [ally.display_name, restored, overflow, ally.shield_hp, ally.shield_turns])
+			elif restored > 0:
+				_log("    %s +%d HP." % [ally.display_name, restored])
+			if _panels.has(ally):
+				(_panels[ally] as CombatantPanel).refresh_status()
+				(_panels[ally] as CombatantPanel).refresh_shield()
+		_attacker.consume_big_bang_spin()
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	_attacker.clear_reroll_state()  # Chancer reroll/gamble were applied in _do_spin's post-spin pass

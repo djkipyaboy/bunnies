@@ -26,6 +26,9 @@ const RAMPAGE_CONVERSIONS: int = 3
 const RAMPAGE_SPINS: int = 1
 ## Collateral Damage (Ranger) is a single-turn Ultimate (+1 reel, splash for the fired spin only).
 const COLLATERAL_SPINS: int = 1
+## The Big Bang (Seer) tops the loadout to 4 crit-biased WILD reels for one AoE spin (spec 2026-06-27 §4).
+const BIG_BANG_REELS: int = 4
+const BIG_BANG_SPINS: int = 1
 ## Crit-bias WILD spin counts, separated per class (spec 2026-06-21 iteration 2):
 ## the Warrior's &"wild" is single-spin; the Skirmisher's &"sticky_wild" rides for two.
 const WILD_SPINS: int = 1
@@ -33,6 +36,10 @@ const STICKY_WILD_SPINS: int = 2
 
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
+
+## Seer "Select your Fate!" chosen damage type (spec 2026-06-27 §3). Set by [method stage_select_fate]
+## (the orchestrator's 6-button type-picker modal); consumed by [method commit]. Null = not chosen.
+var selected_fate_type: DamageType = null
 
 func _init(c: Combatant, p_ability_cost: int = 2, p_reel_cap: int = 5, p_wild_spins: int = 2) -> void:
 	combatant = c
@@ -48,8 +55,9 @@ func _ability_cost_dict() -> Dictionary:
 	return {res: ability_cost}
 
 ## Whether this ability adds a reel to the attacker's own loadout (previewable as an extra strip).
+## Select your Fate adds a reel too — and unlike Flurry/Rend its reel JOINS the payline grid.
 func _ability_adds_reel() -> bool:
-	return ability_id == &"flurry" or ability_id == &"rend"
+	return ability_id == &"flurry" or ability_id == &"rend" or ability_id == &"select_fate"
 
 ## True if the ability can be newly STAGED: there IS an ability, it's affordable, and (for reel-adding
 ## abilities) the loadout is under the cap. Un-staging is always allowed.
@@ -104,7 +112,19 @@ func toggle_ability() -> void:
 		return  # ability is controlled by the Ultimate toggle (included by Rampage, or locked out)
 	if ability_staged:
 		ability_staged = false
+		selected_fate_type = null  # clear any Seer type choice on un-stage
+	elif ability_id == &"select_fate":
+		return  # Select your Fate needs a type choice — staged via stage_select_fate (the type-picker modal)
 	elif can_stage_ability():
+		ability_staged = true
+
+## Stages Select your Fate! with a player-chosen damage type (from the orchestrator's type-picker modal).
+## No-op unless this is the Seer's ability and it can currently be staged.
+func stage_select_fate(type: DamageType) -> void:
+	if ability_id != &"select_fate" or type == null:
+		return
+	if can_stage_ability():
+		selected_fate_type = type
 		ability_staged = true
 
 func toggle_ultimate() -> void:
@@ -131,10 +151,16 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_default(combatant.weapon_type()))
 			&"rend":
 				reels.append(ActionReel.make_rend(combatant.weapon_type()))
+			&"select_fate":
+				reels.append(ActionReel.make_default(selected_fate_type))  # joins paylines (a weapon-attack reel)
 	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't shown as
 	# strips) and Collateral Damage (the splash isn't a strip). Both add one own-type weapon reel.
 	if fire_ultimate_staged and (ultimate_id == &"rampage" or ultimate_id == &"collateral") and reels.size() < reel_cap:
 		reels.append(ActionReel.make_default(combatant.weapon_type()))
+	# The Big Bang tops the loadout up to 4 reels (the Seer's 2 → 4) — preview the added strips.
+	if fire_ultimate_staged and ultimate_id == &"big_bang":
+		while reels.size() < mini(BIG_BANG_REELS, reel_cap):
+			reels.append(ActionReel.make_default(combatant.weapon_type()))
 	return reels
 
 ## The combatant's value on the ABILITY's rail after committing (current minus a staged cost).
@@ -162,6 +188,13 @@ func effective_wild_indices() -> Array[int]:
 			if not (i in out):
 				out.append(i)
 		out.sort()
+	# The Big Bang makes ALL of its (topped-up) reels wild — glow every previewed strip up to 4.
+	elif fire_ultimate_staged and ultimate_id == &"big_bang":
+		var n: int = mini(BIG_BANG_REELS, preview_reels().size())
+		for i: int in range(n):
+			if not (i in out):
+				out.append(i)
+		out.sort()
 	return out
 
 ## How many WEAPON reels the Ultimate would make wild (splices/ability reels excluded).
@@ -186,6 +219,8 @@ func commit() -> void:
 				combatant.stage_reroll(ability_cost)
 			&"hunters_mark":
 				combatant.stage_hunters_mark(ability_cost)  # orchestrator attaches the mark to the defender
+			&"select_fate":
+				combatant.apply_select_fate(selected_fate_type, ability_cost)  # +1 reel, retype loadout (Seer)
 	if fire_ultimate_staged:
 		match ultimate_id:
 			&"wild":
@@ -198,3 +233,10 @@ func commit() -> void:
 				combatant.fire_wildcard_gamble()
 			&"collateral":
 				combatant.fire_collateral(combatant.weapon_type(), COLLATERAL_SPINS)  # +1 reel; orchestrator splashes
+			&"big_bang":
+				combatant.fire_big_bang(combatant.weapon_type(), BIG_BANG_REELS, BIG_BANG_SPINS)  # 4 wild AoE reels (Seer)
+	# Combo: Select your Fate's chosen type covers Big Bang's appended reels too (it commits AFTER the
+	# ability, so re-run the retype over the final loadout when both are staged). Standalone select_fate
+	# already retyped in apply_select_fate; this second pass is a harmless idempotent retype.
+	if ability_staged and ability_id == &"select_fate" and selected_fate_type != null and fire_ultimate_staged:
+		combatant.convert_turn_reels_to(selected_fate_type)

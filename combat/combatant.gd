@@ -127,6 +127,11 @@ var reroll_pending: bool = false
 var reroll_cost: int = 0
 var wildcard_gamble_pending: bool = false
 
+## Seer "The Big Bang" Ultimate state (spec 2026-06-27 §4): while > 0, this combatant topped its loadout
+## to 4 crit-biased WILD reels and the spin is AoE; the orchestrator then heals all allies ceil(total/6),
+## overflow → SHIELDED. Tracked separately from aoe/wild (which it sets) so the post-spin heal fires once.
+var big_bang_spins_remaining: int = 0
+
 ## STUNNED is a per-turn condition (NOT a duration Effect): set at turn start when current_initiative
 ## is below the threshold and the combatant wasn't STUNNED last turn (anti-lock). DESIGN spec 2026-06-20.
 var stunned_this_turn: bool = false
@@ -208,9 +213,11 @@ func apply_stats() -> void:
 	var s: Stats = effective_stats()
 	max_hp = base_max_hp + s.vigor
 	if resource_pool != null:
-		resource_pool.max_stamina = base_max_stamina + s.focus
+		# Focus boosts only the rail(s) the class actually USES (base > 0): a stamina class gets no phantom
+		# mana pool, and a mana-only caster (Seer, base_max_stamina = 0) gets no phantom stamina rail.
+		resource_pool.max_stamina = (base_max_stamina + s.focus) if base_max_stamina > 0 else 0
 		resource_pool.stamina = mini(resource_pool.stamina, resource_pool.max_stamina)
-		resource_pool.max_mana = base_max_mana + s.focus
+		resource_pool.max_mana = (base_max_mana + s.focus) if base_max_mana > 0 else 0
 		resource_pool.mana = mini(resource_pool.mana, resource_pool.max_mana)
 	if bonus_meter != null:
 		bonus_meter.floor = base_meter_floor + s.grit
@@ -332,6 +339,26 @@ func weapon_type() -> DamageType:
 	if weapon != null and not weapon.reels.is_empty():
 		return weapon.reels[0].damage_type
 	return null
+
+## Seer "Select your Fate!" base ability (spec 2026-06-27 §3): spends [param cost] Mana, appends one extra
+## [param chosen_type] weapon-attack reel onto THIS turn (2 → 3, so it JOINS the payline grid — unlike the
+## Flurry/Rend splices), and retypes the WHOLE turn loadout to [param chosen_type]. Returns false (no change)
+## if unaffordable. The orchestrator picks the type via a 6-button modal before committing.
+func apply_select_fate(chosen_type: DamageType, cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	turn_reels.append(ActionReel.make_default(chosen_type))  # +1 weapon-attack reel (joins paylines)
+	convert_turn_reels_to(chosen_type)
+	return true
+
+## Retypes every reel of THIS turn to [param type]. Deep-copies each reel first (begin_turn's duplicate is
+## shallow → the reels are shared with the weapon), so the conversion never mutates the underlying weapon.
+## Shared by Select your Fate and its Big-Bang combo (which retypes Big Bang's appended reels too).
+func convert_turn_reels_to(type: DamageType) -> void:
+	for i: int in range(turn_reels.size()):
+		var r: ActionReel = turn_reels[i].duplicate(true)  # deep: its own faces
+		r.damage_type = type
+		turn_reels[i] = r
 
 ## Index of the single worst reel to re-roll (Chancer): priority CRIT_FAILURE > FAILURE > NEUTRAL,
 ## first occurrence on a tie. Returns -1 when no reel landed any of those tiers (nothing to re-roll).
@@ -522,6 +549,36 @@ func is_collateral_active() -> bool:
 func consume_collateral_spin() -> void:
 	if collateral_spins_remaining > 0:
 		collateral_spins_remaining -= 1
+
+# ---------------------------------------------------------------------------
+# Seer "The Big Bang" Ultimate (spec 2026-06-27 §4) — costs ONLY the Bonus Meter
+# ---------------------------------------------------------------------------
+
+## Fires the Big Bang Ultimate if the meter is armed: consumes the full meter, tops this turn's loadout up to
+## [param target_reels] weapon-attack reels (the Seer's 2 → 4 by appending [param extra_reel_type] reels),
+## makes ALL of them crit-biased WILD and the spin AoE for [param spins] spins (reusing the wild + AoE paths),
+## and flags the post-spin party heal. The orchestrator then heals each ally ceil(total/6), overflow → a
+## 2-turn SHIELDED. Returns false if not armed.
+func fire_big_bang(extra_reel_type: DamageType, target_reels: int, spins: int) -> bool:
+	if bonus_meter == null or not bonus_meter.is_armed():
+		return false
+	bonus_meter.consume()
+	while turn_reels.size() < target_reels:
+		turn_reels.append(ActionReel.make_default(extra_reel_type))  # top up to the Big Bang reel count
+	sticky_wild_count = turn_reels.size()      # every reel crit-biased (reuse the wild path)
+	sticky_wild_spins_remaining = spins
+	aoe_spins_remaining = spins                 # hits ALL enemies (reuse the AoE path)
+	big_bang_spins_remaining = spins
+	return true
+
+## True while a Big Bang spin is pending (drives the orchestrator's post-spin party heal/shield).
+func is_big_bang_active() -> bool:
+	return big_bang_spins_remaining > 0
+
+## Consumes one Big Bang spin. Call once per resolved spin (after the heal has been applied).
+func consume_big_bang_spin() -> void:
+	if big_bang_spins_remaining > 0:
+		big_bang_spins_remaining -= 1
 
 # ---------------------------------------------------------------------------
 # Ranger "Hunter's Mark" base ability (spec §3.4) — costs Stamina; applied by the orchestrator

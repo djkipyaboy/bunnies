@@ -235,3 +235,28 @@ test_collateral); full suite 45 → **48 green**.
   **vertical columns** — the player's party down the LEFT window edge, the enemy party down the RIGHT edge
   — replacing the current top-row PC | dummies | enemy strip. Frees the center for the reels + log. Carry
   the 300px panel width into that layout. Recorded in CLAUDE.md §8 and HANDOFF.md §6 deferred.
+
+## Seer class (2026-06-27) — spec `2026-06-27-seer-class-design.md`
+- **6th of 7 classes.** Mystic War Staff, **2 reels**, **mana-only 15/15** (regen 1), stats 0/2/1/6/1/0,
+  meter cap 15. Auto-listed in the class picker via `ClassLibrary.IDS`.
+- **Select your Fate! (`&"select_fate"`, 6 mana):** adds a reel (2→3) that — unlike Flurry/Rend — IS a
+  weapon-attack reel, so it joins the payline grid automatically (no extra bookkeeping). Then retypes the
+  whole spin to a player-chosen damage type via a 6-button modal. Conversion deep-copies turn reels so the
+  weapon is never mutated. Modal-driven staging (`stage_select_fate`); `toggle_ability` never stages it.
+- **The Big Bang (`&"big_bang"`, full meter):** tops the loadout to **4 crit-biased WILD reels**, fires AoE
+  (reuses the Rampage AoE path → all enemies), then heals each ally `ceil(total/6)` with overflow → a 2-turn
+  SHIELDED. Reuses the wild + AoE + heal/shield primitives.
+- **Decision — combo allowed (NOT subsumed):** per the 2026-06-26 lock rule, Big Bang does not include
+  Select your Fate, so they stack. Staged together (6 mana + full meter) → a 4-reel WILD AoE nuke of the
+  chosen type + the party heal. `commit()` re-runs the retype after the Ultimate so Big Bang's appended reels
+  share the chosen type. Intentional, expensive power spike. `[ASSUMPTION]`.
+- **Decision — Big Bang heal total = sum of per-reel nominal damage** (NOT × enemy count), so the heal
+  doesn't balloon with more enemies. Matches the raw-text 120→20 example. `[ASSUMPTION]`.
+- **`apply_stats` fix:** Focus now boosts only a rail the class actually uses (`base > 0`) — a mana-only Seer
+  no longer gets a phantom 6-stamina rail, and stamina classes no longer get a phantom mana pool.
+- **UI gaps closed for the playtest:** `CombatantPanel` now shows a rail-aware **Mana line** (and STA/MANA
+  for any hybrid) and a **🛡 SHIELD chip** (was unbound) so the Seer's mana spend and Big Bang shields are
+  visible. These were latent gaps from when the caster *logic* shipped without caster *UI*.
+- **Tests:** `test_seer_class`, `test_select_fate`, `test_big_bang` (synthetic 3-ally heal/shield),
+  `test_scene_load_seer` (scene smoke), + Seer cases in `test_class_abilities_plan` / `test_class_library`.
+  **52 suites green.** Live spin feel is the human playtest (CLAUDE.md §5).

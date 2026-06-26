@@ -39,8 +39,16 @@ func _initialize() -> void:
 	_check(ranger.ultimate_id == &"collateral", "ranger ultimate = collateral")
 	_check(ranger.weapon_base_damage == 7.0, "ranger bow base 7")
 
+	var seer: CharacterClass = ClassLibrary.make(&"seer")
+	_check(seer.reel_count == 2 and seer.base_stats.focus == 6, "seer: 2 reels, Focus 6")
+	_check(seer.ability_id == &"select_fate", "seer ability = select_fate")
+	_check(seer.ability_cost == 6 and seer.ability_resource == &"mana", "select_fate costs 6 mana")
+	_check(seer.ultimate_id == &"big_bang", "seer ultimate = big_bang")
+	_check(seer.weapon_base_damage == 13.0, "seer war staff base 13")
+	_check(seer.base_max_stamina == 0 and seer.base_max_mana == 9, "seer is mana-only (sta 0, mana base 9)")
+
 	_check(ClassLibrary.make(&"nope") == null, "unknown id -> null")
-	_check(ClassLibrary.IDS.size() == 5, "5 classes registered (+ Ranger)")
+	_check(ClassLibrary.IDS.size() == 6, "6 classes registered (+ Seer)")
 
 	# Each class builds a valid combatant end-to-end.
 	for id: StringName in ClassLibrary.IDS:

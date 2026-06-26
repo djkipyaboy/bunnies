@@ -196,16 +196,19 @@ These agents are installed (`~/.claude/agents/`). Use them when the task fits:
 without errors. **Whether the spin is *fun*, and whether the scrolling reels feel right, is the
 human call (CLAUDE.md §5 hard ceiling)** — play `combat.tscn` and judge.
 
-**FIVE of seven classes LIVE (as of 2026-06-26, branch `remaining-four-classes`).** A thin
+**SIX of seven classes LIVE (as of 2026-06-27, branch `remaining-four-classes`).** A thin
 **`CharacterClass`** resource + code **`ClassLibrary`** stamp playable, in-scene classes: **Warrior** (Rend →
 stacking BLEED), **Vanguard** (Heft reel-edit; Rampage Ultimate), **Skirmisher** (Flurry splice; 2-spin
 sticky-wild), **Chancer** (Storm/Thrown, Luck 1, Re-roll + Wildcard Gamble, `&"casino"` paylines — human-
-approved), and **Ranger** (Piercing bow, 4 reels, stamina 10; **Hunter's Mark** marks an enemy 3t so allies'
+approved), **Ranger** (Piercing bow, 4 reels, stamina 10; **Hunter's Mark** marks an enemy 3t so allies'
 crit-fails become hits vs it; **Collateral Damage** Ultimate = +1 reel, primary full + other enemies take
-half as Piercing). Supporting systems for the casters already built: **Mana**, **Heal**, **Shielded**,
-**Cleanse**. **48 headless suites green.** Specs: `2026-06-21-class-system-v1-design.md`,
+half as Piercing), and **Seer** (Mystic War Staff, 2 reels, **mana-only 15/15**; **Select your Fate!** +1 reel
++ pick the spin's damage type via a 6-type modal; **The Big Bang** Ultimate = 4 WILD AoE reels that heal each
+ally 1/6 of the total, excess → Shielded). Supporting systems for the casters already built: **Mana**,
+**Heal**, **Shielded**, **Cleanse** — and now the caster **UI** (rail-aware Mana line + shield chip on
+`CombatantPanel`). **52 headless suites green.** Specs: `2026-06-21-class-system-v1-design.md`,
 `2026-06-22-remaining-four-classes-design.md`, `2026-06-23-chancer-casino-paylines-design.md`,
-`2026-06-25-payline-toggle-polish-and-reel-rules-design.md`.
+`2026-06-25-payline-toggle-polish-and-reel-rules-design.md`, `2026-06-27-seer-class-design.md`.
 
 **Payline rules (locked 2026-06-25):** per-class `payline_profile_id` (`&"default"` whole-line | `&"casino"`
 left-aligned); the grid width is the **leading run of weapon-attack reels** (`ActionReel.is_weapon_attack`).
@@ -224,12 +227,14 @@ each turn, floor at 1 HP via `Combatant.min_hp`, and are excluded from the win c
 and **N-vs-M target selection** (click an enemy panel to set the primary target; red outline; drives
 attacks/Hunter's Mark/Collateral). Combat still ends only when the PC or the real enemy dies.
 
-**NEXT SESSION — build the remaining 2 classes, ONE AT A TIME** (design-first per §5: spec → implement →
-**cross-class fun/fairness playtest** before the next). Raw design input: `Bunnies New Class Info.txt`.
-- **Seer** — Mystic staff, 2 reels, Mana 15. Base **Select your Fate!** (+1 reel, choose the spin's damage
-  type). Ultimate **The Big Bang** (4 WILD reels, AoE; heal allies 1/6 of total, excess → Shielded).
-- **Warden** — Earth, 3 reels, Mana 12. Base **Rallying Cry** (+1 reel: success → half-weapon Shielded to
-  all allies, crit → full; higher Shielded wins). Ultimate unchanged.
+**NEXT SESSION — build the LAST class (Warden), after the Seer playtest** (design-first per §5: spec →
+implement → **cross-class fun/fairness playtest**). Raw design input: `Bunnies New Class Info.txt`.
+- **Warden** — Earth, Earthstave, 3 reels, **Mana 12/12**. Base **Rallying Cry** (`&"rallying_cry"`, 4 mana):
+  +1 reel with 2 crit + 8 success faces (no damage, out of paylines) — success → half-weapon Shielded to all
+  allies, crit → full weapon Shielded; higher-Shielded-wins. Ultimate: spec'd as **Pick'em Bonus** in
+  `2026-06-22-remaining-four-classes-design.md §3.3` (choose-1-of-3: Heal / Cleanse / party buff) — confirm
+  with the player whether to keep that or "unchanged" per the raw input. Reuse the Seer's mana/shield UI +
+  the existing Heal/Cleanse/Shielded primitives.
 
 **Still deferred (§7 YAGNI):** weapon riders, gear beyond the Padded Jerkin, races + specialization branches,
 the deferred world/meta classes (`EncounterTable`/`RewardTable`/talents), and full **N-vs-M party combat**

@@ -5,7 +5,7 @@ extends RefCounted
 ## returns a FRESH CharacterClass each call. Values are [ASSUMPTION] placeholders — tune by playtest.
 ## (CharacterClass is a Resource, so these can migrate to authored .tres later.)
 
-const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer", &"ranger"]
+const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer", &"ranger", &"seer"]
 
 static func _stats(mi: int, fi: int, vi: int, fo: int, gr: int, lu: int) -> Stats:
 	var s: Stats = Stats.new()
@@ -17,6 +17,7 @@ static func make(id: StringName) -> CharacterClass:
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
 	var storm: DamageType = load("res://combat/resources/types/storm.tres")
 	var piercing: DamageType = load("res://combat/resources/types/piercing.tres")
+	var mystic: DamageType = load("res://combat/resources/types/mystic.tres")
 	match id:
 		&"warrior":
 			# Balanced bruiser (the canonical Martin). Base ability Rend → stacking BLEED (§4B).
@@ -86,6 +87,21 @@ static func make(id: StringName) -> CharacterClass:
 			c.start_stamina = 3; c.stamina_regen = 1  # base 8 + Focus 2 = 10 total stamina (spec §3.4)
 			c.ability_id = &"hunters_mark"; c.ability_cost = 3; c.ability_resource = &"stamina"
 			c.ultimate_id = &"collateral"
+			return c
+		&"seer":
+			# Mystic caster: heavy 2-reel War Staff, mana-only. Base Select your Fate! picks the spin's
+			# damage type (+1 reel); Ultimate The Big Bang nukes all enemies + heals the party (spec 2026-06-27).
+			var c: CharacterClass = CharacterClass.new()
+			c.display_name = "Seer (Vole)"; c.species = "Vole"
+			c.base_stats = _stats(0, 2, 1, 6, 1, 0)
+			c.weapon_base_damage = 13.0; c.weapon_type = mystic; c.reel_count = 2
+			c.defense_type = mystic
+			# [ASSUMPTION] HP 300 for testing; meter_cap 15 — a 2-reel class charges slowly (standard cap).
+			c.base_max_hp = 300; c.base_max_stamina = 0; c.base_meter_floor = 3; c.meter_cap = 15
+			# Mana-only: max = base 9 + Focus 6 = 15, starts full, +1/turn.
+			c.base_max_mana = 9; c.start_mana = 15; c.mana_regen = 1
+			c.ability_id = &"select_fate"; c.ability_cost = 6; c.ability_resource = &"mana"
+			c.ultimate_id = &"big_bang"
 			return c
 		_:
 			return null
