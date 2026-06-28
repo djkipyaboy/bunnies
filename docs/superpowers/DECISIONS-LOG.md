@@ -6,6 +6,32 @@
 
 ---
 
+## Enemy AI v1 + enemy variation (build to playtest, 2026-06-28)
+
+Spec `2026-06-28-enemy-ai-v1-and-selection-polish-design.md`. Player approved the policy shape;
+I chose the exact numbers/structure below.
+
+**Structural calls (player-directed shape, exact form mine):**
+- **Targeting** = super-effective (chart mult > 1.0) → neutral (≈1.0) → resisted (<1.0); within the
+  chosen tier the **lowest current-HP** PC wins (also the tie-break; HP ties → first in party order).
+  If only resisted matchups remain, the enemy still attacks the lowest-HP of them (never passes).
+  Lives in `EnemyAI.pick_target` (pure/static, unit-tested).
+- **Ability use** = greedy: stage the borrowed base ability whenever affordable. Ferret/Flurry every
+  turn (pure upside); stoat/Hunter's Mark only if its chosen target isn't already marked (no re-mark
+  waste). `_enemy_stage_ability` in combat.gd; committed via the shared `_commit_main1` (same path PCs use).
+- **Enemy abilities reach NO Ultimate.** `EnemyLibrary` clears `ultimate_id` (Combatant defaults it to
+  `&"sticky_wild"`), and the AI never stages an Ultimate.
+
+**`[ASSUMPTION]` numbers (tune by playtest):**
+- Ferret = dagger (Slashing) / melee / **Flurry** (cost 2). Stoat = bow (Piercing) / ranged /
+  **Hunter's Mark** (cost 3). Rat = unchanged plain melee, no ability.
+- Enemy stamina pool for an abilityful enemy: `start = regen = ability_cost`, `base_max_stamina =
+  max(5, cost)` — sized so the greedy AI can re-fire each turn. Adjust if enemies over/under-use abilities.
+- Role→badge palette (melee = warm red, ranged = green, caster = blue-violet) and the badge pill style
+  are placeholders (`RoleVisuals`); badges are selection-screen-only this iteration.
+
+---
+
 ## Payline feature (build to playtest, 2026-06-20)
 
 **Reward magnitudes (`[ASSUMPTION]` — all tunable):**

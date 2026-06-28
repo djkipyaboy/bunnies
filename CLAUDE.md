@@ -240,14 +240,39 @@ each turn, floor at 1 HP via `Combatant.min_hp`, and are excluded from the win c
 and **N-vs-M target selection** (click an enemy panel to set the primary target; red outline; drives
 attacks/Hunter's Mark/Collateral). Combat still ends only when the PC or the real enemy dies.
 
-**NEXT SESSION — build the N-vs-M PARTY-COMBAT prototype** (player direction 2026-06-29). All seven classes are
-built, test-green (60 suites), and the **Warden was human-playtested 2026-06-29** (Earthquake felt good; tuning
-applied that session — meter cap 15→20, Rallying Cry reel charges **no** Bonus Meter, action-button column
-lowered +40 to clear the taller caster panels). A **distributable single-file build** was exported to
-`dist/BunniesCombatPrototype.exe` (git-ignored) for in-person playtesters. The next build is **actual N-vs-M
-party combat** — see the locked party-UI plan below (vertical columns: player party LEFT, enemy party RIGHT).
-Everything is already architected party-ready (`current_initiative`, AoE/splash/heal/shield broadcast over the
-combatant list, per-combatant effects, click-to-select targeting); the prototype just still *runs* 1v1 + dummies.
+**SHIPPED 2026-06-29 — N-vs-M PARTY COMBAT** (player direction; spec `2026-06-29-nvm-party-combat-design.md`,
+**64 headless suites green**). The prototype now runs real party-vs-party fights:
+- **Start-of-encounter selection screen** — "Choose your Party" (7 classes, LEFT) + "Enemy Combatants"
+  (3 enemies, RIGHT); each **1–3**, **selection-ordered** (the toggle's number = party slot; deselecting a
+  higher slot shifts the rest up). Pure model in **`RosterSelection.toggle`** (unit-tested).
+- **3 created enemies** in a new **`EnemyLibrary`** (rat/ferret/stoat — varied types/reels, `[ASSUMPTION]`).
+- **Vertical-column layout** — player party down the LEFT edge, enemy party (+ dummies) down the RIGHT;
+  center band freed for reels + a **centered button bar above the combat log**.
+- **Per-PC targeting** — each PC remembers its own enemy target, adjustable on its own turn (`_player_targets`).
+- **Active-PC controls** — ability/Ultimate/paylines/preview follow the PC whose turn it is, not a singleton.
+- **Placeholder enemy AI** (`_enemy_pick_target` → first living PC; **real policy = a later iteration** per
+  player). Default fight is still 1v1 (party `[warrior]` vs `[rat]`) so nothing regresses.
+
+**SHIPPED 2026-06-28 — ENEMY AI v1 + ENEMY VARIATION + SELECTION-SCREEN POLISH** (spec
+`2026-06-28-enemy-ai-v1-and-selection-polish-design.md`, **69 headless suites green**). The placeholder
+"first living PC" enemy targeting is replaced by a real first-iteration AI, and the three enemies now vary:
+- **Enemy variation** — ferret = dagger (Slashing) / **melee** / borrows **Flurry**; stoat = bow (Piercing) /
+  **ranged** / borrows **Hunter's Mark**; rat = unchanged plain melee. Abilityful enemies get a small Stamina
+  pool sized for their ability (`EnemyLibrary._build`); **no enemy gets an Ultimate** (`ultimate_id` cleared).
+- **`EnemyAI.pick_target`** (pure/static, unit-tested) — prefers a super-effective matchup, then neutral, then
+  resisted; within the tier the **lowest-HP** PC wins (also the tie-break; never passes the turn).
+- **Greedy ability use** (`_enemy_stage_ability`) — Flurry every turn; Hunter's Mark unless the target's already
+  marked. Committed through the shared **`_commit_main1`** (the same Main-1 apply path PCs use; Hunter's Mark
+  attach is now side-agnostic, so an enemy's mark helps every enemy attacking that PC).
+- **Selection-screen polish** — **multi-line tooltips** (name / type · reels · role / ability / ultimate),
+  **combat-role badge pills** via a new **`RoleVisuals`** helper (melee/ranged/caster; selection-screen only),
+  and **vertically-centered** party/enemy columns. Chancer = **ranged** (slingshot w/ Storm seeds).
+
+**Next:** human playtest the party fight + the new enemy AI (the §5 hard ceiling) — tune the `[ASSUMPTION]`
+enemy numbers (pool sizing, ability costs, greedy cadence) only after the fights feel right. Then the
+still-open Seer/Ranger Ultimate playtests (now exercisable with real allies/enemies). The **Warden was
+human-playtested 2026-06-29** (Earthquake felt good; meter cap 15→20, Rallying Cry charges no meter). A
+**distributable single-file build** is at `dist/BunniesCombatPrototype.exe` (git-ignored).
 
 **Still-open per-class playtests (do alongside, not blocking):** the **Seer/Ranger Ultimates** have not had a
 dedicated human playtest yet. Tune `[ASSUMPTION]` numbers (stats/HP/costs, Earthquake stun-bypasses-anti-lock,

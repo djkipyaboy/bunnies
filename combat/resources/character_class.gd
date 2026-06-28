@@ -11,6 +11,10 @@ extends Resource
 @export var display_name: String = ""
 @export var species: String = ""
 
+## Coarse combat role for the selection-screen badge/tooltip (spec 2026-06-28 §2): &"melee" /
+## &"ranged" / &"caster". Display-only metadata — the AI reads the type chart, not this label.
+@export var combat_role: StringName = &"melee"
+
 ## Innate stats (gear stacks on top at the Combatant level).
 @export var base_stats: Stats
 

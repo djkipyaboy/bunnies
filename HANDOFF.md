@@ -193,6 +193,14 @@ reels** so Flurry/Rampage additions join the grid while the no-damage Rend reel 
 suite list in §5): **Mana** pool + derivation, **Heal**, **Shielded** buff, **Cleanse**. So the new
 classes mostly compose existing hooks, not new architecture.
 
+**SHIPPED 2026-06-28 (branch `nvm-party-combat`) — Enemy AI v1 + enemy variation + selection-screen polish**
+(spec `2026-06-28-enemy-ai-v1-and-selection-polish-design.md`, **69 suites green**): the placeholder enemy
+targeting is now `EnemyAI.pick_target` (super-effective → neutral → resisted, lowest-HP tie-break); ferret
+(dagger/Flurry) and stoat (bow/Hunter's Mark) borrow PC base abilities with small stamina pools (no enemy
+Ultimate); greedy ability use via the shared `_commit_main1`; and the character-select screen gained
+multi-line tooltips, `RoleVisuals` combat-role badges, and vertically-centered columns. **Next: human
+playtest the party fight + new AI, then tune the `[ASSUMPTION]` enemy numbers.**
+
 **NEXT SESSION — build the N-vs-M PARTY-COMBAT prototype** (player direction 2026-06-29). All seven classes are
 built and test-green (60 suites); the **Warden was human-playtested 2026-06-29** — Earthquake felt good. Tuning
 applied that session and merged to `main`: meter cap 15→20, the Rallying Cry reel charges **no** Bonus Meter
