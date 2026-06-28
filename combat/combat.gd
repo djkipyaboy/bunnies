@@ -326,7 +326,7 @@ func _place_party_column(members: Array[Combatant], x: float) -> void:
 ## re-renders to "<n>.  <label>" in green when selected (the order number = its party slot), plain
 ## otherwise. [param labeler] maps an id → display text; [param on_change] fires after any toggle
 ## (used to re-gate BEGIN). Returns the Y just below the list. Spec §5.2.
-func _build_roster_list(parent: Control, heading: String, x: float, top_y: float, ids: Array[StringName], selected: Array, max_n: int, labeler: Callable, on_change: Callable) -> float:
+func _build_roster_list(parent: Control, heading: String, x: float, top_y: float, ids: Array[StringName], selected: Array, max_n: int, labeler: Callable, on_change: Callable, tooltip: Callable = Callable(), role: Callable = Callable()) -> float:
 	const BTN := Vector2(320, 40)
 	const STEP: float = 46.0
 	var head := Label.new()
@@ -352,6 +352,20 @@ func _build_roster_list(parent: Control, heading: String, x: float, top_y: float
 		var b := Button.new()
 		b.position = Vector2(x, list_top + i * STEP)
 		b.custom_minimum_size = BTN
+		if tooltip.is_valid():
+			b.tooltip_text = String(tooltip.call(id))
+		if role.is_valid():
+			var badge := Label.new()
+			badge.text = " %s " % RoleVisuals.label(role.call(id))
+			badge.add_theme_font_size_override("font_size", 12)
+			var sb := StyleBoxFlat.new()
+			var col: Color = RoleVisuals.color(role.call(id))
+			sb.bg_color = Color(col.r, col.g, col.b, 0.35)
+			sb.set_corner_radius_all(8)
+			sb.set_content_margin_all(4)
+			badge.add_theme_stylebox_override("normal", sb)
+			badge.position = Vector2(x + BTN.x + 8.0, list_top + i * STEP + 8.0)
+			parent.add_child(badge)
 		b.pressed.connect(func() -> void:
 			RosterSelection.toggle(selected, id, max_n)
 			refresh.call()
@@ -505,17 +519,27 @@ func _build_start_overlay() -> void:
 			and _enemy_ids.size() >= 1 and _enemy_ids.size() <= 3
 		begin.disabled = not ok
 
+	# Vertically center the list block in the mid-region between the subtitle (~92) and the
+	# dummy/BEGIN buttons (~view.y-110). Block height = heading (34) + N rows (STEP = 46).
+	var rows: int = maxi(ClassLibrary.IDS.size(), EnemyLibrary.IDS.size())
+	var block_h: float = 34.0 + rows * 46.0
+	var region_top: float = 100.0
+	var region_bot: float = view.y - 120.0
+	var list_top_y: float = maxf(region_top, region_top + ((region_bot - region_top) - block_h) * 0.5)
+
 	# LEFT — Choose your Party (7 classes); label = "<display_name> — <Class>".
 	var class_label: Callable = func(id: StringName) -> String:
 		return "%s — %s" % [ClassLibrary.make(id).display_name, String(id).capitalize()]
-	_build_roster_list(_start_overlay, "Choose your Party  (1–3)", 80.0, 120.0,
-		ClassLibrary.IDS, _pc_class_ids, 3, class_label, update_begin)
+	_build_roster_list(_start_overlay, "Choose your Party  (1–3)", 80.0, list_top_y,
+		ClassLibrary.IDS, _pc_class_ids, 3, class_label, update_begin,
+		_class_select_tooltip, func(id: StringName) -> StringName: return ClassLibrary.make(id).combat_role)
 
 	# RIGHT — Enemy Combatants (3 enemies); label = the enemy's display name.
 	var enemy_label: Callable = func(id: StringName) -> String:
 		return EnemyLibrary.label(id)
-	_build_roster_list(_start_overlay, "Enemy Combatants  (1–3)", view.x - 400.0, 120.0,
-		EnemyLibrary.IDS, _enemy_ids, 3, enemy_label, update_begin)
+	_build_roster_list(_start_overlay, "Enemy Combatants  (1–3)", view.x - 400.0, list_top_y,
+		EnemyLibrary.IDS, _enemy_ids, 3, enemy_label, update_begin,
+		_enemy_select_tooltip, func(id: StringName) -> StringName: return EnemyLibrary.role(id))
 
 	# Dummy toggle (permanent testing aid) near BEGIN.
 	var dummy_btn := Button.new()
@@ -527,6 +551,28 @@ func _build_start_overlay() -> void:
 	_start_overlay.add_child(dummy_btn)
 
 	update_begin.call()
+
+## Multi-row hover text for a party-pick button (spec 2026-06-28 §4.1): name / type · reels · role /
+## ability / ultimate, one per line.
+func _class_select_tooltip(id: StringName) -> String:
+	var cc: CharacterClass = ClassLibrary.make(id)
+	var lines: PackedStringArray = []
+	lines.append(cc.display_name)
+	lines.append("%s · %d reels · %s" % [TypeVisuals.type_name(cc.weapon_type), cc.reel_count, RoleVisuals.label(cc.combat_role).capitalize()])
+	lines.append("Ability: %s" % _ability_name(cc.ability_id))
+	lines.append("Ultimate: %s" % _ultimate_name(cc.ultimate_id))
+	return "\n".join(lines)
+
+## Multi-row hover text for an enemy-pick button: name / type · reels · role / borrowed ability (if any).
+func _enemy_select_tooltip(id: StringName) -> String:
+	var e: Combatant = EnemyLibrary.make(id)
+	var lines: PackedStringArray = []
+	lines.append(e.display_name)
+	var reels: int = e.weapon.reels.size() if e.weapon != null else 0
+	lines.append("%s · %d reels · %s" % [TypeVisuals.type_name(e.weapon_type()), reels, RoleVisuals.label(EnemyLibrary.role(id)).capitalize()])
+	if e.ability_id != &"":
+		lines.append("Ability: %s" % _ability_name(e.ability_id))
+	return "\n".join(lines)
 
 ## Per-class one-line summaries for the class-picker button tooltips.
 func _class_tooltip(id: StringName) -> String:
