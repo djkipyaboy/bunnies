@@ -253,7 +253,23 @@ attacks/Hunter's Mark/Collateral). Combat still ends only when the PC or the rea
 - **Placeholder enemy AI** (`_enemy_pick_target` → first living PC; **real policy = a later iteration** per
   player). Default fight is still 1v1 (party `[warrior]` vs `[rat]`) so nothing regresses.
 
-**Next:** human playtest the party fight (the §5 hard ceiling) — then the **enemy-AI policy** iteration and the
+**SHIPPED 2026-06-28 — ENEMY AI v1 + ENEMY VARIATION + SELECTION-SCREEN POLISH** (spec
+`2026-06-28-enemy-ai-v1-and-selection-polish-design.md`, **69 headless suites green**). The placeholder
+"first living PC" enemy targeting is replaced by a real first-iteration AI, and the three enemies now vary:
+- **Enemy variation** — ferret = dagger (Slashing) / **melee** / borrows **Flurry**; stoat = bow (Piercing) /
+  **ranged** / borrows **Hunter's Mark**; rat = unchanged plain melee. Abilityful enemies get a small Stamina
+  pool sized for their ability (`EnemyLibrary._build`); **no enemy gets an Ultimate** (`ultimate_id` cleared).
+- **`EnemyAI.pick_target`** (pure/static, unit-tested) — prefers a super-effective matchup, then neutral, then
+  resisted; within the tier the **lowest-HP** PC wins (also the tie-break; never passes the turn).
+- **Greedy ability use** (`_enemy_stage_ability`) — Flurry every turn; Hunter's Mark unless the target's already
+  marked. Committed through the shared **`_commit_main1`** (the same Main-1 apply path PCs use; Hunter's Mark
+  attach is now side-agnostic, so an enemy's mark helps every enemy attacking that PC).
+- **Selection-screen polish** — **multi-line tooltips** (name / type · reels · role / ability / ultimate),
+  **combat-role badge pills** via a new **`RoleVisuals`** helper (melee/ranged/caster; selection-screen only),
+  and **vertically-centered** party/enemy columns. Chancer = **ranged** (slingshot w/ Storm seeds).
+
+**Next:** human playtest the party fight + the new enemy AI (the §5 hard ceiling) — tune the `[ASSUMPTION]`
+enemy numbers (pool sizing, ability costs, greedy cadence) only after the fights feel right. Then the
 still-open Seer/Ranger Ultimate playtests (now exercisable with real allies/enemies). The **Warden was
 human-playtested 2026-06-29** (Earthquake felt good; meter cap 15→20, Rallying Cry charges no meter). A
 **distributable single-file build** is at `dist/BunniesCombatPrototype.exe` (git-ignored).
