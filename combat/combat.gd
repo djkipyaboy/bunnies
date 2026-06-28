@@ -603,10 +603,25 @@ func _refresh_target_highlight() -> void:
 		if _panels.has(c):
 			(_panels[c] as CombatantPanel).set_targeted(c == _defender and not c.is_player)
 
-## Picks which living PC an enemy attacks this turn. PLACEHOLDER policy (real enemy AI = a later
-## iteration, spec §4): the first living PC in party order. Isolated so a future policy swaps only this.
+## Picks which living PC an enemy attacks this turn (spec 2026-06-28 §3.1): EnemyAI prefers a
+## super-effective matchup, then neutral, then lowest-HP. Isolated so a future policy swaps only this.
 func _enemy_pick_target(c: Combatant) -> Combatant:
-	return Combat.first_living(_enemies_of(c))   # _enemies_of(enemy) = the living PCs
+	return EnemyAI.pick_target(c, _pcs)
+
+## Greedy first-iteration enemy ability use (spec 2026-06-28 §3.2): stage the enemy's base ability
+## into _plan when affordable. Flurry: always (pure upside). Hunter's Mark: only if the chosen target
+## isn't already marked (don't waste a re-mark). No-op for abilityless enemies (rat). The staged plan
+## is committed by _commit_main1 on the enemy's spin.
+func _enemy_stage_ability() -> void:
+	if _plan == null or _attacker == null or _attacker.is_player:
+		return
+	match _attacker.ability_id:
+		&"flurry":
+			if _plan.can_stage_ability():
+				_plan.ability_staged = true
+		&"hunters_mark":
+			if _plan.can_stage_ability() and _defender != null and not _defender.has_effect(&"hunters_mark"):
+				_plan.ability_staged = true
 
 ## The PC whose controls are active: the current attacker if it's a player, else the first party member.
 func _active_pc() -> Combatant:
@@ -866,24 +881,9 @@ func _on_spin_pressed() -> void:
 	_awaiting_player_spin = false
 	_payline_cycle_index = -1
 	_clear_payline_preview()
-	if _plan != null:
-		# Capture what's staged BEFORE commit clears nothing (the flags persist, but log intent here).
-		var did_ability: bool = _plan.ability_staged
-		var did_ultimate: bool = _plan.fire_ultimate_staged
-		_plan.commit()  # spends Stamina / consumes meter / appends reel / arms wild — the ONLY apply point
-		if did_ability:
-			_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(_attacker.ability_id)])
-		if did_ultimate:
-			_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
-		# Hunter's Mark applies its debuff to the defender NOW (Main-1 commit), so this turn's own spin
-		# already benefits from the crit-fail→hit swap (applied in _do_spin). The plan spent the Stamina;
-		# the orchestrator owns the enemy target, so it does the attach (ARCHITECTURE §2 authority rule).
-		if _attacker.hunters_mark_pending:
-			var mark: Effect = EffectLibrary.make(&"hunters_mark")
-			_defender.attach_effect(mark)
-			_attacker.hunters_mark_pending = false
-			_log("  ⊕ %s MARKS %s — allies' crit-fails become hits vs it (%d turns)." % [_attacker.display_name, _defender.display_name, mark.duration])
-			(_panels[_defender] as CombatantPanel).refresh_status()
+	# Commit Main 1 (this turn's own spin then benefits from any Hunter's Mark crit-fail→hit swap,
+	# applied in _do_spin). Shared with the enemy path — see _commit_main1.
+	_commit_main1()
 	_spin_button.disabled = true
 	_splice_button.disabled = true
 	_ultimate_button.disabled = true
@@ -1065,7 +1065,36 @@ func _clear_payline_preview() -> void:
 	for s in _strips:
 		(s as ReelStrip).clear_path_highlight()
 
+## Commits the active combatant's staged Main-1 plan: spends resources, appends ability reels, arms
+## the Ultimate, logs the intent, and attaches Hunter's Mark to the current defender if pending. The
+## ONE apply point — shared by the PC path (_on_spin_pressed) and the enemy path (_do_spin). Safe to
+## call with nothing staged (commit() is a no-op then). [ARCHITECTURE §2 authority rule.]
+func _commit_main1() -> void:
+	if _plan == null:
+		return
+	var did_ability: bool = _plan.ability_staged
+	var did_ultimate: bool = _plan.fire_ultimate_staged
+	_plan.commit()  # spends resources / appends reel / arms wild — the ONLY apply point
+	if did_ability:
+		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(_attacker.ability_id)])
+	if did_ultimate:
+		_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
+	# Hunter's Mark: the orchestrator owns the target, so it does the attach (ARCHITECTURE §2). The
+	# downstream crit-fail→hit swap in _do_spin is side-agnostic, so an enemy's mark helps every enemy.
+	if _attacker.hunters_mark_pending:
+		var mark: Effect = EffectLibrary.make(&"hunters_mark")
+		_defender.attach_effect(mark)
+		_attacker.hunters_mark_pending = false
+		_log("  ⊕ %s MARKS %s — crit-fails become hits vs it (%d turns)." % [_attacker.display_name, _defender.display_name, mark.duration])
+		(_panels[_defender] as CombatantPanel).refresh_status()
+
 func _do_spin() -> void:
+	# Enemy turns commit Main 1 here (PCs committed in _on_spin_pressed). Decide ability use, then
+	# commit through the shared apply point so Flurry's reel + Hunter's Mark land before resolution.
+	if _attacker != null and not _attacker.is_player:
+		_enemy_stage_ability()
+		_commit_main1()
+		_prepare_strips(_attacker.turn_reels)  # rebuild strips so an added Flurry reel animates
 	if _phase_manager.current_phase != PhaseManager.Phase.COMBAT:
 		_phase_manager.proceed_to_combat()  # enemy auto-commit (player committed in _on_spin_pressed)
 	_payline_banner.text = ""
