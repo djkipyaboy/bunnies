@@ -30,17 +30,20 @@ static func make(id: StringName) -> Combatant:
 	var piercing: DamageType = load("res://combat/resources/types/piercing.tres")
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 	match id:
-		&"rat":    return _build("Cluny's Rat", crushing, 8.0, 2, earth, 300)       # the existing demo matchup
-		&"ferret": return _build("Redtooth (Ferret)", slashing, 7.0, 3, slashing, 260)
-		&"stoat":  return _build("Killconey (Stoat)", piercing, 6.0, 4, piercing, 220)
+		&"rat":    return _build("Cluny's Rat", crushing, 8.0, 2, earth, 300)       # plain melee baseline
+		&"ferret": return _build("Redtooth (Ferret)", slashing, 7.0, 3, slashing, 260, &"flurry", 2)
+		&"stoat":  return _build("Killconey (Stoat)", piercing, 6.0, 4, piercing, 220, &"hunters_mark", 3)
 		_:         return null
 
-## Stamps a fresh enemy Combatant. No resource_pool / ability / ultimate (enemy AI is a later iteration).
-static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: float, reels: int, defense: DamageType, hp: int) -> Combatant:
+## Stamps a fresh enemy Combatant. Enemies have NO Ultimate (ultimate_id cleared). An enemy with a
+## base ability ([param ability_id] != &"") gets a small Stamina pool sized for it so the greedy AI
+## can fire it through the same MainPhasePlan.commit() path PCs use (spec 2026-06-28 §2/§3.2).
+static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: float, reels: int, defense: DamageType, hp: int, ability_id: StringName = &"", ability_cost: int = 0) -> Combatant:
 	var c: Combatant = Combatant.new()
 	c.display_name = enemy_name
 	c.is_player = false
 	c.defense_type = defense
+	c.ultimate_id = &""   # enemies never fire an Ultimate (override Combatant's default)
 	var w: Weapon = Weapon.new()
 	w.base_damage = weapon_base
 	for i: int in range(reels):
@@ -53,7 +56,17 @@ static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: flo
 	meter.is_visible = false   # enemy meters hidden by default (CLAUDE.md §4)
 	c.bonus_meter = meter
 	c.base_stats = Stats.new()
-	c.apply_stats()   # derive max_hp from base + stats BEFORE seeding hp
+	# Borrowed base ability + a small Stamina pool to pay for it (rat: none). [ASSUMPTION] costs/pool.
+	if ability_id != &"":
+		c.ability_id = ability_id
+		c.ability_cost = ability_cost
+		c.ability_resource = &"stamina"
+		c.base_max_stamina = maxi(5, ability_cost)
+		var pool: ResourcePool = ResourcePool.new()
+		pool.stamina = ability_cost          # enough to fire turn 1
+		pool.regen_per_turn = ability_cost   # refreshes each turn so the greedy AI can re-fire
+		c.resource_pool = pool
+	c.apply_stats()   # derive max_hp (and max_stamina if a pool exists) BEFORE seeding hp
 	c.apply_luck()    # luck 0 → no-op, kept for parity with ClassLibrary
 	c.start_combat()
 	return c
