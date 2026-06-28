@@ -17,6 +17,13 @@ static func label(id: StringName) -> String:
 		&"stoat": return "Killconey (Stoat)"
 		_: return "Vermin"
 
+## Combat role for the selection-screen badge (spec 2026-06-28 §2). Display-only; the AI reads the
+## type chart, not this label.
+static func role(id: StringName) -> StringName:
+	match id:
+		&"stoat": return &"ranged"   # bow
+		_: return &"melee"           # rat (cudgel), ferret (dagger)
+
 static func make(id: StringName) -> Combatant:
 	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
