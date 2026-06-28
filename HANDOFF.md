@@ -129,6 +129,20 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
+> ### ▶ START HERE NEXT SESSION (set 2026-06-28)
+> The combat prototype is complete and merged (N-vs-M party combat + enemy AI v1 + selection polish, on
+> `main`). The active work is now the **out-of-combat design bible** (`docs/design-bible/`, read `00-index.md`
+> first). The next move is for the player to **brain-dump into the recommended first three briefs** — either
+> typing into each file's 💬 zone, or just talking and I'll structure it into the 📋 brief:
+>
+> 1. **`10-storyline.md`** — sets tone, cast, stakes. *Deliberately light/yours — mostly 🟦 blanks.* Everything else hangs off the story.
+> 2. **`23-talents-and-reel-points.md`** — the meta-progression spine ("Reel Points" budget). Aggressively proposed; react/veto.
+> 3. **`12-companions-and-party.md`** — the KOTOR companion structure (reshapes creation, leveling, and the rosters).
+>
+> Reminder of the workflow + the unifying principle ("every out-of-combat system feeds the reels, never a
+> parallel build axis") is in `docs/design-bible/00-index.md`. A play-testable build of the current combat is
+> at `dist/BunniesPartyCombatPrototype-NvM.exe` (git-ignored).
+
 **ALL SEVEN classes are LIVE and in-scene** (full roster; class picker at start AND on the end card):
 
 - **Warrior (Martin)** — Slashing, 3 reels. Base **Rend** → stacking **BLEED** DoT. Ultimate `wild`.
