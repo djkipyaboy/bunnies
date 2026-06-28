@@ -268,6 +268,13 @@ attacks/Hunter's Mark/Collateral). Combat still ends only when the PC or the rea
   **combat-role badge pills** via a new **`RoleVisuals`** helper (melee/ranged/caster; selection-screen only),
   and **vertically-centered** party/enemy columns. Chancer = **ranged** (slingshot w/ Storm seeds).
 
+**NEW 2026-06-28 — OUT-OF-COMBAT DESIGN BIBLE** at `docs/design-bible/` (start at `00-index.md`): the
+research-grounded intake framework for all out-of-combat systems (storyline, world, **KOTOR-style
+companions**, creation, stats, leveling, talents/**Reel Points**, equipment, inventory, **cross-character
+bank**, crafting, **encounter framework**). Hybrid workflow (player dumps → I structure → ✅ lock → spec).
+Unifying principle: **every out-of-combat system feeds the reels, never a parallel build axis.** `DESIGN.md`
+remains the combat source of truth. These briefs are a baseline awaiting the player's input — not locked.
+
 **Next:** human playtest the party fight + the new enemy AI (the §5 hard ceiling) — tune the `[ASSUMPTION]`
 enemy numbers (pool sizing, ability costs, greedy cadence) only after the fights feel right. Then the
 still-open Seer/Ranger Ultimate playtests (now exercisable with real allies/enemies). The **Warden was

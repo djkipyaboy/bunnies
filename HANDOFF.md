@@ -201,6 +201,16 @@ Ultimate); greedy ability use via the shared `_commit_main1`; and the character-
 multi-line tooltips, `RoleVisuals` combat-role badges, and vertically-centered columns. **Next: human
 playtest the party fight + new AI, then tune the `[ASSUMPTION]` enemy numbers.**
 
+**NEW 2026-06-28 — OUT-OF-COMBAT DESIGN BIBLE** at `docs/design-bible/` (read `00-index.md` first). A
+research-grounded (Persona/FF/D&D, BG3/Diablo, Paper Mario) intake framework for every out-of-combat system:
+storyline, world/overworld, **KOTOR-style recruitable companions** (full PC-depth when active; party of 3),
+character creation, stats, leveling, talents + the **"Reel Points"** budget, equipment, inventory, the
+**cross-character bank** (replayability spine), crafting, and the **encounter framework** (boss-part-as-
+Combatant + data-driven phases). Workflow is **hybrid**: the player brain-dumps into each file's 💬 zone, I
+structure it into the 📋 brief (markers: 🟦 your input · 💡 proposal · 🔬 reference · ❓ open · ✅ locked · ⏳
+deferred); a locked brief graduates to a real spec→plan→build. **Unifying principle: every out-of-combat
+system FEEDS THE REELS, never a parallel build axis.** `DESIGN.md` stays the *combat* source of truth.
+
 **NEXT SESSION — build the N-vs-M PARTY-COMBAT prototype** (player direction 2026-06-29). All seven classes are
 built and test-green (60 suites); the **Warden was human-playtested 2026-06-29** — Earthquake felt good. Tuning
 applied that session and merged to `main`: meter cap 15→20, the Rallying Cry reel charges **no** Bonus Meter
