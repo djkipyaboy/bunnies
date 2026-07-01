@@ -38,7 +38,7 @@ const STICKY_WILD_SPINS: int = 2
 
 ## Extra-ability ids that append a reel to this turn's loadout (mirrors _ability_adds_reel for the
 ## base-ability slot). Grown by each reel-adding ability task.
-const REEL_ADDING_EXTRA_IDS: Array[StringName] = [&"sundering_strike", &"quake_slam", &"jinx_the_odds", &"snare_trap", &"crippling_shot", &"hex"]
+const REEL_ADDING_EXTRA_IDS: Array[StringName] = [&"sundering_strike", &"quake_slam", &"jinx_the_odds", &"snare_trap", &"crippling_shot", &"hex", &"entangle"]
 
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
@@ -232,6 +232,8 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"weakened", true))
 			&"hex":
 				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"cursed"))
+			&"entangle":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"rooted"))
 	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't strips),
 	# Collateral (the splash isn't a strip), and Earthquake (+1 WILD attack reel). All add one own-type
 	# weapon-attack reel. Insert BEFORE any trailing utility reel (e.g. a staged Rallying Cry) so the
@@ -331,6 +333,8 @@ func commit() -> void:
 				combatant.try_crippling_shot(combatant.weapon_type(), def.cost, reel_cap)
 			&"hex":
 				combatant.try_hex(combatant.weapon_type(), def.cost, reel_cap)
+			&"entangle":
+				combatant.try_entangle(combatant.weapon_type(), def.cost, reel_cap)
 			&"aimed_shot":
 				combatant.stage_aimed_shot(def.cost)  # orchestrator attaches Empowered (bonus vs a Marked target)
 			&"foresight":

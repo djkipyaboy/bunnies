@@ -507,6 +507,17 @@ func try_hex(type: DamageType, cost: int, cap: int) -> bool:
 	turn_reels.append(ActionReel.make_rider_attack(type, &"cursed"))
 	return true
 
+## Warden "Entangle" (L5): splices a real-Earth-damage reel that Roots the target on a hit
+## (&"rooted", the same shared rider Ranger's Snare Trap uses). Mirrors try_hex's shape but for
+## the Warden — spends Mana (the Warden's rail), not Stamina. Respects the reel [param cap].
+func try_entangle(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"rooted"))
+	return true
+
 ## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
 ## fragile allies. Returns false (no change) if unaffordable.
 func apply_heroic_guard(cost: int) -> bool:
