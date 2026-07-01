@@ -147,11 +147,12 @@ func toggle_ability() -> void:
 	elif ability_id == &"select_fate":
 		return  # Select your Fate needs a type choice — staged via stage_select_fate (the type-picker modal)
 	else:
-		staged_extra_ability_id = &""  # mutually exclusive with an extra-ability slot: clears even when there's
-		                                # no base ability to stage (ability_id == "") or affordability/cap fails —
-		                                # the player is choosing the base-ability slot over the extra-ability one
 		if can_stage_ability():
 			ability_staged = true
+			staged_extra_ability_id = &""  # mutually exclusive with an extra-ability slot: only clears on a
+			                                # SUCCESSFUL stage (mirrors toggle_extra_ability's success-only clear) —
+			                                # a failed attempt (unaffordable/at cap) must not silently drop an
+			                                # already-staged extra ability (2026-07-01 finding on commit 76e4099)
 
 ## Stages Select your Fate! with a player-chosen damage type (from the orchestrator's type-picker modal).
 ## No-op unless this is the Seer's ability and it can currently be staged.
