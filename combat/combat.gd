@@ -1297,6 +1297,11 @@ func _apply_attack(attack) -> void:
 				var reflected: int = ceili(attack.final_damage * thorns)
 				_attacker.take_damage(reflected)
 				_log("  🌵 %s's thorns reflect %d %s back to %s." % [t.display_name, reflected, _type_name(attack.damage_type), _attacker.display_name])
+			if attack.source_reel != null and attack.source_reel.bonus_vs_cc:
+				if t.has_effect(&"slow") or t.has_effect(&"rooted") or t.stunned_this_turn:
+					var bonus: int = ceili(attack.final_damage * 0.5)
+					t.take_damage(bonus)
+					_log("  🎯 Crippling Shot exploits %s's condition for %d bonus damage." % [t.display_name, bonus])
 		# Surface the type matchup (vs the primary defender, which final_damage was computed against) so
 		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
 		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0

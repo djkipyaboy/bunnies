@@ -482,6 +482,16 @@ func try_snare_trap(type: DamageType, cost: int, cap: int) -> bool:
 	turn_reels.append(ActionReel.make_rider_attack(type, &"rooted"))
 	return true
 
+## Ranger "Crippling Shot" (L9, ultimate-tier, 3-turn CD): a called shot that Weakens the target
+## AND (combat.gd wiring) deals +50% bonus damage if the target is already Slowed/Rooted/Stunned.
+func try_crippling_shot(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"weakened", true))
+	return true
+
 ## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
 ## fragile allies. Returns false (no change) if unaffordable.
 func apply_heroic_guard(cost: int) -> bool:
