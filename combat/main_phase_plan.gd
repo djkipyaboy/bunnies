@@ -339,6 +339,8 @@ func commit() -> void:
 				combatant.stage_aimed_shot(def.cost)  # orchestrator attaches Empowered (bonus vs a Marked target)
 			&"foresight":
 				combatant.stage_foresight(def.cost)  # orchestrator picks lowest-HP% ally + shields them
+			&"regrowth":
+				combatant.stage_regrowth(def.cost)  # orchestrator picks lowest-HP% ally + grants Regen
 			&"heroic_guard":
 				combatant.apply_heroic_guard(def.cost)
 			&"second_wind":

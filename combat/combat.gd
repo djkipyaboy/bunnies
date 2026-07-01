@@ -1156,6 +1156,14 @@ func _commit_main1() -> void:
 			ally.apply_shield(amount, 2)
 			_log("  🔮 %s grants Foresight — %s shields %d HP." % [_attacker.display_name, ally.display_name, amount])
 		_attacker.foresight_pending = false
+	# Regrowth (Task 30): mirrors Foresight — the orchestrator auto-picks the lowest-HP% living
+	# ally (including the caster) and grants Regen instead of a shield.
+	if _attacker.regrowth_pending:
+		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
+		if ally != null:
+			ally.attach_effect(EffectLibrary.make(&"regen"))
+			_log("  🌿 %s grants Regrowth to %s." % [_attacker.display_name, ally.display_name])
+		_attacker.regrowth_pending = false
 
 func _do_spin() -> void:
 	# Enemy turns commit Main 1 here (PCs committed in _on_spin_pressed). Decide ability use, then

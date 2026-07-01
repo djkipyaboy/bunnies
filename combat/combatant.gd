@@ -140,6 +140,10 @@ var aimed_shot_pending: bool = false
 ## (combat.gd, Task 27 wiring) and shields them.
 var foresight_pending: bool = false
 
+## Warden "Regrowth" (L7) pending flag: the orchestrator picks the lowest-HP% living ally
+## (combat.gd, reusing Task 27's _lowest_hp_pct_ally) and grants them Regen.
+var regrowth_pending: bool = false
+
 ## Skirmisher Riposte Storm (Task 18) charge count: +1 per weapon-attack reel an enemy spins
 ## against this combatant while Evasion is active (spec 2026-07-01 §4). Reset to 0 on use.
 var riposte_charges: int = 0
@@ -1021,6 +1025,20 @@ func stage_foresight(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
 	foresight_pending = true
+	return true
+
+# ---------------------------------------------------------------------------
+# Warden "Regrowth" (L7) — costs Mana; ally auto-picked and granted Regen by the orchestrator
+# ---------------------------------------------------------------------------
+
+## Stages Regrowth: spends [param cost] Mana and flags a pending ally Regen grant. The orchestrator
+## (which searches the caster's own side) picks the lowest-HP% living ally, including the caster
+## itself, and attaches Regen at commit, then clears the flag. Returns false (no change) if
+## unaffordable.
+func stage_regrowth(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	regrowth_pending = true
 	return true
 
 # ---------------------------------------------------------------------------
