@@ -1133,6 +1133,16 @@ func _commit_main1() -> void:
 		_attacker.hunters_mark_pending = false
 		_log("  ⊕ %s MARKS %s — crit-fails become hits vs it (%d turns)." % [_attacker.display_name, _defender.display_name, mark.duration])
 		(_panels[_defender] as CombatantPanel).refresh_status()
+	# Aimed Shot (Task 23): a self-buff, so the orchestrator sizes it here where the defender's Mark
+	# status is known — bigger bonus when the shot is lined up on an already-Marked target.
+	if _attacker.aimed_shot_pending:
+		var e: Effect = EffectLibrary.make(&"empowered")
+		e.magnitude = 1.6 if _defender.has_effect(&"hunters_mark") else 1.3
+		e.duration = 1
+		_attacker.attach_effect(e)
+		_attacker.aimed_shot_pending = false
+		_log("  ⊕ %s takes Aimed Shot — damage empowered %.0f%% this turn." % [_attacker.display_name, (e.magnitude - 1.0) * 100.0])
+		(_panels[_attacker] as CombatantPanel).refresh_status()
 
 func _do_spin() -> void:
 	# Enemy turns commit Main 1 here (PCs committed in _on_spin_pressed). Decide ability use, then

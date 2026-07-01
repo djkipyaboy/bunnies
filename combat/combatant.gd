@@ -132,6 +132,10 @@ var collateral_spins_remaining: int = 0
 ## the orchestrator (which knows the enemy target) does the attach + clears the flag.
 var hunters_mark_pending: bool = false
 
+## Ranger "Aimed Shot" (L5) pending flag: the orchestrator (which knows the defender) attaches
+## Empowered with a bonus magnitude if the defender is already Marked (combat.gd, Task 23 wiring).
+var aimed_shot_pending: bool = false
+
 ## Skirmisher Riposte Storm (Task 18) charge count: +1 per weapon-attack reel an enemy spins
 ## against this combatant while Evasion is active (spec 2026-07-01 §4). Reset to 0 on use.
 var riposte_charges: int = 0
@@ -933,6 +937,20 @@ func stage_hunters_mark(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	hunters_mark_pending = true
+	return true
+
+# ---------------------------------------------------------------------------
+# Ranger "Aimed Shot" (L5) — costs Stamina; applied by the orchestrator
+# ---------------------------------------------------------------------------
+
+## Stages Aimed Shot: spends [param cost] Stamina and flags a pending self-buff. The orchestrator
+## (which knows the defender) attaches &"empowered" to this combatant at commit, with a bonus
+## magnitude if the defender is already Marked, and clears the flag. Returns false (no change) if
+## unaffordable.
+func stage_aimed_shot(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	aimed_shot_pending = true
 	return true
 
 # ---------------------------------------------------------------------------

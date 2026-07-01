@@ -319,6 +319,8 @@ func commit() -> void:
 				combatant.try_quake_slam(combatant.weapon_type(), def.cost, reel_cap)
 			&"jinx_the_odds":
 				combatant.try_jinx_the_odds(combatant.weapon_type(), def.cost, reel_cap)
+			&"aimed_shot":
+				combatant.stage_aimed_shot(def.cost)  # orchestrator attaches Empowered (bonus vs a Marked target)
 			&"heroic_guard":
 				combatant.apply_heroic_guard(def.cost)
 			&"second_wind":
