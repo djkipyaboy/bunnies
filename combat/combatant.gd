@@ -442,6 +442,15 @@ func try_sundering_strike(type: DamageType, cost: int, cap: int) -> bool:
 	turn_reels.append(ActionReel.make_rider_attack(type, &"sundered"))
 	return true
 
+## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
+## fragile allies. Returns false (no change) if unaffordable.
+func apply_heroic_guard(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	attach_effect(EffectLibrary.make(&"guarded"))
+	attach_effect(EffectLibrary.make(&"taunt"))
+	return true
+
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
 ## turn's loadout, so the weapon-attack reels stay CONTIGUOUS at the front even when a trailing utility
 ## reel (e.g. Rallying Cry) is already present. Keeps the payline grid (leading weapon-attack run) and

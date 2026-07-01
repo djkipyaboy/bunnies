@@ -305,6 +305,8 @@ func commit() -> void:
 		match staged_extra_ability_id:
 			&"sundering_strike":
 				combatant.try_sundering_strike(combatant.weapon_type(), def.cost, reel_cap)
+			&"heroic_guard":
+				combatant.apply_heroic_guard(def.cost)
 		if def != null and def.cooldown_turns > 0:
 			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
 	if fire_ultimate_staged:
