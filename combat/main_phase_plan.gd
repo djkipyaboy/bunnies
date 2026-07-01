@@ -96,6 +96,12 @@ func can_stage_extra_ability(id: StringName) -> bool:
 		return false
 	if combatant.is_on_cooldown(id):
 		return false
+	# Double or Nothing's AbilityDef.cost is 0 (the real cost — 100% of current Stamina — is computed
+	# at cast time in fire_double_or_nothing). The generic can_afford({stamina: 0}) below would trivially
+	# pass even at 0 Stamina, so gate on "has at least 1 Stamina to gamble" instead, and return early
+	# (skip the generic check entirely) rather than falling through to it.
+	if id == &"double_or_nothing":
+		return combatant.level >= def.unlock_level and not combatant.is_on_cooldown(id) and combatant.resource_pool.stamina >= 1
 	if not combatant.resource_pool.can_afford({def.resource: def.cost}):
 		return false
 	if id in REEL_ADDING_EXTRA_IDS and combatant.turn_reels.size() >= reel_cap:
@@ -329,6 +335,8 @@ func commit() -> void:
 				combatant.fire_riposte_storm(def.cost)
 			&"loaded_dice":
 				combatant.apply_loaded_dice(def.cost)
+			&"double_or_nothing":
+				combatant.fire_double_or_nothing()
 		if def != null and def.cooldown_turns > 0:
 			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
 	if fire_ultimate_staged:

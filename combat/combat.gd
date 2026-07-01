@@ -1316,8 +1316,22 @@ func _apply_attack(attack) -> void:
 				(_panels[t] as CombatantPanel).refresh_initiative()
 		_turn_order_bar.set_order(_turn_manager.get_turn_order())
 
+	# Chancer "Double or Nothing" (L9) post-spin bookkeeping: tallied per-reel here, applied/cleared
+	# once the whole spin has resolved (below) — a crit-fail recoils as self-damage, any other non-fail
+	# reel banks a Stamina refund point.
+	if _attacker.double_or_nothing_pending:
+		if attack.face.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
+			_attacker.take_damage(ceili(attack.base_damage))
+			_log("  💥 %s's gamble recoils for %d." % [_attacker.display_name, ceili(attack.base_damage)])
+		elif attack.face.result_tier != ReelFace.ResultTier.FAILURE:
+			_attacker.double_or_nothing_refund_accum += 1
+
 	_pending_strips -= 1
 	if _pending_strips <= 0:
+		if _attacker.double_or_nothing_pending:
+			_attacker.resource_pool.refund({&"stamina": _attacker.double_or_nothing_refund_accum})
+			_attacker.double_or_nothing_pending = false
+			_attacker.double_or_nothing_refund_accum = 0
 		_finish_spin()
 
 ## The targets of [param attacker]'s attacks this spin: ALL living enemies when a Rampage AoE is

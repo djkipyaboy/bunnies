@@ -150,6 +150,11 @@ var reroll_pending: bool = false
 var reroll_cost: int = 0
 var wildcard_gamble_pending: bool = false
 
+## Chancer "Double or Nothing" (L9) post-spin bookkeeping (combat.gd applies these per-reel, then
+## clears both): pending flags the crit-fail-recoils/refund resolution; accum tallies the refund.
+var double_or_nothing_pending: bool = false
+var double_or_nothing_refund_accum: int = 0
+
 ## Seer "The Big Bang" Ultimate state (spec 2026-06-27 §4): while > 0, this combatant topped its loadout
 ## to 4 crit-biased WILD reels and the spin is AoE; the orchestrator then heals all allies ceil(total/6),
 ## overflow → SHIELDED. Tracked separately from aoe/wild (which it sets) so the post-spin heal fires once.
@@ -965,3 +970,23 @@ func clear_reroll_state() -> void:
 	reroll_pending = false
 	reroll_cost = 0
 	wildcard_gamble_pending = false
+
+# ---------------------------------------------------------------------------
+# Chancer "Double or Nothing" (L9, ultimate-tier) — all-in Stamina gamble
+# ---------------------------------------------------------------------------
+
+## All-in gamble (L9, ultimate-tier, 7-turn CD): spends 100% of current Stamina (must have at least
+## 1) for a big Empowered on the next spin; a crit-fail on that spin recoils as self-damage, a
+## non-fail reel refunds Stamina (combat.gd, Task 22 wiring). Returns false if Stamina is 0.
+func fire_double_or_nothing() -> bool:
+	if resource_pool == null or resource_pool.stamina < 1:
+		return false
+	var cost: int = resource_pool.stamina
+	resource_pool.spend({&"stamina": cost})
+	var e: Effect = EffectLibrary.make(&"empowered")
+	e.magnitude = 1.5
+	e.duration = 1
+	attach_effect(e)
+	double_or_nothing_pending = true
+	double_or_nothing_refund_accum = 0
+	return true
