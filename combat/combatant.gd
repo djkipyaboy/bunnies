@@ -483,6 +483,23 @@ func apply_bloodwrath(cost: int) -> bool:
 	attach_effect(e)
 	return true
 
+## Vanguard "Mountain Stance" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Grants a heavy
+## Guarded (incoming ×0.5) plus full immunity to Slow/Rooted/Stunned, and a Taunt — all for 3 turns.
+## An unmovable, unlockable-down anchor. Returns false (no change) if unaffordable.
+func apply_mountain_stance(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var guard: Effect = EffectLibrary.make(&"guarded")
+	guard.magnitude = 0.5
+	guard.duration = 3
+	guard.immune_effect_ids = [&"slow", &"rooted"]
+	guard.grants_stun_immunity = true
+	attach_effect(guard)
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 3
+	attach_effect(taunt)
+	return true
+
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
 ## turn's loadout, so the weapon-attack reels stay CONTIGUOUS at the front even when a trailing utility
 ## reel (e.g. Rallying Cry) is already present. Keeps the payline grid (leading weapon-attack run) and
