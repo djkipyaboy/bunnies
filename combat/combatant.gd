@@ -492,6 +492,17 @@ func try_crippling_shot(type: DamageType, cost: int, cap: int) -> bool:
 	turn_reels.append(ActionReel.make_rider_attack(type, &"weakened", true))
 	return true
 
+## Seer "Hex" (L5): splices a real-Mystic-damage reel that Curses the target with a Mystic DoT
+## (&"cursed", a DAMAGE_OVER_TIME debuff). Mirrors try_sundering_strike's shape but spends Mana
+## (the Seer's rail) instead of Stamina. Respects the reel [param cap].
+func try_hex(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"cursed"))
+	return true
+
 ## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
 ## fragile allies. Returns false (no change) if unaffordable.
 func apply_heroic_guard(cost: int) -> bool:

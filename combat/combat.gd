@@ -912,10 +912,14 @@ func _apply_dot(c: Combatant) -> void:
 		return
 	for e: Effect in c.active_effects:
 		if e.kind == Effect.Kind.DAMAGE_OVER_TIME:
-			var dmg: int = e.dot_damage()
-			if dmg > 0:
-				c.take_damage(dmg)
-				_log("  %s suffers %d %s damage (×%d)." % [c.display_name, dmg, String(e.id).to_upper(), e.stacks])
+			var amount: int = e.dot_damage()
+			if amount > 0:
+				if e.beneficial:
+					c.heal(amount)
+					_log("  %s regenerates %d HP from %s." % [c.display_name, amount, String(e.id).to_upper()])
+				else:
+					c.take_damage(amount)
+					_log("  %s suffers %d %s damage (×%d)." % [c.display_name, amount, String(e.id).to_upper(), e.stacks])
 	(_panels[c] as CombatantPanel).refresh_status()
 
 func _on_spin_pressed() -> void:
