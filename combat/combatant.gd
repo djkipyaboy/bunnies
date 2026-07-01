@@ -286,6 +286,9 @@ func recompute_initiative() -> void:
 func attach_effect(effect: Effect) -> void:
 	if effect == null:
 		return
+	for active: Effect in active_effects:
+		if active != null and effect.id in active.immune_effect_ids:
+			return  # an active immunity (Mountain Stance) blocks this attach entirely
 	# Merge by id: re-applying an effect already active never creates a second instance (this is
 	# what prevents unbounded additive stacking). A stacking effect adds a stack (diminishing,
 	# capped); a non-stacking one is a no-op on stacks. Either way the duration is refreshed.
@@ -551,6 +554,10 @@ func on_end() -> void:
 func evaluate_stun(threshold: int) -> bool:
 	var forced: bool = force_stun_next_turn
 	force_stun_next_turn = false  # one-shot: consume on evaluation
+	for e: Effect in active_effects:
+		if e != null and e.grants_stun_immunity:
+			stunned_this_turn = false
+			return false  # immunity overrides even a forced (Earthquake) stun
 	# Forced (Earthquake) stun bypasses the anti-lock; init-based stun still respects it (the spiral case).
 	var by_initiative: bool = current_initiative < threshold and not stunned_last_turn
 	stunned_this_turn = forced or by_initiative
