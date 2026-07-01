@@ -1157,7 +1157,8 @@ func _do_spin() -> void:
 	var weapon_count: int = _weapon_attack_count(reels)
 	# Defer paylines: a Chancer reroll/gamble can change a reel's result AFTER the spin resolves, so the
 	# strips must animate to the FINAL post-reroll indices and paylines must score the FINAL grid.
-	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, [], true)
+	var dmg_mult: float = _attacker.outgoing_damage_multiplier() * _defender.incoming_damage_multiplier()
+	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, [], true, dmg_mult)
 	# Post-spin Chancer pass (no-op for every other class — their flags are false). Overwrites attacks[i]
 	# IN PLACE so strips animate to the final index and damage applies once on settle.
 	_rerolled_indices = _apply_post_spin_rerolls(reels, attacks, weapon_count)

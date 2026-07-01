@@ -274,6 +274,24 @@ func apply_luck() -> void:
 # Effects & turn-order
 # ---------------------------------------------------------------------------
 
+## Product of every active OUTGOING MULTIPLIER_EDIT effect's magnitude (Empowered, Bloodwrath).
+## 1.0 (neutral) when none are active.
+func outgoing_damage_multiplier() -> float:
+	var total: float = 1.0
+	for e: Effect in active_effects:
+		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and not e.affects_incoming:
+			total *= e.effective_magnitude()
+	return total
+
+## Product of every active INCOMING MULTIPLIER_EDIT effect's magnitude (Sundered raises it, Guarded
+## lowers it). 1.0 (neutral) when none are active.
+func incoming_damage_multiplier() -> float:
+	var total: float = 1.0
+	for e: Effect in active_effects:
+		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and e.affects_incoming:
+			total *= e.effective_magnitude()
+	return total
+
 ## Recomputes current_initiative as base + the sum of active INITIATIVE_MOD magnitudes (rounded).
 func recompute_initiative() -> void:
 	var total: float = 0.0
