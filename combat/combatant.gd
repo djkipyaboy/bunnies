@@ -292,6 +292,14 @@ func incoming_damage_multiplier() -> float:
 			total *= e.effective_magnitude()
 	return total
 
+## The highest thorns_pct among active effects, or 0.0 if none carry it (Bastion, Task 22).
+func thorns_pct() -> float:
+	var best: float = 0.0
+	for e: Effect in active_effects:
+		if e != null and e.thorns_pct > best:
+			best = e.thorns_pct
+	return best
+
 ## Recomputes current_initiative as base + the sum of active INITIATIVE_MOD magnitudes (rounded).
 func recompute_initiative() -> void:
 	var total: float = 0.0

@@ -1257,6 +1257,11 @@ func _apply_attack(attack) -> void:
 	if attack.final_damage > 0:
 		for t: Combatant in targets:
 			t.take_damage(attack.final_damage)
+			var thorns: float = t.thorns_pct()
+			if thorns > 0.0 and _attacker.is_alive():
+				var reflected: int = ceili(attack.final_damage * thorns)
+				_attacker.take_damage(reflected)
+				_log("  🌵 %s's thorns reflect %d %s back to %s." % [t.display_name, reflected, _type_name(attack.damage_type), _attacker.display_name])
 		# Surface the type matchup (vs the primary defender, which final_damage was computed against) so
 		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
 		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0
