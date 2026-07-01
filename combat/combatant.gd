@@ -455,6 +455,15 @@ func try_quake_slam(type: DamageType, cost: int, cap: int) -> bool:
 	turn_reels.append(ActionReel.make_rider_attack(type, &"slow"))
 	return true
 
+## Chancer "Jinx the Odds" (L7): splices a real-damage reel that curses the target with JINXED.
+func try_jinx_the_odds(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"jinxed"))
+	return true
+
 ## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
 ## fragile allies. Returns false (no change) if unaffordable.
 func apply_heroic_guard(cost: int) -> bool:
@@ -651,6 +660,28 @@ static func evasion_reels(reels: Array) -> Array[ActionReel]:
 			for f: ReelFace in copy.faces:
 				if f.result_tier == ReelFace.ResultTier.SUCCESS or f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 					f.result_tier = ReelFace.ResultTier.FAILURE
+					f.multiplier = 0.0
+			out.append(copy)
+		else:
+			out.append(r)
+	return out
+
+## Jinxed (Chancer "Jinx the Odds", Task 21) reel transform: downgrades a BEARER's own SUCCESS faces
+## to NEUTRAL (mult 0) and CRIT_SUCCESS faces to SUCCESS (mult 1.0) on weapon-attack reels — bad luck
+## given form. Unlike Evasion/Hunter's Mark (which edit an ATTACKER's reels vs. a marked/evasive
+## DEFENDER), Jinxed is checked on the bearer's own turn as the attacker. Mirrors evasion_reels'
+## shape exactly (deep-copies only weapon-attack reels; utility reels pass through). Static + pure.
+static func jinxed_reels(reels: Array) -> Array[ActionReel]:
+	var out: Array[ActionReel] = []
+	for r: ActionReel in reels:
+		if r != null and r.is_weapon_attack:
+			var copy: ActionReel = r.duplicate(true)
+			for f: ReelFace in copy.faces:
+				if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+					f.result_tier = ReelFace.ResultTier.SUCCESS
+					f.multiplier = 1.0
+				elif f.result_tier == ReelFace.ResultTier.SUCCESS:
+					f.result_tier = ReelFace.ResultTier.NEUTRAL
 					f.multiplier = 0.0
 			out.append(copy)
 		else:

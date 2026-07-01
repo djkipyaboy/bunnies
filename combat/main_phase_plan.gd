@@ -38,7 +38,7 @@ const STICKY_WILD_SPINS: int = 2
 
 ## Extra-ability ids that append a reel to this turn's loadout (mirrors _ability_adds_reel for the
 ## base-ability slot). Grown by each reel-adding ability task.
-const REEL_ADDING_EXTRA_IDS: Array[StringName] = [&"sundering_strike", &"quake_slam"]
+const REEL_ADDING_EXTRA_IDS: Array[StringName] = [&"sundering_strike", &"quake_slam", &"jinx_the_odds"]
 
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
@@ -218,6 +218,8 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"sundered"))
 			&"quake_slam":
 				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"slow"))
+			&"jinx_the_odds":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"jinxed"))
 	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't strips),
 	# Collateral (the splash isn't a strip), and Earthquake (+1 WILD attack reel). All add one own-type
 	# weapon-attack reel. Insert BEFORE any trailing utility reel (e.g. a staged Rallying Cry) so the
@@ -309,6 +311,8 @@ func commit() -> void:
 				combatant.try_sundering_strike(combatant.weapon_type(), def.cost, reel_cap)
 			&"quake_slam":
 				combatant.try_quake_slam(combatant.weapon_type(), def.cost, reel_cap)
+			&"jinx_the_odds":
+				combatant.try_jinx_the_odds(combatant.weapon_type(), def.cost, reel_cap)
 			&"heroic_guard":
 				combatant.apply_heroic_guard(def.cost)
 			&"second_wind":

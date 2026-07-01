@@ -1164,6 +1164,13 @@ func _do_spin() -> void:
 		_defender.gain_riposte_charges(weapon_reel_count)
 		_attacker.turn_reels = Combatant.evasion_reels(_attacker.turn_reels)
 		_prepare_strips(_attacker.turn_reels)
+	# Jinxed (Chancer "Jinx the Odds", Task 21): checked on the BEARER's own turn as the attacker (not
+	# the defender, unlike Hunter's Mark/Evasion above) — bad luck given form downgrades the jinxed
+	# combatant's own success/crit-success faces BEFORE resolution. Re-prepare strips so the UI animates
+	# to the downgraded faces (same rationale as the two blocks above).
+	if _attacker.has_effect(&"jinxed"):
+		_attacker.turn_reels = Combatant.jinxed_reels(_attacker.turn_reels)
+		_prepare_strips(_attacker.turn_reels)
 	var reels: Array[ActionReel] = _attacker.turn_reels
 	# Payline grid width = weapon-attack reels in THIS spin (base + Flurry/Rampage additions; the
 	# no-damage Rend reel is excluded). Equals weapon.reels.size() on a normal turn (no regression).
