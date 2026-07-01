@@ -317,6 +317,8 @@ func commit() -> void:
 				combatant.apply_bloodwrath(def.cost)
 			&"mountain_stance":
 				combatant.apply_mountain_stance(def.cost)
+			&"feint_riposte":
+				combatant.apply_feint_riposte(def.cost)
 		if def != null and def.cooldown_turns > 0:
 			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
 	if fire_ultimate_staged:
