@@ -587,6 +587,17 @@ func fire_riposte_storm(cost: int) -> bool:
 	riposte_charges = 0
 	return true
 
+## Seer "Mana Surge" (L9, ultimate-tier, 4-turn CD): a massive self-cast Empowered on this turn's
+## own reels only (duration 1 = expires at this turn's on_end). Spends MANA, not stamina.
+func apply_mana_surge(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	var e: Effect = EffectLibrary.make(&"empowered")
+	e.magnitude = 1.6
+	e.duration = 1
+	attach_effect(e)
+	return true
+
 ## Chancer "Loaded Dice" (L5): adds one crit-success face (mult 2.0, mirrors apply_luck) to each of
 ## THIS turn's reels — a temporary Luck point for one spin only — and flags the bonus payline for
 ## the orchestrator to light. Deep-copies each reel so the underlying weapon is never mutated

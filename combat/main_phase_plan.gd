@@ -351,6 +351,8 @@ func commit() -> void:
 				combatant.fire_riposte_storm(def.cost)
 			&"loaded_dice":
 				combatant.apply_loaded_dice(def.cost)
+			&"mana_surge":
+				combatant.apply_mana_surge(def.cost)
 			&"double_or_nothing":
 				combatant.fire_double_or_nothing()
 		if def != null and def.cooldown_turns > 0:
