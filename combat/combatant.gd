@@ -509,6 +509,14 @@ func apply_feint_riposte(cost: int) -> bool:
 	attach_effect(EffectLibrary.make(&"taunt"))
 	return true
 
+## Skirmisher "Quickstep" (L7): self-cast Haste (a one-time +20 initiative bump, mirrors Slow's
+## first tier inverted).
+func apply_quickstep(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	attach_effect(EffectLibrary.make(&"haste"))
+	return true
+
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
 ## turn's loadout, so the weapon-attack reels stay CONTIGUOUS at the front even when a trailing utility
 ## reel (e.g. Rallying Cry) is already present. Keeps the payline grid (leading weapon-attack run) and
