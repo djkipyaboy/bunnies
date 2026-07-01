@@ -442,6 +442,15 @@ func try_sundering_strike(type: DamageType, cost: int, cap: int) -> bool:
 	turn_reels.append(ActionReel.make_rider_attack(type, &"sundered"))
 	return true
 
+## Vanguard "Quake Slam" (L7): splices a real-damage reel that reliably applies SLOW on a hit.
+func try_quake_slam(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"slow"))
+	return true
+
 ## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
 ## fragile allies. Returns false (no change) if unaffordable.
 func apply_heroic_guard(cost: int) -> bool:
