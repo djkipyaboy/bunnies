@@ -42,6 +42,18 @@ var ability_resource: StringName = &"stamina"
 ## (Vanguard: +1 reel, Heft-all, AoE). Drives MainPhasePlan's ultimate dispatch.
 var ultimate_id: StringName = &"sticky_wild"
 
+## Character level — gates extra_abilities (spec 2026-07-01). Default 1 = only the L1 base ability
+## + nothing extra. NOT a real progression system yet (no XP) — a test/tester knob until the
+## design-bible leveling system lands.
+var level: int = 1
+
+## The class's 3 NEW (L5/L7/L9) abilities, parallel to the single ability_id (untouched — plan
+## "Corrections to the locked spec" §1). Empty for a combatant with no extra kit (e.g. enemies).
+var extra_abilities: Array[AbilityDef] = []
+
+## cooldown_turns remaining per extra-ability id, decremented in on_upkeep (Task 3).
+var cooldowns: Dictionary = {}
+
 ## Payline profile (spec 2026-06-23): &"default" or &"casino" (Chancer). Drives orchestrator scoring.
 var payline_profile_id: StringName = &"default"
 
@@ -315,6 +327,21 @@ func cleanse() -> int:
 	active_effects = active_effects.filter(func(e: Effect) -> bool: return e != null and e.beneficial)
 	recompute_initiative()
 	return before - active_effects.size()
+
+# ---------------------------------------------------------------------------
+# Extra abilities (spec 2026-07-01) — level-gated L5/L7/L9 kit
+# ---------------------------------------------------------------------------
+
+## The extra_abilities unlocked at this combatant's current level, in authored order.
+func unlocked_extra_abilities() -> Array[AbilityDef]:
+	return extra_abilities.filter(func(a: AbilityDef) -> bool: return a != null and level >= a.unlock_level)
+
+## The extra_abilities entry with [param id], or null if not present (locked or nonexistent).
+func find_extra_ability(id: StringName) -> AbilityDef:
+	for a: AbilityDef in extra_abilities:
+		if a != null and a.id == id:
+			return a
+	return null
 
 # ---------------------------------------------------------------------------
 # Per-turn reel loadout (Main-Phase editing — DESIGN.md §4.8)

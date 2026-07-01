@@ -52,6 +52,10 @@ extends Resource
 ## The class's Ultimate archetype: &"sticky_wild" (default placeholder) or &"rampage" (Vanguard).
 @export var ultimate_id: StringName = &"sticky_wild"
 
+## The class's 3 NEW abilities (L5/L7/L9), parallel to ability_id (spec 2026-07-01). Authored per
+## class in ClassLibrary.
+@export var extra_abilities: Array[AbilityDef] = []
+
 ## Which payline profile this class scores spins with (Combatant.payline_profile_id): &"default" (the
 ## 11-line whole-line set) or &"casino" (the Chancer's ~20 left-aligned lines).
 @export var payline_profile_id: StringName = &"default"
@@ -72,6 +76,7 @@ func build_combatant(is_player: bool) -> Combatant:
 	c.ability_cost = ability_cost
 	c.ability_resource = ability_resource
 	c.ultimate_id = ultimate_id
+	c.extra_abilities = extra_abilities.duplicate()
 	c.payline_profile_id = payline_profile_id
 	c.base_stats = base_stats
 

@@ -12,6 +12,13 @@ static func _stats(mi: int, fi: int, vi: int, fo: int, gr: int, lu: int) -> Stat
 	s.might = mi; s.finesse = fi; s.vigor = vi; s.focus = fo; s.grit = gr; s.luck = lu
 	return s
 
+## Builds one AbilityDef for a class's extra_abilities roster (spec 2026-07-01 §4). Costs/levels/
+## cooldowns are authored here; per-ability behavior is wired by the later tasks.
+static func _ability(id: StringName, unlock_level: int, cost: int, resource: StringName, cooldown_turns: int) -> AbilityDef:
+	var a: AbilityDef = AbilityDef.new()
+	a.id = id; a.unlock_level = unlock_level; a.cost = cost; a.resource = resource; a.cooldown_turns = cooldown_turns
+	return a
+
 static func make(id: StringName) -> CharacterClass:
 	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
@@ -33,6 +40,11 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"rend"
 			c.ability_cost = 2
 			c.ultimate_id = &"wild"  # single-spin crit-bias wild (distinct from the Skirmisher's 2-spin sticky wild)
+			c.extra_abilities = [
+				_ability(&"sundering_strike", 5, 3, &"stamina", 0),
+				_ability(&"heroic_guard", 7, 3, &"stamina", 0),
+				_ability(&"second_wind", 9, 5, &"stamina", 4),
+			]
 			return c
 		&"vanguard":
 			# Heavy badger: hits late but like a mountain; huge HP; high meter carryover. Ability Heft.
@@ -48,6 +60,11 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_cost = 2
 			c.ultimate_id = &"rampage"  # +1 reel, Heft-all, AoE (spec §4A) — not the sticky-wild placeholder
 			c.meter_charge_weights = [0, 0, 2, 2, 3]  # neutral charges +2 (was +1) — Vanguard meter identity
+			c.extra_abilities = [
+				_ability(&"bloodwrath", 5, 3, &"stamina", 0),
+				_ability(&"quake_slam", 7, 4, &"stamina", 0),
+				_ability(&"mountain_stance", 9, 5, &"stamina", 4),
+			]
 			return c
 		&"skirmisher":
 			# Dual-wield hare: fast, acts first, four small swings. Ability Flurry (relentless 5th strike).
@@ -64,6 +81,11 @@ static func make(id: StringName) -> CharacterClass:
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"flurry"
 			c.ability_cost = 2
+			c.extra_abilities = [
+				_ability(&"feint_riposte", 5, 3, &"stamina", 0),
+				_ability(&"quickstep", 7, 3, &"stamina", 0),
+				_ability(&"riposte_storm", 9, 4, &"stamina", 3),
+			]
 			return c
 		&"chancer":
 			# Luck otter: four Storm cards, extra crit faces (Luck 1), post-spin re-rolls.
@@ -78,6 +100,11 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"reroll"; c.ability_cost = 4; c.ability_resource = &"stamina"
 			c.ultimate_id = &"wildcard_gamble"
 			c.payline_profile_id = &"casino"
+			c.extra_abilities = [
+				_ability(&"loaded_dice", 5, 3, &"stamina", 0),
+				_ability(&"jinx_the_odds", 7, 3, &"stamina", 0),
+				_ability(&"double_or_nothing", 9, 0, &"stamina", 7),  # cost computed at cast time (Task 24)
+			]
 			return c
 		&"ranger":
 			# Precision archer: four Piercing bow reels, marks a target so allies' fumbles become hits,
@@ -93,6 +120,11 @@ static func make(id: StringName) -> CharacterClass:
 			c.start_stamina = 3; c.stamina_regen = 1  # base 8 + Focus 2 = 10 total stamina (spec §3.4)
 			c.ability_id = &"hunters_mark"; c.ability_cost = 3; c.ability_resource = &"stamina"
 			c.ultimate_id = &"collateral"
+			c.extra_abilities = [
+				_ability(&"aimed_shot", 5, 3, &"stamina", 0),
+				_ability(&"snare_trap", 7, 4, &"stamina", 0),
+				_ability(&"crippling_shot", 9, 5, &"stamina", 3),
+			]
 			return c
 		&"seer":
 			# Mystic caster: heavy 2-reel War Staff, mana-only. Base Select your Fate! picks the spin's
@@ -110,6 +142,11 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_mana = 9; c.start_mana = 15; c.mana_regen = 2
 			c.ability_id = &"select_fate"; c.ability_cost = 6; c.ability_resource = &"mana"
 			c.ultimate_id = &"big_bang"
+			c.extra_abilities = [
+				_ability(&"hex", 5, 4, &"mana", 0),
+				_ability(&"foresight", 7, 4, &"mana", 0),
+				_ability(&"mana_surge", 9, 6, &"mana", 4),
+			]
 			return c
 		&"warden":
 			# Earth caster-guardian: 3-reel Earthstave, mana-only. Base Rallying Cry shields the party;
@@ -127,6 +164,11 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_mana = 8; c.start_mana = 12; c.mana_regen = 1
 			c.ability_id = &"rallying_cry"; c.ability_cost = 4; c.ability_resource = &"mana"
 			c.ultimate_id = &"earthquake"
+			c.extra_abilities = [
+				_ability(&"entangle", 5, 4, &"mana", 0),
+				_ability(&"regrowth", 7, 4, &"mana", 0),
+				_ability(&"bastion", 9, 6, &"mana", 4),
+			]
 			return c
 		_:
 			return null
