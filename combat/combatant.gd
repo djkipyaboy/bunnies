@@ -136,6 +136,10 @@ var hunters_mark_pending: bool = false
 ## Empowered with a bonus magnitude if the defender is already Marked (combat.gd, Task 23 wiring).
 var aimed_shot_pending: bool = false
 
+## Seer "Foresight" (L7) pending flag: the orchestrator picks the lowest-HP% living ally
+## (combat.gd, Task 27 wiring) and shields them.
+var foresight_pending: bool = false
+
 ## Skirmisher Riposte Storm (Task 18) charge count: +1 per weapon-attack reel an enemy spins
 ## against this combatant while Evasion is active (spec 2026-07-01 §4). Reset to 0 on use.
 var riposte_charges: int = 0
@@ -981,6 +985,20 @@ func stage_aimed_shot(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	aimed_shot_pending = true
+	return true
+
+# ---------------------------------------------------------------------------
+# Seer "Foresight" (L7) — costs Mana; ally auto-picked and shielded by the orchestrator
+# ---------------------------------------------------------------------------
+
+## Stages Foresight: spends [param cost] Mana and flags a pending ally shield. The orchestrator
+## (which searches the caster's own side) picks the lowest-HP% living ally, including the caster
+## itself, and applies the shield at commit, then clears the flag. Returns false (no change) if
+## unaffordable.
+func stage_foresight(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	foresight_pending = true
 	return true
 
 # ---------------------------------------------------------------------------

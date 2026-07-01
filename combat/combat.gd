@@ -1147,6 +1147,15 @@ func _commit_main1() -> void:
 		_attacker.aimed_shot_pending = false
 		_log("  ⊕ %s takes Aimed Shot — damage empowered %.0f%% this turn." % [_attacker.display_name, (e.magnitude - 1.0) * 100.0])
 		(_panels[_attacker] as CombatantPanel).refresh_status()
+	# Foresight (Task 27): a support ability with no ally-click targeting UI yet (YAGNI), so the
+	# orchestrator auto-picks the lowest-HP% living ally (including the caster) and shields them.
+	if _attacker.foresight_pending:
+		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
+		if ally != null:
+			var amount: int = ceili(_attacker.resource_pool.max_mana * 0.15)
+			ally.apply_shield(amount, 2)
+			_log("  🔮 %s grants Foresight — %s shields %d HP." % [_attacker.display_name, ally.display_name, amount])
+		_attacker.foresight_pending = false
 
 func _do_spin() -> void:
 	# Enemy turns commit Main 1 here (PCs committed in _on_spin_pressed). Decide ability use, then
@@ -1367,6 +1376,20 @@ func _enemies_of(c: Combatant) -> Array[Combatant]:
 		if other.is_player != c.is_player and other.is_alive():
 			out.append(other)
 	return out
+
+## The living ally (including [param caster] itself) with the lowest HP%, for support abilities
+## that need an auto-picked target (Foresight, Regrowth — spec 2026-07-01 §4, YAGNI: no ally-click
+## targeting UI yet).
+func _lowest_hp_pct_ally(caster: Combatant) -> Combatant:
+	var best: Combatant = null
+	var best_pct: float = 2.0
+	for c: Combatant in _turn_manager.combatants:
+		if c.is_player == caster.is_player and c.is_alive():
+			var pct: float = float(c.hp) / float(maxi(c.max_hp, 1))
+			if pct < best_pct:
+				best_pct = pct
+				best = c
+	return best
 
 ## Splashes ceil([param total] / 2) damage to every OTHER living enemy of [param attacker] (every enemy
 ## except the primary [member _defender]) and logs each with [param type_label]. Off the type chart (flat
