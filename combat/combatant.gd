@@ -136,6 +136,10 @@ var hunters_mark_pending: bool = false
 ## against this combatant while Evasion is active (spec 2026-07-01 §4). Reset to 0 on use.
 var riposte_charges: int = 0
 
+## Chancer "Loaded Dice" (L5) pending flag: the orchestrator lights PaylineLibrary.bonus_line for
+## this spin (combat.gd, Task 20 wiring) then clears it. Set here; consumed post-commit.
+var loaded_dice_pending: bool = false
+
 func gain_riposte_charges(n: int) -> void:
 	riposte_charges += n
 
@@ -529,6 +533,24 @@ func fire_riposte_storm(cost: int) -> bool:
 	e.duration = 1
 	attach_effect(e)
 	riposte_charges = 0
+	return true
+
+## Chancer "Loaded Dice" (L5): adds one crit-success face (mult 2.0, mirrors apply_luck) to each of
+## THIS turn's reels — a temporary Luck point for one spin only — and flags the bonus payline for
+## the orchestrator to light. Deep-copies each reel so the underlying weapon is never mutated
+## (unlike apply_luck's own-reels mutation, which is permanent by design).
+func apply_loaded_dice(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	for i: int in range(turn_reels.size()):
+		var r: ActionReel = turn_reels[i].duplicate(true)
+		var f: ReelFace = ReelFace.new()
+		f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
+		f.multiplier = 2.0
+		r.faces.append(f)
+		r.faces.shuffle()
+		turn_reels[i] = r
+	loaded_dice_pending = true
 	return true
 
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
