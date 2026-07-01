@@ -462,6 +462,18 @@ func apply_second_wind(cost: int) -> bool:
 	attach_effect(EffectLibrary.make(&"guarded"))
 	return true
 
+## Vanguard "Bloodwrath" (L5): self-cast Empowered scaling with missing HP% (+1% dmg per 2% HP
+## missing, capped +40%) — a high-risk juggernaut buff. [ASSUMPTION] scaling.
+func apply_bloodwrath(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var missing_pct: float = 1.0 - (float(hp) / float(maxi(max_hp, 1)))
+	var bonus: float = minf(missing_pct * 0.5, 0.40)
+	var e: Effect = EffectLibrary.make(&"empowered")
+	e.magnitude = 1.0 + bonus
+	attach_effect(e)
+	return true
+
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
 ## turn's loadout, so the weapon-attack reels stay CONTIGUOUS at the front even when a trailing utility
 ## reel (e.g. Rallying Cry) is already present. Keeps the payline grid (leading weapon-attack run) and

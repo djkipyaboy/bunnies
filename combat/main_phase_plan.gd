@@ -309,6 +309,8 @@ func commit() -> void:
 				combatant.apply_heroic_guard(def.cost)
 			&"second_wind":
 				combatant.apply_second_wind(def.cost)
+			&"bloodwrath":
+				combatant.apply_bloodwrath(def.cost)
 		if def != null and def.cooldown_turns > 0:
 			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
 	if fire_ultimate_staged:
