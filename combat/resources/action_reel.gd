@@ -29,6 +29,10 @@ extends Reel
 ## (playtest 2026-06-29). The resolver propagates this onto the AttackResult; the orchestrator honors it.
 @export var charges_meter: bool = true
 
+## True only for the Ranger's Crippling Shot reel (Task 15): the orchestrator adds bonus damage
+## when this reel's hit lands on a target that's Slowed/Rooted/Stunned. False for every other reel.
+@export var bonus_vs_cc: bool = false
+
 ## Builds a first-pass Action reel as a physical 10-face strip. Odds = how many of each symbol
 ## sit on the reel (the reel IS the dice — no hidden weights). Crits are rare (1 each → 10%):
 ##   1 crit-failure · 2 failure · 2 neutral/utility · 4 success · 1 crit-success.
@@ -66,6 +70,19 @@ static func make_rend(type: DamageType = null) -> ActionReel:
 		if face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 			face.multiplier = 0.0
 			face.rider_effect_id = &"bleed"
+	return reel
+
+## Builds a real weapon-attack reel (same tier spread as make_default — the reel IS the dice, no
+## odds change) whose SUCCESS/CRIT_SUCCESS faces ALSO carry [param rider_id]. Unlike make_rend
+## (multiplier zeroed, utility-only), this keeps real damage: the attack itself both hits AND
+## applies its rider on a hit. Used by Sundering Strike / Quake Slam / Jinx the Odds / Snare Trap /
+## Hex / Entangle / Crippling Shot (spec 2026-07-01 §4).
+static func make_rider_attack(type: DamageType, rider_id: StringName, bonus_vs_cc: bool = false) -> ActionReel:
+	var reel: ActionReel = make_default(type)
+	reel.bonus_vs_cc = bonus_vs_cc
+	for face: ReelFace in reel.faces:
+		if face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			face.rider_effect_id = rider_id
 	return reel
 
 ## Builds the Warden's "Rallying Cry" reel (spec 2026-06-29 §3): a no-damage UTILITY reel of 2
