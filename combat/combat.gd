@@ -1151,6 +1151,19 @@ func _do_spin() -> void:
 	if not _attacker.is_aoe_active() and _defender.has_effect(&"hunters_mark"):
 		_attacker.turn_reels = Combatant.hunters_mark_reels(_attacker.turn_reels)
 		_prepare_strips(_attacker.turn_reels)
+	# Evasion (Skirmisher Feint & Riposte, Task 16): if the defender is Evasive and this is a cross-side
+	# attack, the defender banks one Riposte charge per incoming weapon-attack reel, then those reels'
+	# success/crit-success faces are downgraded to misses BEFORE resolution (the swing whiffs). Re-prepare
+	# strips so they animate to the whiffed faces (same rationale as Hunter's Mark above — turn_reels
+	# changed, the UI strips read from it). [Deviation from brief: added _prepare_strips for UI parity.]
+	if _defender.has_effect(&"evasion") and _attacker.is_player != _defender.is_player:
+		var weapon_reel_count: int = 0
+		for r: ActionReel in _attacker.turn_reels:
+			if r.is_weapon_attack:
+				weapon_reel_count += 1
+		_defender.gain_riposte_charges(weapon_reel_count)
+		_attacker.turn_reels = Combatant.evasion_reels(_attacker.turn_reels)
+		_prepare_strips(_attacker.turn_reels)
 	var reels: Array[ActionReel] = _attacker.turn_reels
 	# Payline grid width = weapon-attack reels in THIS spin (base + Flurry/Rampage additions; the
 	# no-damage Rend reel is excluded). Equals weapon.reels.size() on a normal turn (no regression).

@@ -47,6 +47,14 @@ static func casino_lines(width: int) -> Array:
 		lines.append(line)
 	return lines
 
+## An extra alternating-row line (top/bottom/top/bottom...) not present in either lines_for() or
+## casino_lines() — the Chancer's Loaded Dice (Task 20) lights this as its bonus payline.
+static func bonus_line(width: int) -> Array:
+	var line: Array = []
+	for c: int in range(width):
+		line.append(Vector2i(c, 0 if c % 2 == 0 else 2))
+	return line
+
 ## Returns the line set for a payline profile id (Combatant.payline_profile_id).
 static func lines_for_profile(profile_id: StringName, width: int) -> Array:
 	if profile_id == &"casino":

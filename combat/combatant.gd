@@ -132,6 +132,13 @@ var collateral_spins_remaining: int = 0
 ## the orchestrator (which knows the enemy target) does the attach + clears the flag.
 var hunters_mark_pending: bool = false
 
+## Skirmisher Riposte Storm (Task 18) charge count: +1 per weapon-attack reel an enemy spins
+## against this combatant while Evasion is active (spec 2026-07-01 §4). Reset to 0 on use.
+var riposte_charges: int = 0
+
+func gain_riposte_charges(n: int) -> void:
+	riposte_charges += n
+
 ## Chancer post-spin state (spec §3.1). reroll_pending: the base Re-roll ability re-rolls the single
 ## worst reel after the spin (refunding reroll_cost if nothing qualified). wildcard_gamble_pending: the
 ## Ultimate re-rolls every non-crit reel (double-or-nothing). Both are consumed/cleared post-spin.
@@ -506,6 +513,24 @@ static func hunters_mark_reels(reels: Array) -> Array[ActionReel]:
 				if f.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
 					f.result_tier = ReelFace.ResultTier.SUCCESS
 					f.multiplier = 1.0
+			out.append(copy)
+		else:
+			out.append(r)
+	return out
+
+## Evasion (Skirmisher Feint & Riposte, Task 16) reel transform: returns a copy of [param reels] in
+## which every WEAPON-ATTACK reel's SUCCESS/CRIT_SUCCESS faces are converted to a miss (FAILURE,
+## multiplier 0) — the defender is too slippery to be hit clean. Mirrors hunters_mark_reels exactly
+## (deep-copies only weapon-attack reels; utility reels pass through). Static + pure.
+static func evasion_reels(reels: Array) -> Array[ActionReel]:
+	var out: Array[ActionReel] = []
+	for r: ActionReel in reels:
+		if r != null and r.is_weapon_attack:
+			var copy: ActionReel = r.duplicate(true)
+			for f: ReelFace in copy.faces:
+				if f.result_tier == ReelFace.ResultTier.SUCCESS or f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+					f.result_tier = ReelFace.ResultTier.FAILURE
+					f.multiplier = 0.0
 			out.append(copy)
 		else:
 			out.append(r)
