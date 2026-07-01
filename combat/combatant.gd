@@ -343,6 +343,24 @@ func find_extra_ability(id: StringName) -> AbilityDef:
 			return a
 	return null
 
+## True while [param id] still has cooldown turns remaining.
+func is_on_cooldown(id: StringName) -> bool:
+	return int(cooldowns.get(id, 0)) > 0
+
+## Sets a fresh cooldown of [param turns] on ability [param id] (overwrites, never stacks).
+func start_cooldown(id: StringName, turns: int) -> void:
+	if turns > 0:
+		cooldowns[id] = turns
+
+## Decrements every tracked cooldown by one bearer-turn, dropping entries that reach 0.
+func tick_cooldowns() -> void:
+	var next: Dictionary = {}
+	for id in cooldowns:
+		var remaining: int = int(cooldowns[id]) - 1
+		if remaining > 0:
+			next[id] = remaining
+	cooldowns = next
+
 # ---------------------------------------------------------------------------
 # Per-turn reel loadout (Main-Phase editing — DESIGN.md §4.8)
 # ---------------------------------------------------------------------------
@@ -512,6 +530,7 @@ func _heft_turn_reels(conversions: int) -> void:
 func on_upkeep() -> void:
 	if resource_pool != null:
 		resource_pool.regen()
+	tick_cooldowns()
 	recompute_initiative()
 
 ## End-of-turn bookkeeping: tick effect durations (Slow counts down here — DESIGN.md §4.8), then

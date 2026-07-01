@@ -39,6 +39,10 @@ const STICKY_WILD_SPINS: int = 2
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
 
+## The currently-staged NEW (L5/L7/L9) ability id, or "" for none. Mutually exclusive with
+## [member ability_staged] — staging one clears the other (spec 2026-07-01).
+var staged_extra_ability_id: StringName = &""
+
 ## Seer "Select your Fate!" chosen damage type (spec 2026-06-27 §3). Set by [method stage_select_fate]
 ## (the orchestrator's 6-button type-picker modal); consumed by [method commit]. Null = not chosen.
 var selected_fate_type: DamageType = null
@@ -77,6 +81,25 @@ func can_stage_ability() -> bool:
 ## True if the Ultimate can be newly STAGED: the Bonus Meter is armed. Un-staging is always allowed.
 func can_stage_ultimate() -> bool:
 	return combatant != null and combatant.bonus_meter != null and combatant.bonus_meter.is_armed()
+
+## True if [param id] can be newly staged: unlocked at this combatant's level, affordable on its
+## rail, and not on cooldown. Un-staging (passing the already-staged id to toggle) is always allowed.
+func can_stage_extra_ability(id: StringName) -> bool:
+	if combatant == null or combatant.resource_pool == null:
+		return false
+	var def: AbilityDef = combatant.find_extra_ability(id)
+	if def == null or combatant.level < def.unlock_level:
+		return false
+	if combatant.is_on_cooldown(id):
+		return false
+	return combatant.resource_pool.can_afford({def.resource: def.cost})
+
+func toggle_extra_ability(id: StringName) -> void:
+	if staged_extra_ability_id == id:
+		staged_extra_ability_id = &""
+	elif can_stage_extra_ability(id):
+		staged_extra_ability_id = id
+		ability_staged = false  # mutually exclusive with the base ability slot
 
 ## True when the active Ultimate is a crit-bias WILD variant (Warrior 1-spin / Skirmisher 2-spin sticky).
 func _is_wild_ultimate() -> bool:
@@ -120,10 +143,15 @@ func toggle_ability() -> void:
 	if ability_staged:
 		ability_staged = false
 		selected_fate_type = null  # clear any Seer type choice on un-stage
+		staged_extra_ability_id = &""  # mutually exclusive with an extra-ability slot
 	elif ability_id == &"select_fate":
 		return  # Select your Fate needs a type choice — staged via stage_select_fate (the type-picker modal)
-	elif can_stage_ability():
-		ability_staged = true
+	else:
+		staged_extra_ability_id = &""  # mutually exclusive with an extra-ability slot: clears even when there's
+		                                # no base ability to stage (ability_id == "") or affordability/cap fails —
+		                                # the player is choosing the base-ability slot over the extra-ability one
+		if can_stage_ability():
+			ability_staged = true
 
 ## Stages Select your Fate! with a player-chosen damage type (from the orchestrator's type-picker modal).
 ## No-op unless this is the Seer's ability and it can currently be staged.
