@@ -321,6 +321,8 @@ func commit() -> void:
 				combatant.apply_feint_riposte(def.cost)
 			&"quickstep":
 				combatant.apply_quickstep(def.cost)
+			&"riposte_storm":
+				combatant.fire_riposte_storm(def.cost)
 		if def != null and def.cooldown_turns > 0:
 			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
 	if fire_ultimate_staged:

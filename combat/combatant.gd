@@ -517,6 +517,20 @@ func apply_quickstep(cost: int) -> bool:
 	attach_effect(EffectLibrary.make(&"haste"))
 	return true
 
+## Skirmisher "Riposte Storm" (L9, ultimate-tier, 3-turn CD): detonates accumulated riposte_charges
+## (built by Evasion, Task 9) as a temporary Empowered on this turn's normal reels — +15% per
+## charge, capped at 5 charges (+75% max). Fires at baseline (no bonus) with 0 charges. Resets
+## charges on use.
+func fire_riposte_storm(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var e: Effect = EffectLibrary.make(&"empowered")
+	e.magnitude = 1.0 + 0.15 * mini(riposte_charges, 5)
+	e.duration = 1
+	attach_effect(e)
+	riposte_charges = 0
+	return true
+
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
 ## turn's loadout, so the weapon-attack reels stay CONTIGUOUS at the front even when a trailing utility
 ## reel (e.g. Rallying Cry) is already present. Keeps the payline grid (leading weapon-attack run) and
