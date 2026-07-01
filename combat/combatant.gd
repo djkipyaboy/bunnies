@@ -432,6 +432,16 @@ func try_rend_reel(type: DamageType, cost: int, cap: int) -> bool:
 	turn_reels.append(ActionReel.make_rend(type))
 	return true
 
+## Warrior "Sundering Strike" (spec §4, L5): splices one [param type]-typed reel that deals REAL
+## damage and applies SUNDERED on a hit (unlike Rend, which deals none). Respects the reel [param cap].
+func try_sundering_strike(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"sundered"))
+	return true
+
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
 ## turn's loadout, so the weapon-attack reels stay CONTIGUOUS at the front even when a trailing utility
 ## reel (e.g. Rallying Cry) is already present. Keeps the payline grid (leading weapon-attack run) and

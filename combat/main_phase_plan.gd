@@ -36,6 +36,10 @@ const EARTHQUAKE_SPINS: int = 1
 const WILD_SPINS: int = 1
 const STICKY_WILD_SPINS: int = 2
 
+## Extra-ability ids that append a reel to this turn's loadout (mirrors _ability_adds_reel for the
+## base-ability slot). Grown by each reel-adding ability task.
+const REEL_ADDING_EXTRA_IDS: Array[StringName] = [&"sundering_strike"]
+
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
 
@@ -92,7 +96,11 @@ func can_stage_extra_ability(id: StringName) -> bool:
 		return false
 	if combatant.is_on_cooldown(id):
 		return false
-	return combatant.resource_pool.can_afford({def.resource: def.cost})
+	if not combatant.resource_pool.can_afford({def.resource: def.cost}):
+		return false
+	if id in REEL_ADDING_EXTRA_IDS and combatant.turn_reels.size() >= reel_cap:
+		return false
+	return true
 
 func toggle_extra_ability(id: StringName) -> void:
 	if staged_extra_ability_id == id:
@@ -204,6 +212,10 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_default(selected_fate_type))  # joins paylines (a weapon-attack reel)
 			&"rallying_cry":
 				reels.append(ActionReel.make_rallying_cry(combatant.weapon_type()))  # utility reel (out of paylines, tail)
+	if staged_extra_ability_id != &"" and staged_extra_ability_id in REEL_ADDING_EXTRA_IDS and reels.size() < reel_cap:
+		match staged_extra_ability_id:
+			&"sundering_strike":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"sundered"))
 	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't strips),
 	# Collateral (the splash isn't a strip), and Earthquake (+1 WILD attack reel). All add one own-type
 	# weapon-attack reel. Insert BEFORE any trailing utility reel (e.g. a staged Rallying Cry) so the
@@ -288,6 +300,13 @@ func commit() -> void:
 				combatant.apply_select_fate(selected_fate_type, ability_cost)  # +1 reel, retype loadout (Seer)
 			&"rallying_cry":
 				combatant.apply_rallying_cry(ability_cost, reel_cap)  # +1 utility reel; orchestrator shields the party
+	if staged_extra_ability_id != &"":
+		var def: AbilityDef = combatant.find_extra_ability(staged_extra_ability_id)
+		match staged_extra_ability_id:
+			&"sundering_strike":
+				combatant.try_sundering_strike(combatant.weapon_type(), def.cost, reel_cap)
+		if def != null and def.cooldown_turns > 0:
+			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
 	if fire_ultimate_staged:
 		match ultimate_id:
 			&"wild":
