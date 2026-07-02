@@ -34,7 +34,7 @@ var _phase_label: Label
 var _log_box: RichTextLabel
 var _spin_button: Button
 var _end_turn_button: Button
-var _splice_button: Button
+var _abilities_button: Button
 var _ultimate_button: Button
 var _paylines_button: Button
 var _payline_cycle_index: int = -1   # which payline the toggle is currently previewing (-1 = none)
@@ -85,6 +85,7 @@ var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds
 var _fate_picker_title: Label            # picker heading, re-captioned per mode
 var _type_chart: TypeChartPanel          # toggleable 6×6 type-effectiveness graphic (hidden until toggled on)
 var _type_chart_button: Button
+var _ability_menu: AbilityMenuPanel
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
 var _awaiting_stun_check: bool = false
@@ -250,12 +251,13 @@ func _build_ui() -> void:
 	_ultimate_button.disabled = true
 	add_child(_ultimate_button)
 
-	_splice_button = Button.new()
-	_splice_button.text = "Splice Storm reel (2 STA)"
-	_splice_button.position = Vector2(col_x.call(1), ROW1_Y)
-	_splice_button.custom_minimum_size = Vector2(BTN_W, 50)
-	_splice_button.disabled = true
-	add_child(_splice_button)
+	_abilities_button = Button.new()
+	_abilities_button.text = "Abilities"
+	_abilities_button.position = Vector2(col_x.call(1), ROW1_Y)
+	_abilities_button.custom_minimum_size = Vector2(BTN_W, 50)
+	_abilities_button.disabled = true
+	_abilities_button.tooltip_text = "Open your ability list — stage one ability for this turn."
+	add_child(_abilities_button)
 
 	_spin_button = Button.new()
 	_spin_button.text = "SPIN"
@@ -313,6 +315,12 @@ func _build_ui() -> void:
 	_type_chart.visible = false
 	add_child(_type_chart)
 	_type_chart.build()
+
+	# Ability menu — floats over the reel area while open (spec 2026-07-02); rebuilt on every open.
+	_ability_menu = AbilityMenuPanel.new()
+	_ability_menu.position = Vector2(CENTER_X + 30.0, 96.0)
+	_ability_menu.visible = false
+	add_child(_ability_menu)
 
 	_build_overlay()
 	_build_fate_picker()
@@ -606,18 +614,6 @@ func _class_tooltip(id: StringName) -> String:
 		&"warden": return "Warden — Earth, 3 reels, Mana. Rallying Cry shields the party; Earthquake nukes one enemy, half-splashes the rest, and STUNS everyone it hits."
 		_: return "Playable class."
 
-## Hover description for the base-ability button, per class (notes whether it stacks with the Ultimate).
-func _ability_tooltip(id: StringName) -> String:
-	match id:
-		&"rend": return "Rend (2 STA): adds a reel that applies stacking BLEED on a hit (no direct damage). Usable alongside your Ultimate."
-		&"heft": return "Heft (2 STA): converts this turn's miss faces into hits. Rampage already includes Heft for free."
-		&"flurry": return "Flurry (2 STA): adds one extra weapon swing this turn. Usable alongside your Ultimate."
-		&"reroll": return "Re-roll (4 STA): after the spin, re-rolls your single worst reel (refunded if none were bad). Wildcard Gamble already re-rolls everything."
-		&"hunters_mark": return "Hunter's Mark (3 STA): marks the target 3 turns — allies' crit-fails become hits against it. Usable alongside your Ultimate."
-		&"select_fate": return "Select your Fate! (6 MANA): adds a reel (joins paylines) and converts this whole spin to a damage type you pick. Locked out while The Big Bang is staged — the Ultimate picks the type for free."
-		&"rallying_cry": return "Rallying Cry (4 MANA): adds a no-damage reel. On a hit it shields every ally for 2 turns — half your weapon's damage on a success, full on a crit. Usable alongside Earthquake."
-		_: return ""
-
 ## Hover description for the Ultimate button, per class (flags whether the base ability is wasted).
 func _ultimate_tooltip(id: StringName) -> String:
 	match id:
@@ -735,7 +731,8 @@ func _bind_signals() -> void:
 	_resolver.paylines_resolved.connect(_on_paylines_resolved)
 	_spin_button.pressed.connect(_on_spin_pressed)
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
-	_splice_button.pressed.connect(_on_splice_pressed)
+	_abilities_button.pressed.connect(_on_abilities_pressed)
+	_ability_menu.ability_pressed.connect(_on_ability_menu_ability_pressed)
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 	_paylines_button.pressed.connect(_on_paylines_pressed)
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
@@ -770,29 +767,10 @@ func _on_round_started(n: int) -> void:
 	_log("— Round %d —" % n)
 	_turn_order_bar.set_order(_turn_manager.get_turn_order())
 
-## The label for the generic base-ability button, per the active class's ability (spec §4A).
-func _ability_label(id: StringName) -> String:
-	match id:
-		&"rend": return "Rend: +1 bleed reel (2 STA)"
-		&"heft": return "Heft: steady the reels (2 STA)"
-		&"flurry": return "Flurry: +1 swing (2 STA)"
-		&"reroll": return "Re-roll worst reel (4 STA)"
-		&"hunters_mark": return "Hunter's Mark: debuff target (3 STA)"
-		&"select_fate": return "Select Fate: choose type (6 MANA)"
-		&"rallying_cry": return "Rallying Cry: party shield (4 MANA)"
-		_: return "Ability"
-
-## Short ability name for the combat log.
+## Short ability name for the combat log — catalog-backed (one source of truth, spec 2026-07-02 §4).
 func _ability_name(id: StringName) -> String:
-	match id:
-		&"rend": return "Rend (bleed reel)"
-		&"heft": return "Heft (steady reels)"
-		&"flurry": return "Flurry (extra swing)"
-		&"reroll": return "Re-roll (worst reel)"
-		&"hunters_mark": return "Hunter's Mark (accuracy debuff)"
-		&"select_fate": return "Select your Fate"
-		&"rallying_cry": return "Rallying Cry (party shield)"
-		_: return "ability"
+	var display: String = AbilityCatalog.display_name(id)  # not "name" — would shadow Node.name
+	return display if display != "" else "ability"
 
 ## Ultimate button label + log name, per the active class's Ultimate.
 func _ultimate_label(id: StringName) -> String:
@@ -819,6 +797,7 @@ func _ultimate_name(id: StringName) -> String:
 
 func _on_turn_started(c: Combatant) -> void:
 	_attacker = c
+	_ability_menu.hide()  # never carry an open menu across a turn boundary
 	# Primary target (spec §3/§4): on a PC's turn it's THAT PC's remembered enemy (default first living
 	# enemy), refreshed if it died; on an enemy turn the placeholder AI picks a living PC. Drives
 	# attacks/Hunter's Mark/Collateral.
@@ -838,8 +817,6 @@ func _on_turn_started(c: Combatant) -> void:
 	# The ability/Ultimate buttons follow the ACTIVE PC (the controller this turn); on an enemy turn they're
 	# disabled, so label them from the active party member (the current PC, else the first party member).
 	var ctrl: Combatant = c if c.is_player else _pc
-	_splice_button.text = _ability_label(ctrl.ability_id)
-	_splice_button.tooltip_text = _ability_tooltip(ctrl.ability_id)
 	_ultimate_button.text = _ultimate_label(ctrl.ultimate_id)
 	_ultimate_button.tooltip_text = _ultimate_tooltip(ctrl.ultimate_id)
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
@@ -854,7 +831,7 @@ func _on_turn_started(c: Combatant) -> void:
 		# STUNNED — gate the turn behind a d100 "shake off" check.
 		_awaiting_stun_check = true
 		_awaiting_player_spin = false
-		_splice_button.disabled = true
+		_abilities_button.disabled = true
 		_ultimate_button.disabled = true
 		_prepare_strips(c.turn_reels)  # show the reels (idle) behind the gate
 		_log("  %s is STUNNED — %s a shake-off roll." % [c.display_name, "press SPIN for" if c.is_player else "rolling"])
@@ -878,7 +855,7 @@ func _on_turn_started(c: Combatant) -> void:
 ## A target dummy's whole turn: spend it healing back to full, skip the Combat phase entirely, then end.
 func _take_dummy_turn(c: Combatant) -> void:
 	_spin_button.disabled = true
-	_splice_button.disabled = true
+	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
 	var none: Array[ActionReel] = []
 	_prepare_strips(none)  # no reels — the dummy doesn't spin
@@ -960,9 +937,10 @@ func _on_spin_pressed() -> void:
 	# applied in _do_spin). Shared with the enemy path — see _commit_main1.
 	_commit_main1()
 	_spin_button.disabled = true
-	_splice_button.disabled = true
+	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
-	_splice_button.modulate = Color(1, 1, 1)
+	_ability_menu.hide()
+	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
 	# Re-prepare strips from the COMMITTED reels. The preview's spliced reel is a separate
@@ -996,17 +974,42 @@ func _resolve_stun_check() -> void:
 		# Lose the turn: skip Combat, run Main 2 → End → advance. (No proceed_to_combat.)
 		_phase_manager.resume_after_combat()
 
-## Stages/un-stages the active class's base ability (toggle). Applies nothing — commit on SPIN.
-## Select your Fate (Seer) needs a type choice, so pressing it opens the 6-type picker when not yet staged;
-## pressing it while staged un-stages (and clears the chosen type).
-func _on_splice_pressed() -> void:
+## Opens/closes the ability menu (spec 2026-07-02 §1). All staging happens INSIDE the menu — this
+## button is only the door (and, via _refresh_main1_preview, the staged-state readout).
+func _on_abilities_pressed() -> void:
+	if _ability_menu.visible:
+		_ability_menu.hide()
+		return
 	if not _awaiting_player_spin or _plan == null:
 		return
-	if _attacker.ability_id == &"select_fate" and not _plan.ability_staged:
-		_show_fate_picker()
+	_ability_menu.open_for(_attacker, _plan)
+	move_child(_ability_menu, get_child_count() - 1)  # draw over the reel strips while up
+
+## One menu row pressed: dispatch to the existing model (base slot vs extra slot — mutual exclusivity
+## is model-enforced, never policed here). A SUCCESSFUL stage/un-stage closes the menu so the reel/
+## resource preview is immediately visible; a no-op press re-renders the menu in place (spec §3).
+func _on_ability_menu_ability_pressed(id: StringName) -> void:
+	if not _awaiting_player_spin or _plan == null:
 		return
-	_plan.toggle_ability()
+	var before: String = _staged_state_key()
+	if id == _attacker.ability_id:
+		if _attacker.ability_id == &"select_fate" and not _plan.ability_staged:
+			_ability_menu.hide()  # the type picker is modal — close the menu under it
+			_show_fate_picker()
+			return
+		_plan.toggle_ability()
+	else:
+		_plan.toggle_extra_ability(id)
+	if _staged_state_key() != before:
+		_ability_menu.hide()
+	else:
+		_ability_menu.open_for(_attacker, _plan)  # re-render states in place (e.g. press was a no-op)
 	_refresh_main1_preview()
+
+## Fingerprint of the plan's staged-ability state — compared around a toggle to detect "something
+## actually changed" (drives the close-on-successful-toggle rule).
+func _staged_state_key() -> String:
+	return "%s|%s" % [str(_plan.ability_staged), String(_plan.staged_extra_ability_id)]
 
 ## Stages/un-stages the Sticky-Wild Ultimate (toggle). Consumes nothing — commit happens on SPIN.
 func _on_ultimate_pressed() -> void:
@@ -1038,25 +1041,27 @@ func _refresh_main1_preview() -> void:
 	panel.set_meter_flash(_plan.will_consume_meter())
 
 	var is_player_main1: bool = _awaiting_player_spin and _attacker != null and _attacker.is_player
-	# Base-ability button. When Rampage includes Heft for free, the button reads "included" + free,
-	# shows staged-green, and is locked (toggled by the Ultimate, not directly).
-	if _plan.ability_is_free():
-		_splice_button.text = "Heft: included by Rampage (0 STA)"
-		_splice_button.disabled = true
-		_splice_button.modulate = Color(0.6, 1.0, 0.6)
-	elif _plan.ability_locked_by_ultimate():
-		# The Ultimate is staged and subsumes the base ability — lock the toggle (spec 2026-06-25 §5).
-		_splice_button.text = "Base ability locked (Ultimate staged)"
-		_splice_button.disabled = true
-		_splice_button.modulate = Color(0.5, 0.5, 0.5)
-	else:
-		# Select your Fate shows the chosen type once staged (legibility — strips don't render type).
-		if _attacker.ability_id == &"select_fate" and _plan.ability_staged and _plan.selected_fate_type != null:
-			_splice_button.text = "Select Fate: %s (6 MANA)" % _type_name(_plan.selected_fate_type)
+	# Abilities button (spec 2026-07-02 §1): the staged choice must be legible with the menu CLOSED —
+	# show the staged ability's name + staged-green on the button itself.
+	var staged_name: String = ""
+	if _plan.staged_extra_ability_id != &"":
+		staged_name = AbilityCatalog.display_name(_plan.staged_extra_ability_id)
+	elif _plan.ability_staged or _plan.ability_is_free():
+		if _attacker.ability_id == &"select_fate" and _plan.selected_fate_type != null:
+			staged_name = "Select Fate: %s" % _type_name(_plan.selected_fate_type)
 		else:
-			_splice_button.text = _ability_label(_attacker.ability_id)
-		_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
-		_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.ability_staged else Color(1, 1, 1)
+			staged_name = AbilityCatalog.display_name(_attacker.ability_id)
+	if staged_name != "":
+		_abilities_button.text = "Abilities: %s ✓" % staged_name
+		_abilities_button.modulate = Color(0.6, 1.0, 0.6)
+	else:
+		_abilities_button.text = "Abilities"
+		_abilities_button.modulate = Color(1, 1, 1)
+	# The menu is openable whenever it's the player's own Main 1 — even if nothing is currently
+	# stageable, the player can still READ their kit (legibility pillar).
+	_abilities_button.disabled = not is_player_main1
+	if _ability_menu.visible:
+		_ability_menu.open_for(_attacker, _plan)  # keep an open menu's row states live
 	# The Big Bang shows the chosen damage type once staged (its picker is the Ultimate's, not the ability's).
 	if _attacker.ultimate_id == &"big_bang" and _plan.fire_ultimate_staged and _plan.selected_fate_type != null:
 		_ultimate_button.text = "The Big Bang: %s (AoE)" % _type_name(_plan.selected_fate_type)
@@ -1583,9 +1588,9 @@ func _finish_spin() -> void:
 	if _attacker.sticky_wild_spins_remaining > 0:
 		_log("  ◇ WILD still active — %d spin(s) remaining (meter already spent)." % _attacker.sticky_wild_spins_remaining)
 	_highlight_wild_strips()
-	_splice_button.disabled = true
+	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
-	_splice_button.modulate = Color(1, 1, 1)
+	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
 	# If the spin ended the fight, go straight to the result — no End Turn needed.
