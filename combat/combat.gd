@@ -1291,12 +1291,18 @@ func _do_spin() -> void:
 			_rallying_cry_tier = attacks[rc_idx].face.result_tier
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
-	# deferred the emit above.)
+	# deferred the emit above.) `extra_lines` (Loaded Dice's bonus line, built above) must be folded
+	# into WHICHEVER pattern set is used here — the resolve_combat_phase call earlier deferred its own
+	# scoring of extra_lines (defer_paylines=true) specifically so this re-score is the one that counts;
+	# dropping it here (bug found in playtest audit 2026-07-02) silently made Loaded Dice's bonus
+	# payline never score, though its crit-face injection still worked.
 	var payline_hits: Array
 	if _attacker.payline_profile_id == &"casino":
-		payline_hits = _resolver.evaluate_paylines_profile(reels, attacks, weapon_count, PaylineLibrary.casino_lines(weapon_count), true, CASINO_MIN_RUN)
+		var casino_pattern: Array = PaylineLibrary.casino_lines(weapon_count)
+		casino_pattern.append_array(extra_lines)
+		payline_hits = _resolver.evaluate_paylines_profile(reels, attacks, weapon_count, casino_pattern, true, CASINO_MIN_RUN)
 	else:
-		payline_hits = _resolver.evaluate_paylines(reels, attacks, weapon_count, [])
+		payline_hits = _resolver.evaluate_paylines(reels, attacks, weapon_count, extra_lines)
 	_resolver.paylines_resolved.emit(payline_hits)
 	_pending_strips = attacks.size()
 	var strips: Array = _strips
@@ -1361,7 +1367,14 @@ func _apply_attack(attack) -> void:
 				_attacker.take_damage(reflected)
 				_log("  🌵 %s's thorns reflect %d %s back to %s." % [t.display_name, reflected, _type_name(attack.damage_type), _attacker.display_name])
 			if attack.source_reel != null and attack.source_reel.bonus_vs_cc:
-				if t.has_effect(&"slow") or t.has_effect(&"rooted") or t.stunned_this_turn:
+				# stunned_this_turn is only ever true DURING the bearer's own turn (set by evaluate_stun
+				# at their turn start, cleared by their own on_end) — checked here on the RANGER's turn,
+				# against another combatant, it is always false by construction and the bonus would never
+				# fire for a stunned target (playtest audit 2026-07-02). stunned_last_turn is the field
+				# that's actually observable from outside the bearer's own turn: true from the moment
+				# their stunned turn ends until their own NEXT on_end, which is exactly the window a
+				# called shot like this should be able to exploit.
+				if t.has_effect(&"slow") or t.has_effect(&"rooted") or t.stunned_last_turn:
 					var bonus: int = ceili(attack.final_damage * 0.5)
 					t.take_damage(bonus)
 					_log("  🎯 Crippling Shot exploits %s's condition for %d bonus damage." % [t.display_name, bonus])
