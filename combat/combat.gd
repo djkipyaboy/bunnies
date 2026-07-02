@@ -11,8 +11,12 @@ const STRIP_STAGGER: float = 0.25
 const ENEMY_THINK_DELAY: float = 0.6
 const STUN_THRESHOLD: int = -20   # [ASSUMPTION] start-of-turn initiative below this → STUNNED
 const CASINO_MIN_RUN: int = 3  # [ASSUMPTION] Chancer casino lines pay on a left-aligned run of >=3
-const BIG_BANG_SHIELD_TURNS: int = 2  # [ASSUMPTION] Seer Big Bang: heal-overflow shield duration
-const RALLYING_CRY_SHIELD_TURNS: int = 2  # [ASSUMPTION] Warden Rallying Cry: party shield duration
+## [ASSUMPTION] +1 over the original 2 (playtest 2026-07-02): shield_turns ticks down at the
+## SHIELDED ally's own on_end, same first-tick-loss pattern as the Guarded/Taunt/Evasion/Haste
+## effects (see Combatant.apply_heroic_guard's comment) — an ally shielded mid-round can lose a
+## turn's worth of protection before ever taking a hit.
+const BIG_BANG_SHIELD_TURNS: int = 3  # Seer Big Bang: heal-overflow shield duration
+const RALLYING_CRY_SHIELD_TURNS: int = 3  # Warden Rallying Cry: party shield duration
 
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
@@ -1180,11 +1184,12 @@ func _commit_main1() -> void:
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 	# Foresight (Task 27): a support ability with no ally-click targeting UI yet (YAGNI), so the
 	# orchestrator auto-picks the lowest-HP% living ally (including the caster) and shields them.
+	# Duration +1 over the original 2 (playtest 2026-07-02 — see BIG_BANG_SHIELD_TURNS's comment).
 	if _attacker.foresight_pending:
 		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
 		if ally != null:
 			var amount: int = ceili(_attacker.resource_pool.max_mana * 0.15)
-			ally.apply_shield(amount, 2)
+			ally.apply_shield(amount, 3)
 			_log("  🔮 %s grants Foresight — %s shields %d HP." % [_attacker.display_name, ally.display_name, amount])
 		_attacker.foresight_pending = false
 	# Regrowth (Task 30): mirrors Foresight — the orchestrator auto-picks the lowest-HP% living
@@ -1566,7 +1571,8 @@ func _finish_spin() -> void:
 				_log("  ☷ EARTHQUAKE → %s is STUNNED next turn (initiative unchanged)." % other.display_name)
 		_attacker.consume_earthquake_spin()
 	# Warden Rallying Cry (spec 2026-06-29 §3): read the utility reel's tier and shield every ally.
-	# SUCCESS → half-weapon shield, CRIT_SUCCESS → full-weapon shield, 2 turns, higher-total-overrides.
+	# SUCCESS → half-weapon shield, CRIT_SUCCESS → full-weapon shield, RALLYING_CRY_SHIELD_TURNS
+	# turns, higher-total-overrides.
 	if _attacker.rallying_cry_reel != null and _rallying_cry_tier != -1:
 		var base: float = _attacker.weapon.base_damage
 		var amount: int = 0
@@ -1575,7 +1581,7 @@ func _finish_spin() -> void:
 		elif _rallying_cry_tier == ReelFace.ResultTier.SUCCESS:
 			amount = ceili(base * 0.5)
 		if amount > 0:
-			_log("  ⛨ RALLYING CRY → %d shield to all allies (2 turns)." % amount)
+			_log("  ⛨ RALLYING CRY → %d shield to all allies (%d turns)." % [amount, RALLYING_CRY_SHIELD_TURNS])
 			for ally: Combatant in _allies_of(_attacker):
 				ally.apply_shield(amount, RALLYING_CRY_SHIELD_TURNS)
 				if _panels.has(ally):

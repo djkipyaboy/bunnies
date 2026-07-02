@@ -532,22 +532,36 @@ func try_entangle(type: DamageType, cost: int, cap: int) -> bool:
 
 ## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
 ## fragile allies. Returns false (no change) if unaffordable.
+##
+## Duration +1 over the guarded/taunt template default (playtest 2026-07-02): a self-buff whose
+## payoff needs an ENEMY's future turn (being guarded/taunted does nothing on the casting turn
+## itself) loses its first nominal turn to the bearer's own on_end() tick, which fires at the end
+## of this SAME casting turn, before any enemy has acted. See Combatant.attach_effect/tick_effects
+## and Combatant.on_end for the tick timing this compensates for.
 func apply_heroic_guard(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	attach_effect(EffectLibrary.make(&"guarded"))
-	attach_effect(EffectLibrary.make(&"taunt"))
+	var guard: Effect = EffectLibrary.make(&"guarded")
+	guard.duration = 3
+	attach_effect(guard)
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 3
+	attach_effect(taunt)
 	return true
 
 ## Warrior "Second Wind" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Heals 30% max HP (ceil),
 ## Cleanses every debuff, and grants Guarded — he comes back hardened, not just patched up. Returns
 ## false (no change) if unaffordable.
+##
+## Guarded duration +1 (see apply_heroic_guard's comment — same first-tick-loss compensation).
 func apply_second_wind(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	heal(ceili(max_hp * 0.30))
 	cleanse()
-	attach_effect(EffectLibrary.make(&"guarded"))
+	var guard: Effect = EffectLibrary.make(&"guarded")
+	guard.duration = 3
+	attach_effect(guard)
 	return true
 
 ## Vanguard "Bloodwrath" (L5): self-cast Empowered scaling with missing HP% (+1% dmg per 2% HP
@@ -563,52 +577,70 @@ func apply_bloodwrath(cost: int) -> bool:
 	return true
 
 ## Vanguard "Mountain Stance" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Grants a heavy
-## Guarded (incoming ×0.5) plus full immunity to Slow/Rooted/Stunned, and a Taunt — all for 3 turns.
+## Guarded (incoming ×0.5) plus full immunity to Slow/Rooted/Stunned, and a Taunt — all for 4 turns.
 ## An unmovable, unlockable-down anchor. Returns false (no change) if unaffordable.
+##
+## Duration +1 over the original 3 (playtest 2026-07-02 — see apply_heroic_guard's comment for why).
 func apply_mountain_stance(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	var guard: Effect = EffectLibrary.make(&"guarded")
 	guard.magnitude = 0.5
-	guard.duration = 3
+	guard.duration = 4
 	guard.immune_effect_ids = [&"slow", &"rooted"]
 	guard.grants_stun_immunity = true
 	attach_effect(guard)
 	var taunt: Effect = EffectLibrary.make(&"taunt")
-	taunt.duration = 3
+	taunt.duration = 4
 	attach_effect(taunt)
 	return true
 
 ## Warden "Bastion" (L9, ultimate-tier, 4-turn CD): heavy Guarded (with Thorns baked onto the same
-## effect instance) + Taunt for 3 turns — the wall that bites back.
+## effect instance) + Taunt for 4 turns — the wall that bites back.
+##
+## Duration +1 over the original 3 (playtest 2026-07-02 — see apply_heroic_guard's comment for why).
 func apply_bastion(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
 	var guard: Effect = EffectLibrary.make(&"guarded")
 	guard.magnitude = 0.5
-	guard.duration = 3
+	guard.duration = 4
 	guard.thorns_pct = 0.20
 	attach_effect(guard)
 	var taunt: Effect = EffectLibrary.make(&"taunt")
-	taunt.duration = 3
+	taunt.duration = 4
 	attach_effect(taunt)
 	return true
 
 ## Skirmisher "Feint & Riposte" (L5): self-cast Evasion + Taunt — baits attacks he'll dodge, and
 ## feeds Riposte Storm's charge counter (Task 18) while it's up.
+##
+## Duration +1 over the evasion/taunt template default (playtest 2026-07-02, player-requested — see
+## apply_heroic_guard's comment for why): 2 turns wasn't enough to generate the riposte charges
+## Riposte Storm needs, because the first nominal turn is lost to this same casting turn's own tick.
 func apply_feint_riposte(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	attach_effect(EffectLibrary.make(&"evasion"))
-	attach_effect(EffectLibrary.make(&"taunt"))
+	var evasion: Effect = EffectLibrary.make(&"evasion")
+	evasion.duration = 3
+	attach_effect(evasion)
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 3
+	attach_effect(taunt)
 	return true
 
 ## Skirmisher "Quickstep" (L7): self-cast Haste (a one-time +20 initiative bump, mirrors Slow's
 ## first tier inverted).
+##
+## Duration +1 over the haste template default (playtest 2026-07-02 — see apply_heroic_guard's
+## comment for why): Haste's payoff is a FUTURE round's turn-order recompute, not this casting turn's
+## (already-ordered) one, so it suffers the same first-tick loss as the reactive defensive buffs.
 func apply_quickstep(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	attach_effect(EffectLibrary.make(&"haste"))
+	var haste: Effect = EffectLibrary.make(&"haste")
+	haste.duration = 3
+	attach_effect(haste)
 	return true
 
 ## Skirmisher "Riposte Storm" (L9, ultimate-tier, 3-turn CD): detonates accumulated riposte_charges
