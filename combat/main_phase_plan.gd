@@ -40,6 +40,12 @@ const STICKY_WILD_SPINS: int = 2
 ## base-ability slot). Grown by each reel-adding ability task.
 const REEL_ADDING_EXTRA_IDS: Array[StringName] = [&"sundering_strike", &"quake_slam", &"jinx_the_odds", &"snare_trap", &"crippling_shot", &"hex", &"entangle"]
 
+## Extra-ability ids that append up to 2 own-type weapon-attack reels ON TOP OF a self-cast buff
+## (playtest 2026-07-02 tuning — Mana Surge, Double or Nothing). Unlike REEL_ADDING_EXTRA_IDS, being
+## at the reel cap does NOT block staging: the buff (Empowered) is still worth casting with 0 added
+## reels, so these are never gated in can_stage_extra_ability, only previewed/appended best-effort.
+const TWO_REEL_BONUS_EXTRA_IDS: Array[StringName] = [&"mana_surge", &"double_or_nothing"]
+
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
 
@@ -234,6 +240,10 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"cursed"))
 			&"entangle":
 				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"rooted"))
+	if staged_extra_ability_id in TWO_REEL_BONUS_EXTRA_IDS:
+		for i: int in range(2):
+			if reels.size() < reel_cap:
+				reels.append(ActionReel.make_default(combatant.weapon_type()))
 	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't strips),
 	# Collateral (the splash isn't a strip), and Earthquake (+1 WILD attack reel). All add one own-type
 	# weapon-attack reel. Insert BEFORE any trailing utility reel (e.g. a staged Rallying Cry) so the
@@ -360,9 +370,9 @@ func commit() -> void:
 			&"loaded_dice":
 				combatant.apply_loaded_dice(def.cost)
 			&"mana_surge":
-				combatant.apply_mana_surge(def.cost)
+				combatant.apply_mana_surge(combatant.weapon_type(), def.cost, reel_cap)
 			&"double_or_nothing":
-				combatant.fire_double_or_nothing()
+				combatant.fire_double_or_nothing(combatant.weapon_type(), reel_cap)
 		if def != null and def.cooldown_turns > 0:
 			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
 	if fire_ultimate_staged:

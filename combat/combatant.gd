@@ -659,13 +659,21 @@ func fire_riposte_storm(cost: int) -> bool:
 
 ## Seer "Mana Surge" (L9, ultimate-tier, 4-turn CD): a massive self-cast Empowered on this turn's
 ## own reels only (duration 1 = expires at this turn's on_end). Spends MANA, not stamina.
-func apply_mana_surge(cost: int) -> bool:
+##
+## +2 reels (playtest 2026-07-02, player-requested): the Seer's 2-reel baseline meant a pure
+## damage multiplier with no added hit chance wasn't worth 6 mana. Appends up to 2 own-type
+## weapon-attack reels (capped by [param reel_cap], never blocking the buff itself if there's no
+## room — unlike a splice-only ability, Empowered is still worth casting with 0 added reels).
+func apply_mana_surge(type: DamageType, cost: int, reel_cap: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
 	var e: Effect = EffectLibrary.make(&"empowered")
 	e.magnitude = 1.6
 	e.duration = 1
 	attach_effect(e)
+	for i: int in range(2):
+		if turn_reels.size() < reel_cap:
+			turn_reels.append(ActionReel.make_default(type))
 	return true
 
 ## Chancer "Loaded Dice" (L5): adds one crit-success face (mult 2.0, mirrors apply_luck) to each of
@@ -1139,15 +1147,24 @@ func clear_reroll_state() -> void:
 ## All-in gamble (L9, ultimate-tier, 7-turn CD): spends 100% of current Stamina (must have at least
 ## 1) for a big Empowered on the next spin; a crit-fail on that spin recoils as self-damage, a
 ## non-fail reel refunds Stamina (combat.gd, Task 22 wiring). Returns false if Stamina is 0.
-func fire_double_or_nothing() -> bool:
+##
+## Magnitude 1.5→2.0 and +2 reels (playtest 2026-07-02, player-requested): the original ×1.5 with no
+## reel change read as barely different from a normal attack against ordinary reel-roll variance,
+## despite the name promising a literal doubling and the highest cost/risk of any L9 ability
+## (all-in Stamina + crit-fail recoil + longest 7-turn CD). Reels are capped by [param reel_cap] but
+## never block the buff itself (see apply_mana_surge's comment — same reasoning).
+func fire_double_or_nothing(type: DamageType, reel_cap: int) -> bool:
 	if resource_pool == null or resource_pool.stamina < 1:
 		return false
 	var cost: int = resource_pool.stamina
 	resource_pool.spend({&"stamina": cost})
 	var e: Effect = EffectLibrary.make(&"empowered")
-	e.magnitude = 1.5
+	e.magnitude = 2.0
 	e.duration = 1
 	attach_effect(e)
 	double_or_nothing_pending = true
 	double_or_nothing_refund_accum = 0
+	for i: int in range(2):
+		if turn_reels.size() < reel_cap:
+			turn_reels.append(ActionReel.make_default(type))
 	return true
