@@ -1019,6 +1019,7 @@ func _on_ultimate_pressed() -> void:
 	# un-staged opens the same 6-type picker as Select your Fate; choosing a type stages the Ultimate.
 	if _attacker.ultimate_id == &"big_bang" and not _plan.fire_ultimate_staged:
 		if _plan.can_stage_ultimate():
+			_ability_menu.hide()  # the type picker is modal — close the ability menu under it
 			_show_fate_picker(&"ultimate")
 		return
 	_plan.toggle_ultimate()
