@@ -308,15 +308,14 @@ to a full **4-ability + Ultimate kit**, unlocking **L1 (current base) → L3 (Ul
 - **ENDGAME combat tester** — a selection-screen toggle that spawns PCs at level 9 so all 4 abilities +
   Ultimate are marked unlocked in DATA for playtesting.
 
-> **⚠ NOT PLAYTEST-READY — NO UI EXISTS FOR THE 21 NEW ABILITIES.** Final whole-branch review
-> (2026-07-01) found that no task in this feature's plan ever added combat-scene buttons/handlers
-> for the L5/L7/L9 abilities: `combat/combat.gd` only builds one base-ability button and one
-> Ultimate button. Only the model/logic layer exists — `MainPhasePlan.staged_extra_ability_id`
-> staging/commit and the corresponding `Combatant` methods (`stage_<ability>()`, `*_pending`
-> flags) — and it is fully test-green. **A human cannot currently click to use any of these 21
-> abilities in the live scene.** The ENDGAME toggle only unlocks them in data; it does not add a
-> way to select them. A follow-up UI task (buttons + handlers wired to the existing staging API)
-> must land before the human playtest described below is possible.
+> **Ability-menu UI SHIPPED (2026-07-02, spec `2026-07-02-ability-menu-ui-design.md`):** the old
+> single base-ability button is now an **"Abilities" button** opening a floating `AbilityMenuPanel`
+> (TypeChartPanel precedent): one toggle row per UNLOCKED ability (locked ones hidden — player rule),
+> with live cost/cooldown text and `AbilityCatalog` descriptions (one source of truth for all 28
+> ability names/descriptions; costs/CDs read live from AbilityDef, never duplicated). Staging closes
+> the menu so the preview shows; the button reads "Abilities: <name> ✓" while staged. Ultimate button
+> unchanged. All 21 new abilities are now clickable in the live scene — the ENDGAME-kit human
+> playtest is UNBLOCKED.
 >
 > **Regrowth fix (2026-07-01 final-review I1):** the orchestrator block in `combat/combat.gd` was
 > attaching `EffectLibrary.make(&"regen")` without seeding `dot_base_damage`, so every Regrowth
@@ -332,17 +331,11 @@ bonus-vs-CC damage (all four are orchestrator-level in `combat.gd`, only unit-te
 and the **ENDGAME toggle's** live UI behavior generally. Beyond those four, every numeric magnitude
 across all 21 new abilities is an `[ASSUMPTION]` (CLAUDE.md §4) — none has been tuned by play.
 
-**Next:** build the extra-ability UI FIRST — combat-scene buttons/handlers for the 21 new L5/L7/L9
-abilities, wired to the existing `MainPhasePlan.staged_extra_ability_id` staging API and the
-`Combatant.stage_<ability>()` methods that already exist and are test-green. **Human playtest of the
-ENDGAME kit cannot start until that UI exists** — there is currently no way to click any of these
-abilities in the live scene. Once the UI lands, playtest as originally planned: spawn level-9 PCs, fire
-every new ability and Ultimate at least once, and confirm the four orchestrator-level abilities above
-actually do what their tests assert in a live fight; only after that, tune the `[ASSUMPTION]` numbers.
-This sits alongside (not blocking) the still-open party-fight/enemy-AI playtest and the Seer/Ranger
-Ultimate playtests below. The **Warden was human-playtested 2026-06-29** (Earthquake felt good; meter
-cap 15→20, Rallying Cry charges no meter). A **distributable single-file build** is at
-`dist/BunniesCombatPrototype.exe` (git-ignored).
+**Next:** human playtest of the full ENDGAME kit (now unblocked): spawn level-9 PCs, fire every new
+ability and Ultimate at least once via the Abilities menu, and confirm the four orchestrator-level
+abilities (Double or Nothing, Aimed Shot, Foresight/Regrowth, Crippling Shot) do what their tests
+assert in a live fight; only after that, tune the `[ASSUMPTION]` numbers. This sits alongside (not
+blocking) the still-open party-fight/enemy-AI playtest and the Seer/Ranger Ultimate playtests below.
 
 **Still-open per-class playtests (do alongside, not blocking):** the **Seer/Ranger Ultimates** have not had a
 dedicated human playtest yet. Tune `[ASSUMPTION]` numbers (stats/HP/costs, Earthquake stun-bypasses-anti-lock,
