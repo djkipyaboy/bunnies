@@ -30,5 +30,15 @@ func _init() -> void:
 	panel.press_row_for_test(&"entangle")
 	_check(got == ([&"entangle"] as Array[StringName]), "pressing a row emits ability_pressed(id)")
 
+	# Guaranteed close (player-reported 2026-07-02): pressing ✕ always hides the panel, with no
+	# staging side effect — the only reliable way out when the panel covers the button bar or every
+	# row is unaffordable.
+	panel.open_for(c, plan)
+	_check(panel.visible, "re-opened for the close-button check")
+	got.clear()
+	panel.press_close_for_test()
+	_check(not panel.visible, "pressing ✕ hides the panel")
+	_check(got.is_empty(), "pressing ✕ does not emit ability_pressed")
+
 	panel.free()
 	quit()

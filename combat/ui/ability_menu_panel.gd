@@ -64,12 +64,17 @@ const TITLE_H: float = 26.0
 const ROW_H: float = 64.0
 const BTN_W: float = 300.0
 const INFO_W: float = 520.0
+const CLOSE_SIZE: float = 28.0
+
+## Fixed panel width (independent of row count — only height grows with unlocked abilities).
+const PANEL_W: float = PAD * 2.0 + BTN_W + 12.0 + INFO_W
 
 const COLOR_STAGED := Color(0.6, 1.0, 0.6)
 const COLOR_LOCKED := Color(0.5, 0.5, 0.5)
 
 var _row_ids: Array[StringName] = []
 var _row_buttons: Dictionary = {}  # StringName -> Button
+var _close_button: Button
 
 ## Rebuilds the menu for [param c]'s current unlocked kit + [param plan]'s staged state, then shows
 ## it. Called on every open and after an in-place state change — rows are never cached (spec §2).
@@ -91,11 +96,23 @@ func open_for(c: Combatant, plan: MainPhasePlan) -> void:
 	title.add_theme_font_size_override("font_size", 14)
 	add_child(title)
 
+	# Guaranteed close affordance (player-reported 2026-07-02: the panel can cover the action-button
+	# bar underneath it — a Panel blocks mouse input over its whole rect — so re-pressing the outer
+	# Abilities button isn't reliably reachable while this is open, and if every row is unaffordable
+	# there is otherwise NO way to close it. This closes unconditionally, no staging.
+	_close_button = Button.new()
+	_close_button.text = "✕"
+	_close_button.position = Vector2(PANEL_W - PAD - CLOSE_SIZE, PAD - 4.0)
+	_close_button.custom_minimum_size = Vector2(CLOSE_SIZE, CLOSE_SIZE)
+	_close_button.tooltip_text = "Close without staging anything."
+	_close_button.pressed.connect(func() -> void: hide())
+	add_child(_close_button)
+
 	var top: float = PAD + TITLE_H
 	for i: int in range(_row_ids.size()):
 		_build_row(_row_ids[i], c, plan, top + float(i) * ROW_H)
 
-	custom_minimum_size = Vector2(PAD * 2.0 + BTN_W + 12.0 + INFO_W, top + float(_row_ids.size()) * ROW_H + PAD)
+	custom_minimum_size = Vector2(PANEL_W, top + float(_row_ids.size()) * ROW_H + PAD)
 	size = custom_minimum_size
 	show()
 
@@ -147,3 +164,8 @@ func press_row_for_test(id: StringName) -> void:
 	var btn: Button = _row_buttons.get(id, null)
 	if btn != null and not btn.disabled:
 		btn.pressed.emit()
+
+## Presses the ✕ close button programmatically (headless test hook — emits like a real click).
+func press_close_for_test() -> void:
+	if _close_button != null:
+		_close_button.pressed.emit()
