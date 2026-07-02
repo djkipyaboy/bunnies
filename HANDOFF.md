@@ -96,8 +96,9 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 - **Play the loop:** open the project in Godot and press play (or run `combat.tscn`). Judge feel here
   — *that's the human call* (CLAUDE.md §5 hard ceiling: Claude builds the loop, the human decides
   whether the spin is fun).
-- **Headless test suite — 48 suites, all green** (each prints `… TEST PASSED/FAILED`, exits non-zero
-  on failure). To run one:
+- **Headless test suite — 103 suites, all green** (older suites print `… TEST PASSED/FAILED`; newer
+  suites print per-check `ok `/`FAIL ` lines via a shared `_check()` helper and rely on exit code 0 +
+  no `FAIL ` line — both conventions coexist, see §6 2026-07-01 entry). To run one:
   ```bash
   Godot_v4.6.3-stable_win64_console.exe --headless --path . --script res://tests/test_<name>.gd
   ```
@@ -129,19 +130,59 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-> ### ▶ START HERE NEXT SESSION (set 2026-06-28)
-> The combat prototype is complete and merged (N-vs-M party combat + enemy AI v1 + selection polish, on
-> `main`). The active work is now the **out-of-combat design bible** (`docs/design-bible/`, read `00-index.md`
-> first). The next move is for the player to **brain-dump into the recommended first three briefs** — either
-> typing into each file's 💬 zone, or just talking and I'll structure it into the 📋 brief:
+> ### ▶ START HERE NEXT SESSION (set 2026-07-01)
+> **Human-playtest the CLASS ABILITY EXPANSION** (shipped this session, see the SHIPPED 2026-07-01 entry
+> below) — this is the §5 hard-ceiling item blocking everything else in this section. Use the new
+> **ENDGAME combat tester** toggle on the start-of-encounter selection screen to spawn PCs at level 9 (all
+> 4 abilities + Ultimate selectable), then for every class: fire all 3 new abilities + confirm the L9
+> ultimate-tier ability, and specifically eyeball the four **orchestrator-level** abilities that are only
+> unit-tested at the boundary — **Double or Nothing** (refund/recoil), **Aimed Shot** (Hunter's-Mark-
+> conditional bonus), **Foresight/Regrowth** (auto-targeting the lowest-HP% ally), **Crippling Shot**
+> (bonus vs Slow/Rooted/Stunned). Only after the ENDGAME kit feels right, tune the `[ASSUMPTION]`
+> magnitudes (every number in all 21 new abilities is unbalanced-by-design per CLAUDE.md §4).
 >
-> 1. **`10-storyline.md`** — sets tone, cast, stakes. *Deliberately light/yours — mostly 🟦 blanks.* Everything else hangs off the story.
-> 2. **`23-talents-and-reel-points.md`** — the meta-progression spine ("Reel Points" budget). Aggressively proposed; react/veto.
-> 3. **`12-companions-and-party.md`** — the KOTOR companion structure (reshapes creation, leveling, and the rosters).
+> **Locked 2026-06-30 (still the governing shape):** each class grows to **3 new abilities + 1
+> Ultimate on top of the existing base**, unlocking **L1 (current base) → L3 (Ultimate, unchanged) → L5
+> (new) → L7 (new) → L9 (new, ultimate-tier)**; design philosophy = **Option A (differentiated kit) with
+> hardest class-fantasy lean**; talents/Reel-Points come AFTER ability depth (now that ability depth is
+> shipped, talents/Reel-Points are the next system after this playtest).
 >
-> Reminder of the workflow + the unifying principle ("every out-of-combat system feeds the reels, never a
-> parallel build axis") is in `docs/design-bible/00-index.md`. A play-testable build of the current combat is
-> at `dist/BunniesPartyCombatPrototype-NvM.exe` (git-ignored).
+> **Also progressed 2026-06-30:** the **storyline brief** (`docs/design-bible/10-storyline.md`) is now
+> richly filled — isekai-via-old-video-game premise, the 6-piece console relics
+> (`assets/console-pieces-concept.jpg`), the full First 9 / Schism / Wildcat myth, race≠alignment, playable
+> = First 9 (more races unlock across playthroughs), portal = an incomplete far-channeled spell, permanent
+> class commitment (a relic enables free *talent* respec, not class swap). Out-of-combat design bible
+> (`docs/design-bible/00-index.md`) remains the home for the rest. Combat build:
+> `dist/BunniesPartyCombatPrototype-NvM.exe` (git-ignored).
+
+**SHIPPED 2026-07-01 — CLASS ABILITY EXPANSION** (branch `nvm-party-combat`; spec
+`docs/superpowers/specs/2026-07-01-class-ability-expansion-design.md`, plan
+`docs/superpowers/plans/2026-07-01-class-ability-expansion.md`, **103 headless suites green**, up from
+69 — every one of the 69 pre-existing suites is still passing, untouched). Every class now has a full
+**4 base abilities + 1 Ultimate** kit, unlocking L1 (existing base) → L3 (existing Ultimate) → **L5/L7
+(new) → L9 (new, ultimate-tier)**:
+- **New infrastructure** (additive only — the existing `ability_id`/Ultimate dispatch is untouched):
+  `AbilityDef` resource; `Combatant.level`/`extra_abilities`/`cooldowns`; a parallel `MainPhasePlan`
+  staging slot for the 3 new per-class abilities (mutually exclusive with the base-ability slot); a new
+  outgoing/incoming `MULTIPLIER_EDIT` damage hook (previously inert — `Combatant.
+  outgoing_damage_multiplier()`/`incoming_damage_multiplier()`, wired into `CombatResolver`); thorns
+  reflection; `ActionReel.make_rider_attack()`; `PaylineLibrary.bonus_line()`; evasion/riposte-charge
+  tracking; `AttackResult.source_reel`; EnemyAI Taunt-priority targeting.
+- **11 new shared effects:** Sundered, Weakened, Jinxed, Rooted, Guarded, Taunt, Empowered, Evasion,
+  Regen, Cursed, Haste (alongside the existing Bleed/Slow/Stunned/Hunter's Mark/Inspirational/Shielded).
+- **21 new abilities, 3 per class** — see CLAUDE.md §8's 2026-07-01 entry for the full per-class
+  breakdown (Sundering Strike/Heroic Guard/Second Wind, Bloodwrath/Quake Slam/Mountain Stance,
+  Feint & Riposte/Quickstep/Riposte Storm, Loaded Dice/Jinx the Odds/Double or Nothing, Aimed Shot/
+  Snare Trap/Crippling Shot, Hex/Foresight/Mana Surge, Entangle/Regrowth/Bastion).
+- **ENDGAME combat tester** — a selection-screen toggle that spawns level-9 PCs so every ability +
+  Ultimate is selectable in one fight, built specifically to make this playtest possible.
+
+**Not yet human-verified (§5 hard ceiling) — this is the START HERE item above:** all 103 suites are
+test-green and the scene loads clean, but no one has played the ENDGAME kit live yet. Four abilities are
+orchestrator-level and only unit-tested at the boundary — Double or Nothing's refund/recoil, Aimed
+Shot's Mark-conditional bonus, Foresight/Regrowth's auto-targeting, Crippling Shot's bonus-vs-CC damage
+— plus the ENDGAME toggle's UI behavior generally, plus the feel/balance of all 21 abilities (every
+magnitude is an untuned `[ASSUMPTION]`).
 
 **ALL SEVEN classes are LIVE and in-scene** (full roster; class picker at start AND on the end card):
 

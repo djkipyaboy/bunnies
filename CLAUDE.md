@@ -275,11 +275,53 @@ bank**, crafting, **encounter framework**). Hybrid workflow (player dumps → I 
 Unifying principle: **every out-of-combat system feeds the reels, never a parallel build axis.** `DESIGN.md`
 remains the combat source of truth. These briefs are a baseline awaiting the player's input — not locked.
 
-**Next:** human playtest the party fight + the new enemy AI (the §5 hard ceiling) — tune the `[ASSUMPTION]`
-enemy numbers (pool sizing, ability costs, greedy cadence) only after the fights feel right. Then the
-still-open Seer/Ranger Ultimate playtests (now exercisable with real allies/enemies). The **Warden was
-human-playtested 2026-06-29** (Earthquake felt good; meter cap 15→20, Rallying Cry charges no meter). A
-**distributable single-file build** is at `dist/BunniesCombatPrototype.exe` (git-ignored).
+**SHIPPED 2026-07-01 — CLASS ABILITY EXPANSION (all 7 classes: 4 abilities + Ultimate each)** (branch
+`nvm-party-combat`; spec `docs/superpowers/specs/2026-07-01-class-ability-expansion-design.md`, plan
+`docs/superpowers/plans/2026-07-01-class-ability-expansion.md`, **103 headless suites green** — up from
+69, all pre-existing suites untouched/still passing). Every class grows from 1 base ability + 1 Ultimate
+to a full **4-ability + Ultimate kit**, unlocking **L1 (current base) → L3 (Ultimate, unchanged) → L5
+(new) → L7 (new) → L9 (new, ultimate-tier)**:
+- **Foundation (additive, not destructive)** — a new `AbilityDef` resource (id/unlock_level/cost/
+  resource/cooldown); `Combatant.level`/`extra_abilities: Array[AbilityDef]`/`cooldowns`; a parallel
+  `MainPhasePlan.staged_extra_ability_id` slot (mutually exclusive with the existing base-ability toggle,
+  never restructuring the existing singular `ability_id`); `Effect.immune_effect_ids`/`thorns_pct`/
+  `affects_incoming`/`grants_stun_immunity`; a new outgoing/incoming `MULTIPLIER_EDIT` damage hook
+  (`Combatant.outgoing_damage_multiplier()`/`incoming_damage_multiplier()`, wired into `CombatResolver`
+  — previously inert); thorns damage-reflection; `ActionReel.make_rider_attack()`; `PaylineLibrary.
+  bonus_line()`; `Combatant.evasion_reels()`/`riposte_charges`; `AttackResult.source_reel` (so
+  Crippling Shot can special-case its own reel post-resolution); EnemyAI Taunt-priority targeting.
+- **11 new shared effects** (on top of the existing Bleed/Slow/Stunned/Hunter's Mark/Inspirational/
+  Shielded): Sundered, Weakened, Jinxed, Rooted, Guarded, Taunt, Empowered, Evasion, Regen, Cursed,
+  Haste.
+- **21 new per-class abilities (3 each, L5/L7/L9)** — Warrior: Sundering Strike, Heroic Guard, Second
+  Wind (Guarded+cleanse+heal, 4t CD). Vanguard: Bloodwrath (Empowered scales with missing HP), Quake
+  Slam (Slow rider), Mountain Stance (Guarded+CC-immunity+Taunt, 4t CD — first real use of
+  `immune_effect_ids`/`grants_stun_immunity`). Skirmisher: Feint & Riposte (Evasion+Taunt, so the AI
+  is drawn to attack him while evasive), Quickstep (Haste), Riposte Storm (consumes `riposte_charges`
+  into a scaled Empowered nova, 3t CD). Chancer: Loaded Dice (temp crit faces + bonus payline), Jinx
+  the Odds (Jinxed reel-downgrade), Double or Nothing (all-in stamina + crit-fail recoil + per-reel
+  refund, 7t CD). Ranger: Aimed Shot (bonus vs Marked), Snare Trap (Rooted rider), Crippling Shot
+  (Weakened + bonus vs Slow/Rooted/Stunned, 3t CD). Seer: Hex (Cursed Mystic DoT — added the shared
+  beneficial-DoT healing branch to `_apply_dot`), Foresight (auto-targets lowest-HP% ally, Shield),
+  Mana Surge (1-turn Empowered spike, 4t CD). Warden: Entangle (Rooted rider), Regrowth (auto-targets
+  lowest-HP% ally, Regen), Bastion (Guarded+Taunt+Thorns, 4t CD).
+- **ENDGAME combat tester** — a selection-screen toggle that spawns PCs at level 9 so all 4 abilities +
+  Ultimate are selectable for playtesting.
+
+**Verified-by-machine vs your call (§5 hard ceiling):** all 103 suites are test-green and the scene
+loads without errors, but NONE of this feature has had a human eyes-on-the-screen pass yet. Flagged
+explicitly for playtest: **Double or Nothing's** refund/recoil math, **Aimed Shot's** Hunter's-Mark-
+conditional bonus, **Foresight/Regrowth's** auto-targeting + effect application, **Crippling Shot's**
+bonus-vs-CC damage (all four are orchestrator-level in `combat.gd`, only unit-tested at the boundary),
+and the **ENDGAME toggle's** live UI behavior generally. Beyond those four, every numeric magnitude
+across all 21 new abilities is an `[ASSUMPTION]` (CLAUDE.md §4) — none has been tuned by play.
+
+**Next:** human playtest the ENDGAME kit — spawn level-9 PCs, fire every new ability and Ultimate at
+least once, and confirm the four orchestrator-level abilities above actually do what their tests assert
+in a live fight. Only after that, tune the `[ASSUMPTION]` numbers. This sits alongside (not blocking)
+the still-open party-fight/enemy-AI playtest and the Seer/Ranger Ultimate playtests below. The **Warden
+was human-playtested 2026-06-29** (Earthquake felt good; meter cap 15→20, Rallying Cry charges no
+meter). A **distributable single-file build** is at `dist/BunniesCombatPrototype.exe` (git-ignored).
 
 **Still-open per-class playtests (do alongside, not blocking):** the **Seer/Ranger Ultimates** have not had a
 dedicated human playtest yet. Tune `[ASSUMPTION]` numbers (stats/HP/costs, Earthquake stun-bypasses-anti-lock,
