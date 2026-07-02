@@ -349,6 +349,8 @@ func commit() -> void:
 				combatant.apply_bloodwrath(def.cost)
 			&"mountain_stance":
 				combatant.apply_mountain_stance(def.cost)
+			&"bastion":
+				combatant.apply_bastion(def.cost)
 			&"feint_riposte":
 				combatant.apply_feint_riposte(def.cost)
 			&"quickstep":

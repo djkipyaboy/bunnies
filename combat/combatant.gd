@@ -571,6 +571,21 @@ func apply_mountain_stance(cost: int) -> bool:
 	attach_effect(taunt)
 	return true
 
+## Warden "Bastion" (L9, ultimate-tier, 4-turn CD): heavy Guarded (with Thorns baked onto the same
+## effect instance) + Taunt for 3 turns — the wall that bites back.
+func apply_bastion(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	var guard: Effect = EffectLibrary.make(&"guarded")
+	guard.magnitude = 0.5
+	guard.duration = 3
+	guard.thorns_pct = 0.20
+	attach_effect(guard)
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 3
+	attach_effect(taunt)
+	return true
+
 ## Skirmisher "Feint & Riposte" (L5): self-cast Evasion + Taunt — baits attacks he'll dodge, and
 ## feeds Riposte Storm's charge counter (Task 18) while it's up.
 func apply_feint_riposte(cost: int) -> bool:
