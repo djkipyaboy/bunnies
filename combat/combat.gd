@@ -62,6 +62,12 @@ static var _dummies_enabled: bool = false
 var _dummies: Array[Combatant] = []
 var _dummy_toggle_button: Button
 
+## Playtest toggle (Task 32 / spec 2026-07-01 §5): when on, every spawned PC is built at level 9
+## instead of the default 1, so all 4 abilities (L5/L7/L9) + the Ultimate are simultaneously
+## unlocked/selectable for exercising a class's full kit. STATIC for the same reason as
+## _dummies_enabled — survives reload_current_scene().
+static var _endgame_enabled: bool = false
+
 var _attacker: Combatant
 var _defender: Combatant
 ## Per-PC primary target (N-vs-M targeting, spec §3): each PC remembers its own chosen enemy across
@@ -115,7 +121,10 @@ func _build_combatants() -> void:
 	# weapon, defense, meter, resources, and the Main-1 base ability. Gear is deferred.
 	_pcs.clear()
 	for id: StringName in _pc_class_ids:
-		_pcs.append(ClassLibrary.make(id).build_combatant(true))
+		var pc: Combatant = ClassLibrary.make(id).build_combatant(true)
+		if _endgame_enabled:
+			pc.level = 9
+		_pcs.append(pc)
 	# Enemy party (§5.1): one Combatant per selected enemy id, in selection order.
 	_enemies.clear()
 	for id: StringName in _enemy_ids:
@@ -541,14 +550,25 @@ func _build_start_overlay() -> void:
 		EnemyLibrary.IDS, _enemy_ids, 3, enemy_label, update_begin,
 		_enemy_select_tooltip, func(id: StringName) -> StringName: return EnemyLibrary.role(id))
 
-	# Dummy toggle (permanent testing aid) near BEGIN.
+	# Dummy toggle (permanent testing aid) near BEGIN. Sits to the LEFT of center; the ENDGAME
+	# toggle mirrors it to the RIGHT so both fit on one row without overlapping BEGIN FIGHT above.
 	var dummy_btn := Button.new()
 	dummy_btn.text = "Target dummies: %s" % ("ON" if _dummies_enabled else "OFF")
-	dummy_btn.position = Vector2((view.x - 240.0) * 0.5, view.y - 48.0)
+	dummy_btn.position = Vector2((view.x * 0.5) - 250.0, view.y - 48.0)
 	dummy_btn.custom_minimum_size = Vector2(240, 36)
 	dummy_btn.tooltip_text = "Add two immortal 30-HP dummies to test AoE/splash. Reloads."
 	dummy_btn.pressed.connect(_on_dummy_toggle_pressed)
 	_start_overlay.add_child(dummy_btn)
+
+	# ENDGAME toggle (playtest aid, spec 2026-07-01 §5): spawns PCs at level 9 so all 4 abilities +
+	# the Ultimate are unlocked for testing the full kit.
+	var endgame_btn := Button.new()
+	endgame_btn.text = "ENDGAME: %s" % ("ON" if _endgame_enabled else "OFF")
+	endgame_btn.position = Vector2((view.x * 0.5) + 10.0, view.y - 48.0)
+	endgame_btn.custom_minimum_size = Vector2(240, 36)
+	endgame_btn.tooltip_text = "Spawn PCs at level 9 — unlocks every L5/L7/L9 ability + the Ultimate."
+	endgame_btn.pressed.connect(_on_endgame_toggle_pressed)
+	_start_overlay.add_child(endgame_btn)
 
 	update_begin.call()
 
@@ -889,6 +909,11 @@ func _on_type_chart_toggle_pressed() -> void:
 ## Flips the target-dummy toggle and reloads so the scenario rebuilds with/without the dummies.
 func _on_dummy_toggle_pressed() -> void:
 	_dummies_enabled = not _dummies_enabled
+	get_tree().reload_current_scene()
+
+## Flips the ENDGAME toggle and reloads so the scenario rebuilds PCs at level 9 (or back to 1).
+func _on_endgame_toggle_pressed() -> void:
+	_endgame_enabled = not _endgame_enabled
 	get_tree().reload_current_scene()
 
 func _on_phase_changed(phase: PhaseManager.Phase) -> void:
