@@ -130,16 +130,31 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-> ### ▶ START HERE NEXT SESSION (set 2026-07-01)
-> **Human-playtest the CLASS ABILITY EXPANSION** (shipped this session, see the SHIPPED 2026-07-01 entry
-> below) — this is the §5 hard-ceiling item blocking everything else in this section. Use the new
-> **ENDGAME combat tester** toggle on the start-of-encounter selection screen to spawn PCs at level 9 (all
-> 4 abilities + Ultimate selectable), then for every class: fire all 3 new abilities + confirm the L9
+> ### ▶ START HERE NEXT SESSION (set 2026-07-01, updated 2026-07-01 final review)
+> **⚠ Build the extra-ability UI FIRST — the CLASS ABILITY EXPANSION is NOT playtest-ready yet.**
+> A final whole-branch review found that no task in the shipped plan (see the SHIPPED 2026-07-01
+> entry below) ever added combat-scene buttons/handlers for the 21 new L5/L7/L9 abilities:
+> `combat/combat.gd` only builds one base-ability button and one Ultimate button. Only the
+> model/logic layer exists — `MainPhasePlan.staged_extra_ability_id` staging/commit and the
+> corresponding `Combatant.stage_<ability>()` methods/`*_pending` flags — fully test-green, but
+> **a human cannot currently click to use any of these 21 abilities in the live scene.** The
+> ENDGAME toggle spawns level-9 PCs with everything unlocked in DATA, but there's no UI to select
+> it. Build that UI (buttons + handlers wired to the existing staging API) as the next task.
+>
+> **Only after that UI exists**, human-playtest the CLASS ABILITY EXPANSION — this is the §5
+> hard-ceiling item blocking everything else in this section. Use the **ENDGAME combat tester**
+> toggle on the start-of-encounter selection screen to spawn PCs at level 9 (all 4 abilities +
+> Ultimate unlocked in data), then for every class: fire all 3 new abilities + confirm the L9
 > ultimate-tier ability, and specifically eyeball the four **orchestrator-level** abilities that are only
 > unit-tested at the boundary — **Double or Nothing** (refund/recoil), **Aimed Shot** (Hunter's-Mark-
 > conditional bonus), **Foresight/Regrowth** (auto-targeting the lowest-HP% ally), **Crippling Shot**
 > (bonus vs Slow/Rooted/Stunned). Only after the ENDGAME kit feels right, tune the `[ASSUMPTION]`
 > magnitudes (every number in all 21 new abilities is unbalanced-by-design per CLAUDE.md §4).
+>
+> **Also fixed 2026-07-01 (final review I1):** Regrowth was healing for 0 HP every tick because the
+> orchestrator attached `&"regen"` without seeding `dot_base_damage` — fixed in `combat/combat.gd`
+> to seed it from the caster's weapon base, mirroring the existing DoT-rider pattern. Covered by
+> `tests/test_regrowth.gd`.
 >
 > **Locked 2026-06-30 (still the governing shape):** each class grows to **3 new abilities + 1
 > Ultimate on top of the existing base**, unlocking **L1 (current base) → L3 (Ultimate, unchanged) → L5
@@ -175,11 +190,22 @@ meter (15) arms the **Sticky-Wild Ultimate**.
   Feint & Riposte/Quickstep/Riposte Storm, Loaded Dice/Jinx the Odds/Double or Nothing, Aimed Shot/
   Snare Trap/Crippling Shot, Hex/Foresight/Mana Surge, Entangle/Regrowth/Bastion).
 - **ENDGAME combat tester** — a selection-screen toggle that spawns level-9 PCs so every ability +
-  Ultimate is selectable in one fight, built specifically to make this playtest possible.
+  Ultimate is marked unlocked in DATA, built specifically to make this playtest possible once the UI exists.
 
-**Not yet human-verified (§5 hard ceiling) — this is the START HERE item above:** all 103 suites are
-test-green and the scene loads clean, but no one has played the ENDGAME kit live yet. Four abilities are
-orchestrator-level and only unit-tested at the boundary — Double or Nothing's refund/recoil, Aimed
+> **⚠ NOT PLAYTEST-READY — NO UI EXISTS FOR THE 21 NEW ABILITIES.** See the START HERE block above.
+> `combat/combat.gd` only has a single base-ability button and a single Ultimate button; there is no
+> button/handler for any L5/L7/L9 ability. Only `MainPhasePlan.staged_extra_ability_id` staging/commit
+> and the `Combatant` staging methods exist (test-green). A human cannot yet click to use any of these
+> 21 abilities in the live scene — a follow-up UI task is required before playtest is possible.
+>
+> **Regrowth fix (2026-07-01 final-review I1):** seeded `regen.dot_base_damage` from the caster's
+> weapon base in `combat/combat.gd` before attaching — previously it defaulted to 0.0, so every
+> Regrowth heal tick was `ceili(0.0 * fraction) = 0` (a dead ability). Covered by `tests/test_regrowth.gd`.
+
+**Not yet human-verified (§5 hard ceiling):** all 103 suites are test-green and the scene loads clean,
+but no one has played the ENDGAME kit live yet — and no one CAN yet, since the extra-ability UI doesn't
+exist (see above; build that first). Once it exists, four abilities need particular attention because
+they're orchestrator-level and only unit-tested at the boundary — Double or Nothing's refund/recoil, Aimed
 Shot's Mark-conditional bonus, Foresight/Regrowth's auto-targeting, Crippling Shot's bonus-vs-CC damage
 — plus the ENDGAME toggle's UI behavior generally, plus the feel/balance of all 21 abilities (every
 magnitude is an untuned `[ASSUMPTION]`).

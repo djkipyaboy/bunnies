@@ -1186,7 +1186,13 @@ func _commit_main1() -> void:
 	if _attacker.regrowth_pending:
 		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
 		if ally != null:
-			ally.attach_effect(EffectLibrary.make(&"regen"))
+			var regen: Effect = EffectLibrary.make(&"regen")
+			# Seed the heal-over-time amount from the caster's weapon base, mirroring the DoT-rider
+			# pattern above (rider.dot_base_damage) — without this, dot_base_damage stays at the
+			# Effect default of 0.0 and every Regen tick heals ceili(0.0 * fraction) = 0 (dead ability).
+			if _attacker.weapon != null:
+				regen.dot_base_damage = _attacker.weapon.base_damage
+			ally.attach_effect(regen)
 			_log("  🌿 %s grants Regrowth to %s." % [_attacker.display_name, ally.display_name])
 		_attacker.regrowth_pending = false
 

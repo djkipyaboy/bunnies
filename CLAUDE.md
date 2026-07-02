@@ -306,7 +306,23 @@ to a full **4-ability + Ultimate kit**, unlocking **L1 (current base) → L3 (Ul
   Mana Surge (1-turn Empowered spike, 4t CD). Warden: Entangle (Rooted rider), Regrowth (auto-targets
   lowest-HP% ally, Regen), Bastion (Guarded+Taunt+Thorns, 4t CD).
 - **ENDGAME combat tester** — a selection-screen toggle that spawns PCs at level 9 so all 4 abilities +
-  Ultimate are selectable for playtesting.
+  Ultimate are marked unlocked in DATA for playtesting.
+
+> **⚠ NOT PLAYTEST-READY — NO UI EXISTS FOR THE 21 NEW ABILITIES.** Final whole-branch review
+> (2026-07-01) found that no task in this feature's plan ever added combat-scene buttons/handlers
+> for the L5/L7/L9 abilities: `combat/combat.gd` only builds one base-ability button and one
+> Ultimate button. Only the model/logic layer exists — `MainPhasePlan.staged_extra_ability_id`
+> staging/commit and the corresponding `Combatant` methods (`stage_<ability>()`, `*_pending`
+> flags) — and it is fully test-green. **A human cannot currently click to use any of these 21
+> abilities in the live scene.** The ENDGAME toggle only unlocks them in data; it does not add a
+> way to select them. A follow-up UI task (buttons + handlers wired to the existing staging API)
+> must land before the human playtest described below is possible.
+>
+> **Regrowth fix (2026-07-01 final-review I1):** the orchestrator block in `combat/combat.gd` was
+> attaching `EffectLibrary.make(&"regen")` without seeding `dot_base_damage`, so every Regrowth
+> heal tick computed `ceili(0.0 * fraction) = 0` — a dead ability. Fixed to seed
+> `regen.dot_base_damage = _attacker.weapon.base_damage` before attaching, mirroring the existing
+> DAMAGE_OVER_TIME rider pattern in the same file. Covered by `tests/test_regrowth.gd`.
 
 **Verified-by-machine vs your call (§5 hard ceiling):** all 103 suites are test-green and the scene
 loads without errors, but NONE of this feature has had a human eyes-on-the-screen pass yet. Flagged
@@ -316,12 +332,17 @@ bonus-vs-CC damage (all four are orchestrator-level in `combat.gd`, only unit-te
 and the **ENDGAME toggle's** live UI behavior generally. Beyond those four, every numeric magnitude
 across all 21 new abilities is an `[ASSUMPTION]` (CLAUDE.md §4) — none has been tuned by play.
 
-**Next:** human playtest the ENDGAME kit — spawn level-9 PCs, fire every new ability and Ultimate at
-least once, and confirm the four orchestrator-level abilities above actually do what their tests assert
-in a live fight. Only after that, tune the `[ASSUMPTION]` numbers. This sits alongside (not blocking)
-the still-open party-fight/enemy-AI playtest and the Seer/Ranger Ultimate playtests below. The **Warden
-was human-playtested 2026-06-29** (Earthquake felt good; meter cap 15→20, Rallying Cry charges no
-meter). A **distributable single-file build** is at `dist/BunniesCombatPrototype.exe` (git-ignored).
+**Next:** build the extra-ability UI FIRST — combat-scene buttons/handlers for the 21 new L5/L7/L9
+abilities, wired to the existing `MainPhasePlan.staged_extra_ability_id` staging API and the
+`Combatant.stage_<ability>()` methods that already exist and are test-green. **Human playtest of the
+ENDGAME kit cannot start until that UI exists** — there is currently no way to click any of these
+abilities in the live scene. Once the UI lands, playtest as originally planned: spawn level-9 PCs, fire
+every new ability and Ultimate at least once, and confirm the four orchestrator-level abilities above
+actually do what their tests assert in a live fight; only after that, tune the `[ASSUMPTION]` numbers.
+This sits alongside (not blocking) the still-open party-fight/enemy-AI playtest and the Seer/Ranger
+Ultimate playtests below. The **Warden was human-playtested 2026-06-29** (Earthquake felt good; meter
+cap 15→20, Rallying Cry charges no meter). A **distributable single-file build** is at
+`dist/BunniesCombatPrototype.exe` (git-ignored).
 
 **Still-open per-class playtests (do alongside, not blocking):** the **Seer/Ranger Ultimates** have not had a
 dedicated human playtest yet. Tune `[ASSUMPTION]` numbers (stats/HP/costs, Earthquake stun-bypasses-anti-lock,

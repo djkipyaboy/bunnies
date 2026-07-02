@@ -346,6 +346,14 @@ func attach_effect(effect: Effect) -> void:
 	# Merge by id: re-applying an effect already active never creates a second instance (this is
 	# what prevents unbounded additive stacking). A stacking effect adds a stack (diminishing,
 	# capped); a non-stacking one is a no-op on stacks. Either way the duration is refreshed.
+	#
+	# NOTE (final-review M1, currently unreachable but latent): this is a REFRESH, not a REPLACE.
+	# On merge, only `duration`/`stacks` are taken from the incoming `effect` — the EXISTING active
+	# effect's other fields (magnitude, immune_effect_ids, thorns_pct, grants_stun_immunity, etc.)
+	# are kept as-is; a stronger/weaker incoming `effect` sharing that id will NOT overwrite them.
+	# No ability in this feature currently reapplies the same effect id at two different strengths
+	# (e.g. two differently-sized `guarded` effects), so this hasn't bitten anyone yet — but a future
+	# ability author stacking/refreshing an id with a different magnitude should check this first.
 	var existing: Effect = _find_effect(effect.id)
 	if existing != null:
 		existing.add_stack()                 # no-op at cap / for max_stacks == 1

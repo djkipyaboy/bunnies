@@ -35,5 +35,19 @@ func _initialize() -> void:
 	_check(not other.stage_regrowth(4), "stage fails with 0 mana")
 	_check(not other.regrowth_pending, "pending flag stays false when unaffordable from the start")
 
+	# --- Regression (final-review finding I1): the &"regen" Effect defaults dot_base_damage to
+	# 0.0, so if the orchestrator ever attaches it WITHOUT seeding dot_base_damage from the
+	# caster's weapon (mirroring the DAMAGE_OVER_TIME rider pattern in combat.gd), Regrowth heals
+	# for ceili(0.0 * fraction) = 0 every tick — a dead ability. Verify the seeded math directly:
+	# unseeded is the bug, seeded-from-weapon-base is the fix, and both must differ.
+	var unseeded: Effect = EffectLibrary.make(&"regen")
+	unseeded.stacks = 1
+	_check(unseeded.dot_damage() == 0, "BUG regression check: unseeded regen heals 0 (got %d)" % unseeded.dot_damage())
+
+	var seeded: Effect = EffectLibrary.make(&"regen")
+	seeded.dot_base_damage = 20.0  # stand-in for _attacker.weapon.base_damage
+	seeded.stacks = 1
+	_check(seeded.dot_damage() > 0, "FIX check: regen seeded from weapon base heals > 0 (got %d)" % seeded.dot_damage())
+
 	print(("REGROWTH TEST PASSED" if _failures == 0 else "REGROWTH TEST FAILED: %d" % _failures))
 	quit(_failures)
