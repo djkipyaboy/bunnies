@@ -58,3 +58,92 @@ static func cooldown_text(c: Combatant, id: StringName) -> String:
 
 static func _rail_label(resource: StringName) -> String:
 	return "MANA" if resource == &"mana" else "STA"
+
+const PAD: float = 12.0
+const TITLE_H: float = 26.0
+const ROW_H: float = 64.0
+const BTN_W: float = 300.0
+const INFO_W: float = 520.0
+
+const COLOR_STAGED := Color(0.6, 1.0, 0.6)
+const COLOR_LOCKED := Color(0.5, 0.5, 0.5)
+
+var _row_ids: Array[StringName] = []
+var _row_buttons: Dictionary = {}  # StringName -> Button
+
+## Rebuilds the menu for [param c]'s current unlocked kit + [param plan]'s staged state, then shows
+## it. Called on every open and after an in-place state change — rows are never cached (spec §2).
+func open_for(c: Combatant, plan: MainPhasePlan) -> void:
+	for child in get_children():
+		child.queue_free()
+	_row_ids.clear()
+	_row_buttons.clear()
+	if c == null or plan == null:
+		return
+	if c.ability_id != &"":
+		_row_ids.append(c.ability_id)
+	for def: AbilityDef in c.unlocked_extra_abilities():
+		_row_ids.append(def.id)
+
+	var title := Label.new()
+	title.text = "Abilities — stage one for this turn (press it again to un-stage)"
+	title.position = Vector2(PAD, PAD - 2.0)
+	title.add_theme_font_size_override("font_size", 14)
+	add_child(title)
+
+	var top: float = PAD + TITLE_H
+	for i: int in range(_row_ids.size()):
+		_build_row(_row_ids[i], c, plan, top + float(i) * ROW_H)
+
+	custom_minimum_size = Vector2(PAD * 2.0 + BTN_W + 12.0 + INFO_W, top + float(_row_ids.size()) * ROW_H + PAD)
+	size = custom_minimum_size
+	show()
+
+## One row: a toggle Button (name + live cost) and an info Label (description + cooldown/state line).
+func _build_row(id: StringName, c: Combatant, plan: MainPhasePlan, y: float) -> void:
+	var state: RowState = row_state(plan, c, id)
+
+	var btn := Button.new()
+	btn.text = "%s  (%s)" % [AbilityCatalog.display_name(id), cost_text(plan, c, id)]
+	btn.position = Vector2(PAD, y)
+	btn.custom_minimum_size = Vector2(BTN_W, ROW_H - 10.0)
+	var status: String = cooldown_text(c, id)
+	match state:
+		RowState.STAGED:
+			btn.text += "  ✓"
+			btn.modulate = COLOR_STAGED
+		RowState.UNAFFORDABLE:
+			btn.disabled = true
+		RowState.ON_COOLDOWN:
+			btn.disabled = true
+		RowState.LOCKED_BY_ULTIMATE:
+			btn.disabled = true
+			btn.modulate = COLOR_LOCKED
+			status = "Locked — the staged Ultimate already includes this"
+		RowState.INCLUDED_FREE:
+			btn.disabled = true
+			btn.modulate = COLOR_STAGED
+			status = "Included by Rampage — free"
+		_:
+			pass
+	btn.pressed.connect(func() -> void: ability_pressed.emit(id))
+	add_child(btn)
+	_row_buttons[id] = btn
+
+	var info := Label.new()
+	info.text = "%s\n%s" % [AbilityCatalog.description(id), status]
+	info.position = Vector2(PAD + BTN_W + 12.0, y)
+	info.custom_minimum_size = Vector2(INFO_W, ROW_H - 10.0)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.add_theme_font_size_override("font_size", 13)
+	add_child(info)
+
+## The unlock-ordered ability ids currently rendered as rows (test hook).
+func row_ids() -> Array[StringName]:
+	return _row_ids.duplicate()
+
+## Presses row [param id]'s button programmatically (headless test hook — emits like a real click).
+func press_row_for_test(id: StringName) -> void:
+	var btn: Button = _row_buttons.get(id, null)
+	if btn != null and not btn.disabled:
+		btn.pressed.emit()
