@@ -12,7 +12,8 @@ func _init() -> void:
 			hit_count += 1
 			_check(f.multiplier > 0.0, "hit face keeps real damage multiplier")
 			_check(f.rider_effect_id == &"sundered", "hit face carries the requested rider")
-	_check(hit_count == 5, "5 hit faces (4 success + 1 crit-success), matching DEFAULT_COMPOSITION")
+	_check(hit_count == 6, "6 hit faces (5 success + 1 crit-success) = 60%% hit rate, RIDER_COMPOSITION")
+	_check(reel.faces.size() == 10, "10-face strip, same as DEFAULT_COMPOSITION's total")
 
 	var cc_reel: ActionReel = ActionReel.make_rider_attack(null, &"weakened", true)
 	_check(cc_reel.bonus_vs_cc, "bonus_vs_cc flag set when requested")

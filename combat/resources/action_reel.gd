@@ -72,17 +72,37 @@ static func make_rend(type: DamageType = null) -> ActionReel:
 			face.rider_effect_id = &"bleed"
 	return reel
 
-## Builds a real weapon-attack reel (same tier spread as make_default — the reel IS the dice, no
-## odds change) whose SUCCESS/CRIT_SUCCESS faces ALSO carry [param rider_id]. Unlike make_rend
-## (multiplier zeroed, utility-only), this keeps real damage: the attack itself both hits AND
-## applies its rider on a hit. Used by Sundering Strike / Quake Slam / Jinx the Odds / Snare Trap /
-## Hex / Entangle / Crippling Shot (spec 2026-07-01 §4).
+## A resource-costing "called shot" is modestly more reliable than a free weapon swing (playtest
+## 2026-07-04, player-specified "at least a small benefit" for spending a resource): 1 crit-failure ·
+## 1 failure · 2 neutral · 5 success · 1 crit-success — hit rate (success + crit-success) 60%, up
+## from DEFAULT_COMPOSITION's 50%. [ASSUMPTION] tune by playtest, same as DEFAULT_COMPOSITION.
+const RIDER_COMPOSITION := [
+	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 1],
+	[ReelFace.ResultTier.FAILURE, 0.0, 1],
+	[ReelFace.ResultTier.NEUTRAL, 0.0, 2],
+	[ReelFace.ResultTier.SUCCESS, 1.0, 5],
+	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 1],
+]
+
+## Builds a real weapon-attack reel whose SUCCESS/CRIT_SUCCESS faces ALSO carry [param rider_id],
+## using RIDER_COMPOSITION's slightly better odds (see its comment) rather than DEFAULT_COMPOSITION.
+## Unlike make_rend (multiplier zeroed, utility-only), this keeps real damage: the attack itself both
+## hits AND applies its rider on a hit. Used by Sundering Strike / Quake Slam / Jinx the Odds / Snare
+## Trap / Hex / Entangle / Crippling Shot (spec 2026-07-01 §4).
 static func make_rider_attack(type: DamageType, rider_id: StringName, bonus_vs_cc: bool = false) -> ActionReel:
-	var reel: ActionReel = make_default(type)
+	var reel: ActionReel = ActionReel.new()
+	reel.damage_type = type
 	reel.bonus_vs_cc = bonus_vs_cc
-	for face: ReelFace in reel.faces:
-		if face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
-			face.rider_effect_id = rider_id
+	for entry: Array in RIDER_COMPOSITION:
+		var tier: ReelFace.ResultTier = entry[0]
+		var multiplier: float = entry[1]
+		var count: int = entry[2]
+		for i: int in range(count):
+			var face: ReelFace = _make_face(tier, multiplier)
+			if tier == ReelFace.ResultTier.SUCCESS or tier == ReelFace.ResultTier.CRIT_SUCCESS:
+				face.rider_effect_id = rider_id
+			reel.faces.append(face)
+	reel.faces.shuffle()
 	return reel
 
 ## Chancer "Double or Nothing" (L9) wild gambler's reel (playtest 2026-07-04, player-specified exact
