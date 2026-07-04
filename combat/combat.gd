@@ -825,6 +825,14 @@ func _on_turn_started(c: Combatant) -> void:
 	_ultimate_button.text = _ultimate_label(ctrl.ultimate_id)
 	_ultimate_button.tooltip_text = _ultimate_tooltip(ctrl.ultimate_id)
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
+	# A DoT tick now lands in Upkeep (playtest 2026-07-04) and can kill the bearer before they ever
+	# act this turn — something that previously could only happen at END, after their turn already
+	# ran. Skip straight to End/advance rather than let a dead combatant reach the stun check or spin
+	# (mirrors the existing STUNNED-loses-the-turn / dummy-turn "skip Combat" pattern).
+	if not c.is_alive():
+		_log("  %s doesn't survive to act this turn." % c.display_name)
+		_phase_manager.resume_after_combat()
+		return
 	_end_turn_button.disabled = true
 	# Target dummies don't fight — they just heal to full and pass. Handle before the stun/spin flow.
 	if c.is_target_dummy:
@@ -904,10 +912,15 @@ func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 		return
 	if phase == PhaseManager.Phase.UPKEEP:
 		_attacker.on_upkeep()
+		# DoT/HoT ticks moved here from END (playtest 2026-07-04, player request): they now land at the
+		# START of the bearer's own turn instead of the end — same total number of ticks before an
+		# effect expires (duration countdown is untouched, still in on_end() below), just visible
+		# before the bearer acts instead of after. Deliberately AFTER on_upkeep() (resource regen)
+		# so a lethal tick can't be masked by that same-phase regen.
+		_apply_dot(_attacker)
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	elif phase == PhaseManager.Phase.END:
-		_apply_dot(_attacker)  # bleed etc. tick on the bearer's own turn-end, BEFORE durations count down
 		_attacker.on_end()
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 
