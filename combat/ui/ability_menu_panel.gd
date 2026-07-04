@@ -148,12 +148,25 @@ func _build_row(id: StringName, c: Combatant, plan: MainPhasePlan, y: float) -> 
 	_row_buttons[id] = btn
 
 	var info := Label.new()
-	info.text = "%s\n%s" % [AbilityCatalog.description(id), status]
+	info.text = "%s%s\n%s" % [AbilityCatalog.description(id), _dynamic_suffix(id, c), status]
 	info.position = Vector2(PAD + BTN_W + 12.0, y)
 	info.custom_minimum_size = Vector2(INFO_W, ROW_H - 10.0)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.add_theme_font_size_override("font_size", 13)
 	add_child(info)
+
+## Per-instance computed text appended to a row's static AbilityCatalog description — AbilityCatalog
+## stays pure static data (id -> copy only); this is the one place a row's text depends on the
+## CASTER'S OWN current state. Bloodwrath (playtest 2026-07-04, player-requested "make the scaling
+## obvious"): shows the damage bonus its missing-HP formula would grant RIGHT NOW, sharing
+## Combatant.bloodwrath_bonus_pct() with the caster path so the two can never drift apart. Empty for
+## every other ability.
+static func _dynamic_suffix(id: StringName, c: Combatant) -> String:
+	if id == &"bloodwrath" and c != null:
+		var missing_pct: float = 1.0 - (float(c.hp) / float(maxi(c.max_hp, 1)))
+		var bonus_pct: float = Combatant.bloodwrath_bonus_pct(missing_pct) * 100.0
+		return " At your current HP (%d/%d), this grants +%.0f%% damage." % [c.hp, c.max_hp, bonus_pct]
+	return ""
 
 ## The unlock-ordered ability ids currently rendered as rows (test hook).
 func row_ids() -> Array[StringName]:

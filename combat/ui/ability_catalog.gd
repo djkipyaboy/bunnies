@@ -63,7 +63,7 @@ static func description(id: StringName) -> String:
 		&"heroic_guard": return "Self: GUARDED (incoming damage ×0.75) and TAUNT (enemies are drawn to attack you), 3 turns."
 		&"second_wind": return "Self: heal 30% of max HP, cleanse ALL debuffs, and gain GUARDED (incoming ×0.75) for 3 turns."
 		# --- Vanguard ---
-		&"bloodwrath": return "Self: EMPOWERED scaling with missing HP — +1% outgoing damage per 2% HP missing (cap +40%), 2 turns."
+		&"bloodwrath": return "Self: EMPOWERED scaling with missing HP — +1% outgoing damage per 1% HP missing (cap +50%), 2 turns."
 		&"quake_slam": return "Crushing attack reel; on a hit, reliably SLOWS the target (−20 initiative, stacking)."
 		&"mountain_stance": return "Self: heavy GUARDED (incoming ×0.5), immunity to Slow/Stun/Root, and TAUNT, 4 turns."
 		# --- Skirmisher ---

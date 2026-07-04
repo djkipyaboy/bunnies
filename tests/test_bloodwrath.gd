@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## Vanguard L5 "Bloodwrath" (spec 2026-07-01 §4B, task 14): a self-cast, NO-reel extra ability that
-## grants Empowered scaled to the caster's missing-HP% (+1% dmg per 2% HP missing, capped +40%) — a
+## grants Empowered scaled to the caster's missing-HP% (+1% dmg per 1% HP missing, capped +50% —
+## steepened from +1%/2%, cap 40%, on playtest 2026-07-04 so the scaling is felt sooner) — a
 ## high-risk juggernaut buff. Like Heroic Guard (task 12) this only exercises the shared commit()
 ## dispatch; it does NOT touch REEL_ADDING_EXTRA_IDS/preview_reels.
 
@@ -59,11 +60,16 @@ func _init() -> void:
 
 	# Near-death Combatant-method check: hp == 1 on Vanguard's large max_hp (base_max_hp 300 + Vigor 5
 	# from base_stats, applied by build_combatant()'s apply_stats()) -> ~99.7% missing, magnitude
-	# capped at 1.40. Use the live derived max_hp rather than hardcoding 300 so this test tracks the
-	# class data (mirrors test_second_wind.gd's pattern).
+	# capped at 1.50 (raised from 1.40 on 2026-07-04). Use the live derived max_hp rather than
+	# hardcoding 300 so this test tracks the class data (mirrors test_second_wind.gd's pattern).
 	var dying_c: Combatant = cc.build_combatant(true)
 	dying_c.hp = 1
 	_check(dying_c.apply_bloodwrath(3), "apply_bloodwrath succeeds while near death")
-	_check(is_equal_approx(_empowered_magnitude(dying_c), 1.40), "apply_bloodwrath magnitude caps at 1.40 (~99.7%% missing HP)")
+	_check(is_equal_approx(_empowered_magnitude(dying_c), 1.50), "apply_bloodwrath magnitude caps at 1.50 (~99.7%% missing HP)")
+
+	# Formula shared by the caster path and the Abilities-menu live tooltip (must never drift).
+	_check(is_equal_approx(Combatant.bloodwrath_bonus_pct(0.0), 0.0), "bloodwrath_bonus_pct(0% missing) == 0%")
+	_check(is_equal_approx(Combatant.bloodwrath_bonus_pct(0.25), 0.25), "bloodwrath_bonus_pct(25% missing) == 25% (1%-per-1%)")
+	_check(is_equal_approx(Combatant.bloodwrath_bonus_pct(0.90), 0.50), "bloodwrath_bonus_pct(90% missing) caps at 50%")
 
 	quit()

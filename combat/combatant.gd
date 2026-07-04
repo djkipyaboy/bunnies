@@ -564,13 +564,20 @@ func apply_second_wind(cost: int) -> bool:
 	attach_effect(guard)
 	return true
 
-## Vanguard "Bloodwrath" (L5): self-cast Empowered scaling with missing HP% (+1% dmg per 2% HP
-## missing, capped +40%) — a high-risk juggernaut buff. [ASSUMPTION] scaling.
+## Vanguard "Bloodwrath" scaling formula (playtest 2026-07-04: steepened from +1%/2% missing HP,
+## cap 40%, to +1%/1%, cap 50%, so the scaling is felt well before near-death). Pure + static so
+## apply_bloodwrath and the Abilities-menu live tooltip (AbilityMenuPanel) share one formula and can
+## never drift apart.
+static func bloodwrath_bonus_pct(missing_pct: float) -> float:
+	return minf(missing_pct * 1.0, 0.50)
+
+## Vanguard "Bloodwrath" (L5): self-cast Empowered scaling with missing HP% — a high-risk
+## juggernaut buff. [ASSUMPTION] scaling, see bloodwrath_bonus_pct().
 func apply_bloodwrath(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	var missing_pct: float = 1.0 - (float(hp) / float(maxi(max_hp, 1)))
-	var bonus: float = minf(missing_pct * 0.5, 0.40)
+	var bonus: float = bloodwrath_bonus_pct(missing_pct)
 	var e: Effect = EffectLibrary.make(&"empowered")
 	e.magnitude = 1.0 + bonus
 	attach_effect(e)

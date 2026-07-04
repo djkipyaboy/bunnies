@@ -40,5 +40,15 @@ func _init() -> void:
 	_check(not panel.visible, "pressing ✕ hides the panel")
 	_check(got.is_empty(), "pressing ✕ does not emit ability_pressed")
 
+	# Bloodwrath's live tooltip (playtest 2026-07-04, player-requested "make the scaling obvious"):
+	# the info text appends a computed bonus at the caster's CURRENT hp, sharing
+	# Combatant.bloodwrath_bonus_pct() with the caster path so the two numbers can never drift.
+	var vg: Combatant = ClassLibrary.make(&"vanguard").build_combatant(true)
+	vg.hp = vg.max_hp  # full HP -> 0% missing -> +0% shown
+	_check(AbilityMenuPanel._dynamic_suffix(&"bloodwrath", vg).contains("+0% damage"), "bloodwrath suffix at full HP shows +0%")
+	vg.hp = maxi(vg.max_hp - int(vg.max_hp * 0.25), 1)  # ~25% missing -> +25% (1%-per-1% formula)
+	_check(AbilityMenuPanel._dynamic_suffix(&"bloodwrath", vg).contains("+25% damage"), "bloodwrath suffix at 25%% missing HP shows +25%%")
+	_check(AbilityMenuPanel._dynamic_suffix(&"heroic_guard", vg) == "", "no dynamic suffix for other abilities")
+
 	panel.free()
 	quit()
