@@ -829,6 +829,21 @@ static func jinxed_reels(reels: Array) -> Array[ActionReel]:
 			out.append(r)
 	return out
 
+## Chancer "Double or Nothing" (L9) whole-spin conversion (playtest 2026-07-04, player-specified):
+## replaces every WEAPON-ATTACK reel's face composition with the wild gambler's spread
+## (ActionReel.make_gamble) — unlike evasion_reels/jinxed_reels (which remap individual face tiers
+## in place), this is a full replacement since the gamble composition isn't a downgrade of the
+## existing faces, it's a different spread entirely. Mirrors the "deep-copy weapon-attack reels
+## only, pass utility reels through" shape. Static + pure.
+static func gambled_reels(reels: Array) -> Array[ActionReel]:
+	var out: Array[ActionReel] = []
+	for r: ActionReel in reels:
+		if r != null and r.is_weapon_attack:
+			out.append(ActionReel.make_gamble(r.damage_type))
+		else:
+			out.append(r)
+	return out
+
 ## Wildcard Gamble (Chancer Ultimate) double-or-nothing transform for ONE re-rolled reel: a crit-success
 ## re-roll doubles the reel's original damage; a fail/crit-fail re-roll zeroes it; anything else leaves
 ## the original standing. Static + pure.
@@ -1178,7 +1193,11 @@ func fire_double_or_nothing(type: DamageType, reel_cap: int) -> bool:
 	attach_effect(e)
 	double_or_nothing_pending = true
 	double_or_nothing_refund_accum = 0
+	# Wild crit-biased spin (playtest 2026-07-04, player-specified 25/10/65 split): converts the
+	# EXISTING reels too, not just the 2 bonus ones — a whole-spin effect, matching the ability's
+	# original "wild crit biased" framing rather than a partial one.
+	turn_reels = gambled_reels(turn_reels)
 	for i: int in range(2):
 		if turn_reels.size() < reel_cap:
-			turn_reels.append(ActionReel.make_default(type))
+			turn_reels.append(ActionReel.make_gamble(type))
 	return true

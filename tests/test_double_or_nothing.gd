@@ -32,6 +32,11 @@ func _init() -> void:
 	_check(c.double_or_nothing_pending, "pending flag set after firing")
 	_check(c.double_or_nothing_refund_accum == 0, "refund accumulator starts at 0")
 	_check(c.turn_reels.size() == before_reels + 2, "appended 2 bonus reels")
+	# Wild crit-biased whole spin (playtest 2026-07-04, player-specified 25/10/65): EVERY reel —
+	# pre-existing and bonus alike — now carries the 20-face gamble composition, not the plain
+	# 10-face default. See test_gamble_reel.gd for the exact face-count assertions.
+	for r: ActionReel in c.turn_reels:
+		_check(r.faces.size() == 20, "every reel (existing + bonus) uses the 20-face gamble composition")
 
 	var empowered: Effect = c.active_effects.filter(func(e: Effect) -> bool: return e.id == &"empowered")[0]
 	_check(empowered != null, "an empowered effect is attached")
@@ -80,6 +85,7 @@ func _init() -> void:
 	_check(commit_plan.staged_extra_ability_id == &"double_or_nothing", "toggle stages double_or_nothing")
 	var preview: Array[ActionReel] = commit_plan.preview_reels()
 	_check(preview.size() == commit_before_reels + 2, "preview shows the 2 bonus reels before commit")
+	_check(preview[preview.size() - 1].faces.size() == 20, "previewed bonus reel already shows the gamble composition")
 	commit_plan.commit()
 	_check(commit_c.resource_pool.mana == 0, "commit fired the all-in gamble (spent all mana)")
 	_check(commit_c.double_or_nothing_pending, "commit left the pending flag set for combat.gd to resolve")

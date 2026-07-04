@@ -242,9 +242,14 @@ func preview_reels() -> Array[ActionReel]:
 			&"entangle":
 				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"rooted"))
 	if staged_extra_ability_id in TWO_REEL_BONUS_EXTRA_IDS:
+		# Double or Nothing's bonus reels preview as the wild gambler's spread (playtest 2026-07-04) —
+		# it also converts the caster's EXISTING reels the same way, but (matching the evasion_reels/
+		# jinxed_reels precedent) that whole-spin conversion isn't shown in the Main-1 preview, only
+		# applied at actual commit/spin time. Mana Surge keeps the plain default-composition preview.
+		var maker: Callable = ActionReel.make_gamble if staged_extra_ability_id == &"double_or_nothing" else ActionReel.make_default
 		for i: int in range(2):
 			if reels.size() < reel_cap:
-				reels.append(ActionReel.make_default(combatant.weapon_type()))
+				reels.append(maker.call(combatant.weapon_type()))
 	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't strips),
 	# Collateral (the splash isn't a strip), and Earthquake (+1 WILD attack reel). All add one own-type
 	# weapon-attack reel. Insert BEFORE any trailing utility reel (e.g. a staged Rallying Cry) so the

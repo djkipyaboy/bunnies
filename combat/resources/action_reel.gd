@@ -85,6 +85,30 @@ static func make_rider_attack(type: DamageType, rider_id: StringName, bonus_vs_c
 			face.rider_effect_id = rider_id
 	return reel
 
+## Chancer "Double or Nothing" (L9) wild gambler's reel (playtest 2026-07-04, player-specified exact
+## distribution): a genuine ALL-OR-NOTHING reel — no FAILURE or NEUTRAL faces at all. A 20-face strip
+## (not 10) specifically because 25%/65% aren't representable in tenths: 5 crit-failure (25%), 2
+## success (10%), 13 crit-success (65%). Used for BOTH the caster's existing weapon-attack reels (via
+## Combatant.gambled_reels()) and the ability's own 2 bonus reels — a whole-spin effect, not a
+## partial one, matching the ability's original "wild crit-biased" framing.
+const GAMBLE_COMPOSITION := [
+	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 5],
+	[ReelFace.ResultTier.SUCCESS, 1.0, 2],
+	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 13],
+]
+
+static func make_gamble(type: DamageType = null) -> ActionReel:
+	var reel: ActionReel = ActionReel.new()
+	reel.damage_type = type
+	for entry: Array in GAMBLE_COMPOSITION:
+		var tier: ReelFace.ResultTier = entry[0]
+		var multiplier: float = entry[1]
+		var count: int = entry[2]
+		for i: int in range(count):
+			reel.faces.append(_make_face(tier, multiplier))
+	reel.faces.shuffle()  # balance-neutral: only adjacency varies, tier counts fixed
+	return reel
+
 ## Builds the Warden's "Rallying Cry" reel (spec 2026-06-29 §3): a no-damage UTILITY reel of 2
 ## crit-success + 8 success faces (no fail/neutral/crit-fail). Every face deals zero direct damage
 ## (multiplier 0) and carries NO rider — the orchestrator reads the landed tier post-spin and shields
