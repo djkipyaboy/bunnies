@@ -330,7 +330,8 @@ func _build_ui() -> void:
 	_build_fate_picker()
 
 ## Places combatant panels in a vertical column at [param x] (top-down, in [param members] order) and
-## binds each. Panel height 238 + 14px gap (spec §2). Used for both party columns (left PCs / right enemies).
+## binds each. Panel height 278 + 14px gap (spec §2; grew from 238 on 2026-07-04 for the taller
+## status-effects reservation — see CombatantPanel._ready). Used for both party columns.
 func _place_party_column(members: Array[Combatant], x: float) -> void:
 	var y: float = 80.0
 	for c: Combatant in members:
@@ -339,7 +340,7 @@ func _place_party_column(members: Array[Combatant], x: float) -> void:
 		add_child(p)
 		_panels[c] = p
 		p.bind(c)
-		y += 238.0 + 14.0
+		y += 278.0 + 14.0
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
@@ -645,8 +646,8 @@ func _build_target_click_catchers() -> void:
 		hit.flat = true
 		hit.modulate = Color(1, 1, 1, 0)  # invisible; input is gated by mouse_filter, not alpha
 		hit.position = panel.position
-		hit.custom_minimum_size = Vector2(300, 238)   # full panel height (spec §3 targeting)
-		hit.size = Vector2(300, 238)
+		hit.custom_minimum_size = Vector2(300, 278)   # full panel height (spec §3 targeting)
+		hit.size = Vector2(300, 278)
 		hit.tooltip_text = "Click to make %s the active PC's primary target." % c.display_name
 		hit.pressed.connect(_select_target.bind(c))
 		add_child(hit)
@@ -1158,12 +1159,31 @@ func _commit_main1() -> void:
 	if _plan == null:
 		return
 	var did_ability: bool = _plan.ability_staged
+	var did_extra: StringName = _plan.staged_extra_ability_id
 	var did_ultimate: bool = _plan.fire_ultimate_staged
+	# HP-diff heal announcement (playtest 2026-07-04): several self-cast extras (Second Wind is the
+	# first) call Combatant.heal() with no return value threaded back here — rather than special-case
+	# each one, a before/after HP compare catches any heal this commit() call causes, present or
+	# future. Nothing else changes HP during commit() today (Double or Nothing's crit-fail recoil
+	# happens later, in _apply_attack), so a rise here is unambiguously a heal.
+	var hp_before: int = _attacker.hp
 	_plan.commit()  # spends resources / appends reel / arms wild — the ONLY apply point
 	if did_ability:
 		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(_attacker.ability_id)])
+	if did_extra != &"":
+		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(did_extra)])
 	if did_ultimate:
 		_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
+	if _attacker.hp > hp_before:
+		_log("  ✚ %s heals %d HP (%d/%d)." % [_attacker.display_name, _attacker.hp - hp_before, _attacker.hp, _attacker.max_hp])
+	# Immediate status/resource refresh (playtest 2026-07-04): self-cast buffs with no pending-flag
+	# block below (Heroic Guard, Second Wind, Bloodwrath, Mountain Stance, Feint & Riposte, Quickstep,
+	# Bastion, Riposte Storm, Loaded Dice) previously only became visible on the panel at this
+	# combatant's own End phase — same turn, but well after the player could see it landed. Refreshing
+	# right after commit() makes every stage-and-spin instantly legible.
+	if did_ability or did_extra != &"" or did_ultimate:
+		(_panels[_attacker] as CombatantPanel).refresh_status()
+		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	# Hunter's Mark: the orchestrator owns the target, so it does the attach (ARCHITECTURE §2). The
 	# downstream crit-fail→hit swap in _do_spin is side-agnostic, so an enemy's mark helps every enemy.
 	if _attacker.hunters_mark_pending:
@@ -1358,6 +1378,10 @@ func _apply_attack(attack) -> void:
 	# N-vs-M refinement — identical in the current 1v1.)
 	var targets: Array[Combatant] = _targets_for(_attacker)
 	var aoe_tag: String = " [AoE→all]" if (_attacker.is_aoe_active() and targets.size() > 1) else ""
+	# Playtest 2026-07-04: this line used to name only the attacker, never who got hit — the reason
+	# the player couldn't visually confirm Taunt/Evasion were doing anything (a redirected or dodged
+	# attack looked identical to a normal one in the log).
+	var target_names: String = ", ".join(targets.map(func(t: Combatant) -> String: return t.display_name))
 	if attack.final_damage > 0:
 		for t: Combatant in targets:
 			t.take_damage(attack.final_damage)
@@ -1381,9 +1405,9 @@ func _apply_attack(attack) -> void:
 		# Surface the type matchup (vs the primary defender, which final_damage was computed against) so
 		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
 		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0
-		_log("  %s %s reel → %s for %d damage%s  %s" % [_attacker.display_name, _type_name(attack.damage_type), tier_name, attack.final_damage, aoe_tag, TypeVisuals.effectiveness_tag(mult)])
+		_log("  %s %s reel → %s for %d damage to %s%s  %s" % [_attacker.display_name, _type_name(attack.damage_type), tier_name, attack.final_damage, target_names, aoe_tag, TypeVisuals.effectiveness_tag(mult)])
 	else:
-		_log("  %s reel → %s (no damage)." % [_attacker.display_name, tier_name])
+		_log("  %s reel → %s (no damage) vs %s." % [_attacker.display_name, tier_name, target_names])
 	# Bonus Meter charge (attacker only). Log BM gains for the player (enemy meter is hidden).
 	# A non-charging reel (the Warden's Rallying Cry reel) is skipped — its payoff is the party shield.
 	if _attacker.bonus_meter != null and attack.charges_meter:

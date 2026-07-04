@@ -23,13 +23,18 @@ func _ready() -> void:
 	# 2026-06-26). Tall enough for every row without spilling onto the Action-reels caption below.
 	const PANEL_W: float = 300.0
 	const ROW_W: float = 280.0
-	# Height grew with the ATK/DEF type-badge row + the SHIELD chip (spec 2026-06-28) — kept tall enough
-	# that the target-selection outline still wraps every row without spilling onto the reels below.
-	custom_minimum_size = Vector2(PANEL_W, 238)
+	# Height grew with the ATK/DEF type-badge row + the SHIELD chip (spec 2026-06-28), then again with
+	# the status-effects row (playtest 2026-07-04): with 3+ active effects the status RichTextLabel
+	# wraps past its old 20px reservation, and — since nothing clipped this panel — the overflow used
+	# to paint onto the panel of the NEXT combatant in the column (looked like "debuffs are covered by
+	# the character beneath the target"). clip_contents is a hard backstop for any stacking this taller
+	# reservation still doesn't cover.
+	custom_minimum_size = Vector2(PANEL_W, 278)
 	size = custom_minimum_size
+	clip_contents = true
 	var box := VBoxContainer.new()
 	box.position = Vector2(10, 8)
-	box.custom_minimum_size = Vector2(ROW_W, 222)
+	box.custom_minimum_size = Vector2(ROW_W, 262)
 	add_child(box)
 
 	_name_label = Label.new()
@@ -80,7 +85,7 @@ func _ready() -> void:
 	_status_label.bbcode_enabled = true
 	_status_label.fit_content = true
 	_status_label.scroll_active = false
-	_status_label.custom_minimum_size = Vector2(ROW_W, 20)
+	_status_label.custom_minimum_size = Vector2(ROW_W, 60)  # room for ~3 wrapped lines of active effects
 	box.add_child(_status_label)
 
 ## Binds this panel to [param c] and wires its signals.
