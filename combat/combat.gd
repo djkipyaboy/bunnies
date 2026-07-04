@@ -129,6 +129,7 @@ func _build_combatants() -> void:
 		var pc: Combatant = ClassLibrary.make(id).build_combatant(true)
 		if _endgame_enabled:
 			pc.level = 9
+			_scale_up_for_endgame(pc)
 		_pcs.append(pc)
 	# Enemy party (§5.1): one Combatant per selected enemy id, in selection order.
 	_enemies.clear()
@@ -150,6 +151,23 @@ func _build_combatants() -> void:
 		_dummies.append(_make_dummy("Target Dummy 2", earth))
 		for d: Combatant in _dummies:
 			_turn_manager.combatants.append(d)
+
+## Scales [param pc]'s resource pool for ENDGAME testing (player request 2026-07-04): base-level
+## stamina/mana caps and regen leave a level-9 kit unable to repeatedly fire 5-6 cost L9 abilities
+## without several turns of pure regen, which made playtesting the endgame kits slow and not
+## representative of how each class will actually feel once real leveling exists. Doubles both max
+## pools, triples both regen rates, and tops the pool up to the new max (ENDGAME starts full, not at
+## the old starting fraction). Testing aid only — not a real progression curve.
+func _scale_up_for_endgame(pc: Combatant) -> void:
+	if pc.resource_pool == null:
+		return
+	var pool: ResourcePool = pc.resource_pool
+	pool.max_stamina *= 2
+	pool.max_mana *= 2
+	pool.regen_per_turn *= 3
+	pool.mana_regen_per_turn *= 3
+	pool.stamina = pool.max_stamina
+	pool.mana = pool.max_mana
 
 ## Lays out both party columns (left PCs / right enemies + dummies), sets the panel anchors, and wires the
 ## enemy click-catchers. Called at BEGIN after [method _build_combatants].
