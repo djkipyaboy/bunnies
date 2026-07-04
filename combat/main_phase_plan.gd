@@ -102,12 +102,13 @@ func can_stage_extra_ability(id: StringName) -> bool:
 		return false
 	if combatant.is_on_cooldown(id):
 		return false
-	# Double or Nothing's AbilityDef.cost is 0 (the real cost — 100% of current Stamina — is computed
-	# at cast time in fire_double_or_nothing). The generic can_afford({stamina: 0}) below would trivially
-	# pass even at 0 Stamina, so gate on "has at least 1 Stamina to gamble" instead, and return early
-	# (skip the generic check entirely) rather than falling through to it.
+	# Double or Nothing's AbilityDef.cost is 0 (the real cost — 100% of current Mana — is computed
+	# at cast time in fire_double_or_nothing). The generic can_afford({mana: 0}) below would trivially
+	# pass even at 0 Mana, so gate on "has at least 1 Mana to gamble" instead, and return early
+	# (skip the generic check entirely) rather than falling through to it. Rail switched Stamina→Mana
+	# with the rest of the Chancer on 2026-07-04.
 	if id == &"double_or_nothing":
-		return combatant.level >= def.unlock_level and not combatant.is_on_cooldown(id) and combatant.resource_pool.stamina >= 1
+		return combatant.level >= def.unlock_level and not combatant.is_on_cooldown(id) and combatant.resource_pool.mana >= 1
 	if not combatant.resource_pool.can_afford({def.resource: def.cost}):
 		return false
 	if id in REEL_ADDING_EXTRA_IDS and combatant.turn_reels.size() >= reel_cap:

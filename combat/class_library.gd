@@ -95,15 +95,18 @@ static func make(id: StringName) -> CharacterClass:
 			c.weapon_base_damage = 6.0; c.weapon_type = storm; c.reel_count = 4
 			c.combat_role = &"ranged"
 			c.defense_type = storm
-			c.base_max_hp = 300; c.base_max_stamina = 6; c.base_meter_floor = 3; c.meter_cap = 30  # [ASSUMPTION] 4-reel charges fast → 30 cap like Skirmisher
-			c.start_stamina = 3; c.stamina_regen = 1
-			c.ability_id = &"reroll"; c.ability_cost = 4; c.ability_resource = &"stamina"
+			# Mana, not Stamina (playtest 2026-07-04, player call): Storm is a magical damage type and
+			# the thrown weapon is magically imbued, so Mana fits the class identity better. base_max_mana
+			# + Focus(1) = 10 total; regen/start [ASSUMPTION], mirrors Warden's pace on a 4-reel budget.
+			c.base_max_hp = 300; c.base_max_stamina = 0; c.base_meter_floor = 3; c.meter_cap = 30  # [ASSUMPTION] 4-reel charges fast → 30 cap like Skirmisher
+			c.base_max_mana = 9; c.start_mana = 10; c.mana_regen = 2
+			c.ability_id = &"reroll"; c.ability_cost = 4; c.ability_resource = &"mana"
 			c.ultimate_id = &"wildcard_gamble"
 			c.payline_profile_id = &"casino"
 			c.extra_abilities = [
-				_ability(&"loaded_dice", 5, 3, &"stamina", 0),
-				_ability(&"jinx_the_odds", 7, 3, &"stamina", 0),
-				_ability(&"double_or_nothing", 9, 0, &"stamina", 7),  # cost computed at cast time (Task 24)
+				_ability(&"loaded_dice", 5, 3, &"mana", 0),
+				_ability(&"jinx_the_odds", 7, 3, &"mana", 0),
+				_ability(&"double_or_nothing", 9, 0, &"mana", 7),  # cost computed at cast time (Task 24)
 			]
 			return c
 		&"ranger":

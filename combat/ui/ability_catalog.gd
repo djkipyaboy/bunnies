@@ -73,7 +73,7 @@ static func description(id: StringName) -> String:
 		# --- Chancer ---
 		&"loaded_dice": return "This spin only: adds crit faces to your reels and lights one bonus payline."
 		&"jinx_the_odds": return "Attack reel; on a hit, JINXES the target for 2 turns — its successes downgrade (success→neutral, crit→success)."
-		&"double_or_nothing": return "All-in gamble: next spin is EMPOWERED ×2.0 and adds up to 2 bonus reels. Each non-fail reel refunds 1 Stamina — but every crit-fail reel deals its own rolled damage back to YOU."
+		&"double_or_nothing": return "All-in gamble: next spin is EMPOWERED ×2.0 and adds up to 2 bonus reels. Each non-fail reel refunds 1 Mana — but every crit-fail reel deals its own rolled damage back to YOU."
 		# --- Ranger ---
 		&"aimed_shot": return "Piercing reel with a one-shot EMPOWERED boost baked in; extra multiplier if the target is Hunter's-Marked."
 		&"snare_trap": return "Attack reel; on a hit, ROOTS the target — −30 initiative for 2 turns."

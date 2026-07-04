@@ -30,7 +30,7 @@ func _init() -> void:
 	var previewed: Array[ActionReel] = plan.preview_reels()
 	_check(previewed.size() == before_count + 1, "preview shows the loadout grown by 1 reel")
 	_check(c.turn_reels.size() == before_count, "preview does not mutate turn_reels")
-	_check(c.resource_pool.stamina == cc.start_stamina, "preview does not spend stamina")
+	_check(c.resource_pool.mana == cc.start_mana, "preview does not spend mana")
 
 	plan.commit()
 	_check(c.turn_reels.size() == before_count + 1, "commit grows turn_reels by 1")
@@ -45,7 +45,7 @@ func _init() -> void:
 			_check(f.multiplier > 0.0, "SUCCESS face keeps real damage")
 	_check(found_hit_face, "sanity: at least one SUCCESS face exists to check")
 
-	_check(c.resource_pool.stamina == cc.start_stamina - 3, "commit spent the ability's stamina cost (3)")
+	_check(c.resource_pool.mana == cc.start_mana - 3, "commit spent the ability's mana cost (3)")
 
 	# Cap check: fill the loadout to reel_cap, then staging must be refused even though affordable.
 	var cap_c: Combatant = cc.build_combatant(true)
@@ -55,12 +55,12 @@ func _init() -> void:
 		cap_c.turn_reels.append(ActionReel.make_default(cap_c.weapon_type()))
 	_check(not cap_plan.can_stage_extra_ability(&"jinx_the_odds"), "not stageable when turn_reels is already at reel_cap")
 
-	# Affordability check: drain stamina to 0, staging must be refused.
+	# Affordability check: drain mana to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
 	poor_c.level = 7
-	poor_c.resource_pool.stamina = 0
+	poor_c.resource_pool.mana = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
-	_check(not poor_plan.can_stage_extra_ability(&"jinx_the_odds"), "not stageable with 0 stamina")
+	_check(not poor_plan.can_stage_extra_ability(&"jinx_the_odds"), "not stageable with 0 mana")
 
 	# Direct Combatant-method checks (mirrors try_sundering_strike/try_quake_slam's contract).
 	var direct_c: Combatant = cc.build_combatant(true)

@@ -66,9 +66,9 @@ func _init() -> void:
 	_check(AbilityMenuPanel.cost_text(plan, c, &"flurry") == "2 STA", "base cost text")
 	_check(AbilityMenuPanel.cost_text(plan, c, &"riposte_storm") == "4 STA", "extra cost text")
 	var don: AbilityDef = AbilityDef.new()
-	don.id = &"double_or_nothing"; don.unlock_level = 9; don.cost = 0; don.resource = &"stamina"; don.cooldown_turns = 7
+	don.id = &"double_or_nothing"; don.unlock_level = 9; don.cost = 0; don.resource = &"mana"; don.cooldown_turns = 7
 	c.extra_abilities.append(don)
-	_check(AbilityMenuPanel.cost_text(plan, c, &"double_or_nothing") == "all-in: ALL remaining Stamina", "Double or Nothing cost text")
+	_check(AbilityMenuPanel.cost_text(plan, c, &"double_or_nothing") == "all-in: ALL remaining Mana", "Double or Nothing cost text")
 	var mana_c: Combatant = _make_combatant()
 	mana_c.ability_id = &"rallying_cry"
 	mana_c.ability_resource = &"mana"

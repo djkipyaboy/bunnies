@@ -484,7 +484,8 @@ func try_quake_slam(type: DamageType, cost: int, cap: int) -> bool:
 func try_jinx_the_odds(type: DamageType, cost: int, cap: int) -> bool:
 	if turn_reels.size() >= cap:
 		return false
-	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+	# Mana, not Stamina — the Chancer moved rails on 2026-07-04 (see class_library.gd).
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
 	turn_reels.append(ActionReel.make_rider_attack(type, &"jinxed"))
 	return true
@@ -688,7 +689,8 @@ func apply_mana_surge(type: DamageType, cost: int, reel_cap: int) -> bool:
 ## the orchestrator to light. Deep-copies each reel so the underlying weapon is never mutated
 ## (unlike apply_luck's own-reels mutation, which is permanent by design).
 func apply_loaded_dice(cost: int) -> bool:
-	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+	# Mana, not Stamina — the Chancer moved rails on 2026-07-04 (see class_library.gd).
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
 	for i: int in range(turn_reels.size()):
 		var r: ActionReel = turn_reels[i].duplicate(true)
@@ -1112,23 +1114,26 @@ func stage_regrowth(cost: int) -> bool:
 	return true
 
 # ---------------------------------------------------------------------------
-# Chancer reroll / Wildcard Gamble (spec §3.1) — reroll costs Stamina; gamble costs the meter
+# Chancer reroll / Wildcard Gamble (spec §3.1) — reroll costs its ability_resource rail (Mana as of
+# 2026-07-04); gamble costs the meter
 # ---------------------------------------------------------------------------
 
-## Stages the Re-roll base ability: spends [param cost] Stamina and flags a post-spin re-roll of the
+## Stages the Re-roll base ability: spends [param cost] on ability_resource and flags a post-spin re-roll of the
 ## worst reel. Returns false (no change) if unaffordable. The orchestrator runs the re-roll after the
 ## spin resolves, and calls refund_reroll() if no reel qualified.
 func stage_reroll(cost: int) -> bool:
-	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+	if resource_pool == null or not resource_pool.spend({ability_resource: cost}):
 		return false
 	reroll_pending = true
 	reroll_cost = cost
 	return true
 
-## Refunds a staged Re-roll's Stamina (no reel qualified) and clears its state.
+## Refunds a staged Re-roll's cost (no reel qualified) and clears its state. Reads [member
+## ability_resource] rather than hardcoding Stamina — Re-roll is the Chancer's base ability, and the
+## Chancer moved to Mana on 2026-07-04; this stays correct if that ever changes again.
 func refund_reroll() -> void:
 	if reroll_cost > 0 and resource_pool != null:
-		resource_pool.refund({&"stamina": reroll_cost})
+		resource_pool.refund({ability_resource: reroll_cost})
 	reroll_pending = false
 	reroll_cost = 0
 
@@ -1148,23 +1153,25 @@ func clear_reroll_state() -> void:
 	wildcard_gamble_pending = false
 
 # ---------------------------------------------------------------------------
-# Chancer "Double or Nothing" (L9, ultimate-tier) — all-in Stamina gamble
+# Chancer "Double or Nothing" (L9, ultimate-tier) — all-in Mana gamble
 # ---------------------------------------------------------------------------
 
-## All-in gamble (L9, ultimate-tier, 7-turn CD): spends 100% of current Stamina (must have at least
+## All-in gamble (L9, ultimate-tier, 7-turn CD): spends 100% of current Mana (must have at least
 ## 1) for a big Empowered on the next spin; a crit-fail on that spin recoils as self-damage, a
-## non-fail reel refunds Stamina (combat.gd, Task 22 wiring). Returns false if Stamina is 0.
+## non-fail reel refunds Mana (combat.gd, Task 22 wiring). Returns false if Mana is 0. Rail switched
+## Stamina→Mana project-wide for the Chancer on 2026-07-04 (player call: Storm is a magical damage
+## type, fits Mana better).
 ##
 ## Magnitude 1.5→2.0 and +2 reels (playtest 2026-07-02, player-requested): the original ×1.5 with no
 ## reel change read as barely different from a normal attack against ordinary reel-roll variance,
 ## despite the name promising a literal doubling and the highest cost/risk of any L9 ability
-## (all-in Stamina + crit-fail recoil + longest 7-turn CD). Reels are capped by [param reel_cap] but
+## (all-in Mana + crit-fail recoil + longest 7-turn CD). Reels are capped by [param reel_cap] but
 ## never block the buff itself (see apply_mana_surge's comment — same reasoning).
 func fire_double_or_nothing(type: DamageType, reel_cap: int) -> bool:
-	if resource_pool == null or resource_pool.stamina < 1:
+	if resource_pool == null or resource_pool.mana < 1:
 		return false
-	var cost: int = resource_pool.stamina
-	resource_pool.spend({&"stamina": cost})
+	var cost: int = resource_pool.mana
+	resource_pool.spend({&"mana": cost})
 	var e: Effect = EffectLibrary.make(&"empowered")
 	e.magnitude = 2.0
 	e.duration = 1

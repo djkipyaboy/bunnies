@@ -18,12 +18,14 @@ func _initialize() -> void:
 	_check(cls.reel_count == 4, "4 reels (got %d)" % cls.reel_count)
 	_check(cls.base_stats.luck == 1, "Luck 1 (got %d)" % cls.base_stats.luck)
 	_check(cls.ability_id == &"reroll", "ability is reroll")
-	_check(cls.ability_cost == 4 and cls.ability_resource == &"stamina", "reroll costs 4 stamina")
+	_check(cls.ability_cost == 4 and cls.ability_resource == &"mana", "reroll costs 4 mana")
 	_check(cls.ultimate_id == &"wildcard_gamble", "ultimate is wildcard_gamble")
 
-	# Built combatant: 7 total stamina (6 base + 1 Focus), 4 weapon reels, Luck added crit faces.
+	# Built combatant: Mana rail (playtest 2026-07-04: Storm is magical, switched from Stamina),
+	# 10 total mana (9 base + 1 Focus), 4 weapon reels, Luck added crit faces.
 	var c: Combatant = cls.build_combatant(true)
-	_check(c.resource_pool.max_stamina == 7, "total stamina 7 (got %d)" % c.resource_pool.max_stamina)
+	_check(c.resource_pool.max_stamina == 0, "no stamina rail (got %d)" % c.resource_pool.max_stamina)
+	_check(c.resource_pool.max_mana == 10, "total mana 10 (got %d)" % c.resource_pool.max_mana)
 	_check(c.weapon.reels.size() == 4, "4 weapon reels (got %d)" % c.weapon.reels.size())
 	# apply_luck appended 1 crit-success face per reel (Luck 1) beyond the default composition's single
 	# crit face — so reel 0 carries 2 crit-success faces.

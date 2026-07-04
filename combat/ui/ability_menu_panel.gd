@@ -37,7 +37,7 @@ static func row_state(plan: MainPhasePlan, c: Combatant, id: StringName) -> RowS
 ## "2 STA" / "4 MANA", read LIVE from the plan (base) or AbilityDef (extra) — never from the catalog.
 static func cost_text(plan: MainPhasePlan, c: Combatant, id: StringName) -> String:
 	if id == &"double_or_nothing":
-		return "all-in: ALL remaining Stamina"
+		return "all-in: ALL remaining Mana"
 	if c != null and id == c.ability_id:
 		return "%d %s" % [plan.ability_cost, _rail_label(c.ability_resource)]
 	var def: AbilityDef = c.find_extra_ability(id) if c != null else null

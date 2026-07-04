@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Chancer L5 "Loaded Dice" (Task 20): a stamina-cost, NO-reel-count-change extra ability that adds
+## Chancer L5 "Loaded Dice" (Task 20): a mana-cost, NO-reel-count-change extra ability that adds
 ## one crit-success face (mult 2.0, mirrors apply_luck) to each of THIS turn's reels for one spin
 ## only, then flags loaded_dice_pending so the orchestrator lights an extra scored payline
 ## (PaylineLibrary.bonus_line) for this spin. Like Riposte Storm/Quickstep/Mountain Stance, it only
@@ -26,8 +26,8 @@ func _init() -> void:
 
 	var c: Combatant = cc.build_combatant(true)
 	c.level = 5
-	c.resource_pool.stamina = c.resource_pool.max_stamina
-	var starting_stamina: int = c.resource_pool.stamina
+	c.resource_pool.mana = c.resource_pool.max_mana
+	var starting_mana: int = c.resource_pool.mana
 
 	# Control turn_reels down to exactly 2 reels (rather than the Chancer's 4-reel baseline) so the
 	# per-reel face-count assertions below are easy to reason about.
@@ -64,13 +64,13 @@ func _init() -> void:
 	_check(all_last_faces_crit, "each turn_reel gained a CRIT_SUCCESS/mult-2.0 face")
 
 	var def: AbilityDef = c.find_extra_ability(&"loaded_dice")
-	_check(c.resource_pool.stamina == starting_stamina - def.cost, "commit spent the ability's stamina cost (3)")
+	_check(c.resource_pool.mana == starting_mana - def.cost, "commit spent the ability's mana cost (3)")
 
 	# Direct Combatant-method check: deep-copy semantics — the underlying weapon.reels must be
 	# untouched (unlike apply_luck's own-reels PERMANENT mutation). turn_reels starts as a copy of
 	# weapon.reels (mirrors begin_turn's contract) so the "same object, untouched" check is meaningful.
 	var direct_c: Combatant = cc.build_combatant(true)
-	direct_c.resource_pool.stamina = direct_c.resource_pool.max_stamina
+	direct_c.resource_pool.mana = direct_c.resource_pool.max_mana
 	direct_c.begin_turn()
 	var weapon_face_count_before: int = direct_c.weapon.reels[0].faces.size()
 	var turn_reel_face_count_before: int = direct_c.turn_reels[0].faces.size()
@@ -78,9 +78,9 @@ func _init() -> void:
 	_check(direct_c.weapon.reels[0].faces.size() == weapon_face_count_before, "weapon.reels are untouched (deep-copy, not weapon mutation)")
 	_check(direct_c.turn_reels[0].faces.size() == turn_reel_face_count_before + 1, "turn_reels[0] grew by 1 face")
 
-	# Affordability: 0 stamina -> refused, no change.
+	# Affordability: 0 mana -> refused, no change.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.resource_pool.stamina = 0
+	poor_c.resource_pool.mana = 0
 	poor_c.turn_reels = [ActionReel.make_default(null)]
 	var poor_face_count_before: int = poor_c.turn_reels[0].faces.size()
 	_check(not poor_c.apply_loaded_dice(3), "apply_loaded_dice fails when unaffordable")
