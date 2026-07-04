@@ -87,4 +87,22 @@ func _init() -> void:
 	_check(poor_c.turn_reels[0].faces.size() == poor_face_count_before, "no face added on a failed (unaffordable) cast")
 	_check(not poor_c.loaded_dice_pending, "loaded_dice_pending stays false on a failed cast")
 
+	# Mutual exclusion with Wildcard Gamble (playtest 2026-07-04, player request: "too many crits"
+	# stacked together) — symmetric, last-press-wins, mirrors the base/extra-ability slot convention.
+	var g: Combatant = cc.build_combatant(true)
+	g.level = 5
+	g.resource_pool.mana = g.resource_pool.max_mana
+	g.bonus_meter.add_flat(g.bonus_meter.cap)  # arm it
+	var gplan: MainPhasePlan = MainPhasePlan.new(g)
+
+	gplan.toggle_extra_ability(&"loaded_dice")
+	_check(gplan.staged_extra_ability_id == &"loaded_dice", "loaded_dice stages first")
+	gplan.toggle_ultimate()
+	_check(gplan.fire_ultimate_staged, "wildcard_gamble stages")
+	_check(gplan.staged_extra_ability_id == &"", "staging wildcard_gamble un-stages loaded_dice")
+
+	gplan.toggle_extra_ability(&"loaded_dice")
+	_check(gplan.staged_extra_ability_id == &"loaded_dice", "loaded_dice re-stages")
+	_check(not gplan.fire_ultimate_staged, "re-staging loaded_dice un-stages wildcard_gamble")
+
 	quit()

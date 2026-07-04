@@ -121,6 +121,8 @@ func toggle_extra_ability(id: StringName) -> void:
 	elif can_stage_extra_ability(id):
 		staged_extra_ability_id = id
 		ability_staged = false  # mutually exclusive with the base ability slot
+		if _ultimate_conflicts_with_extra_ability(id):
+			fire_ultimate_staged = false  # e.g. staging Loaded Dice un-stages an armed Wildcard Gamble
 
 ## True when the active Ultimate is a crit-bias WILD variant (Warrior 1-spin / Skirmisher 2-spin sticky).
 func _is_wild_ultimate() -> bool:
@@ -146,6 +148,17 @@ func _ultimate_subsumes_ability() -> bool:
 	if ultimate_id == &"big_bang" and ability_id == &"select_fate":
 		return true
 	return false
+
+## True when the staged Ultimate conflicts with an EXTRA (L5/L7/L9) ability — as opposed to
+## _ultimate_subsumes_ability(), which only ever compares against the single BASE ability slot.
+## Currently just one pair (playtest 2026-07-04, player request): Wildcard Gamble re-rolls every
+## non-crit reel double-or-nothing, and Loaded Dice's extra crit faces read as "too many crits" piled
+## on top of that. Unlike a subsumes relationship (one absorbs the other for free), this is a plain
+## conflict — whichever is staged LAST wins and un-stages the other (see toggle_extra_ability/
+## toggle_ultimate), the same "staging one clears the other" convention already used for the base-
+## ability/extra-ability slot pair.
+func _ultimate_conflicts_with_extra_ability(id: StringName) -> bool:
+	return ultimate_id == &"wildcard_gamble" and id == &"loaded_dice"
 
 ## True while the base ability (Heft) is provided FREE by a staged Rampage — toggled on, no Stamina.
 func ability_is_free() -> bool:
@@ -209,6 +222,8 @@ func toggle_ultimate() -> void:
 		elif _ultimate_subsumes_ability():
 			ability_staged = false   # the Ultimate already does it — drop the staged ability (no waste)
 		# else: leave the base ability as the player staged it — it's usable alongside this Ultimate
+		if _ultimate_conflicts_with_extra_ability(staged_extra_ability_id):
+			staged_extra_ability_id = &""  # e.g. staging Wildcard Gamble un-stages an armed Loaded Dice
 
 ## The reels the spin WOULD use. A staged reel-adding ability (flurry/rend) appends a previewed
 ## own-type reel (rend's preview reel is a no-damage BLEED reel). Heft edits faces in place on commit,
