@@ -42,6 +42,18 @@ var ability_resource: StringName = &"stamina"
 ## (Vanguard: +1 reel, Heft-all, AoE). Drives MainPhasePlan's ultimate dispatch.
 var ultimate_id: StringName = &"sticky_wild"
 
+## Character level — gates extra_abilities (spec 2026-07-01). Default 1 = only the L1 base ability
+## + nothing extra. NOT a real progression system yet (no XP) — a test/tester knob until the
+## design-bible leveling system lands.
+var level: int = 1
+
+## The class's 3 NEW (L5/L7/L9) abilities, parallel to the single ability_id (untouched — plan
+## "Corrections to the locked spec" §1). Empty for a combatant with no extra kit (e.g. enemies).
+var extra_abilities: Array[AbilityDef] = []
+
+## cooldown_turns remaining per extra-ability id, decremented in on_upkeep (Task 3).
+var cooldowns: Dictionary = {}
+
 ## Payline profile (spec 2026-06-23): &"default" or &"casino" (Chancer). Drives orchestrator scoring.
 var payline_profile_id: StringName = &"default"
 
@@ -120,12 +132,40 @@ var collateral_spins_remaining: int = 0
 ## the orchestrator (which knows the enemy target) does the attach + clears the flag.
 var hunters_mark_pending: bool = false
 
+## Ranger "Aimed Shot" (L5) pending flag: the orchestrator (which knows the defender) attaches
+## Empowered with a bonus magnitude if the defender is already Marked (combat.gd, Task 23 wiring).
+var aimed_shot_pending: bool = false
+
+## Seer "Foresight" (L7) pending flag: the orchestrator picks the lowest-HP% living ally
+## (combat.gd, Task 27 wiring) and shields them.
+var foresight_pending: bool = false
+
+## Warden "Regrowth" (L7) pending flag: the orchestrator picks the lowest-HP% living ally
+## (combat.gd, reusing Task 27's _lowest_hp_pct_ally) and grants them Regen.
+var regrowth_pending: bool = false
+
+## Skirmisher Riposte Storm (Task 18) charge count: +1 per weapon-attack reel an enemy spins
+## against this combatant while Evasion is active (spec 2026-07-01 §4). Reset to 0 on use.
+var riposte_charges: int = 0
+
+## Chancer "Loaded Dice" (L5) pending flag: the orchestrator lights PaylineLibrary.bonus_line for
+## this spin (combat.gd, Task 20 wiring) then clears it. Set here; consumed post-commit.
+var loaded_dice_pending: bool = false
+
+func gain_riposte_charges(n: int) -> void:
+	riposte_charges += n
+
 ## Chancer post-spin state (spec §3.1). reroll_pending: the base Re-roll ability re-rolls the single
 ## worst reel after the spin (refunding reroll_cost if nothing qualified). wildcard_gamble_pending: the
 ## Ultimate re-rolls every non-crit reel (double-or-nothing). Both are consumed/cleared post-spin.
 var reroll_pending: bool = false
 var reroll_cost: int = 0
 var wildcard_gamble_pending: bool = false
+
+## Chancer "Double or Nothing" (L9) post-spin bookkeeping (combat.gd applies these per-reel, then
+## clears both): pending flags the crit-fail-recoils/refund resolution; accum tallies the refund.
+var double_or_nothing_pending: bool = false
+var double_or_nothing_refund_accum: int = 0
 
 ## Seer "The Big Bang" Ultimate state (spec 2026-06-27 §4): while > 0, this combatant topped its loadout
 ## to 4 crit-biased WILD reels and the spin is AoE; the orchestrator then heals all allies ceil(total/6),
@@ -262,6 +302,32 @@ func apply_luck() -> void:
 # Effects & turn-order
 # ---------------------------------------------------------------------------
 
+## Product of every active OUTGOING MULTIPLIER_EDIT effect's magnitude (Empowered, Bloodwrath).
+## 1.0 (neutral) when none are active.
+func outgoing_damage_multiplier() -> float:
+	var total: float = 1.0
+	for e: Effect in active_effects:
+		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and not e.affects_incoming:
+			total *= e.effective_magnitude()
+	return total
+
+## Product of every active INCOMING MULTIPLIER_EDIT effect's magnitude (Sundered raises it, Guarded
+## lowers it). 1.0 (neutral) when none are active.
+func incoming_damage_multiplier() -> float:
+	var total: float = 1.0
+	for e: Effect in active_effects:
+		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and e.affects_incoming:
+			total *= e.effective_magnitude()
+	return total
+
+## The highest thorns_pct among active effects, or 0.0 if none carry it (Bastion, Task 22).
+func thorns_pct() -> float:
+	var best: float = 0.0
+	for e: Effect in active_effects:
+		if e != null and e.thorns_pct > best:
+			best = e.thorns_pct
+	return best
+
 ## Recomputes current_initiative as base + the sum of active INITIATIVE_MOD magnitudes (rounded).
 func recompute_initiative() -> void:
 	var total: float = 0.0
@@ -274,9 +340,20 @@ func recompute_initiative() -> void:
 func attach_effect(effect: Effect) -> void:
 	if effect == null:
 		return
+	for active: Effect in active_effects:
+		if active != null and effect.id in active.immune_effect_ids:
+			return  # an active immunity (Mountain Stance) blocks this attach entirely
 	# Merge by id: re-applying an effect already active never creates a second instance (this is
 	# what prevents unbounded additive stacking). A stacking effect adds a stack (diminishing,
 	# capped); a non-stacking one is a no-op on stacks. Either way the duration is refreshed.
+	#
+	# NOTE (final-review M1, currently unreachable but latent): this is a REFRESH, not a REPLACE.
+	# On merge, only `duration`/`stacks` are taken from the incoming `effect` — the EXISTING active
+	# effect's other fields (magnitude, immune_effect_ids, thorns_pct, grants_stun_immunity, etc.)
+	# are kept as-is; a stronger/weaker incoming `effect` sharing that id will NOT overwrite them.
+	# No ability in this feature currently reapplies the same effect id at two different strengths
+	# (e.g. two differently-sized `guarded` effects), so this hasn't bitten anyone yet — but a future
+	# ability author stacking/refreshing an id with a different magnitude should check this first.
 	var existing: Effect = _find_effect(effect.id)
 	if existing != null:
 		existing.add_stack()                 # no-op at cap / for max_stacks == 1
@@ -317,6 +394,39 @@ func cleanse() -> int:
 	return before - active_effects.size()
 
 # ---------------------------------------------------------------------------
+# Extra abilities (spec 2026-07-01) — level-gated L5/L7/L9 kit
+# ---------------------------------------------------------------------------
+
+## The extra_abilities unlocked at this combatant's current level, in authored order.
+func unlocked_extra_abilities() -> Array[AbilityDef]:
+	return extra_abilities.filter(func(a: AbilityDef) -> bool: return a != null and level >= a.unlock_level)
+
+## The extra_abilities entry with [param id], or null if not present (locked or nonexistent).
+func find_extra_ability(id: StringName) -> AbilityDef:
+	for a: AbilityDef in extra_abilities:
+		if a != null and a.id == id:
+			return a
+	return null
+
+## True while [param id] still has cooldown turns remaining.
+func is_on_cooldown(id: StringName) -> bool:
+	return int(cooldowns.get(id, 0)) > 0
+
+## Sets a fresh cooldown of [param turns] on ability [param id] (overwrites, never stacks).
+func start_cooldown(id: StringName, turns: int) -> void:
+	if turns > 0:
+		cooldowns[id] = turns
+
+## Decrements every tracked cooldown by one bearer-turn, dropping entries that reach 0.
+func tick_cooldowns() -> void:
+	var next: Dictionary = {}
+	for id in cooldowns:
+		var remaining: int = int(cooldowns[id]) - 1
+		if remaining > 0:
+			next[id] = remaining
+	cooldowns = next
+
+# ---------------------------------------------------------------------------
 # Per-turn reel loadout (Main-Phase editing — DESIGN.md §4.8)
 # ---------------------------------------------------------------------------
 
@@ -349,6 +459,248 @@ func try_rend_reel(type: DamageType, cost: int, cap: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	turn_reels.append(ActionReel.make_rend(type))
+	return true
+
+## Warrior "Sundering Strike" (spec §4, L5): splices one [param type]-typed reel that deals REAL
+## damage and applies SUNDERED on a hit (unlike Rend, which deals none). Respects the reel [param cap].
+func try_sundering_strike(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"sundered"))
+	return true
+
+## Vanguard "Quake Slam" (L7): splices a real-damage reel that reliably applies SLOW on a hit.
+func try_quake_slam(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"slow"))
+	return true
+
+## Chancer "Jinx the Odds" (L7): splices a real-damage reel that curses the target with JINXED.
+func try_jinx_the_odds(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	# Mana, not Stamina — the Chancer moved rails on 2026-07-04 (see class_library.gd).
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"jinxed"))
+	return true
+
+## Ranger "Snare Trap" (L7): splices a real-damage reel that Roots the target on a hit.
+func try_snare_trap(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"rooted"))
+	return true
+
+## Ranger "Crippling Shot" (L9, ultimate-tier, 3-turn CD): a called shot that Weakens the target
+## AND (combat.gd wiring) deals +50% bonus damage if the target is already Slowed/Rooted/Stunned.
+func try_crippling_shot(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"weakened", true))
+	return true
+
+## Seer "Hex" (L5): splices a real-Mystic-damage reel that Curses the target with a Mystic DoT
+## (&"cursed", a DAMAGE_OVER_TIME debuff). Mirrors try_sundering_strike's shape but spends Mana
+## (the Seer's rail) instead of Stamina. Respects the reel [param cap].
+func try_hex(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"cursed"))
+	return true
+
+## Warden "Entangle" (L5): splices a real-Earth-damage reel that Roots the target on a hit
+## (&"rooted", the same shared rider Ranger's Snare Trap uses). Mirrors try_hex's shape but for
+## the Warden — spends Mana (the Warden's rail), not Stamina. Respects the reel [param cap].
+func try_entangle(type: DamageType, cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	turn_reels.append(ActionReel.make_rider_attack(type, &"rooted"))
+	return true
+
+## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
+## fragile allies. Returns false (no change) if unaffordable.
+##
+## Duration +1 over the guarded/taunt template default (playtest 2026-07-02): a self-buff whose
+## payoff needs an ENEMY's future turn (being guarded/taunted does nothing on the casting turn
+## itself) loses its first nominal turn to the bearer's own on_end() tick, which fires at the end
+## of this SAME casting turn, before any enemy has acted. See Combatant.attach_effect/tick_effects
+## and Combatant.on_end for the tick timing this compensates for.
+func apply_heroic_guard(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var guard: Effect = EffectLibrary.make(&"guarded")
+	guard.duration = 3
+	attach_effect(guard)
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 3
+	attach_effect(taunt)
+	return true
+
+## Warrior "Second Wind" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Heals 30% max HP (ceil),
+## Cleanses every debuff, and grants Guarded — he comes back hardened, not just patched up. Returns
+## false (no change) if unaffordable.
+##
+## Guarded duration +1 (see apply_heroic_guard's comment — same first-tick-loss compensation).
+func apply_second_wind(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	heal(ceili(max_hp * 0.30))
+	cleanse()
+	var guard: Effect = EffectLibrary.make(&"guarded")
+	guard.duration = 3
+	attach_effect(guard)
+	return true
+
+## Vanguard "Bloodwrath" scaling formula (playtest 2026-07-04: steepened from +1%/2% missing HP,
+## cap 40%, to +1%/1%, cap 50%, so the scaling is felt well before near-death). Pure + static so
+## apply_bloodwrath and the Abilities-menu live tooltip (AbilityMenuPanel) share one formula and can
+## never drift apart.
+static func bloodwrath_bonus_pct(missing_pct: float) -> float:
+	return minf(missing_pct * 1.0, 0.50)
+
+## Vanguard "Bloodwrath" (L5): self-cast Empowered scaling with missing HP% — a high-risk
+## juggernaut buff. [ASSUMPTION] scaling, see bloodwrath_bonus_pct().
+func apply_bloodwrath(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var missing_pct: float = 1.0 - (float(hp) / float(maxi(max_hp, 1)))
+	var bonus: float = bloodwrath_bonus_pct(missing_pct)
+	var e: Effect = EffectLibrary.make(&"empowered")
+	e.magnitude = 1.0 + bonus
+	attach_effect(e)
+	return true
+
+## Vanguard "Mountain Stance" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Grants a heavy
+## Guarded (incoming ×0.5) plus full immunity to Slow/Rooted/Stunned, and a Taunt — all for 4 turns.
+## An unmovable, unlockable-down anchor. Returns false (no change) if unaffordable.
+##
+## Duration +1 over the original 3 (playtest 2026-07-02 — see apply_heroic_guard's comment for why).
+func apply_mountain_stance(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var guard: Effect = EffectLibrary.make(&"guarded")
+	guard.magnitude = 0.5
+	guard.duration = 4
+	guard.immune_effect_ids = [&"slow", &"rooted"]
+	guard.grants_stun_immunity = true
+	attach_effect(guard)
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 4
+	attach_effect(taunt)
+	return true
+
+## Warden "Bastion" (L9, ultimate-tier, 4-turn CD): heavy Guarded (with Thorns baked onto the same
+## effect instance) + Taunt for 4 turns — the wall that bites back.
+##
+## Duration +1 over the original 3 (playtest 2026-07-02 — see apply_heroic_guard's comment for why).
+func apply_bastion(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	var guard: Effect = EffectLibrary.make(&"guarded")
+	guard.magnitude = 0.5
+	guard.duration = 4
+	guard.thorns_pct = 0.20
+	attach_effect(guard)
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 4
+	attach_effect(taunt)
+	return true
+
+## Skirmisher "Feint & Riposte" (L5): self-cast Evasion + Taunt — baits attacks he'll dodge, and
+## feeds Riposte Storm's charge counter (Task 18) while it's up.
+##
+## Duration +1 over the evasion/taunt template default (playtest 2026-07-02, player-requested — see
+## apply_heroic_guard's comment for why): 2 turns wasn't enough to generate the riposte charges
+## Riposte Storm needs, because the first nominal turn is lost to this same casting turn's own tick.
+func apply_feint_riposte(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var evasion: Effect = EffectLibrary.make(&"evasion")
+	evasion.duration = 3
+	attach_effect(evasion)
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 3
+	attach_effect(taunt)
+	return true
+
+## Skirmisher "Quickstep" (L7): self-cast Haste (a one-time +20 initiative bump, mirrors Slow's
+## first tier inverted).
+##
+## Duration +1 over the haste template default (playtest 2026-07-02 — see apply_heroic_guard's
+## comment for why): Haste's payoff is a FUTURE round's turn-order recompute, not this casting turn's
+## (already-ordered) one, so it suffers the same first-tick loss as the reactive defensive buffs.
+func apply_quickstep(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var haste: Effect = EffectLibrary.make(&"haste")
+	haste.duration = 3
+	attach_effect(haste)
+	return true
+
+## Skirmisher "Riposte Storm" (L9, ultimate-tier, 3-turn CD): detonates accumulated riposte_charges
+## (built by Evasion, Task 9) as a temporary Empowered on this turn's normal reels — +15% per
+## charge, capped at 5 charges (+75% max). Fires at baseline (no bonus) with 0 charges. Resets
+## charges on use.
+func fire_riposte_storm(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	var e: Effect = EffectLibrary.make(&"empowered")
+	e.magnitude = 1.0 + 0.15 * mini(riposte_charges, 5)
+	e.duration = 1
+	attach_effect(e)
+	riposte_charges = 0
+	return true
+
+## Seer "Mana Surge" (L9, ultimate-tier, 4-turn CD): a massive self-cast Empowered on this turn's
+## own reels only (duration 1 = expires at this turn's on_end). Spends MANA, not stamina.
+##
+## +2 reels (playtest 2026-07-02, player-requested): the Seer's 2-reel baseline meant a pure
+## damage multiplier with no added hit chance wasn't worth 6 mana. Appends up to 2 own-type
+## weapon-attack reels (capped by [param reel_cap], never blocking the buff itself if there's no
+## room — unlike a splice-only ability, Empowered is still worth casting with 0 added reels).
+func apply_mana_surge(type: DamageType, cost: int, reel_cap: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	var e: Effect = EffectLibrary.make(&"empowered")
+	e.magnitude = 1.6
+	e.duration = 1
+	attach_effect(e)
+	for i: int in range(2):
+		if turn_reels.size() < reel_cap:
+			turn_reels.append(ActionReel.make_default(type))
+	return true
+
+## Chancer "Loaded Dice" (L5): adds one crit-success face (mult 2.0, mirrors apply_luck) to each of
+## THIS turn's reels — a temporary Luck point for one spin only — and flags the bonus payline for
+## the orchestrator to light. Deep-copies each reel so the underlying weapon is never mutated
+## (unlike apply_luck's own-reels mutation, which is permanent by design).
+func apply_loaded_dice(cost: int) -> bool:
+	# Mana, not Stamina — the Chancer moved rails on 2026-07-04 (see class_library.gd).
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	for i: int in range(turn_reels.size()):
+		var r: ActionReel = turn_reels[i].duplicate(true)
+		var f: ReelFace = ReelFace.new()
+		f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
+		f.multiplier = 2.0
+		r.faces.append(f)
+		r.faces.shuffle()
+		turn_reels[i] = r
+	loaded_dice_pending = true
 	return true
 
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
@@ -437,6 +789,61 @@ static func hunters_mark_reels(reels: Array) -> Array[ActionReel]:
 			out.append(r)
 	return out
 
+## Evasion (Skirmisher Feint & Riposte, Task 16) reel transform: returns a copy of [param reels] in
+## which every WEAPON-ATTACK reel's SUCCESS/CRIT_SUCCESS faces are converted to a miss (FAILURE,
+## multiplier 0) — the defender is too slippery to be hit clean. Mirrors hunters_mark_reels exactly
+## (deep-copies only weapon-attack reels; utility reels pass through). Static + pure.
+static func evasion_reels(reels: Array) -> Array[ActionReel]:
+	var out: Array[ActionReel] = []
+	for r: ActionReel in reels:
+		if r != null and r.is_weapon_attack:
+			var copy: ActionReel = r.duplicate(true)
+			for f: ReelFace in copy.faces:
+				if f.result_tier == ReelFace.ResultTier.SUCCESS or f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+					f.result_tier = ReelFace.ResultTier.FAILURE
+					f.multiplier = 0.0
+			out.append(copy)
+		else:
+			out.append(r)
+	return out
+
+## Jinxed (Chancer "Jinx the Odds", Task 21) reel transform: downgrades a BEARER's own SUCCESS faces
+## to NEUTRAL (mult 0) and CRIT_SUCCESS faces to SUCCESS (mult 1.0) on weapon-attack reels — bad luck
+## given form. Unlike Evasion/Hunter's Mark (which edit an ATTACKER's reels vs. a marked/evasive
+## DEFENDER), Jinxed is checked on the bearer's own turn as the attacker. Mirrors evasion_reels'
+## shape exactly (deep-copies only weapon-attack reels; utility reels pass through). Static + pure.
+static func jinxed_reels(reels: Array) -> Array[ActionReel]:
+	var out: Array[ActionReel] = []
+	for r: ActionReel in reels:
+		if r != null and r.is_weapon_attack:
+			var copy: ActionReel = r.duplicate(true)
+			for f: ReelFace in copy.faces:
+				if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+					f.result_tier = ReelFace.ResultTier.SUCCESS
+					f.multiplier = 1.0
+				elif f.result_tier == ReelFace.ResultTier.SUCCESS:
+					f.result_tier = ReelFace.ResultTier.NEUTRAL
+					f.multiplier = 0.0
+			out.append(copy)
+		else:
+			out.append(r)
+	return out
+
+## Chancer "Double or Nothing" (L9) whole-spin conversion (playtest 2026-07-04, player-specified):
+## replaces every WEAPON-ATTACK reel's face composition with the wild gambler's spread
+## (ActionReel.make_gamble) — unlike evasion_reels/jinxed_reels (which remap individual face tiers
+## in place), this is a full replacement since the gamble composition isn't a downgrade of the
+## existing faces, it's a different spread entirely. Mirrors the "deep-copy weapon-attack reels
+## only, pass utility reels through" shape. Static + pure.
+static func gambled_reels(reels: Array) -> Array[ActionReel]:
+	var out: Array[ActionReel] = []
+	for r: ActionReel in reels:
+		if r != null and r.is_weapon_attack:
+			out.append(ActionReel.make_gamble(r.damage_type))
+		else:
+			out.append(r)
+	return out
+
 ## Wildcard Gamble (Chancer Ultimate) double-or-nothing transform for ONE re-rolled reel: a crit-success
 ## re-roll doubles the reel's original damage; a fail/crit-fail re-roll zeroes it; anything else leaves
 ## the original standing. Static + pure.
@@ -485,6 +892,7 @@ func _heft_turn_reels(conversions: int) -> void:
 func on_upkeep() -> void:
 	if resource_pool != null:
 		resource_pool.regen()
+	tick_cooldowns()
 	recompute_initiative()
 
 ## End-of-turn bookkeeping: tick effect durations (Slow counts down here — DESIGN.md §4.8), then
@@ -505,6 +913,10 @@ func on_end() -> void:
 func evaluate_stun(threshold: int) -> bool:
 	var forced: bool = force_stun_next_turn
 	force_stun_next_turn = false  # one-shot: consume on evaluation
+	for e: Effect in active_effects:
+		if e != null and e.grants_stun_immunity:
+			stunned_this_turn = false
+			return false  # immunity overrides even a forced (Earthquake) stun
 	# Forced (Earthquake) stun bypasses the anti-lock; init-based stun still respects it (the spiral case).
 	var by_initiative: bool = current_initiative < threshold and not stunned_last_turn
 	stunned_this_turn = forced or by_initiative
@@ -675,23 +1087,68 @@ func stage_hunters_mark(cost: int) -> bool:
 	return true
 
 # ---------------------------------------------------------------------------
-# Chancer reroll / Wildcard Gamble (spec §3.1) — reroll costs Stamina; gamble costs the meter
+# Ranger "Aimed Shot" (L5) — costs Stamina; applied by the orchestrator
 # ---------------------------------------------------------------------------
 
-## Stages the Re-roll base ability: spends [param cost] Stamina and flags a post-spin re-roll of the
+## Stages Aimed Shot: spends [param cost] Stamina and flags a pending self-buff. The orchestrator
+## (which knows the defender) attaches &"empowered" to this combatant at commit, with a bonus
+## magnitude if the defender is already Marked, and clears the flag. Returns false (no change) if
+## unaffordable.
+func stage_aimed_shot(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	aimed_shot_pending = true
+	return true
+
+# ---------------------------------------------------------------------------
+# Seer "Foresight" (L7) — costs Mana; ally auto-picked and shielded by the orchestrator
+# ---------------------------------------------------------------------------
+
+## Stages Foresight: spends [param cost] Mana and flags a pending ally shield. The orchestrator
+## (which searches the caster's own side) picks the lowest-HP% living ally, including the caster
+## itself, and applies the shield at commit, then clears the flag. Returns false (no change) if
+## unaffordable.
+func stage_foresight(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	foresight_pending = true
+	return true
+
+# ---------------------------------------------------------------------------
+# Warden "Regrowth" (L7) — costs Mana; ally auto-picked and granted Regen by the orchestrator
+# ---------------------------------------------------------------------------
+
+## Stages Regrowth: spends [param cost] Mana and flags a pending ally Regen grant. The orchestrator
+## (which searches the caster's own side) picks the lowest-HP% living ally, including the caster
+## itself, and attaches Regen at commit, then clears the flag. Returns false (no change) if
+## unaffordable.
+func stage_regrowth(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	regrowth_pending = true
+	return true
+
+# ---------------------------------------------------------------------------
+# Chancer reroll / Wildcard Gamble (spec §3.1) — reroll costs its ability_resource rail (Mana as of
+# 2026-07-04); gamble costs the meter
+# ---------------------------------------------------------------------------
+
+## Stages the Re-roll base ability: spends [param cost] on ability_resource and flags a post-spin re-roll of the
 ## worst reel. Returns false (no change) if unaffordable. The orchestrator runs the re-roll after the
 ## spin resolves, and calls refund_reroll() if no reel qualified.
 func stage_reroll(cost: int) -> bool:
-	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+	if resource_pool == null or not resource_pool.spend({ability_resource: cost}):
 		return false
 	reroll_pending = true
 	reroll_cost = cost
 	return true
 
-## Refunds a staged Re-roll's Stamina (no reel qualified) and clears its state.
+## Refunds a staged Re-roll's cost (no reel qualified) and clears its state. Reads [member
+## ability_resource] rather than hardcoding Stamina — Re-roll is the Chancer's base ability, and the
+## Chancer moved to Mana on 2026-07-04; this stays correct if that ever changes again.
 func refund_reroll() -> void:
 	if reroll_cost > 0 and resource_pool != null:
-		resource_pool.refund({&"stamina": reroll_cost})
+		resource_pool.refund({ability_resource: reroll_cost})
 	reroll_pending = false
 	reroll_cost = 0
 
@@ -709,3 +1166,38 @@ func clear_reroll_state() -> void:
 	reroll_pending = false
 	reroll_cost = 0
 	wildcard_gamble_pending = false
+
+# ---------------------------------------------------------------------------
+# Chancer "Double or Nothing" (L9, ultimate-tier) — all-in Mana gamble
+# ---------------------------------------------------------------------------
+
+## All-in gamble (L9, ultimate-tier, 7-turn CD): spends 100% of current Mana (must have at least
+## 1) for a big Empowered on the next spin; a crit-fail on that spin recoils as self-damage, a
+## non-fail reel refunds Mana (combat.gd, Task 22 wiring). Returns false if Mana is 0. Rail switched
+## Stamina→Mana project-wide for the Chancer on 2026-07-04 (player call: Storm is a magical damage
+## type, fits Mana better).
+##
+## Magnitude 1.5→2.0 and +2 reels (playtest 2026-07-02, player-requested): the original ×1.5 with no
+## reel change read as barely different from a normal attack against ordinary reel-roll variance,
+## despite the name promising a literal doubling and the highest cost/risk of any L9 ability
+## (all-in Mana + crit-fail recoil + longest 7-turn CD). Reels are capped by [param reel_cap] but
+## never block the buff itself (see apply_mana_surge's comment — same reasoning).
+func fire_double_or_nothing(type: DamageType, reel_cap: int) -> bool:
+	if resource_pool == null or resource_pool.mana < 1:
+		return false
+	var cost: int = resource_pool.mana
+	resource_pool.spend({&"mana": cost})
+	var e: Effect = EffectLibrary.make(&"empowered")
+	e.magnitude = 2.0
+	e.duration = 1
+	attach_effect(e)
+	double_or_nothing_pending = true
+	double_or_nothing_refund_accum = 0
+	# Wild crit-biased spin (playtest 2026-07-04, player-specified 25/10/65 split): converts the
+	# EXISTING reels too, not just the 2 bonus ones — a whole-spin effect, matching the ability's
+	# original "wild crit biased" framing rather than a partial one.
+	turn_reels = gambled_reels(turn_reels)
+	for i: int in range(2):
+		if turn_reels.size() < reel_cap:
+			turn_reels.append(ActionReel.make_gamble(type))
+	return true

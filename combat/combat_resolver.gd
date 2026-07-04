@@ -23,6 +23,7 @@ class AttackResult:
 	var rider_effect_id: StringName = &""    ## Rider to apply (crit-success of a riding type); empty = none.
 	var landed_index: int = -1               ## Strip index the reel landed on (for grid + strip sync).
 	var charges_meter: bool = true           ## Whether this reel charges the Bonus Meter (false for the Warden rally reel).
+	var source_reel: ActionReel = null       ## Task 8/15: lets the orchestrator special-case one reel's ability.
 
 # ---------------------------------------------------------------------------
 # Signals  (naming convention: snake_case, past-tense — CLAUDE.md §2)
@@ -66,7 +67,7 @@ const WILD_CRIT_CHANCE: float = 0.65  # [ASSUMPTION]
 ## using [param base_damage] as the weapon base. Returns the per-reel [AttackResult]s and emits
 ## [signal spin_started] → [signal damage_applied] (per reel) → [signal meter_charged] →
 ## [signal spin_resolved].
-func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = [], weapon_reel_count: int = -1, flat_damage_bonus: int = 0, extra_lines: Array = [], defer_paylines: bool = false) -> Array[AttackResult]:
+func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_type: DamageType = null, wild_reel_indices: Array[int] = [], weapon_reel_count: int = -1, flat_damage_bonus: int = 0, extra_lines: Array = [], defer_paylines: bool = false, damage_multiplier: float = 1.0) -> Array[AttackResult]:
 	spin_started.emit()
 
 	var attacks: Array[AttackResult] = []
@@ -74,7 +75,7 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 
 	for i: int in range(reels.size()):
 		var is_wild: bool = i in wild_reel_indices
-		var attack: AttackResult = _resolve_single(reels[i], base_damage, target_type, is_wild, flat_damage_bonus)
+		var attack: AttackResult = _resolve_single(reels[i], base_damage, target_type, is_wild, flat_damage_bonus, damage_multiplier)
 		total_meter += attack.meter_gain
 		attacks.append(attack)
 		damage_applied.emit(attack)
@@ -95,7 +96,7 @@ func resolve_combat_phase(reels: Array[ActionReel], base_damage: float, target_t
 # ---------------------------------------------------------------------------
 
 ## Resolves one reel into an [AttackResult]: spin → damage (multiplier × type chart) → meter.
-func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageType, is_wild: bool = false, flat_damage_bonus: int = 0) -> AttackResult:
+func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageType, is_wild: bool = false, flat_damage_bonus: int = 0, damage_multiplier: float = 1.0) -> AttackResult:
 	var face: ReelFace
 	var index: int
 	if is_wild and randf() < WILD_CRIT_CHANCE:
@@ -113,6 +114,7 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 	attack.base_damage = base_damage
 	attack.landed_index = index
 	attack.charges_meter = reel.charges_meter  # the orchestrator honors this; a non-charging reel adds 0 meter
+	attack.source_reel = reel
 
 	if face != null:
 		# Neutral and the failure tiers deal no weapon damage (their value is utility + meter).
@@ -121,7 +123,7 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 		if face.deals_damage() and face.multiplier > 0.0:
 			var raw: float = base_damage * face.multiplier
 			var type_mult: float = reel.damage_type.multiplier_against(target_type) if reel.damage_type != null else 1.0
-			attack.final_damage = ceili(raw * type_mult) + flat_damage_bonus  # round UP (project convention)
+			attack.final_damage = ceili(raw * type_mult * damage_multiplier) + flat_damage_bonus  # round UP (project convention)
 		attack.meter_gain = _meter_gain_for(face.result_tier) if reel.charges_meter else 0
 		# Crit-success of a type that carries an inherent rider (Crushing -> Slow) reports it.
 		# The resolver only REPORTS; the orchestrator attaches the Effect (ARCHITECTURE §2).
@@ -138,7 +140,7 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 ## Chancer's post-spin Re-roll ability and Wildcard Gamble Ultimate. Pure: mutates nothing but the reel's
 ## own last-index (same as a normal spin).
 func reresolve_reel(reel: ActionReel, base_damage: float, target_type: DamageType, flat_damage_bonus: int = 0) -> AttackResult:
-	return _resolve_single(reel, base_damage, target_type, false, flat_damage_bonus)
+	return _resolve_single(reel, base_damage, target_type, false, flat_damage_bonus, 1.0)
 
 ## Rebuilds last_grid from the given attacks' landed indices and returns the payline hits (does not emit).
 ## Lets the orchestrator re-score paylines after swapping a reel's result (the reroll path).

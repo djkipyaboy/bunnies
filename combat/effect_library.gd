@@ -55,5 +55,61 @@ static func make(id: StringName) -> Effect:
 			e.max_stacks = 1
 			e.beneficial = false
 			return e
+		&"sundered":
+			var e: Effect = Effect.new()
+			e.id = &"sundered"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 1.25
+			e.affects_incoming = true; e.duration = 2; e.beneficial = false
+			return e
+		&"weakened":
+			var e: Effect = Effect.new()
+			e.id = &"weakened"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 0.75
+			e.affects_incoming = false; e.duration = 2; e.beneficial = false
+			return e
+		&"jinxed":
+			# Downgrades the BEARER's own success/crit-success faces (applied by the attacker's-turn
+			# orchestrator check, mirroring Hunter's Mark's REEL_FACE_EDIT precedent — no numeric payload).
+			var e: Effect = Effect.new()
+			e.id = &"jinxed"; e.kind = Effect.Kind.REEL_FACE_EDIT; e.duration = 2; e.beneficial = false
+			return e
+		&"rooted":
+			var e: Effect = Effect.new()
+			e.id = &"rooted"; e.kind = Effect.Kind.INITIATIVE_MOD; e.magnitude = -30.0
+			e.duration = 2; e.max_stacks = 1; e.beneficial = false
+			return e
+		&"guarded":
+			var e: Effect = Effect.new()
+			e.id = &"guarded"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 0.75
+			e.affects_incoming = true; e.duration = 2; e.beneficial = true
+			return e
+		&"taunt":
+			# Pure marker (mirrors hunters_mark's "kind chosen loosely" precedent) — read via has_effect
+			# by EnemyAI (Task 10), never edits a face.
+			var e: Effect = Effect.new()
+			e.id = &"taunt"; e.kind = Effect.Kind.REEL_FACE_EDIT; e.duration = 2; e.beneficial = true
+			return e
+		&"empowered":
+			var e: Effect = Effect.new()
+			e.id = &"empowered"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 1.4
+			e.affects_incoming = false; e.duration = 2; e.beneficial = true
+			return e
+		&"evasion":
+			var e: Effect = Effect.new()
+			e.id = &"evasion"; e.kind = Effect.Kind.REEL_FACE_EDIT; e.duration = 2; e.beneficial = true
+			return e
+		&"regen":
+			var e: Effect = Effect.new()
+			e.id = &"regen"; e.kind = Effect.Kind.DAMAGE_OVER_TIME; e.duration = 3
+			e.max_stacks = 3; e.dot_fractions = [0.50, 0.80, 1.15]; e.beneficial = true
+			return e
+		&"cursed":
+			var e: Effect = Effect.new()
+			e.id = &"cursed"; e.kind = Effect.Kind.DAMAGE_OVER_TIME; e.duration = 3
+			e.max_stacks = 3; e.dot_fractions = [0.50, 0.80, 1.15]; e.beneficial = false
+			return e
+		&"haste":
+			var e: Effect = Effect.new()
+			e.id = &"haste"; e.kind = Effect.Kind.INITIATIVE_MOD; e.magnitude = 20.0
+			e.duration = 2; e.beneficial = true
+			return e
 		_:
 			return null

@@ -42,6 +42,25 @@ enum Kind { INITIATIVE_MOD, DAMAGE_OVER_TIME, MULTIPLIER_EDIT, REEL_FACE_EDIT }
 ## count (TOTAL at that stack level, not increments). BLEED = [0.50, 0.80, 1.15]. [ASSUMPTION] data.
 @export var dot_fractions: Array[float] = []
 
+## While this effect is active on a bearer, [method Combatant.attach_effect] refuses to attach any
+## incoming effect whose id is in this list. Powers e.g. Mountain Stance's CC immunity. Empty = no
+## immunity granted. [ASSUMPTION] data — authored per effect.
+@export var immune_effect_ids: Array[StringName] = []
+
+## While active, [param 1 - thorns_pct] ... i.e. an attacker who damages this bearer takes back
+## thorns_pct of the damage dealt, same type (Task 6). 0 = no thorns. [ASSUMPTION] data.
+@export var thorns_pct: float = 0.0
+
+## MULTIPLIER_EDIT only: false (default) = an OUTGOING multiplier the bearer applies when IT is the
+## attacker (Empowered/Bloodwrath). true = an INCOMING multiplier applied when the bearer is the
+## DEFENDER (Sundered/Guarded). See Combatant.outgoing_damage_multiplier / incoming_damage_multiplier.
+@export var affects_incoming: bool = false
+
+## STUNNED is a per-turn bool condition, not an attached Effect (see Combatant.stunned_this_turn) —
+## immune_effect_ids can't block it. This flag lets a buff (Mountain Stance) suppress it directly;
+## checked in Combatant.evaluate_stun.
+@export var grants_stun_immunity: bool = false
+
 ## Live stack count on an attached effect (a freshly made effect is 1 stack). Grown by add_stack().
 var stacks: int = 1
 

@@ -10,11 +10,17 @@ extends RefCounted
 static func pick_target(attacker: Combatant, pcs: Array[Combatant]) -> Combatant:
 	if attacker == null or attacker.weapon_type() == null:
 		return null
+	var candidates: Array[Combatant] = []
+	for pc: Combatant in pcs:
+		if pc != null and pc.is_alive() and pc.has_effect(&"taunt"):
+			candidates.append(pc)
+	if candidates.is_empty():
+		candidates = pcs
 	var atk: DamageType = attacker.weapon_type()
 	var supereff: Array[Combatant] = []
 	var neutral: Array[Combatant] = []
 	var resisted: Array[Combatant] = []
-	for pc: Combatant in pcs:
+	for pc: Combatant in candidates:
 		if pc == null or not pc.is_alive():
 			continue
 		var m: float = atk.multiplier_against(pc.defense_type)

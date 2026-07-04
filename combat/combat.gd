@@ -11,8 +11,12 @@ const STRIP_STAGGER: float = 0.25
 const ENEMY_THINK_DELAY: float = 0.6
 const STUN_THRESHOLD: int = -20   # [ASSUMPTION] start-of-turn initiative below this → STUNNED
 const CASINO_MIN_RUN: int = 3  # [ASSUMPTION] Chancer casino lines pay on a left-aligned run of >=3
-const BIG_BANG_SHIELD_TURNS: int = 2  # [ASSUMPTION] Seer Big Bang: heal-overflow shield duration
-const RALLYING_CRY_SHIELD_TURNS: int = 2  # [ASSUMPTION] Warden Rallying Cry: party shield duration
+## [ASSUMPTION] +1 over the original 2 (playtest 2026-07-02): shield_turns ticks down at the
+## SHIELDED ally's own on_end, same first-tick-loss pattern as the Guarded/Taunt/Evasion/Haste
+## effects (see Combatant.apply_heroic_guard's comment) — an ally shielded mid-round can lose a
+## turn's worth of protection before ever taking a hit.
+const BIG_BANG_SHIELD_TURNS: int = 3  # Seer Big Bang: heal-overflow shield duration
+const RALLYING_CRY_SHIELD_TURNS: int = 3  # Warden Rallying Cry: party shield duration
 
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
@@ -34,7 +38,7 @@ var _phase_label: Label
 var _log_box: RichTextLabel
 var _spin_button: Button
 var _end_turn_button: Button
-var _splice_button: Button
+var _abilities_button: Button
 var _ultimate_button: Button
 var _paylines_button: Button
 var _payline_cycle_index: int = -1   # which payline the toggle is currently previewing (-1 = none)
@@ -62,6 +66,12 @@ static var _dummies_enabled: bool = false
 var _dummies: Array[Combatant] = []
 var _dummy_toggle_button: Button
 
+## Playtest toggle (Task 32 / spec 2026-07-01 §5): when on, every spawned PC is built at level 9
+## instead of the default 1, so all 4 abilities (L5/L7/L9) + the Ultimate are simultaneously
+## unlocked/selectable for exercising a class's full kit. STATIC for the same reason as
+## _dummies_enabled — survives reload_current_scene().
+static var _endgame_enabled: bool = false
+
 var _attacker: Combatant
 var _defender: Combatant
 ## Per-PC primary target (N-vs-M targeting, spec §3): each PC remembers its own chosen enemy across
@@ -79,6 +89,7 @@ var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds
 var _fate_picker_title: Label            # picker heading, re-captioned per mode
 var _type_chart: TypeChartPanel          # toggleable 6×6 type-effectiveness graphic (hidden until toggled on)
 var _type_chart_button: Button
+var _ability_menu: AbilityMenuPanel
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
 var _awaiting_stun_check: bool = false
@@ -115,7 +126,11 @@ func _build_combatants() -> void:
 	# weapon, defense, meter, resources, and the Main-1 base ability. Gear is deferred.
 	_pcs.clear()
 	for id: StringName in _pc_class_ids:
-		_pcs.append(ClassLibrary.make(id).build_combatant(true))
+		var pc: Combatant = ClassLibrary.make(id).build_combatant(true)
+		if _endgame_enabled:
+			pc.level = 9
+			_scale_up_for_endgame(pc)
+		_pcs.append(pc)
 	# Enemy party (§5.1): one Combatant per selected enemy id, in selection order.
 	_enemies.clear()
 	for id: StringName in _enemy_ids:
@@ -136,6 +151,23 @@ func _build_combatants() -> void:
 		_dummies.append(_make_dummy("Target Dummy 2", earth))
 		for d: Combatant in _dummies:
 			_turn_manager.combatants.append(d)
+
+## Scales [param pc]'s resource pool for ENDGAME testing (player request 2026-07-04): base-level
+## stamina/mana caps and regen leave a level-9 kit unable to repeatedly fire 5-6 cost L9 abilities
+## without several turns of pure regen, which made playtesting the endgame kits slow and not
+## representative of how each class will actually feel once real leveling exists. Doubles both max
+## pools, triples both regen rates, and tops the pool up to the new max (ENDGAME starts full, not at
+## the old starting fraction). Testing aid only — not a real progression curve.
+func _scale_up_for_endgame(pc: Combatant) -> void:
+	if pc.resource_pool == null:
+		return
+	var pool: ResourcePool = pc.resource_pool
+	pool.max_stamina *= 2
+	pool.max_mana *= 2
+	pool.regen_per_turn *= 3
+	pool.mana_regen_per_turn *= 3
+	pool.stamina = pool.max_stamina
+	pool.mana = pool.max_mana
 
 ## Lays out both party columns (left PCs / right enemies + dummies), sets the panel anchors, and wires the
 ## enemy click-catchers. Called at BEGIN after [method _build_combatants].
@@ -241,12 +273,13 @@ func _build_ui() -> void:
 	_ultimate_button.disabled = true
 	add_child(_ultimate_button)
 
-	_splice_button = Button.new()
-	_splice_button.text = "Splice Storm reel (2 STA)"
-	_splice_button.position = Vector2(col_x.call(1), ROW1_Y)
-	_splice_button.custom_minimum_size = Vector2(BTN_W, 50)
-	_splice_button.disabled = true
-	add_child(_splice_button)
+	_abilities_button = Button.new()
+	_abilities_button.text = "Abilities"
+	_abilities_button.position = Vector2(col_x.call(1), ROW1_Y)
+	_abilities_button.custom_minimum_size = Vector2(BTN_W, 50)
+	_abilities_button.disabled = true
+	_abilities_button.tooltip_text = "Open your ability list — stage one ability for this turn."
+	add_child(_abilities_button)
 
 	_spin_button = Button.new()
 	_spin_button.text = "SPIN"
@@ -305,11 +338,18 @@ func _build_ui() -> void:
 	add_child(_type_chart)
 	_type_chart.build()
 
+	# Ability menu — floats over the reel area while open (spec 2026-07-02); rebuilt on every open.
+	_ability_menu = AbilityMenuPanel.new()
+	_ability_menu.position = Vector2(CENTER_X + 30.0, 96.0)
+	_ability_menu.visible = false
+	add_child(_ability_menu)
+
 	_build_overlay()
 	_build_fate_picker()
 
 ## Places combatant panels in a vertical column at [param x] (top-down, in [param members] order) and
-## binds each. Panel height 238 + 14px gap (spec §2). Used for both party columns (left PCs / right enemies).
+## binds each. Panel height 278 + 14px gap (spec §2; grew from 238 on 2026-07-04 for the taller
+## status-effects reservation — see CombatantPanel._ready). Used for both party columns.
 func _place_party_column(members: Array[Combatant], x: float) -> void:
 	var y: float = 80.0
 	for c: Combatant in members:
@@ -318,7 +358,7 @@ func _place_party_column(members: Array[Combatant], x: float) -> void:
 		add_child(p)
 		_panels[c] = p
 		p.bind(c)
-		y += 238.0 + 14.0
+		y += 278.0 + 14.0
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
@@ -541,14 +581,25 @@ func _build_start_overlay() -> void:
 		EnemyLibrary.IDS, _enemy_ids, 3, enemy_label, update_begin,
 		_enemy_select_tooltip, func(id: StringName) -> StringName: return EnemyLibrary.role(id))
 
-	# Dummy toggle (permanent testing aid) near BEGIN.
+	# Dummy toggle (permanent testing aid) near BEGIN. Sits to the LEFT of center; the ENDGAME
+	# toggle mirrors it to the RIGHT so both fit on one row without overlapping BEGIN FIGHT above.
 	var dummy_btn := Button.new()
 	dummy_btn.text = "Target dummies: %s" % ("ON" if _dummies_enabled else "OFF")
-	dummy_btn.position = Vector2((view.x - 240.0) * 0.5, view.y - 48.0)
+	dummy_btn.position = Vector2((view.x * 0.5) - 250.0, view.y - 48.0)
 	dummy_btn.custom_minimum_size = Vector2(240, 36)
 	dummy_btn.tooltip_text = "Add two immortal 30-HP dummies to test AoE/splash. Reloads."
 	dummy_btn.pressed.connect(_on_dummy_toggle_pressed)
 	_start_overlay.add_child(dummy_btn)
+
+	# ENDGAME toggle (playtest aid, spec 2026-07-01 §5): spawns PCs at level 9 so all 4 abilities +
+	# the Ultimate are unlocked for testing the full kit.
+	var endgame_btn := Button.new()
+	endgame_btn.text = "ENDGAME: %s" % ("ON" if _endgame_enabled else "OFF")
+	endgame_btn.position = Vector2((view.x * 0.5) + 10.0, view.y - 48.0)
+	endgame_btn.custom_minimum_size = Vector2(240, 36)
+	endgame_btn.tooltip_text = "Spawn PCs at level 9 — unlocks every L5/L7/L9 ability + the Ultimate."
+	endgame_btn.pressed.connect(_on_endgame_toggle_pressed)
+	_start_overlay.add_child(endgame_btn)
 
 	update_begin.call()
 
@@ -586,18 +637,6 @@ func _class_tooltip(id: StringName) -> String:
 		&"warden": return "Warden — Earth, 3 reels, Mana. Rallying Cry shields the party; Earthquake nukes one enemy, half-splashes the rest, and STUNS everyone it hits."
 		_: return "Playable class."
 
-## Hover description for the base-ability button, per class (notes whether it stacks with the Ultimate).
-func _ability_tooltip(id: StringName) -> String:
-	match id:
-		&"rend": return "Rend (2 STA): adds a reel that applies stacking BLEED on a hit (no direct damage). Usable alongside your Ultimate."
-		&"heft": return "Heft (2 STA): converts this turn's miss faces into hits. Rampage already includes Heft for free."
-		&"flurry": return "Flurry (2 STA): adds one extra weapon swing this turn. Usable alongside your Ultimate."
-		&"reroll": return "Re-roll (4 STA): after the spin, re-rolls your single worst reel (refunded if none were bad). Wildcard Gamble already re-rolls everything."
-		&"hunters_mark": return "Hunter's Mark (3 STA): marks the target 3 turns — allies' crit-fails become hits against it. Usable alongside your Ultimate."
-		&"select_fate": return "Select your Fate! (6 MANA): adds a reel (joins paylines) and converts this whole spin to a damage type you pick. Locked out while The Big Bang is staged — the Ultimate picks the type for free."
-		&"rallying_cry": return "Rallying Cry (4 MANA): adds a no-damage reel. On a hit it shields every ally for 2 turns — half your weapon's damage on a success, full on a crit. Usable alongside Earthquake."
-		_: return ""
-
 ## Hover description for the Ultimate button, per class (flags whether the base ability is wasted).
 func _ultimate_tooltip(id: StringName) -> String:
 	match id:
@@ -625,8 +664,8 @@ func _build_target_click_catchers() -> void:
 		hit.flat = true
 		hit.modulate = Color(1, 1, 1, 0)  # invisible; input is gated by mouse_filter, not alpha
 		hit.position = panel.position
-		hit.custom_minimum_size = Vector2(300, 238)   # full panel height (spec §3 targeting)
-		hit.size = Vector2(300, 238)
+		hit.custom_minimum_size = Vector2(300, 278)   # full panel height (spec §3 targeting)
+		hit.size = Vector2(300, 278)
 		hit.tooltip_text = "Click to make %s the active PC's primary target." % c.display_name
 		hit.pressed.connect(_select_target.bind(c))
 		add_child(hit)
@@ -715,7 +754,8 @@ func _bind_signals() -> void:
 	_resolver.paylines_resolved.connect(_on_paylines_resolved)
 	_spin_button.pressed.connect(_on_spin_pressed)
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
-	_splice_button.pressed.connect(_on_splice_pressed)
+	_abilities_button.pressed.connect(_on_abilities_pressed)
+	_ability_menu.ability_pressed.connect(_on_ability_menu_ability_pressed)
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 	_paylines_button.pressed.connect(_on_paylines_pressed)
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
@@ -750,29 +790,10 @@ func _on_round_started(n: int) -> void:
 	_log("— Round %d —" % n)
 	_turn_order_bar.set_order(_turn_manager.get_turn_order())
 
-## The label for the generic base-ability button, per the active class's ability (spec §4A).
-func _ability_label(id: StringName) -> String:
-	match id:
-		&"rend": return "Rend: +1 bleed reel (2 STA)"
-		&"heft": return "Heft: steady the reels (2 STA)"
-		&"flurry": return "Flurry: +1 swing (2 STA)"
-		&"reroll": return "Re-roll worst reel (4 STA)"
-		&"hunters_mark": return "Hunter's Mark: debuff target (3 STA)"
-		&"select_fate": return "Select Fate: choose type (6 MANA)"
-		&"rallying_cry": return "Rallying Cry: party shield (4 MANA)"
-		_: return "Ability"
-
-## Short ability name for the combat log.
+## Short ability name for the combat log — catalog-backed (one source of truth, spec 2026-07-02 §4).
 func _ability_name(id: StringName) -> String:
-	match id:
-		&"rend": return "Rend (bleed reel)"
-		&"heft": return "Heft (steady reels)"
-		&"flurry": return "Flurry (extra swing)"
-		&"reroll": return "Re-roll (worst reel)"
-		&"hunters_mark": return "Hunter's Mark (accuracy debuff)"
-		&"select_fate": return "Select your Fate"
-		&"rallying_cry": return "Rallying Cry (party shield)"
-		_: return "ability"
+	var display: String = AbilityCatalog.display_name(id)  # not "name" — would shadow Node.name
+	return display if display != "" else "ability"
 
 ## Ultimate button label + log name, per the active class's Ultimate.
 func _ultimate_label(id: StringName) -> String:
@@ -799,6 +820,7 @@ func _ultimate_name(id: StringName) -> String:
 
 func _on_turn_started(c: Combatant) -> void:
 	_attacker = c
+	_ability_menu.hide()  # never carry an open menu across a turn boundary
 	# Primary target (spec §3/§4): on a PC's turn it's THAT PC's remembered enemy (default first living
 	# enemy), refreshed if it died; on an enemy turn the placeholder AI picks a living PC. Drives
 	# attacks/Hunter's Mark/Collateral.
@@ -818,11 +840,17 @@ func _on_turn_started(c: Combatant) -> void:
 	# The ability/Ultimate buttons follow the ACTIVE PC (the controller this turn); on an enemy turn they're
 	# disabled, so label them from the active party member (the current PC, else the first party member).
 	var ctrl: Combatant = c if c.is_player else _pc
-	_splice_button.text = _ability_label(ctrl.ability_id)
-	_splice_button.tooltip_text = _ability_tooltip(ctrl.ability_id)
 	_ultimate_button.text = _ultimate_label(ctrl.ultimate_id)
 	_ultimate_button.tooltip_text = _ultimate_tooltip(ctrl.ultimate_id)
 	_phase_manager.start_turn()  # runs Upkeep → Main 1, pauses for Main-1 actions
+	# A DoT tick now lands in Upkeep (playtest 2026-07-04) and can kill the bearer before they ever
+	# act this turn — something that previously could only happen at END, after their turn already
+	# ran. Skip straight to End/advance rather than let a dead combatant reach the stun check or spin
+	# (mirrors the existing STUNNED-loses-the-turn / dummy-turn "skip Combat" pattern).
+	if not c.is_alive():
+		_log("  %s doesn't survive to act this turn." % c.display_name)
+		_phase_manager.resume_after_combat()
+		return
 	_end_turn_button.disabled = true
 	# Target dummies don't fight — they just heal to full and pass. Handle before the stun/spin flow.
 	if c.is_target_dummy:
@@ -834,7 +862,7 @@ func _on_turn_started(c: Combatant) -> void:
 		# STUNNED — gate the turn behind a d100 "shake off" check.
 		_awaiting_stun_check = true
 		_awaiting_player_spin = false
-		_splice_button.disabled = true
+		_abilities_button.disabled = true
 		_ultimate_button.disabled = true
 		_prepare_strips(c.turn_reels)  # show the reels (idle) behind the gate
 		_log("  %s is STUNNED — %s a shake-off roll." % [c.display_name, "press SPIN for" if c.is_player else "rolling"])
@@ -858,7 +886,7 @@ func _on_turn_started(c: Combatant) -> void:
 ## A target dummy's whole turn: spend it healing back to full, skip the Combat phase entirely, then end.
 func _take_dummy_turn(c: Combatant) -> void:
 	_spin_button.disabled = true
-	_splice_button.disabled = true
+	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
 	var none: Array[ActionReel] = []
 	_prepare_strips(none)  # no reels — the dummy doesn't spin
@@ -891,16 +919,26 @@ func _on_dummy_toggle_pressed() -> void:
 	_dummies_enabled = not _dummies_enabled
 	get_tree().reload_current_scene()
 
+## Flips the ENDGAME toggle and reloads so the scenario rebuilds PCs at level 9 (or back to 1).
+func _on_endgame_toggle_pressed() -> void:
+	_endgame_enabled = not _endgame_enabled
+	get_tree().reload_current_scene()
+
 func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 	_phase_label.text = "Phase: %s" % PhaseManager.Phase.keys()[phase]
 	if _attacker == null:
 		return
 	if phase == PhaseManager.Phase.UPKEEP:
 		_attacker.on_upkeep()
+		# DoT/HoT ticks moved here from END (playtest 2026-07-04, player request): they now land at the
+		# START of the bearer's own turn instead of the end — same total number of ticks before an
+		# effect expires (duration countdown is untouched, still in on_end() below), just visible
+		# before the bearer acts instead of after. Deliberately AFTER on_upkeep() (resource regen)
+		# so a lethal tick can't be masked by that same-phase regen.
+		_apply_dot(_attacker)
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	elif phase == PhaseManager.Phase.END:
-		_apply_dot(_attacker)  # bleed etc. tick on the bearer's own turn-end, BEFORE durations count down
 		_attacker.on_end()
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 
@@ -912,10 +950,14 @@ func _apply_dot(c: Combatant) -> void:
 		return
 	for e: Effect in c.active_effects:
 		if e.kind == Effect.Kind.DAMAGE_OVER_TIME:
-			var dmg: int = e.dot_damage()
-			if dmg > 0:
-				c.take_damage(dmg)
-				_log("  %s suffers %d %s damage (×%d)." % [c.display_name, dmg, String(e.id).to_upper(), e.stacks])
+			var amount: int = e.dot_damage()
+			if amount > 0:
+				if e.beneficial:
+					c.heal(amount)
+					_log("  %s regenerates %d HP from %s." % [c.display_name, amount, String(e.id).to_upper()])
+				else:
+					c.take_damage(amount)
+					_log("  %s suffers %d %s damage (×%d)." % [c.display_name, amount, String(e.id).to_upper(), e.stacks])
 	(_panels[c] as CombatantPanel).refresh_status()
 
 func _on_spin_pressed() -> void:
@@ -931,9 +973,10 @@ func _on_spin_pressed() -> void:
 	# applied in _do_spin). Shared with the enemy path — see _commit_main1.
 	_commit_main1()
 	_spin_button.disabled = true
-	_splice_button.disabled = true
+	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
-	_splice_button.modulate = Color(1, 1, 1)
+	_ability_menu.hide()
+	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
 	# Re-prepare strips from the COMMITTED reels. The preview's spliced reel is a separate
@@ -967,17 +1010,42 @@ func _resolve_stun_check() -> void:
 		# Lose the turn: skip Combat, run Main 2 → End → advance. (No proceed_to_combat.)
 		_phase_manager.resume_after_combat()
 
-## Stages/un-stages the active class's base ability (toggle). Applies nothing — commit on SPIN.
-## Select your Fate (Seer) needs a type choice, so pressing it opens the 6-type picker when not yet staged;
-## pressing it while staged un-stages (and clears the chosen type).
-func _on_splice_pressed() -> void:
+## Opens/closes the ability menu (spec 2026-07-02 §1). All staging happens INSIDE the menu — this
+## button is only the door (and, via _refresh_main1_preview, the staged-state readout).
+func _on_abilities_pressed() -> void:
+	if _ability_menu.visible:
+		_ability_menu.hide()
+		return
 	if not _awaiting_player_spin or _plan == null:
 		return
-	if _attacker.ability_id == &"select_fate" and not _plan.ability_staged:
-		_show_fate_picker()
+	_ability_menu.open_for(_attacker, _plan)
+	move_child(_ability_menu, get_child_count() - 1)  # draw over the reel strips while up
+
+## One menu row pressed: dispatch to the existing model (base slot vs extra slot — mutual exclusivity
+## is model-enforced, never policed here). A SUCCESSFUL stage/un-stage closes the menu so the reel/
+## resource preview is immediately visible; a no-op press re-renders the menu in place (spec §3).
+func _on_ability_menu_ability_pressed(id: StringName) -> void:
+	if not _awaiting_player_spin or _plan == null:
 		return
-	_plan.toggle_ability()
+	var before: String = _staged_state_key()
+	if id == _attacker.ability_id:
+		if _attacker.ability_id == &"select_fate" and not _plan.ability_staged:
+			_ability_menu.hide()  # the type picker is modal — close the menu under it
+			_show_fate_picker()
+			return
+		_plan.toggle_ability()
+	else:
+		_plan.toggle_extra_ability(id)
+	if _staged_state_key() != before:
+		_ability_menu.hide()
+	else:
+		_ability_menu.open_for(_attacker, _plan)  # re-render states in place (e.g. press was a no-op)
 	_refresh_main1_preview()
+
+## Fingerprint of the plan's staged-ability state — compared around a toggle to detect "something
+## actually changed" (drives the close-on-successful-toggle rule).
+func _staged_state_key() -> String:
+	return "%s|%s" % [str(_plan.ability_staged), String(_plan.staged_extra_ability_id)]
 
 ## Stages/un-stages the Sticky-Wild Ultimate (toggle). Consumes nothing — commit happens on SPIN.
 func _on_ultimate_pressed() -> void:
@@ -987,6 +1055,7 @@ func _on_ultimate_pressed() -> void:
 	# un-staged opens the same 6-type picker as Select your Fate; choosing a type stages the Ultimate.
 	if _attacker.ultimate_id == &"big_bang" and not _plan.fire_ultimate_staged:
 		if _plan.can_stage_ultimate():
+			_ability_menu.hide()  # the type picker is modal — close the ability menu under it
 			_show_fate_picker(&"ultimate")
 		return
 	_plan.toggle_ultimate()
@@ -1009,25 +1078,27 @@ func _refresh_main1_preview() -> void:
 	panel.set_meter_flash(_plan.will_consume_meter())
 
 	var is_player_main1: bool = _awaiting_player_spin and _attacker != null and _attacker.is_player
-	# Base-ability button. When Rampage includes Heft for free, the button reads "included" + free,
-	# shows staged-green, and is locked (toggled by the Ultimate, not directly).
-	if _plan.ability_is_free():
-		_splice_button.text = "Heft: included by Rampage (0 STA)"
-		_splice_button.disabled = true
-		_splice_button.modulate = Color(0.6, 1.0, 0.6)
-	elif _plan.ability_locked_by_ultimate():
-		# The Ultimate is staged and subsumes the base ability — lock the toggle (spec 2026-06-25 §5).
-		_splice_button.text = "Base ability locked (Ultimate staged)"
-		_splice_button.disabled = true
-		_splice_button.modulate = Color(0.5, 0.5, 0.5)
-	else:
-		# Select your Fate shows the chosen type once staged (legibility — strips don't render type).
-		if _attacker.ability_id == &"select_fate" and _plan.ability_staged and _plan.selected_fate_type != null:
-			_splice_button.text = "Select Fate: %s (6 MANA)" % _type_name(_plan.selected_fate_type)
+	# Abilities button (spec 2026-07-02 §1): the staged choice must be legible with the menu CLOSED —
+	# show the staged ability's name + staged-green on the button itself.
+	var staged_name: String = ""
+	if _plan.staged_extra_ability_id != &"":
+		staged_name = AbilityCatalog.display_name(_plan.staged_extra_ability_id)
+	elif _plan.ability_staged or _plan.ability_is_free():
+		if _attacker.ability_id == &"select_fate" and _plan.selected_fate_type != null:
+			staged_name = "Select Fate: %s" % _type_name(_plan.selected_fate_type)
 		else:
-			_splice_button.text = _ability_label(_attacker.ability_id)
-		_splice_button.disabled = not (is_player_main1 and (_plan.ability_staged or _plan.can_stage_ability()))
-		_splice_button.modulate = Color(0.6, 1.0, 0.6) if _plan.ability_staged else Color(1, 1, 1)
+			staged_name = AbilityCatalog.display_name(_attacker.ability_id)
+	if staged_name != "":
+		_abilities_button.text = "Abilities: %s ✓" % staged_name
+		_abilities_button.modulate = Color(0.6, 1.0, 0.6)
+	else:
+		_abilities_button.text = "Abilities"
+		_abilities_button.modulate = Color(1, 1, 1)
+	# The menu is openable whenever it's the player's own Main 1 — even if nothing is currently
+	# stageable, the player can still READ their kit (legibility pillar).
+	_abilities_button.disabled = not is_player_main1
+	if _ability_menu.visible:
+		_ability_menu.open_for(_attacker, _plan)  # keep an open menu's row states live
 	# The Big Bang shows the chosen damage type once staged (its picker is the Ultimate's, not the ability's).
 	if _attacker.ultimate_id == &"big_bang" and _plan.fire_ultimate_staged and _plan.selected_fate_type != null:
 		_ultimate_button.text = "The Big Bang: %s (AoE)" % _type_name(_plan.selected_fate_type)
@@ -1119,12 +1190,31 @@ func _commit_main1() -> void:
 	if _plan == null:
 		return
 	var did_ability: bool = _plan.ability_staged
+	var did_extra: StringName = _plan.staged_extra_ability_id
 	var did_ultimate: bool = _plan.fire_ultimate_staged
+	# HP-diff heal announcement (playtest 2026-07-04): several self-cast extras (Second Wind is the
+	# first) call Combatant.heal() with no return value threaded back here — rather than special-case
+	# each one, a before/after HP compare catches any heal this commit() call causes, present or
+	# future. Nothing else changes HP during commit() today (Double or Nothing's crit-fail recoil
+	# happens later, in _apply_attack), so a rise here is unambiguously a heal.
+	var hp_before: int = _attacker.hp
 	_plan.commit()  # spends resources / appends reel / arms wild — the ONLY apply point
 	if did_ability:
 		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(_attacker.ability_id)])
+	if did_extra != &"":
+		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(did_extra)])
 	if did_ultimate:
 		_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
+	if _attacker.hp > hp_before:
+		_log("  ✚ %s heals %d HP (%d/%d)." % [_attacker.display_name, _attacker.hp - hp_before, _attacker.hp, _attacker.max_hp])
+	# Immediate status/resource refresh (playtest 2026-07-04): self-cast buffs with no pending-flag
+	# block below (Heroic Guard, Second Wind, Bloodwrath, Mountain Stance, Feint & Riposte, Quickstep,
+	# Bastion, Riposte Storm, Loaded Dice) previously only became visible on the panel at this
+	# combatant's own End phase — same turn, but well after the player could see it landed. Refreshing
+	# right after commit() makes every stage-and-spin instantly legible.
+	if did_ability or did_extra != &"" or did_ultimate:
+		(_panels[_attacker] as CombatantPanel).refresh_status()
+		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	# Hunter's Mark: the orchestrator owns the target, so it does the attach (ARCHITECTURE §2). The
 	# downstream crit-fail→hit swap in _do_spin is side-agnostic, so an enemy's mark helps every enemy.
 	if _attacker.hunters_mark_pending:
@@ -1133,6 +1223,40 @@ func _commit_main1() -> void:
 		_attacker.hunters_mark_pending = false
 		_log("  ⊕ %s MARKS %s — crit-fails become hits vs it (%d turns)." % [_attacker.display_name, _defender.display_name, mark.duration])
 		(_panels[_defender] as CombatantPanel).refresh_status()
+	# Aimed Shot (Task 23): a self-buff, so the orchestrator sizes it here where the defender's Mark
+	# status is known — bigger bonus when the shot is lined up on an already-Marked target.
+	if _attacker.aimed_shot_pending:
+		var e: Effect = EffectLibrary.make(&"empowered")
+		e.magnitude = 1.6 if _defender.has_effect(&"hunters_mark") else 1.3
+		e.duration = 1
+		_attacker.attach_effect(e)
+		_attacker.aimed_shot_pending = false
+		_log("  ⊕ %s takes Aimed Shot — damage empowered %.0f%% this turn." % [_attacker.display_name, (e.magnitude - 1.0) * 100.0])
+		(_panels[_attacker] as CombatantPanel).refresh_status()
+	# Foresight (Task 27): a support ability with no ally-click targeting UI yet (YAGNI), so the
+	# orchestrator auto-picks the lowest-HP% living ally (including the caster) and shields them.
+	# Duration +1 over the original 2 (playtest 2026-07-02 — see BIG_BANG_SHIELD_TURNS's comment).
+	if _attacker.foresight_pending:
+		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
+		if ally != null:
+			var amount: int = ceili(_attacker.resource_pool.max_mana * 0.15)
+			ally.apply_shield(amount, 3)
+			_log("  🔮 %s grants Foresight — %s shields %d HP." % [_attacker.display_name, ally.display_name, amount])
+		_attacker.foresight_pending = false
+	# Regrowth (Task 30): mirrors Foresight — the orchestrator auto-picks the lowest-HP% living
+	# ally (including the caster) and grants Regen instead of a shield.
+	if _attacker.regrowth_pending:
+		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
+		if ally != null:
+			var regen: Effect = EffectLibrary.make(&"regen")
+			# Seed the heal-over-time amount from the caster's weapon base, mirroring the DoT-rider
+			# pattern above (rider.dot_base_damage) — without this, dot_base_damage stays at the
+			# Effect default of 0.0 and every Regen tick heals ceili(0.0 * fraction) = 0 (dead ability).
+			if _attacker.weapon != null:
+				regen.dot_base_damage = _attacker.weapon.base_damage
+			ally.attach_effect(regen)
+			_log("  🌿 %s grants Regrowth to %s." % [_attacker.display_name, ally.display_name])
+		_attacker.regrowth_pending = false
 
 func _do_spin() -> void:
 	# Enemy turns commit Main 1 here (PCs committed in _on_spin_pressed). Decide ability use, then
@@ -1151,13 +1275,39 @@ func _do_spin() -> void:
 	if not _attacker.is_aoe_active() and _defender.has_effect(&"hunters_mark"):
 		_attacker.turn_reels = Combatant.hunters_mark_reels(_attacker.turn_reels)
 		_prepare_strips(_attacker.turn_reels)
+	# Evasion (Skirmisher Feint & Riposte, Task 16): if the defender is Evasive and this is a cross-side
+	# attack, the defender banks one Riposte charge per incoming weapon-attack reel, then those reels'
+	# success/crit-success faces are downgraded to misses BEFORE resolution (the swing whiffs). Re-prepare
+	# strips so they animate to the whiffed faces (same rationale as Hunter's Mark above — turn_reels
+	# changed, the UI strips read from it). [Deviation from brief: added _prepare_strips for UI parity.]
+	if _defender.has_effect(&"evasion") and _attacker.is_player != _defender.is_player:
+		var weapon_reel_count: int = 0
+		for r: ActionReel in _attacker.turn_reels:
+			if r.is_weapon_attack:
+				weapon_reel_count += 1
+		_defender.gain_riposte_charges(weapon_reel_count)
+		_attacker.turn_reels = Combatant.evasion_reels(_attacker.turn_reels)
+		_prepare_strips(_attacker.turn_reels)
+	# Jinxed (Chancer "Jinx the Odds", Task 21): checked on the BEARER's own turn as the attacker (not
+	# the defender, unlike Hunter's Mark/Evasion above) — bad luck given form downgrades the jinxed
+	# combatant's own success/crit-success faces BEFORE resolution. Re-prepare strips so the UI animates
+	# to the downgraded faces (same rationale as the two blocks above).
+	if _attacker.has_effect(&"jinxed"):
+		_attacker.turn_reels = Combatant.jinxed_reels(_attacker.turn_reels)
+		_prepare_strips(_attacker.turn_reels)
 	var reels: Array[ActionReel] = _attacker.turn_reels
 	# Payline grid width = weapon-attack reels in THIS spin (base + Flurry/Rampage additions; the
 	# no-damage Rend reel is excluded). Equals weapon.reels.size() on a normal turn (no regression).
 	var weapon_count: int = _weapon_attack_count(reels)
 	# Defer paylines: a Chancer reroll/gamble can change a reel's result AFTER the spin resolves, so the
 	# strips must animate to the FINAL post-reroll indices and paylines must score the FINAL grid.
-	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, [], true)
+	var dmg_mult: float = _attacker.outgoing_damage_multiplier() * _defender.incoming_damage_multiplier()
+	# Chancer "Loaded Dice" (L5, Task 20): lights one extra scored payline for this spin only.
+	var extra_lines: Array = []
+	if _attacker.loaded_dice_pending:
+		extra_lines.append(PaylineLibrary.bonus_line(weapon_count))
+	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, extra_lines, true, dmg_mult)
+	_attacker.loaded_dice_pending = false
 	# Post-spin Chancer pass (no-op for every other class — their flags are false). Overwrites attacks[i]
 	# IN PLACE so strips animate to the final index and damage applies once on settle.
 	_rerolled_indices = _apply_post_spin_rerolls(reels, attacks, weapon_count)
@@ -1192,12 +1342,18 @@ func _do_spin() -> void:
 			_rallying_cry_tier = attacks[rc_idx].face.result_tier
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
-	# deferred the emit above.)
+	# deferred the emit above.) `extra_lines` (Loaded Dice's bonus line, built above) must be folded
+	# into WHICHEVER pattern set is used here — the resolve_combat_phase call earlier deferred its own
+	# scoring of extra_lines (defer_paylines=true) specifically so this re-score is the one that counts;
+	# dropping it here (bug found in playtest audit 2026-07-02) silently made Loaded Dice's bonus
+	# payline never score, though its crit-face injection still worked.
 	var payline_hits: Array
 	if _attacker.payline_profile_id == &"casino":
-		payline_hits = _resolver.evaluate_paylines_profile(reels, attacks, weapon_count, PaylineLibrary.casino_lines(weapon_count), true, CASINO_MIN_RUN)
+		var casino_pattern: Array = PaylineLibrary.casino_lines(weapon_count)
+		casino_pattern.append_array(extra_lines)
+		payline_hits = _resolver.evaluate_paylines_profile(reels, attacks, weapon_count, casino_pattern, true, CASINO_MIN_RUN)
 	else:
-		payline_hits = _resolver.evaluate_paylines(reels, attacks, weapon_count, [])
+		payline_hits = _resolver.evaluate_paylines(reels, attacks, weapon_count, extra_lines)
 	_resolver.paylines_resolved.emit(payline_hits)
 	_pending_strips = attacks.size()
 	var strips: Array = _strips
@@ -1253,15 +1409,36 @@ func _apply_attack(attack) -> void:
 	# N-vs-M refinement — identical in the current 1v1.)
 	var targets: Array[Combatant] = _targets_for(_attacker)
 	var aoe_tag: String = " [AoE→all]" if (_attacker.is_aoe_active() and targets.size() > 1) else ""
+	# Playtest 2026-07-04: this line used to name only the attacker, never who got hit — the reason
+	# the player couldn't visually confirm Taunt/Evasion were doing anything (a redirected or dodged
+	# attack looked identical to a normal one in the log).
+	var target_names: String = ", ".join(targets.map(func(t: Combatant) -> String: return t.display_name))
 	if attack.final_damage > 0:
 		for t: Combatant in targets:
 			t.take_damage(attack.final_damage)
+			var thorns: float = t.thorns_pct()
+			if thorns > 0.0 and _attacker.is_alive():
+				var reflected: int = ceili(attack.final_damage * thorns)
+				_attacker.take_damage(reflected)
+				_log("  🌵 %s's thorns reflect %d %s back to %s." % [t.display_name, reflected, _type_name(attack.damage_type), _attacker.display_name])
+			if attack.source_reel != null and attack.source_reel.bonus_vs_cc:
+				# stunned_this_turn is only ever true DURING the bearer's own turn (set by evaluate_stun
+				# at their turn start, cleared by their own on_end) — checked here on the RANGER's turn,
+				# against another combatant, it is always false by construction and the bonus would never
+				# fire for a stunned target (playtest audit 2026-07-02). stunned_last_turn is the field
+				# that's actually observable from outside the bearer's own turn: true from the moment
+				# their stunned turn ends until their own NEXT on_end, which is exactly the window a
+				# called shot like this should be able to exploit.
+				if t.has_effect(&"slow") or t.has_effect(&"rooted") or t.stunned_last_turn:
+					var bonus: int = ceili(attack.final_damage * 0.5)
+					t.take_damage(bonus)
+					_log("  🎯 Crippling Shot exploits %s's condition for %d bonus damage." % [t.display_name, bonus])
 		# Surface the type matchup (vs the primary defender, which final_damage was computed against) so
 		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
 		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0
-		_log("  %s %s reel → %s for %d damage%s  %s" % [_attacker.display_name, _type_name(attack.damage_type), tier_name, attack.final_damage, aoe_tag, TypeVisuals.effectiveness_tag(mult)])
+		_log("  %s %s reel → %s for %d damage to %s%s  %s" % [_attacker.display_name, _type_name(attack.damage_type), tier_name, attack.final_damage, target_names, aoe_tag, TypeVisuals.effectiveness_tag(mult)])
 	else:
-		_log("  %s reel → %s (no damage)." % [_attacker.display_name, tier_name])
+		_log("  %s reel → %s (no damage) vs %s." % [_attacker.display_name, tier_name, target_names])
 	# Bonus Meter charge (attacker only). Log BM gains for the player (enemy meter is hidden).
 	# A non-charging reel (the Warden's Rallying Cry reel) is skipped — its payoff is the party shield.
 	if _attacker.bonus_meter != null and attack.charges_meter:
@@ -1285,8 +1462,22 @@ func _apply_attack(attack) -> void:
 				(_panels[t] as CombatantPanel).refresh_initiative()
 		_turn_order_bar.set_order(_turn_manager.get_turn_order())
 
+	# Chancer "Double or Nothing" (L9) post-spin bookkeeping: tallied per-reel here, applied/cleared
+	# once the whole spin has resolved (below) — a crit-fail recoils as self-damage, any other non-fail
+	# reel banks a Mana refund point (rail switched Stamina→Mana with the rest of the Chancer 2026-07-04).
+	if _attacker.double_or_nothing_pending:
+		if attack.face.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
+			_attacker.take_damage(ceili(attack.base_damage))
+			_log("  💥 %s's gamble recoils for %d." % [_attacker.display_name, ceili(attack.base_damage)])
+		elif attack.face.result_tier != ReelFace.ResultTier.FAILURE:
+			_attacker.double_or_nothing_refund_accum += 1
+
 	_pending_strips -= 1
 	if _pending_strips <= 0:
+		if _attacker.double_or_nothing_pending:
+			_attacker.resource_pool.refund({&"mana": _attacker.double_or_nothing_refund_accum})
+			_attacker.double_or_nothing_pending = false
+			_attacker.double_or_nothing_refund_accum = 0
 		_finish_spin()
 
 ## The targets of [param attacker]'s attacks this spin: ALL living enemies when a Rampage AoE is
@@ -1303,6 +1494,20 @@ func _enemies_of(c: Combatant) -> Array[Combatant]:
 		if other.is_player != c.is_player and other.is_alive():
 			out.append(other)
 	return out
+
+## The living ally (including [param caster] itself) with the lowest HP%, for support abilities
+## that need an auto-picked target (Foresight, Regrowth — spec 2026-07-01 §4, YAGNI: no ally-click
+## targeting UI yet).
+func _lowest_hp_pct_ally(caster: Combatant) -> Combatant:
+	var best: Combatant = null
+	var best_pct: float = 2.0
+	for c: Combatant in _turn_manager.combatants:
+		if c.is_player == caster.is_player and c.is_alive():
+			var pct: float = float(c.hp) / float(maxi(c.max_hp, 1))
+			if pct < best_pct:
+				best_pct = pct
+				best = c
+	return best
 
 ## Splashes ceil([param total] / 2) damage to every OTHER living enemy of [param attacker] (every enemy
 ## except the primary [member _defender]) and logs each with [param type_label]. Off the type chart (flat
@@ -1434,7 +1639,8 @@ func _finish_spin() -> void:
 				_log("  ☷ EARTHQUAKE → %s is STUNNED next turn (initiative unchanged)." % other.display_name)
 		_attacker.consume_earthquake_spin()
 	# Warden Rallying Cry (spec 2026-06-29 §3): read the utility reel's tier and shield every ally.
-	# SUCCESS → half-weapon shield, CRIT_SUCCESS → full-weapon shield, 2 turns, higher-total-overrides.
+	# SUCCESS → half-weapon shield, CRIT_SUCCESS → full-weapon shield, RALLYING_CRY_SHIELD_TURNS
+	# turns, higher-total-overrides.
 	if _attacker.rallying_cry_reel != null and _rallying_cry_tier != -1:
 		var base: float = _attacker.weapon.base_damage
 		var amount: int = 0
@@ -1443,7 +1649,7 @@ func _finish_spin() -> void:
 		elif _rallying_cry_tier == ReelFace.ResultTier.SUCCESS:
 			amount = ceili(base * 0.5)
 		if amount > 0:
-			_log("  ⛨ RALLYING CRY → %d shield to all allies (2 turns)." % amount)
+			_log("  ⛨ RALLYING CRY → %d shield to all allies (%d turns)." % [amount, RALLYING_CRY_SHIELD_TURNS])
 			for ally: Combatant in _allies_of(_attacker):
 				ally.apply_shield(amount, RALLYING_CRY_SHIELD_TURNS)
 				if _panels.has(ally):
@@ -1457,9 +1663,9 @@ func _finish_spin() -> void:
 	if _attacker.sticky_wild_spins_remaining > 0:
 		_log("  ◇ WILD still active — %d spin(s) remaining (meter already spent)." % _attacker.sticky_wild_spins_remaining)
 	_highlight_wild_strips()
-	_splice_button.disabled = true
+	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
-	_splice_button.modulate = Color(1, 1, 1)
+	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
 	# If the spin ended the fight, go straight to the result — no End Turn needed.

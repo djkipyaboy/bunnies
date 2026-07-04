@@ -36,8 +36,22 @@ const EARTHQUAKE_SPINS: int = 1
 const WILD_SPINS: int = 1
 const STICKY_WILD_SPINS: int = 2
 
+## Extra-ability ids that append a reel to this turn's loadout (mirrors _ability_adds_reel for the
+## base-ability slot). Grown by each reel-adding ability task.
+const REEL_ADDING_EXTRA_IDS: Array[StringName] = [&"sundering_strike", &"quake_slam", &"jinx_the_odds", &"snare_trap", &"crippling_shot", &"hex", &"entangle"]
+
+## Extra-ability ids that append up to 2 own-type weapon-attack reels ON TOP OF a self-cast buff
+## (playtest 2026-07-02 tuning — Mana Surge, Double or Nothing). Unlike REEL_ADDING_EXTRA_IDS, being
+## at the reel cap does NOT block staging: the buff (Empowered) is still worth casting with 0 added
+## reels, so these are never gated in can_stage_extra_ability, only previewed/appended best-effort.
+const TWO_REEL_BONUS_EXTRA_IDS: Array[StringName] = [&"mana_surge", &"double_or_nothing"]
+
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
+
+## The currently-staged NEW (L5/L7/L9) ability id, or "" for none. Mutually exclusive with
+## [member ability_staged] — staging one clears the other (spec 2026-07-01).
+var staged_extra_ability_id: StringName = &""
 
 ## Seer "Select your Fate!" chosen damage type (spec 2026-06-27 §3). Set by [method stage_select_fate]
 ## (the orchestrator's 6-button type-picker modal); consumed by [method commit]. Null = not chosen.
@@ -78,6 +92,38 @@ func can_stage_ability() -> bool:
 func can_stage_ultimate() -> bool:
 	return combatant != null and combatant.bonus_meter != null and combatant.bonus_meter.is_armed()
 
+## True if [param id] can be newly staged: unlocked at this combatant's level, affordable on its
+## rail, and not on cooldown. Un-staging (passing the already-staged id to toggle) is always allowed.
+func can_stage_extra_ability(id: StringName) -> bool:
+	if combatant == null or combatant.resource_pool == null:
+		return false
+	var def: AbilityDef = combatant.find_extra_ability(id)
+	if def == null or combatant.level < def.unlock_level:
+		return false
+	if combatant.is_on_cooldown(id):
+		return false
+	# Double or Nothing's AbilityDef.cost is 0 (the real cost — 100% of current Mana — is computed
+	# at cast time in fire_double_or_nothing). The generic can_afford({mana: 0}) below would trivially
+	# pass even at 0 Mana, so gate on "has at least 1 Mana to gamble" instead, and return early
+	# (skip the generic check entirely) rather than falling through to it. Rail switched Stamina→Mana
+	# with the rest of the Chancer on 2026-07-04.
+	if id == &"double_or_nothing":
+		return combatant.level >= def.unlock_level and not combatant.is_on_cooldown(id) and combatant.resource_pool.mana >= 1
+	if not combatant.resource_pool.can_afford({def.resource: def.cost}):
+		return false
+	if id in REEL_ADDING_EXTRA_IDS and combatant.turn_reels.size() >= reel_cap:
+		return false
+	return true
+
+func toggle_extra_ability(id: StringName) -> void:
+	if staged_extra_ability_id == id:
+		staged_extra_ability_id = &""
+	elif can_stage_extra_ability(id):
+		staged_extra_ability_id = id
+		ability_staged = false  # mutually exclusive with the base ability slot
+		if _ultimate_conflicts_with_extra_ability(id):
+			fire_ultimate_staged = false  # e.g. staging Loaded Dice un-stages an armed Wildcard Gamble
+
 ## True when the active Ultimate is a crit-bias WILD variant (Warrior 1-spin / Skirmisher 2-spin sticky).
 func _is_wild_ultimate() -> bool:
 	return ultimate_id == &"wild" or ultimate_id == &"sticky_wild"
@@ -103,6 +149,17 @@ func _ultimate_subsumes_ability() -> bool:
 		return true
 	return false
 
+## True when the staged Ultimate conflicts with an EXTRA (L5/L7/L9) ability — as opposed to
+## _ultimate_subsumes_ability(), which only ever compares against the single BASE ability slot.
+## Currently just one pair (playtest 2026-07-04, player request): Wildcard Gamble re-rolls every
+## non-crit reel double-or-nothing, and Loaded Dice's extra crit faces read as "too many crits" piled
+## on top of that. Unlike a subsumes relationship (one absorbs the other for free), this is a plain
+## conflict — whichever is staged LAST wins and un-stages the other (see toggle_extra_ability/
+## toggle_ultimate), the same "staging one clears the other" convention already used for the base-
+## ability/extra-ability slot pair.
+func _ultimate_conflicts_with_extra_ability(id: StringName) -> bool:
+	return ultimate_id == &"wildcard_gamble" and id == &"loaded_dice"
+
 ## True while the base ability (Heft) is provided FREE by a staged Rampage — toggled on, no Stamina.
 func ability_is_free() -> bool:
 	return fire_ultimate_staged and _rampage_includes_heft()
@@ -120,10 +177,16 @@ func toggle_ability() -> void:
 	if ability_staged:
 		ability_staged = false
 		selected_fate_type = null  # clear any Seer type choice on un-stage
+		staged_extra_ability_id = &""  # mutually exclusive with an extra-ability slot
 	elif ability_id == &"select_fate":
 		return  # Select your Fate needs a type choice — staged via stage_select_fate (the type-picker modal)
-	elif can_stage_ability():
-		ability_staged = true
+	else:
+		if can_stage_ability():
+			ability_staged = true
+			staged_extra_ability_id = &""  # mutually exclusive with an extra-ability slot: only clears on a
+			                                # SUCCESSFUL stage (mirrors toggle_extra_ability's success-only clear) —
+			                                # a failed attempt (unaffordable/at cap) must not silently drop an
+			                                # already-staged extra ability (2026-07-01 finding on commit 76e4099)
 
 ## Stages Select your Fate! with a player-chosen damage type (from the orchestrator's type-picker modal).
 ## No-op unless this is the Seer's ability and it can currently be staged.
@@ -159,6 +222,8 @@ func toggle_ultimate() -> void:
 		elif _ultimate_subsumes_ability():
 			ability_staged = false   # the Ultimate already does it — drop the staged ability (no waste)
 		# else: leave the base ability as the player staged it — it's usable alongside this Ultimate
+		if _ultimate_conflicts_with_extra_ability(staged_extra_ability_id):
+			staged_extra_ability_id = &""  # e.g. staging Wildcard Gamble un-stages an armed Loaded Dice
 
 ## The reels the spin WOULD use. A staged reel-adding ability (flurry/rend) appends a previewed
 ## own-type reel (rend's preview reel is a no-damage BLEED reel). Heft edits faces in place on commit,
@@ -175,6 +240,31 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_default(selected_fate_type))  # joins paylines (a weapon-attack reel)
 			&"rallying_cry":
 				reels.append(ActionReel.make_rallying_cry(combatant.weapon_type()))  # utility reel (out of paylines, tail)
+	if staged_extra_ability_id != &"" and staged_extra_ability_id in REEL_ADDING_EXTRA_IDS and reels.size() < reel_cap:
+		match staged_extra_ability_id:
+			&"sundering_strike":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"sundered"))
+			&"quake_slam":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"slow"))
+			&"jinx_the_odds":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"jinxed"))
+			&"snare_trap":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"rooted"))
+			&"crippling_shot":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"weakened", true))
+			&"hex":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"cursed"))
+			&"entangle":
+				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"rooted"))
+	if staged_extra_ability_id in TWO_REEL_BONUS_EXTRA_IDS:
+		# Double or Nothing's bonus reels preview as the wild gambler's spread (playtest 2026-07-04) —
+		# it also converts the caster's EXISTING reels the same way, but (matching the evasion_reels/
+		# jinxed_reels precedent) that whole-spin conversion isn't shown in the Main-1 preview, only
+		# applied at actual commit/spin time. Mana Surge keeps the plain default-composition preview.
+		var maker: Callable = ActionReel.make_gamble if staged_extra_ability_id == &"double_or_nothing" else ActionReel.make_default
+		for i: int in range(2):
+			if reels.size() < reel_cap:
+				reels.append(maker.call(combatant.weapon_type()))
 	# The reel-adding Ultimates preview their +1 attack reel too: Rampage (Heft/AoE aren't strips),
 	# Collateral (the splash isn't a strip), and Earthquake (+1 WILD attack reel). All add one own-type
 	# weapon-attack reel. Insert BEFORE any trailing utility reel (e.g. a staged Rallying Cry) so the
@@ -259,6 +349,53 @@ func commit() -> void:
 				combatant.apply_select_fate(selected_fate_type, ability_cost)  # +1 reel, retype loadout (Seer)
 			&"rallying_cry":
 				combatant.apply_rallying_cry(ability_cost, reel_cap)  # +1 utility reel; orchestrator shields the party
+	if staged_extra_ability_id != &"":
+		var def: AbilityDef = combatant.find_extra_ability(staged_extra_ability_id)
+		match staged_extra_ability_id:
+			&"sundering_strike":
+				combatant.try_sundering_strike(combatant.weapon_type(), def.cost, reel_cap)
+			&"quake_slam":
+				combatant.try_quake_slam(combatant.weapon_type(), def.cost, reel_cap)
+			&"jinx_the_odds":
+				combatant.try_jinx_the_odds(combatant.weapon_type(), def.cost, reel_cap)
+			&"snare_trap":
+				combatant.try_snare_trap(combatant.weapon_type(), def.cost, reel_cap)
+			&"crippling_shot":
+				combatant.try_crippling_shot(combatant.weapon_type(), def.cost, reel_cap)
+			&"hex":
+				combatant.try_hex(combatant.weapon_type(), def.cost, reel_cap)
+			&"entangle":
+				combatant.try_entangle(combatant.weapon_type(), def.cost, reel_cap)
+			&"aimed_shot":
+				combatant.stage_aimed_shot(def.cost)  # orchestrator attaches Empowered (bonus vs a Marked target)
+			&"foresight":
+				combatant.stage_foresight(def.cost)  # orchestrator picks lowest-HP% ally + shields them
+			&"regrowth":
+				combatant.stage_regrowth(def.cost)  # orchestrator picks lowest-HP% ally + grants Regen
+			&"heroic_guard":
+				combatant.apply_heroic_guard(def.cost)
+			&"second_wind":
+				combatant.apply_second_wind(def.cost)
+			&"bloodwrath":
+				combatant.apply_bloodwrath(def.cost)
+			&"mountain_stance":
+				combatant.apply_mountain_stance(def.cost)
+			&"bastion":
+				combatant.apply_bastion(def.cost)
+			&"feint_riposte":
+				combatant.apply_feint_riposte(def.cost)
+			&"quickstep":
+				combatant.apply_quickstep(def.cost)
+			&"riposte_storm":
+				combatant.fire_riposte_storm(def.cost)
+			&"loaded_dice":
+				combatant.apply_loaded_dice(def.cost)
+			&"mana_surge":
+				combatant.apply_mana_surge(combatant.weapon_type(), def.cost, reel_cap)
+			&"double_or_nothing":
+				combatant.fire_double_or_nothing(combatant.weapon_type(), reel_cap)
+		if def != null and def.cooldown_turns > 0:
+			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
 	if fire_ultimate_staged:
 		match ultimate_id:
 			&"wild":

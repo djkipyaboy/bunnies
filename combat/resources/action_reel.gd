@@ -29,6 +29,10 @@ extends Reel
 ## (playtest 2026-06-29). The resolver propagates this onto the AttackResult; the orchestrator honors it.
 @export var charges_meter: bool = true
 
+## True only for the Ranger's Crippling Shot reel (Task 15): the orchestrator adds bonus damage
+## when this reel's hit lands on a target that's Slowed/Rooted/Stunned. False for every other reel.
+@export var bonus_vs_cc: bool = false
+
 ## Builds a first-pass Action reel as a physical 10-face strip. Odds = how many of each symbol
 ## sit on the reel (the reel IS the dice — no hidden weights). Crits are rare (1 each → 10%):
 ##   1 crit-failure · 2 failure · 2 neutral/utility · 4 success · 1 crit-success.
@@ -66,6 +70,63 @@ static func make_rend(type: DamageType = null) -> ActionReel:
 		if face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 			face.multiplier = 0.0
 			face.rider_effect_id = &"bleed"
+	return reel
+
+## A resource-costing "called shot" is modestly more reliable than a free weapon swing (playtest
+## 2026-07-04, player-specified "at least a small benefit" for spending a resource): 1 crit-failure ·
+## 1 failure · 2 neutral · 5 success · 1 crit-success — hit rate (success + crit-success) 60%, up
+## from DEFAULT_COMPOSITION's 50%. [ASSUMPTION] tune by playtest, same as DEFAULT_COMPOSITION.
+const RIDER_COMPOSITION := [
+	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 1],
+	[ReelFace.ResultTier.FAILURE, 0.0, 1],
+	[ReelFace.ResultTier.NEUTRAL, 0.0, 2],
+	[ReelFace.ResultTier.SUCCESS, 1.0, 5],
+	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 1],
+]
+
+## Builds a real weapon-attack reel whose SUCCESS/CRIT_SUCCESS faces ALSO carry [param rider_id],
+## using RIDER_COMPOSITION's slightly better odds (see its comment) rather than DEFAULT_COMPOSITION.
+## Unlike make_rend (multiplier zeroed, utility-only), this keeps real damage: the attack itself both
+## hits AND applies its rider on a hit. Used by Sundering Strike / Quake Slam / Jinx the Odds / Snare
+## Trap / Hex / Entangle / Crippling Shot (spec 2026-07-01 §4).
+static func make_rider_attack(type: DamageType, rider_id: StringName, bonus_vs_cc: bool = false) -> ActionReel:
+	var reel: ActionReel = ActionReel.new()
+	reel.damage_type = type
+	reel.bonus_vs_cc = bonus_vs_cc
+	for entry: Array in RIDER_COMPOSITION:
+		var tier: ReelFace.ResultTier = entry[0]
+		var multiplier: float = entry[1]
+		var count: int = entry[2]
+		for i: int in range(count):
+			var face: ReelFace = _make_face(tier, multiplier)
+			if tier == ReelFace.ResultTier.SUCCESS or tier == ReelFace.ResultTier.CRIT_SUCCESS:
+				face.rider_effect_id = rider_id
+			reel.faces.append(face)
+	reel.faces.shuffle()
+	return reel
+
+## Chancer "Double or Nothing" (L9) wild gambler's reel (playtest 2026-07-04, player-specified exact
+## distribution): a genuine ALL-OR-NOTHING reel — no FAILURE or NEUTRAL faces at all. A 20-face strip
+## (not 10) specifically because 25%/65% aren't representable in tenths: 5 crit-failure (25%), 2
+## success (10%), 13 crit-success (65%). Used for BOTH the caster's existing weapon-attack reels (via
+## Combatant.gambled_reels()) and the ability's own 2 bonus reels — a whole-spin effect, not a
+## partial one, matching the ability's original "wild crit-biased" framing.
+const GAMBLE_COMPOSITION := [
+	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 5],
+	[ReelFace.ResultTier.SUCCESS, 1.0, 2],
+	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 13],
+]
+
+static func make_gamble(type: DamageType = null) -> ActionReel:
+	var reel: ActionReel = ActionReel.new()
+	reel.damage_type = type
+	for entry: Array in GAMBLE_COMPOSITION:
+		var tier: ReelFace.ResultTier = entry[0]
+		var multiplier: float = entry[1]
+		var count: int = entry[2]
+		for i: int in range(count):
+			reel.faces.append(_make_face(tier, multiplier))
+	reel.faces.shuffle()  # balance-neutral: only adjacency varies, tier counts fixed
 	return reel
 
 ## Builds the Warden's "Rallying Cry" reel (spec 2026-06-29 §3): a no-damage UTILITY reel of 2
