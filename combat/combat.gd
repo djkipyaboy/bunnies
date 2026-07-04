@@ -1464,7 +1464,7 @@ func _apply_attack(attack) -> void:
 
 	# Chancer "Double or Nothing" (L9) post-spin bookkeeping: tallied per-reel here, applied/cleared
 	# once the whole spin has resolved (below) — a crit-fail recoils as self-damage, any other non-fail
-	# reel banks a Stamina refund point.
+	# reel banks a Mana refund point (rail switched Stamina→Mana with the rest of the Chancer 2026-07-04).
 	if _attacker.double_or_nothing_pending:
 		if attack.face.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
 			_attacker.take_damage(ceili(attack.base_damage))
@@ -1475,7 +1475,7 @@ func _apply_attack(attack) -> void:
 	_pending_strips -= 1
 	if _pending_strips <= 0:
 		if _attacker.double_or_nothing_pending:
-			_attacker.resource_pool.refund({&"stamina": _attacker.double_or_nothing_refund_accum})
+			_attacker.resource_pool.refund({&"mana": _attacker.double_or_nothing_refund_accum})
 			_attacker.double_or_nothing_pending = false
 			_attacker.double_or_nothing_refund_accum = 0
 		_finish_spin()
