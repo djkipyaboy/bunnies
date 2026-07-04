@@ -323,19 +323,50 @@ to a full **4-ability + Ultimate kit**, unlocking **L1 (current base) → L3 (Ul
 > `regen.dot_base_damage = _attacker.weapon.base_damage` before attaching, mirroring the existing
 > DAMAGE_OVER_TIME rider pattern in the same file. Covered by `tests/test_regrowth.gd`.
 
-**Verified-by-machine vs your call (§5 hard ceiling):** all 103 suites are test-green and the scene
-loads without errors, but NONE of this feature has had a human eyes-on-the-screen pass yet. Flagged
-explicitly for playtest: **Double or Nothing's** refund/recoil math, **Aimed Shot's** Hunter's-Mark-
-conditional bonus, **Foresight/Regrowth's** auto-targeting + effect application, **Crippling Shot's**
-bonus-vs-CC damage (all four are orchestrator-level in `combat.gd`, only unit-tested at the boundary),
-and the **ENDGAME toggle's** live UI behavior generally. Beyond those four, every numeric magnitude
-across all 21 new abilities is an `[ASSUMPTION]` (CLAUDE.md §4) — none has been tuned by play.
+> **SECOND PLAYTEST ROUND — SHIPPED 2026-07-04** (spec `2026-07-04-second-playtest-fixes-design.md`,
+> **107 headless suites green**). The first human ENDGAME-kit pass (party: Skirmisher/Chancer/Seer,
+> then a full 7-class pass recorded in `Bunnies_Playtest_Tracker.xlsx`) found real bugs — all fixed:
+> - **CombatantPanel status overflow** — a fixed-height panel with no clipping let a 3+-effect status
+>   line bleed onto the panel below it in the column (read as "debuffs covered by the character
+>   beneath the target"). Fixed with a taller reservation + `clip_contents` backstop.
+> - **Combat log gaps were the real cause of the Taunt/Evasion "doesn't work" reports** — the per-reel
+>   line never named the target, and only the base-ability slot got a generic "uses X" line (the 8
+>   self-cast extras, incl. Second Wind's heal, were silent). `EnemyAI`/effect code was verified
+>   correct and untouched — this was entirely a legibility fix.
+> - **DoT/HoT ticks moved from End to Upkeep** (player request) — same total ticks, now visible before
+>   the bearer acts. Added a death-during-Upkeep guard (a new scenario this made possible).
+> - **ENDGAME resource scaling** — doubled max stamina/mana, tripled regen (testing aid only).
+> - **Vanguard Bloodwrath** steepened (+1%/1% missing HP, cap 50%, was +1%/2% cap 40%) plus a live
+>   tooltip damage calc in the Abilities menu (first ability needing a per-combatant computed
+>   description).
+> - **Chancer switched from Stamina to Mana** (Storm is magical, fits better) — full conversion;
+>   caught two callers (`try_jinx_the_odds`, `apply_loaded_dice`) that hardcoded the old rail, only
+>   via test failures, not inspection.
+> - **Double or Nothing reworked** into a wild crit-biased whole spin (25% crit-fail/10% success/65%
+>   crit-success, new `ActionReel.make_gamble()`), ×2.0 Empowered (was 1.5×).
+> - **Rider-attack reels** (Sundering Strike, Quake Slam, Jinx the Odds, Snare Trap, Crippling Shot,
+>   Hex, Entangle) hit rate raised 50%→60% — a resource-costing called shot should beat a free swing.
+> - **Loaded Dice / Wildcard Gamble mutual exclusion** — symmetric, last-press-wins.
+> - **Crippling Shot's Stunned check** was dead code (`stunned_this_turn` is never true from another
+>   combatant's turn) — fixed to `stunned_last_turn`; **Loaded Dice's bonus payline** was computed and
+>   silently discarded by the orchestrator's re-score — fixed. Both found by an Opus audit pass.
+>
+> **Deferred, not forgotten:** Bonus Meter charge rate (Ranger/Warden felt slow) — player wants this
+> solved later via a gear stat uniformly, not a per-class tweak (see memory `bonus-meter-gear-stat-idea`).
+> Ranger's explosive-shot-bleed idea and general "needs level-up tuning" — talent/leveling territory,
+> no such system exists yet.
 
-**Next:** human playtest of the full ENDGAME kit (now unblocked): spawn level-9 PCs, fire every new
-ability and Ultimate at least once via the Abilities menu, and confirm the four orchestrator-level
-abilities (Double or Nothing, Aimed Shot, Foresight/Regrowth, Crippling Shot) do what their tests
-assert in a live fight; only after that, tune the `[ASSUMPTION]` numbers. This sits alongside (not
-blocking) the still-open party-fight/enemy-AI playtest and the Seer/Ranger Ultimate playtests below.
+**Verified-by-machine vs your call (§5 hard ceiling):** 107 suites are test-green; the second playtest
+round's fixes above are still awaiting a THIRD human pass to confirm they actually read right in play
+(especially: does the combat log now make Taunt/Evasion legible, does Double or Nothing's wild reel
+feel right, does the ENDGAME resource pace feel appropriate). Every numeric magnitude across all 28
+abilities remains an `[ASSUMPTION]` (CLAUDE.md §4) pending further playtest tuning.
+
+**Next:** third playtest pass focused on verifying the fixes above land correctly, then continue
+working down the `Bunnies_Playtest_Tracker.xlsx` per-class notes not yet addressed (Seer/Warden "needs
+level-up tuning," Ranger's explosive-shot idea — both deferred; nothing else outstanding as of
+2026-07-04). This sits alongside (not blocking) the still-open party-fight/enemy-AI playtest and the
+Seer/Ranger Ultimate playtests below.
 
 **Still-open per-class playtests (do alongside, not blocking):** the **Seer/Ranger Ultimates** have not had a
 dedicated human playtest yet. Tune `[ASSUMPTION]` numbers (stats/HP/costs, Earthquake stun-bypasses-anti-lock,
