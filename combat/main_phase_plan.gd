@@ -151,13 +151,20 @@ func _ultimate_subsumes_ability() -> bool:
 
 ## True when the staged Ultimate conflicts with an EXTRA (L5/L7/L9) ability — as opposed to
 ## _ultimate_subsumes_ability(), which only ever compares against the single BASE ability slot.
-## Currently just one pair (playtest 2026-07-04, player request): Wildcard Gamble re-rolls every
-## non-crit reel double-or-nothing, and Loaded Dice's extra crit faces read as "too many crits" piled
-## on top of that. Unlike a subsumes relationship (one absorbs the other for free), this is a plain
-## conflict — whichever is staged LAST wins and un-stages the other (see toggle_extra_ability/
-## toggle_ultimate), the same "staging one clears the other" convention already used for the base-
-## ability/extra-ability slot pair.
+## Default rule (playtest round 3, player request 2026-07-07): any extra ability that adds its OWN
+## weapon-attack reel (REEL_ADDING_EXTRA_IDS / TWO_REEL_BONUS_EXTRA_IDS — both deal damage) is
+## mutually exclusive with ANY staged Ultimate. Pure buff/debuff extras (no reel of their own — Heroic
+## Guard, Bloodwrath, Feint & Riposte, Aimed Shot, Foresight, etc.) are NOT in either list, so they
+## stay usable alongside an Ultimate, same as today. Plus one standing special case (playtest
+## 2026-07-04): Wildcard Gamble re-rolls every non-crit reel double-or-nothing, and Loaded Dice's extra
+## crit faces read as "too many crits" piled on top of that — Loaded Dice adds no reel of its own, so
+## it isn't covered by the default rule above and needs its own line. Unlike a subsumes relationship
+## (one absorbs the other for free), all of this is a plain conflict — whichever is staged LAST wins
+## and un-stages the other (see toggle_extra_ability/toggle_ultimate), the same "staging one clears the
+## other" convention already used for the base-ability/extra-ability slot pair.
 func _ultimate_conflicts_with_extra_ability(id: StringName) -> bool:
+	if id in REEL_ADDING_EXTRA_IDS or id in TWO_REEL_BONUS_EXTRA_IDS:
+		return true
 	return ultimate_id == &"wildcard_gamble" and id == &"loaded_dice"
 
 ## True while the base ability (Heft) is provided FREE by a staged Rampage — toggled on, no Stamina.
