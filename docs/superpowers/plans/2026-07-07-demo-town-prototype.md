@@ -321,11 +321,15 @@ func _init() -> void:
 	_check(box.is_open(), "advancing to the last line keeps the box open")
 	_check(box.current_text_for_test() == "Goodbye!", "advance() renders the second line's text")
 
-	var closed_fired: bool = false
-	box.closed.connect(func() -> void: closed_fired = true)
+	# GDScript lambdas capture outer locals BY VALUE, so a plain `var closed_fired: bool`
+	# assigned inside the lambda never propagates out. Route it through a one-element
+	# array instead — the standard GDScript capture workaround.
+	var closed_fired: Array[bool] = [false]
+	box.closed.connect(func() -> void: closed_fired[0] = true)
 	box.advance_for_test()
 	_check(not box.is_open(), "advancing past the last line closes the box")
-	_check(closed_fired, "closing emits the closed signal")
+	_check(closed_fired[0], "closing emits the closed signal")
+	box.free()  # never entered the tree, so free manually (matches test_ability_menu_panel.gd)
 	quit()
 ```
 
@@ -424,7 +428,8 @@ func advance_for_test() -> void:
 ```bash
 "$GODOT" --headless --path . --script res://tests/test_dialogue_box.gd
 ```
-Expected: eleven `ok ...` lines, no `FAIL`.
+Expected: thirteen `ok ...` lines, no `FAIL` (the brief undercounted this when first written — trust the
+test code's actual `_check()` calls, confirmed during Task 3's implementation).
 
 - [ ] **Step 6: Commit**
 
@@ -559,13 +564,16 @@ func _init() -> void:
 	panel.open_for(entries)
 	_check(panel.visible, "open_for() shows the panel")
 
-	var selected: QuestBoardEntry = null
-	panel.entry_selected.connect(func(entry: QuestBoardEntry) -> void: selected = entry)
+	# GDScript lambdas capture outer locals BY VALUE — a plain `var selected` reassigned
+	# inside the lambda would never propagate out. Route it through a one-element array.
+	var selected: Array[QuestBoardEntry] = [null]
+	panel.entry_selected.connect(func(entry: QuestBoardEntry) -> void: selected[0] = entry)
 	panel.press_row_for_test(0)
-	_check(selected == current, "pressing row 0 selects the first entry (CURRENT header comes first)")
+	_check(selected[0] == current, "pressing row 0 selects the first entry (CURRENT header comes first)")
 
 	panel.close()
 	_check(not panel.visible, "close() hides the panel")
+	panel.free()  # never entered the tree, so free manually (matches test_ability_menu_panel.gd)
 	quit()
 ```
 
@@ -725,14 +733,22 @@ func _init() -> void:
 	var empty_candidates: Array[Interactable] = []
 	_check(Interactable.nearest(empty_candidates, Vector2.ZERO) == null, "nearest() returns null for an empty list")
 
-	var fired: bool = false
-	a.interacted.connect(func() -> void: fired = true)
+	# GDScript lambdas capture outer locals BY VALUE — a plain `var fired: bool` reassigned
+	# inside the lambda would never propagate out. Route it through a one-element array.
+	var fired: Array[bool] = [false]
+	a.interacted.connect(func() -> void: fired[0] = true)
 	a.interact()
-	_check(fired, "default interact() emits the interacted signal")
+	_check(fired[0], "default interact() emits the interacted signal")
 
 	_check(a.prompt_text == "Interact", "prompt_text defaults to 'Interact'")
 	a.prompt_text = "Talk"
 	_check(a.prompt_text == "Talk", "prompt_text is settable")
+
+	# a/b/c are Area2D (Node, not RefCounted) and were never added to a tree — free them
+	# explicitly or the process reports leaked instances at exit.
+	a.free()
+	b.free()
+	c.free()
 	quit()
 ```
 
@@ -873,6 +889,15 @@ func _init() -> void:
 	_check(pc.global_position == Vector2(160, 180), "interact() teleports the PC to the entry marker")
 	_check(camera.limit_left == 0 and camera.limit_top == 0, "interact() sets the camera's top-left bound")
 	_check(camera.limit_right == 320 and camera.limit_bottom == 240, "interact() sets the camera's bottom-right bound")
+
+	# None of these Node-derived objects were ever added to a tree — free them explicitly
+	# or the process reports leaked instances at exit.
+	door.free()
+	camera.free()
+	entry_marker.free()
+	pc.free()
+	interior.free()
+	exterior.free()
 	quit()
 ```
 
@@ -978,6 +1003,7 @@ func _init() -> void:
 	_check(prompt.text == "Talk", "show_prompt() sets the label text")
 	prompt.hide_prompt()
 	_check(not prompt.visible, "hide_prompt() hides it again")
+	prompt.free()  # a Label (Node, not RefCounted) never added to a tree — free explicitly
 	quit()
 ```
 
@@ -1247,10 +1273,14 @@ func _init() -> void:
 	var entries: Array[QuestBoardEntry] = [entry]
 	board.entries = entries
 
-	var received: Array = []
-	board.board_opened.connect(func(opened_entries: Array[QuestBoardEntry]) -> void: received = opened_entries)
+	# GDScript lambdas capture outer locals BY VALUE — a plain `var received` reassigned
+	# inside the lambda would never propagate out. Route it through a one-element array.
+	var received_box: Array = [[]]
+	board.board_opened.connect(func(opened_entries: Array[QuestBoardEntry]) -> void: received_box[0] = opened_entries)
 	board.interact()
+	var received: Array = received_box[0]
 	_check(received.size() == 1 and received[0] == entry, "interact() emits board_opened with the current entries")
+	board.free()  # an Area2D (Node, not RefCounted) never added to a tree — free explicitly
 	quit()
 ```
 
