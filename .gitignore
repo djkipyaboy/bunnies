@@ -6,6 +6,9 @@
 dist/
 .claude/worktrees/
 
+# Superpowers brainstorming visual-companion sessions
+.superpowers/
+
 # Godot-specific ignores
 .import/
 export.cfg

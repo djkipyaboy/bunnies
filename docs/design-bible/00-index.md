@@ -57,8 +57,8 @@ build** (exactly how combat features ship). Status is tracked in the table below
 
 | File | Style | System | Status |
 |---|---|---|---|
-| `10-storyline` | 📖 | Storyline & narrative | 🔲 awaiting your dump |
-| `11-world-and-overworld` | 📖 | World structure, out-of-combat loop, collectibles | 🔲 awaiting your dump |
+| `10-storyline` | 📖 | Storyline & narrative | 🟨 first dump captured, brief structured — awaiting your review |
+| `11-world-and-overworld` | 📖 | World structure, out-of-combat loop, collectibles | 🟨 presentation/camera/movement locked 2026-07-07 (§9) — world-shape dump (§1) still open |
 | `12-companions-and-party` | ⚙️ | KOTOR-style recruitable companions + party management | 📝 seeded |
 | `20-character-creation` | ⚙️ | PC creation flow | 📝 seeded |
 | `21-stats-and-attributes` | ⚙️ | The 5+1 stats out of combat | 📝 seeded |
@@ -69,9 +69,9 @@ build** (exactly how combat features ship). Status is tracked in the table below
 | `26-banking-cross-character` | ⚙️ | The cross-character vault (replayability spine) | 📝 seeded |
 | `27-crafting` | ⚙️ | Reel-mod crafting + salvage | 📝 seeded |
 | `28-encounter-design-framework` | ⚙️ | Boss parts/phases, multi-target, encounter variety | 📝 seeded |
-| `40-enemy-roster` | 🗂️ | Hundreds of designed enemies | 🔲 schema only |
-| `41-npc-roster` | 🗂️ | Static merchants / townsfolk / quest-givers | 🔲 schema only |
-| `42-companion-roster` | 🗂️ | Recruitable allies | 🔲 schema only |
+| `40-enemy-roster` | 🗂️ | Hundreds of designed enemies | 🟨 first draft batch added — awaiting your reaction |
+| `41-npc-roster` | 🗂️ | Static merchants / townsfolk / quest-givers | 🟨 first draft rows added — awaiting your reaction |
+| `42-companion-roster` | 🗂️ | Recruitable allies | 🟨 first draft row added — awaiting your reaction |
 | `99-parking-lot` | — | Stray ideas + systems you may have left off | 💡 my proposals |
 
 **Suggested first three to work** (highest leverage, everything else hangs off them):

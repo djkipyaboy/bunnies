@@ -1,6 +1,7 @@
 # World Structure, Out-of-Combat Loop & Collectibles — Design Bible
 
-> **Style:** 📖 Narrative/World Brief (proposals LIGHT–MEDIUM) · **Status:** 🔲 awaiting your dump
+> **Style:** 📖 Narrative/World Brief (proposals LIGHT–MEDIUM) · **Status:** 🟨 presentation/camera/movement
+> locked 2026-07-07 (§9) — world-shape dump (§1) still open
 > **Related:** [[10-storyline]] · [[28-encounter-design-framework]] · [[23-talents-and-reel-points]] · [[27-crafting]]
 
 ---
@@ -73,6 +74,28 @@ All counts/rates `[ASSUMPTION]` until playtested.
 - ❓ Field verbs per class — in or out for 1.0?
 - ❓ Chapter count / campaign length (shared with [[10-storyline]]).
 
+### 9. Presentation, camera & movement *(LOCKED 2026-07-07 — from the first-playable-town brainstorm;
+spec: `docs/superpowers/specs/2026-07-07-demo-town-prototype-design.md`)*
+✅ **Town interiors** present as **2D-with-depth, Paper Mario: The Thousand Year Door-style** — a flat plane,
+buildings face camera, layered for a depth read; referenced directly against **Rogueport Plaza** (named shop
+buildings arranged around a central landmark, walk-in doors, back-alleys as a later stretch, not required now).
+✅ **Overworld travel** between locations (the hub/towns from §1) presents as a **Chrono Trigger / Final
+Fantasy-style tilted/dimetric terrain map** — visually distinct from town interiors. This is a locked STYLE
+decision only; **no overworld-map code exists yet** — the first playable town (2026-07 demo) is an interior-only
+scene entered directly, with no real overworld to walk through.
+✅ **Movement is free-continuous** in both contexts (any angle, smooth, `move_and_slide()`-style) — **not**
+grid/tile-snapped (rules out a classic Dragon Quest step-tile feel).
+✅ **Building transitions on the same map never use a load screen** (same scene tree, visibility/process toggle
++ teleport + camera-bounds swap, ~instant). **Overworld↔town and anything→combat DO use a real load/transition
+screen** — a different scale of scene change. This split is intentional and locked.
+🔲 **Party chime-in during NPC dialogue** (KOTOR-style: active/required companions add lines) is a planned
+future extension, explicitly gated on the companion-recruitment system existing in code
+([[kotor-companion-system]] is still a design-bible brief only) — not built in the 2026-07 demo, dialogue there
+is solo-PC only.
+
 ### Scope / phase
 ✅ Hub + chapters + shop/rest/quest-board for 1.0. ⏳ Calendar pressure, the endgame gauntlet, full field-verb
 roster = later.
+✅ *(2026-07-07)* Presentation/camera/movement conventions (§9) locked and spec'd for a throwaway demo town —
+content itself (NPCs, layout, quests) is disposable; the movement/interaction/scene-architecture pattern carries
+forward.

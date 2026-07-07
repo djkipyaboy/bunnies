@@ -356,17 +356,43 @@ to a full **4-ability + Ultimate kit**, unlocking **L1 (current base) → L3 (Ul
 > Ranger's explosive-shot-bleed idea and general "needs level-up tuning" — talent/leveling territory,
 > no such system exists yet.
 
-**Verified-by-machine vs your call (§5 hard ceiling):** 107 suites are test-green; the second playtest
-round's fixes above are still awaiting a THIRD human pass to confirm they actually read right in play
-(especially: does the combat log now make Taunt/Evasion legible, does Double or Nothing's wild reel
-feel right, does the ENDGAME resource pace feel appropriate). Every numeric magnitude across all 28
-abilities remains an `[ASSUMPTION]` (CLAUDE.md §4) pending further playtest tuning.
+> **THIRD PLAYTEST ROUND — SHIPPED 2026-07-07.** The player confirmed all round-2 fixes read right in
+> play (combat log legibility, DoT/HoT-in-Upkeep, panel overflow, Chancer's mana rail, Double or
+> Nothing's crit-biased wild spin, rider-attack hit rates) and went through
+> `Bunnies_Playtest_Tracker.xlsx` class-by-class — **every class (Warrior through Warden) now tests as
+> working as intended**, no outstanding bugs. One new design change came out of it:
+> - **Default Ultimate-lock for reel-adding L5/L7/L9 abilities** — any extra ability that adds its own
+>   damage-dealing weapon-attack reel (Sundering Strike, Quake Slam, Jinx the Odds, Snare Trap,
+>   Crippling Shot, Hex, Entangle, Mana Surge, Double or Nothing) is now mutually exclusive with a
+>   staged Ultimate by default, symmetric last-press-wins (same convention as the existing Wildcard
+>   Gamble/Loaded Dice conflict). Pure buff/debuff extras (Heroic Guard, Bloodwrath, Feint & Riposte,
+>   Aimed Shot, Foresight, Regrowth, etc.) are unaffected — they already applied before the spin
+>   resolves structurally, so no ordering change was needed. Switch:
+>   `MainPhasePlan._ultimate_conflicts_with_extra_ability()`; see memory
+>   `extra-ability-ultimate-conflict-default`. Covered by `tests/test_extra_ability_ultimate_conflict.gd`.
+> - Also swept up the orphaned `.uid` companion files left over from the class-ability-expansion/
+>   ability-menu-ui merge.
+> - Exported a fresh `dist/BunniesCombatPrototype.exe` off current `main` for distribution to playtesters.
 
-**Next:** third playtest pass focused on verifying the fixes above land correctly, then continue
-working down the `Bunnies_Playtest_Tracker.xlsx` per-class notes not yet addressed (Seer/Warden "needs
-level-up tuning," Ranger's explosive-shot idea — both deferred; nothing else outstanding as of
-2026-07-04). This sits alongside (not blocking) the still-open party-fight/enemy-AI playtest and the
-Seer/Ranger Ultimate playtests below.
+**Verified-by-machine vs your call (§5 hard ceiling):** all `test_*.gd` suites are green (full sweep run
+2026-07-07, zero failures) including the new lock-rule suite. Every numeric magnitude across all 28
+abilities remains an `[ASSUMPTION]` (CLAUDE.md §4) pending further tuning, but round-3 playtest found no
+functional bugs left to chase.
+
+**Next (as of 2026-07-07): the combat playtest thread is on hold — active work moves to the FIRST
+PLAYABLE VILLAGE/SETTLEMENT** (out-of-combat: town layout, PC overworld movement, NPC/environment
+interaction). **Brainstorm + spec done (2026-07-07)** via the visual-companion-assisted brainstorm —
+spec at `docs/superpowers/specs/2026-07-07-demo-town-prototype-design.md`, locked decisions mirrored into
+`docs/design-bible/11-world-and-overworld.md` §9. Scope: a throwaway demo town (no content commitment) that
+locks the **movement/interaction/scene-architecture convention** — Paper Mario TTYD-style 2D-with-depth
+interiors (Rogueport-referenced), free-continuous movement, an `Interactable` base (doors/wandering
+villagers/Adventuring Board), Resource-based dialogue data, and same-map building transitions with **no load
+screen** (load screens are reserved for overworld↔town and anything→combat, once the overworld exists).
+Overworld travel (Chrono Trigger/FF-style tilted terrain) is locked as a style but explicitly NOT built this
+pass. Party chime-in dialogue (KOTOR companions) is deferred until the companion-recruitment system exists in
+code. **Next action: write the implementation plan (§5 methodology step 2), then build.** The remaining
+combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish, `Bunnies_Playtest_Tracker.xlsx`
+follow-ups) are parked, not abandoned — resume alongside town work whenever it's convenient.
 
 **Still-open per-class playtests (do alongside, not blocking):** the **Seer/Ranger Ultimates** have not had a
 dedicated human playtest yet. Tune `[ASSUMPTION]` numbers (stats/HP/costs, Earthquake stun-bypasses-anti-lock,
