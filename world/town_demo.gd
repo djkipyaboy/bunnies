@@ -1,3 +1,4 @@
+class_name TownDemo
 extends Node2D
 
 ## Root scene for the first-playable-town demo (2026-07-07-demo-town-prototype-design.md).
@@ -7,7 +8,12 @@ extends Node2D
 ## What's locked is the movement/interaction/scene-architecture pattern (spec §0).
 
 const EXTERIOR_BOUNDS := Rect2(0, 0, 640, 360)
-const INTERIOR_BOUNDS := Rect2(0, 0, 320, 240)
+## Placed well clear of EXTERIOR_BOUNDS (not at the origin) because Door.toggle_areas()
+## hides an area with `visible = false` / `PROCESS_MODE_DISABLED` — neither disables physics
+## collision in Godot, so a StaticBody2D under a "hidden" area stays solid in world space.
+## Overlapping this with EXTERIOR_BOUNDS previously put invisible walls (and a spawned
+## Villager) in the middle of the plaza even while the shop interior was "closed".
+const INTERIOR_BOUNDS := Rect2(800, 0, 320, 240)
 const SHOP_BODY_RECT := Rect2(450, 120, 150, 100)
 const WALL_THICKNESS: float = 16.0
 
@@ -105,14 +111,14 @@ func _build_interior() -> void:
 	var shopkeeper := Villager.new()
 	shopkeeper.name = "Shopkeeper"
 	shopkeeper.can_wander = false
-	shopkeeper.global_position = Vector2(160, 100)
+	shopkeeper.global_position = Vector2(960, 100)
 	shopkeeper.dialogue = _make_dialogue("Welcome! Nothing's actually for sale yet — just testing the shop layout.", "Shopkeeper")
 	shopkeeper.dialogue_requested.connect(_on_dialogue_requested)
 	_interior.add_child(shopkeeper)
 
 	_shop_entry_marker = Marker2D.new()
 	_shop_entry_marker.name = "EntryMarker"
-	_shop_entry_marker.position = Vector2(160, 180)
+	_shop_entry_marker.position = Vector2(960, 180)
 	_interior.add_child(_shop_entry_marker)
 
 	_add_boundary_walls(_interior, INTERIOR_BOUNDS)
@@ -120,7 +126,9 @@ func _build_interior() -> void:
 ## Frames `bounds` with four thin StaticBody2D wall segments so the PC (and wandering
 ## Villagers) can't walk off the edge of the plaza/shop floor. Segments sit flush against
 ## the outside of `bounds`, extended past the corners so they don't leave diagonal gaps.
-func _add_boundary_walls(parent: Node2D, bounds: Rect2) -> void:
+## Static (parent passed explicitly, never `self`) so it's unit-testable without a live
+## scene tree — see tests/test_town_demo_boundary_walls.gd.
+static func _add_boundary_walls(parent: Node2D, bounds: Rect2) -> void:
 	var center: Vector2 = bounds.get_center()
 	var extended_width: float = bounds.size.x + WALL_THICKNESS * 2.0
 	var extended_height: float = bounds.size.y + WALL_THICKNESS * 2.0
@@ -129,7 +137,7 @@ func _add_boundary_walls(parent: Node2D, bounds: Rect2) -> void:
 	_add_wall(parent, Vector2(center.x, bounds.position.y - WALL_THICKNESS / 2.0), Vector2(extended_width, WALL_THICKNESS))
 	_add_wall(parent, Vector2(center.x, bounds.end.y + WALL_THICKNESS / 2.0), Vector2(extended_width, WALL_THICKNESS))
 
-func _add_wall(parent: Node2D, center: Vector2, size: Vector2) -> void:
+static func _add_wall(parent: Node2D, center: Vector2, size: Vector2) -> void:
 	var wall := StaticBody2D.new()
 	var shape := CollisionShape2D.new()
 	var rectangle := RectangleShape2D.new()
@@ -141,16 +149,9 @@ func _add_wall(parent: Node2D, center: Vector2, size: Vector2) -> void:
 
 ## A solid, walk-blocking StaticBody2D matching `rect` — used for the shop building's
 ## footprint so the PC can't walk onto/through it (entry is via the Door's proximity
-## interact, not by physically walking through the wall).
-func _add_solid_collider(parent: Node2D, rect: Rect2) -> void:
-	var body := StaticBody2D.new()
-	var shape := CollisionShape2D.new()
-	var rectangle := RectangleShape2D.new()
-	rectangle.size = rect.size
-	shape.shape = rectangle
-	shape.position = rect.get_center()
-	body.add_child(shape)
-	parent.add_child(body)
+## interact, not by physically walking through the wall). Just `_add_wall` centered on `rect`.
+static func _add_solid_collider(parent: Node2D, rect: Rect2) -> void:
+	_add_wall(parent, rect.get_center(), rect.size)
 
 func _build_pc() -> void:
 	_pc = PCController.new()
@@ -202,6 +203,10 @@ func _build_ui() -> void:
 	_board_panel.close()
 
 func _wire_doors() -> void:
+	# (525, 200) is the drawn door rectangle's center, which sits inside SHOP_BODY_RECT's
+	# solid collider. Reachable anyway: PCController's reach radius (24) plus this door's
+	# own interaction_radius (16, from Interactable's default) comfortably exceeds the gap
+	# between the collider's south face and where the PC's own capsule stops it.
 	var shop_door := Door.new()
 	shop_door.name = "ShopDoor"
 	shop_door.global_position = Vector2(525, 200)
@@ -220,7 +225,7 @@ func _wire_doors() -> void:
 
 	var exit_door := Door.new()
 	exit_door.name = "ExitDoor"
-	exit_door.global_position = Vector2(160, 200)
+	exit_door.global_position = Vector2(960, 200)
 	exit_door.current_area = _interior
 	exit_door.target_area = _exterior
 	exit_door.entry_marker = exit_marker
@@ -232,7 +237,7 @@ func _wire_doors() -> void:
 	var exit_arrow := Polygon2D.new()
 	exit_arrow.name = "ExitArrow"
 	exit_arrow.color = Color(1.0, 0.95, 0.4)
-	exit_arrow.modulate.a = 0.2
+	exit_arrow.modulate.a = Door.DIM_ALPHA
 	exit_arrow.polygon = PackedVector2Array([
 		Vector2(-4, -15), Vector2(4, -15), Vector2(4, 5),
 		Vector2(10, 5), Vector2(0, 20), Vector2(-10, 5), Vector2(-4, 5),

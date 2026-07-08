@@ -18,13 +18,15 @@ extends Interactable
 ## exterior entry already reads clearly via the facade's drawn door rectangle).
 @export var highlight_visual: CanvasItem
 
+const DIM_ALPHA: float = 0.2
+
 func _init() -> void:
 	prompt_text = "Open"
 
 func set_highlighted(active: bool) -> void:
-	if highlight_visual == null:
+	if not is_instance_valid(highlight_visual):
 		return
-	highlight_visual.modulate.a = 1.0 if active else 0.2
+	highlight_visual.modulate.a = 1.0 if active else DIM_ALPHA
 
 ## Flips visibility/processing between the two areas. Pure/static so it's unit-testable
 ## without a live scene tree.
