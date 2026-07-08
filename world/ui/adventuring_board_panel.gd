@@ -74,6 +74,9 @@ func open_for(entries: Array[QuestBoardEntry]) -> void:
 func close() -> void:
 	hide()
 
+func is_open() -> bool:
+	return visible
+
 func _select_entry(entry: QuestBoardEntry) -> void:
 	_detail_label.text = entry.body_text
 	entry_selected.emit(entry)

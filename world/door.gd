@@ -31,4 +31,4 @@ func interact() -> void:
 	camera.limit_top = int(target_camera_limits.position.y)
 	camera.limit_right = int(target_camera_limits.end.x)
 	camera.limit_bottom = int(target_camera_limits.end.y)
-	interacted.emit()
+	camera.reset_smoothing()

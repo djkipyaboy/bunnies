@@ -100,7 +100,7 @@ func _build_interior() -> void:
 	shopkeeper.name = "Shopkeeper"
 	shopkeeper.can_wander = false
 	shopkeeper.global_position = Vector2(160, 100)
-	shopkeeper.dialogue = _make_dialogue("Welcome! Nothing's actually for sale yet — just testing the shop layout.")
+	shopkeeper.dialogue = _make_dialogue("Welcome! Nothing's actually for sale yet — just testing the shop layout.", "Shopkeeper")
 	shopkeeper.dialogue_requested.connect(_on_dialogue_requested)
 	_interior.add_child(shopkeeper)
 
@@ -186,12 +186,12 @@ func _wire_doors() -> void:
 	exit_door.pc = _pc
 	_interior.add_child(exit_door)
 
-func _make_dialogue(line_text: String) -> DialogueSet:
+func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> DialogueSet:
 	var greeting := DialogueLine.new()
-	greeting.speaker_name = "Villager"
+	greeting.speaker_name = speaker_name
 	greeting.text = line_text
 	var farewell := DialogueLine.new()
-	farewell.speaker_name = "Villager"
+	farewell.speaker_name = speaker_name
 	farewell.text = "Safe travels!"
 	var lines: Array[DialogueLine] = [greeting, farewell]
 	var dialogue_set := DialogueSet.new()
@@ -234,6 +234,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _dialogue_box.is_open():
 		_dialogue_box.advance()
+		return
+	if _board_panel.is_open():
+		_board_panel.close()
 		return
 	var target: Interactable = _pc.nearest_interactable()
 	if target != null:
