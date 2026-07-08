@@ -15,7 +15,6 @@ const EXTERIOR_BOUNDS := Rect2(0, 0, 640, 360)
 ## Villager) in the middle of the plaza even while the shop interior was "closed".
 const INTERIOR_BOUNDS := Rect2(800, 0, 320, 240)
 const SHOP_BODY_RECT := Rect2(450, 120, 150, 100)
-const WALL_THICKNESS: float = 16.0
 
 var _exterior: Node2D
 var _interior: Node2D
@@ -71,8 +70,8 @@ func _build_exterior() -> void:
 	board.board_opened.connect(_on_board_opened)
 	_exterior.add_child(board)
 
-	_add_boundary_walls(_exterior, EXTERIOR_BOUNDS)
-	_add_solid_collider(_exterior, SHOP_BODY_RECT)
+	WorldGeometry.add_boundary_walls(_exterior, EXTERIOR_BOUNDS)
+	WorldGeometry.add_solid_collider(_exterior, SHOP_BODY_RECT)
 
 func _build_shop_facade() -> Node2D:
 	var facade := Node2D.new()
@@ -122,37 +121,7 @@ func _build_interior() -> void:
 	_shop_entry_marker.position = Vector2(960, 180)
 	_interior.add_child(_shop_entry_marker)
 
-	_add_boundary_walls(_interior, INTERIOR_BOUNDS)
-
-## Frames `bounds` with four thin StaticBody2D wall segments so the PC (and wandering
-## Villagers) can't walk off the edge of the plaza/shop floor. Segments sit flush against
-## the outside of `bounds`, extended past the corners so they don't leave diagonal gaps.
-## Static (parent passed explicitly, never `self`) so it's unit-testable without a live
-## scene tree — see tests/test_town_demo_boundary_walls.gd.
-static func _add_boundary_walls(parent: Node2D, bounds: Rect2) -> void:
-	var center: Vector2 = bounds.get_center()
-	var extended_width: float = bounds.size.x + WALL_THICKNESS * 2.0
-	var extended_height: float = bounds.size.y + WALL_THICKNESS * 2.0
-	_add_wall(parent, Vector2(bounds.position.x - WALL_THICKNESS / 2.0, center.y), Vector2(WALL_THICKNESS, extended_height))
-	_add_wall(parent, Vector2(bounds.end.x + WALL_THICKNESS / 2.0, center.y), Vector2(WALL_THICKNESS, extended_height))
-	_add_wall(parent, Vector2(center.x, bounds.position.y - WALL_THICKNESS / 2.0), Vector2(extended_width, WALL_THICKNESS))
-	_add_wall(parent, Vector2(center.x, bounds.end.y + WALL_THICKNESS / 2.0), Vector2(extended_width, WALL_THICKNESS))
-
-static func _add_wall(parent: Node2D, center: Vector2, size: Vector2) -> void:
-	var wall := StaticBody2D.new()
-	var shape := CollisionShape2D.new()
-	var rectangle := RectangleShape2D.new()
-	rectangle.size = size
-	shape.shape = rectangle
-	wall.add_child(shape)
-	wall.position = center
-	parent.add_child(wall)
-
-## A solid, walk-blocking StaticBody2D matching `rect` — used for the shop building's
-## footprint so the PC can't walk onto/through it (entry is via the Door's proximity
-## interact, not by physically walking through the wall). Just `_add_wall` centered on `rect`.
-static func _add_solid_collider(parent: Node2D, rect: Rect2) -> void:
-	_add_wall(parent, rect.get_center(), rect.size)
+	WorldGeometry.add_boundary_walls(_interior, INTERIOR_BOUNDS)
 
 func _build_pc() -> void:
 	_pc = PCController.new()
