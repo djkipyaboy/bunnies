@@ -23,6 +23,7 @@ var _camera: Camera2D
 var _dialogue_box: DialogueBox
 var _board_panel: AdventuringBoardPanel
 var _interact_prompt: InteractPrompt
+var _fade_overlay: FadeOverlay
 var _shop_entry_marker: Marker2D
 var _highlighted_target: Interactable
 var _talking_to: Villager
@@ -158,6 +159,9 @@ func _build_ui() -> void:
 	ui.name = "UI"
 	add_child(ui)
 
+	_fade_overlay = FadeOverlay.new()
+	add_child(_fade_overlay)
+
 	_interact_prompt = InteractPrompt.new()
 	_interact_prompt.position = Vector2(16, 16)
 	ui.add_child(_interact_prompt)
@@ -215,6 +219,25 @@ func _wire_doors() -> void:
 	])
 	exit_door.add_child(exit_arrow)
 	exit_door.highlight_visual = exit_arrow
+
+	var town_exit := SceneExit.new()
+	town_exit.name = "TownExit"
+	town_exit.prompt_text = "Leave Town"
+	town_exit.target_scene_path = "res://world/overworld_demo.tscn"
+	town_exit.global_position = Vector2(320, 340)
+	town_exit.fade_overlay = _fade_overlay
+	_exterior.add_child(town_exit)
+
+	var town_exit_arrow := Polygon2D.new()
+	town_exit_arrow.name = "TownExitArrow"
+	town_exit_arrow.color = Color(1.0, 0.95, 0.4)
+	town_exit_arrow.modulate.a = Interactable.DIM_ALPHA
+	town_exit_arrow.polygon = PackedVector2Array([
+		Vector2(-4, -15), Vector2(4, -15), Vector2(4, 5),
+		Vector2(10, 5), Vector2(0, 20), Vector2(-10, 5), Vector2(-4, 5),
+	])
+	town_exit.add_child(town_exit_arrow)
+	town_exit.highlight_visual = town_exit_arrow
 
 func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> DialogueSet:
 	var greeting := DialogueLine.new()
