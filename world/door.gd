@@ -13,8 +13,18 @@ extends Interactable
 @export var target_camera_limits: Rect2 = Rect2()
 @export var pc: Node2D
 
+## Optional exit/entry indicator (e.g. the interior exit arrow) — dims by default, brightens
+## when the PC is in interact range. Left null for doors with no such visual (the shop's
+## exterior entry already reads clearly via the facade's drawn door rectangle).
+@export var highlight_visual: CanvasItem
+
 func _init() -> void:
 	prompt_text = "Open"
+
+func set_highlighted(active: bool) -> void:
+	if highlight_visual == null:
+		return
+	highlight_visual.modulate.a = 1.0 if active else 0.2
 
 ## Flips visibility/processing between the two areas. Pure/static so it's unit-testable
 ## without a live scene tree.

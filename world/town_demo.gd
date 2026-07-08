@@ -8,6 +8,8 @@ extends Node2D
 
 const EXTERIOR_BOUNDS := Rect2(0, 0, 640, 360)
 const INTERIOR_BOUNDS := Rect2(0, 0, 320, 240)
+const SHOP_BODY_RECT := Rect2(450, 120, 150, 100)
+const WALL_THICKNESS: float = 16.0
 
 var _exterior: Node2D
 var _interior: Node2D
@@ -17,6 +19,7 @@ var _dialogue_box: DialogueBox
 var _board_panel: AdventuringBoardPanel
 var _interact_prompt: InteractPrompt
 var _shop_entry_marker: Marker2D
+var _highlighted_target: Interactable
 
 func _ready() -> void:
 	_build_exterior()
@@ -60,6 +63,9 @@ func _build_exterior() -> void:
 	board.entries = _make_quest_entries()
 	board.board_opened.connect(_on_board_opened)
 	_exterior.add_child(board)
+
+	_add_boundary_walls(_exterior, EXTERIOR_BOUNDS)
+	_add_solid_collider(_exterior, SHOP_BODY_RECT)
 
 func _build_shop_facade() -> Node2D:
 	var facade := Node2D.new()
@@ -108,6 +114,43 @@ func _build_interior() -> void:
 	_shop_entry_marker.name = "EntryMarker"
 	_shop_entry_marker.position = Vector2(160, 180)
 	_interior.add_child(_shop_entry_marker)
+
+	_add_boundary_walls(_interior, INTERIOR_BOUNDS)
+
+## Frames `bounds` with four thin StaticBody2D wall segments so the PC (and wandering
+## Villagers) can't walk off the edge of the plaza/shop floor. Segments sit flush against
+## the outside of `bounds`, extended past the corners so they don't leave diagonal gaps.
+func _add_boundary_walls(parent: Node2D, bounds: Rect2) -> void:
+	var center: Vector2 = bounds.get_center()
+	var extended_width: float = bounds.size.x + WALL_THICKNESS * 2.0
+	var extended_height: float = bounds.size.y + WALL_THICKNESS * 2.0
+	_add_wall(parent, Vector2(bounds.position.x - WALL_THICKNESS / 2.0, center.y), Vector2(WALL_THICKNESS, extended_height))
+	_add_wall(parent, Vector2(bounds.end.x + WALL_THICKNESS / 2.0, center.y), Vector2(WALL_THICKNESS, extended_height))
+	_add_wall(parent, Vector2(center.x, bounds.position.y - WALL_THICKNESS / 2.0), Vector2(extended_width, WALL_THICKNESS))
+	_add_wall(parent, Vector2(center.x, bounds.end.y + WALL_THICKNESS / 2.0), Vector2(extended_width, WALL_THICKNESS))
+
+func _add_wall(parent: Node2D, center: Vector2, size: Vector2) -> void:
+	var wall := StaticBody2D.new()
+	var shape := CollisionShape2D.new()
+	var rectangle := RectangleShape2D.new()
+	rectangle.size = size
+	shape.shape = rectangle
+	wall.add_child(shape)
+	wall.position = center
+	parent.add_child(wall)
+
+## A solid, walk-blocking StaticBody2D matching `rect` — used for the shop building's
+## footprint so the PC can't walk onto/through it (entry is via the Door's proximity
+## interact, not by physically walking through the wall).
+func _add_solid_collider(parent: Node2D, rect: Rect2) -> void:
+	var body := StaticBody2D.new()
+	var shape := CollisionShape2D.new()
+	var rectangle := RectangleShape2D.new()
+	rectangle.size = rect.size
+	shape.shape = rectangle
+	shape.position = rect.get_center()
+	body.add_child(shape)
+	parent.add_child(body)
 
 func _build_pc() -> void:
 	_pc = PCController.new()
@@ -161,7 +204,7 @@ func _build_ui() -> void:
 func _wire_doors() -> void:
 	var shop_door := Door.new()
 	shop_door.name = "ShopDoor"
-	shop_door.global_position = Vector2(515, 120)
+	shop_door.global_position = Vector2(525, 200)
 	shop_door.current_area = _exterior
 	shop_door.target_area = _interior
 	shop_door.entry_marker = _shop_entry_marker
@@ -185,6 +228,17 @@ func _wire_doors() -> void:
 	exit_door.target_camera_limits = EXTERIOR_BOUNDS
 	exit_door.pc = _pc
 	_interior.add_child(exit_door)
+
+	var exit_arrow := Polygon2D.new()
+	exit_arrow.name = "ExitArrow"
+	exit_arrow.color = Color(1.0, 0.95, 0.4)
+	exit_arrow.modulate.a = 0.2
+	exit_arrow.polygon = PackedVector2Array([
+		Vector2(-4, -15), Vector2(4, -15), Vector2(4, 5),
+		Vector2(10, 5), Vector2(0, 20), Vector2(-10, 5), Vector2(-4, 5),
+	])
+	exit_door.add_child(exit_arrow)
+	exit_door.highlight_visual = exit_arrow
 
 func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> DialogueSet:
 	var greeting := DialogueLine.new()
@@ -222,12 +276,23 @@ func _on_board_opened(entries: Array[QuestBoardEntry]) -> void:
 func _process(_delta: float) -> void:
 	if _dialogue_box.is_open():
 		_interact_prompt.hide_prompt()
+		_set_highlighted_target(null)
 		return
 	var target: Interactable = _pc.nearest_interactable()
 	if target != null:
 		_interact_prompt.show_prompt(target.prompt_text)
 	else:
 		_interact_prompt.hide_prompt()
+	_set_highlighted_target(target)
+
+func _set_highlighted_target(target: Interactable) -> void:
+	if target == _highlighted_target:
+		return
+	if _highlighted_target != null:
+		_highlighted_target.set_highlighted(false)
+	if target != null:
+		target.set_highlighted(true)
+	_highlighted_target = target
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not event.is_action_pressed("interact"):

@@ -29,6 +29,19 @@ func _ready() -> void:
 	_home_position = global_position
 	_wander_target = global_position
 
+	var body_shape := CollisionShape2D.new()
+	var capsule := CapsuleShape2D.new()
+	capsule.radius = 8.0
+	capsule.height = 20.0
+	body_shape.shape = capsule
+	add_child(body_shape)
+
+	var visual := ColorRect.new()
+	visual.color = Color(0.35, 0.5, 0.65)
+	visual.position = Vector2(-8, -12)
+	visual.size = Vector2(16, 24)
+	add_child(visual)
+
 	var interaction_zone := Interactable.new()
 	interaction_zone.name = "InteractionZone"
 	interaction_zone.prompt_text = "Talk"

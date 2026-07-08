@@ -34,6 +34,12 @@ func _ready() -> void:
 func interact() -> void:
 	interacted.emit()
 
+## Called by callers that track "nearest interactable" (town_demo.gd's _process) so the
+## world can visually indicate what's currently in interact range. No-op by default —
+## override where a subclass has a visual to react (e.g. Door's exit-arrow indicator).
+func set_highlighted(_active: bool) -> void:
+	pass
+
 ## Returns whichever candidate is closest to from_position, or null if candidates is
 ## empty. Pure/static so it's unit-testable without a live physics query.
 static func nearest(candidates: Array[Interactable], from_position: Vector2) -> Interactable:
