@@ -5,6 +5,9 @@ extends Interactable
 ## visibility/process toggle + PC teleport + camera-bounds swap. One script handles BOTH
 ## directions (shop entry AND shop exit) — town_demo.gd configures two instances of this
 ## same class with their current_area/target_area swapped.
+##
+## highlight_visual/set_highlighted() are inherited from Interactable
+## (2026-07-08-overworld-demo-prototype-design.md §5) — Door doesn't declare its own copy.
 
 @export var current_area: Node2D
 @export var target_area: Node2D
@@ -13,20 +16,8 @@ extends Interactable
 @export var target_camera_limits: Rect2 = Rect2()
 @export var pc: Node2D
 
-## Optional exit/entry indicator (e.g. the interior exit arrow) — dims by default, brightens
-## when the PC is in interact range. Left null for doors with no such visual (the shop's
-## exterior entry already reads clearly via the facade's drawn door rectangle).
-@export var highlight_visual: CanvasItem
-
-const DIM_ALPHA: float = 0.2
-
 func _init() -> void:
 	prompt_text = "Open"
-
-func set_highlighted(active: bool) -> void:
-	if not is_instance_valid(highlight_visual):
-		return
-	highlight_visual.modulate.a = 1.0 if active else DIM_ALPHA
 
 ## Flips visibility/processing between the two areas. Pure/static so it's unit-testable
 ## without a live scene tree.

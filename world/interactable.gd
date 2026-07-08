@@ -2,9 +2,9 @@ class_name Interactable
 extends Area2D
 
 ## Base interaction hook for the demo town (spec §4). Stationary interactables (Door,
-## AdventuringBoard) extend this directly and override interact(). Moving interactables
-## (Villager) instead ADD a plain Interactable as a child node and connect to its
-## `interacted` signal, since a CharacterBody2D can't also be an Area2D.
+## AdventuringBoard, SceneExit) extend this directly and override interact(). Moving
+## interactables (Villager) instead ADD a plain Interactable as a child node and connect to
+## its `interacted` signal, since a CharacterBody2D can't also be an Area2D.
 ##
 ## Sets its own collision shape/layer in _ready() so every subclass and every composed
 ## child gets working overlap detection for free (layer 2 — see PCController's
@@ -15,6 +15,14 @@ extends Area2D
 
 ## Radius of the default collision circle created in _ready().
 @export var interaction_radius: float = 16.0
+
+## Optional highlight visual (e.g. an exit arrow) — dims by default, brightens when the PC
+## is in interact range. Left null for interactables with no such visual. Moved up from Door
+## (2026-07-08-overworld-demo-prototype-design.md §5) so SceneExit gets the same behavior for
+## free instead of re-declaring it.
+@export var highlight_visual: CanvasItem
+
+const DIM_ALPHA: float = 0.2
 
 ## Emitted by the default interact() implementation. Subclasses that override interact()
 ## may skip emitting this if they don't need external listeners.
@@ -34,11 +42,13 @@ func _ready() -> void:
 func interact() -> void:
 	interacted.emit()
 
-## Called by callers that track "nearest interactable" (town_demo.gd's _process) so the
-## world can visually indicate what's currently in interact range. No-op by default —
-## override where a subclass has a visual to react (e.g. Door's exit-arrow indicator).
-func set_highlighted(_active: bool) -> void:
-	pass
+## Called by callers that track "nearest interactable" (town_demo.gd's/overworld_demo.gd's
+## _process) so the world can visually indicate what's currently in interact range. No-op if
+## no highlight_visual is assigned.
+func set_highlighted(active: bool) -> void:
+	if not is_instance_valid(highlight_visual):
+		return
+	highlight_visual.modulate.a = 1.0 if active else DIM_ALPHA
 
 ## Returns whichever candidate is closest to from_position, or null if candidates is
 ## empty. Pure/static so it's unit-testable without a live physics query.

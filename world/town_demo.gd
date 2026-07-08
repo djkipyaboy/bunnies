@@ -208,7 +208,7 @@ func _wire_doors() -> void:
 	var exit_arrow := Polygon2D.new()
 	exit_arrow.name = "ExitArrow"
 	exit_arrow.color = Color(1.0, 0.95, 0.4)
-	exit_arrow.modulate.a = Door.DIM_ALPHA
+	exit_arrow.modulate.a = Interactable.DIM_ALPHA
 	exit_arrow.polygon = PackedVector2Array([
 		Vector2(-4, -15), Vector2(4, -15), Vector2(4, 5),
 		Vector2(10, 5), Vector2(0, 20), Vector2(-10, 5), Vector2(-4, 5),
