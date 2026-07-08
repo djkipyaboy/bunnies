@@ -379,28 +379,60 @@ to a full **4-ability + Ultimate kit**, unlocking **L1 (current base) → L3 (Ul
 abilities remains an `[ASSUMPTION]` (CLAUDE.md §4) pending further tuning, but round-3 playtest found no
 functional bugs left to chase.
 
-**Next (as of 2026-07-07): the combat playtest thread is on hold — active work moves to the FIRST
-PLAYABLE VILLAGE/SETTLEMENT** (out-of-combat: town layout, PC overworld movement, NPC/environment
-interaction). **Brainstorm + spec done (2026-07-07)** via the visual-companion-assisted brainstorm —
-spec at `docs/superpowers/specs/2026-07-07-demo-town-prototype-design.md`, locked decisions mirrored into
-`docs/design-bible/11-world-and-overworld.md` §9. Scope: a throwaway demo town (no content commitment) that
-locks the **movement/interaction/scene-architecture convention** — Paper Mario TTYD-style 2D-with-depth
-interiors (Rogueport-referenced), free-continuous movement, an `Interactable` base (doors/wandering
-villagers/Adventuring Board), Resource-based dialogue data, and same-map building transitions with **no load
-screen** (load screens are reserved for overworld↔town and anything→combat, once the overworld exists).
-Overworld travel (Chrono Trigger/FF-style tilted terrain) is locked as a style but explicitly NOT built this
-pass. Party chime-in dialogue (KOTOR companions) is deferred until the companion-recruitment system exists in
-code. **Built (Tasks 1-12 complete, all headless-reviewed) and automated-test-green — NOT YET manually
-playtested.** A human still needs to run `Godot_v4.6.3-stable_win64_console.exe --path . res://world/town_demo.tscn`
-and go through the movement/dialogue/door-transition/wandering-NPC checklist in
-`docs/superpowers/plans/2026-07-07-demo-town-prototype.md` Task 11 before this reads as playtested.
-One known likely issue for that playtest: the PC is a scene-tree sibling of `Exterior`/`ShopInterior`
-(not a child of either), so simply enabling `y_sort_enabled` on `_exterior` per the plan's own
-suggestion will NOT make the PC render correctly behind/in front of the shop facade — expect to need
-a real fix there (either `y_sort_enabled` on the `TownDemo` root, or reparenting the PC into the
-active area) once the depth-occlusion is actually seen running. The remaining
-combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish, `Bunnies_Playtest_Tracker.xlsx`
-follow-ups) are parked, not abandoned — resume alongside town work whenever it's convenient.
+**SHIPPED 2026-07-08 — FIRST PLAYABLE VILLAGE/SETTLEMENT, town demo + overworld demo, both human-playtested
+and confirmed working.** (Out-of-combat: town layout, PC movement, NPC/environment interaction, and now a
+connecting overworld map — the combat playtest thread stays on hold while this out-of-combat arc plays out.)
+
+**Town demo** (`world/town_demo.tscn`) — brainstorm + spec `docs/superpowers/specs/2026-07-07-demo-town-
+prototype-design.md`, plan `docs/superpowers/plans/2026-07-07-demo-town-prototype.md` (12 tasks, all
+headless-reviewed). Locks the **movement/interaction/scene-architecture convention**: Paper Mario TTYD-style
+2D-with-depth interiors (Rogueport-referenced), free-continuous movement, an `Interactable` base (doors/
+wandering villagers/Adventuring Board), Resource-based dialogue data, and same-map building transitions with
+**no load screen**. Party chime-in dialogue (KOTOR companions) stays deferred until the companion-recruitment
+system exists in code. **Three human-playtest rounds, all fixed and reconfirmed:** (1) villagers/Shopkeeper/
+Adventuring Board were completely invisible (no visual or collision — only the PC ever got one) — fixed by
+giving `Villager`/`AdventuringBoard` their own visuals+colliders; (2) the shop door's interact point was
+positioned near the roof, not the drawn doorway — fixed to the door rectangle's actual center; (3) there was
+no physical collision anywhere (PC could walk through the shop and off the plaza) — added via a new
+`world/world_geometry.gd` (`WorldGeometry.add_boundary_walls`/`add_solid_collider`), which in turn caused a
+**Critical bug caught by code review**: hiding the shop interior via `visible = false`/
+`PROCESS_MODE_DISABLED` does NOT disable Godot physics collision, so the interior's walls leaked into the
+plaza's shared space — fixed by moving `INTERIOR_BOUNDS` to a disjoint region of world space, with a
+regression test (`tests/test_world_geometry.gd`) asserting the two never overlap; (4) added a dim/bright
+exit-arrow indicator (`Interactable.set_highlighted()`) for the shop's interior exit; (5) a Villager kept
+wandering (and physically shoving the PC) during its own dialogue — fixed via `Villager.set_wander_paused()`,
+called on `DialogueBox` open/close. **Known, deliberately-unfixed gap:** the PC is a scene-tree sibling of
+`Exterior`/`ShopInterior` (not a child of either), so `y_sort_enabled` alone won't make the PC render
+correctly behind/in front of the shop facade — needs a real reparent-and-sort fix once someone picks it back
+up; not blocking, the player confirmed everything else reads correctly.
+
+**Overworld demo** (`world/overworld_demo.tscn`, built 2026-07-08 immediately after the town fixes) —
+brainstorm + spec `docs/superpowers/specs/2026-07-08-overworld-demo-prototype-design.md`, plan
+`docs/superpowers/plans/2026-07-08-overworld-demo-prototype.md` (5 tasks, subagent-driven, every task +
+the final whole-branch review came back clean on first pass — no fixes needed). A **flat top-down** map
+(the design bible's locked Chrono Trigger/FF-style tilted/dimetric overworld look is deliberately deferred
+to a later visual pass — this prototype proves the navigation/scene-linking pattern, not the final look)
+with a river (two `WorldGeometry` colliders forming a gap = the only crossable land bridge), a mountain, and
+scattered trees as real physical obstacles, plus a village landmark. Introduces the **cross-scene
+transition** pattern (distinct from the town's same-scene, no-load door toggle): a new `FadeOverlay`
+(fades in on scene load, exposes an awaitable `fade_out()`) and `SceneExit` (`extends Interactable`, awaits
+the fade then calls `get_tree().change_scene_to_file()`) — used bidirectionally, `VillageEntrance` on the
+overworld → `town_demo.tscn`, and a new `TownExit` in the town plaza → `overworld_demo.tscn`. Also
+refactored `highlight_visual`/`DIM_ALPHA`/`set_highlighted()` up from `Door` to the shared `Interactable`
+base so `SceneExit` gets the same dim/bright arrow behavior for free. **Human-playtested and confirmed
+working exactly as intended** — the river only crosses at the bridge, the village transitions to town, and
+`TownExit` transitions back, both fades reading correctly. One open design note surfaced by review (not a
+bug): `VillageEntrance` has no highlight arrow (unlike `TownExit`) per the approved plan — confirmed fine at
+playtest, the village's own facade reads as enterable without one.
+
+**Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
+interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
+ready to build real content on top of. Candidates for whenever work resumes here: the PC/building y-sort fix
+(town demo, above), building out real settlement content (docs/design-bible/ roster drafts are still
+sitting as proposals, see status below), or picking the tilted/dimetric overworld visual style back up. The
+remaining combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish,
+`Bunnies_Playtest_Tracker.xlsx` follow-ups) are parked, not abandoned — resume alongside town/overworld work
+whenever it's convenient.
 
 **Still-open per-class playtests (do alongside, not blocking):** the **Seer/Ranger Ultimates** have not had a
 dedicated human playtest yet. Tune `[ASSUMPTION]` numbers (stats/HP/costs, Earthquake stun-bypasses-anti-lock,
