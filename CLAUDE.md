@@ -390,7 +390,15 @@ villagers/Adventuring Board), Resource-based dialogue data, and same-map buildin
 screen** (load screens are reserved for overworld↔town and anything→combat, once the overworld exists).
 Overworld travel (Chrono Trigger/FF-style tilted terrain) is locked as a style but explicitly NOT built this
 pass. Party chime-in dialogue (KOTOR companions) is deferred until the companion-recruitment system exists in
-code. **Next action: write the implementation plan (§5 methodology step 2), then build.** The remaining
+code. **Built (Tasks 1-12 complete, all headless-reviewed) and automated-test-green — NOT YET manually
+playtested.** A human still needs to run `Godot_v4.6.3-stable_win64_console.exe --path . res://world/town_demo.tscn`
+and go through the movement/dialogue/door-transition/wandering-NPC checklist in
+`docs/superpowers/plans/2026-07-07-demo-town-prototype.md` Task 11 before this reads as playtested.
+One known likely issue for that playtest: the PC is a scene-tree sibling of `Exterior`/`ShopInterior`
+(not a child of either), so simply enabling `y_sort_enabled` on `_exterior` per the plan's own
+suggestion will NOT make the PC render correctly behind/in front of the shop facade — expect to need
+a real fix there (either `y_sort_enabled` on the `TownDemo` root, or reparenting the PC into the
+active area) once the depth-occlusion is actually seen running. The remaining
 combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish, `Bunnies_Playtest_Tracker.xlsx`
 follow-ups) are parked, not abandoned — resume alongside town work whenever it's convenient.
 
