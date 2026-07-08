@@ -17,6 +17,7 @@ signal dialogue_requested(dialogue_set: DialogueSet)
 var _home_position: Vector2
 var _wander_target: Vector2
 var _pause_timer: float = 0.0
+var _wander_paused: bool = false
 
 ## Picks a point within leash_radius of origin, given an explicit angle and distance
 ## fraction (both supplied by the caller so this stays a pure, deterministic,
@@ -48,8 +49,14 @@ func _ready() -> void:
 	add_child(interaction_zone)
 	interaction_zone.interacted.connect(_on_interacted)
 
+## Stops this Villager's wandering (e.g. while the PC is talking to it) so it can't drag
+## the PC along via move_and_slide()'s push-out while a conversation is in progress. Leaves
+## its collision shape untouched — it still blocks the PC, same as any other obstacle.
+func set_wander_paused(paused: bool) -> void:
+	_wander_paused = paused
+
 func _physics_process(delta: float) -> void:
-	if not can_wander:
+	if not can_wander or _wander_paused:
 		return
 	if global_position.distance_to(_wander_target) < 2.0:
 		_pause_timer -= delta

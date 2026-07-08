@@ -26,6 +26,7 @@ var _board_panel: AdventuringBoardPanel
 var _interact_prompt: InteractPrompt
 var _shop_entry_marker: Marker2D
 var _highlighted_target: Interactable
+var _talking_to: Villager
 
 func _ready() -> void:
 	_build_exterior()
@@ -60,7 +61,7 @@ func _build_exterior() -> void:
 		villager.name = "Villager%d" % i
 		villager.global_position = villager_data[i]["pos"]
 		villager.dialogue = _make_dialogue(villager_data[i]["line"])
-		villager.dialogue_requested.connect(_on_dialogue_requested)
+		villager.dialogue_requested.connect(_on_dialogue_requested.bind(villager))
 		_exterior.add_child(villager)
 
 	var board := AdventuringBoard.new()
@@ -113,7 +114,7 @@ func _build_interior() -> void:
 	shopkeeper.can_wander = false
 	shopkeeper.global_position = Vector2(960, 100)
 	shopkeeper.dialogue = _make_dialogue("Welcome! Nothing's actually for sale yet — just testing the shop layout.", "Shopkeeper")
-	shopkeeper.dialogue_requested.connect(_on_dialogue_requested)
+	shopkeeper.dialogue_requested.connect(_on_dialogue_requested.bind(shopkeeper))
 	_interior.add_child(shopkeeper)
 
 	_shop_entry_marker = Marker2D.new()
@@ -195,6 +196,7 @@ func _build_ui() -> void:
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
 	_dialogue_box.custom_minimum_size = Vector2(600, 100)
+	_dialogue_box.closed.connect(_on_dialogue_closed)
 	ui.add_child(_dialogue_box)
 
 	_board_panel = AdventuringBoardPanel.new()
@@ -272,8 +274,17 @@ func _make_quest_entries() -> Array[QuestBoardEntry]:
 		entries.append(entry)
 	return entries
 
-func _on_dialogue_requested(dialogue_set: DialogueSet) -> void:
+## Also pauses the talking Villager's own wandering — otherwise it can keep moving (and,
+## via move_and_slide()'s push-out, drag the PC along with it) for the whole conversation.
+func _on_dialogue_requested(dialogue_set: DialogueSet, villager: Villager) -> void:
+	_talking_to = villager
+	villager.set_wander_paused(true)
 	_dialogue_box.open(dialogue_set)
+
+func _on_dialogue_closed() -> void:
+	if _talking_to != null:
+		_talking_to.set_wander_paused(false)
+		_talking_to = null
 
 func _on_board_opened(entries: Array[QuestBoardEntry]) -> void:
 	_board_panel.open_for(entries)
