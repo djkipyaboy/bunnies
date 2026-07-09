@@ -401,10 +401,8 @@ plaza's shared space — fixed by moving `INTERIOR_BOUNDS` to a disjoint region 
 regression test (`tests/test_world_geometry.gd`) asserting the two never overlap; (4) added a dim/bright
 exit-arrow indicator (`Interactable.set_highlighted()`) for the shop's interior exit; (5) a Villager kept
 wandering (and physically shoving the PC) during its own dialogue — fixed via `Villager.set_wander_paused()`,
-called on `DialogueBox` open/close. **Known, deliberately-unfixed gap:** the PC is a scene-tree sibling of
-`Exterior`/`ShopInterior` (not a child of either), so `y_sort_enabled` alone won't make the PC render
-correctly behind/in front of the shop facade — needs a real reparent-and-sort fix once someone picks it back
-up; not blocking, the player confirmed everything else reads correctly.
+called on `DialogueBox` open/close. **The PC/actor Y-sort gap noted here is now fixed — see the
+2026-07-08 status entry below.**
 
 **Overworld demo** (`world/overworld_demo.tscn`, built 2026-07-08 immediately after the town fixes) —
 brainstorm + spec `docs/superpowers/specs/2026-07-08-overworld-demo-prototype-design.md`, plan
@@ -425,11 +423,25 @@ working exactly as intended** — the river only crosses at the bridge, the vill
 bug): `VillageEntrance` has no highlight arrow (unlike `TownExit`) per the approved plan — confirmed fine at
 playtest, the village's own facade reads as enterable without one.
 
+**SHIPPED 2026-07-08 — PC/ACTOR Y-SORT FIX (town + overworld), human-playtested and confirmed.** Closed
+the known gap above and the identical latent issue in the overworld: spec
+`docs/superpowers/specs/2026-07-08-town-overworld-y-sort-fix-design.md`, plan
+`docs/superpowers/plans/2026-07-08-town-overworld-y-sort-fix.md` (4 tasks, subagent-driven, every task +
+the final whole-branch review came back clean — no fixes needed). Neither scene ever actually set
+`y_sort_enabled`, and the PC was a root-level scene-tree sibling of its area container rather than a real
+child of it, so it always drew on top regardless of Y position. Fix: `Exterior`/`ShopInterior`
+(`world/town_demo.gd`) and `World` (`world/overworld_demo.gd`) are now real Y-sort containers with the PC
+parented inside them at build time; `Door.interact()` (`world/door.gd`) now reparents the PC into the
+target area on every same-scene transition so it stays a live Y-sort member through shop entry/exit.
+**Human-playtested and confirmed working** — in `town_demo.tscn` the PC now correctly draws behind/in
+front of wandering Villagers and the Shopkeeper depending on approach angle; `overworld_demo.tscn` (bridge,
+obstacles, village transition) still plays correctly with no regressions.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
-ready to build real content on top of. Candidates for whenever work resumes here: the PC/building y-sort fix
-(town demo, above), building out real settlement content (docs/design-bible/ roster drafts are still
-sitting as proposals, see status below), or picking the tilted/dimetric overworld visual style back up. The
+ready to build real content on top of. Candidates for whenever work resumes here: building out real
+settlement content (docs/design-bible/ roster drafts are still sitting as proposals, see status below), or
+picking the tilted/dimetric overworld visual style back up. The
 remaining combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish,
 `Bunnies_Playtest_Tracker.xlsx` follow-ups) are parked, not abandoned — resume alongside town/overworld work
 whenever it's convenient.
