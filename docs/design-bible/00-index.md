@@ -59,6 +59,7 @@ build** (exactly how combat features ship). Status is tracked in the table below
 |---|---|---|---|
 | `10-storyline` | 📖 | Storyline & narrative | 🟨 first dump captured, brief structured — awaiting your review |
 | `11-world-and-overworld` | 📖 | World structure, out-of-combat loop, collectibles | 🟨 presentation/camera/movement locked 2026-07-07 (§9) — world-shape dump (§1) still open |
+| `13-world-atlas-and-regions` | 📖 | Continents/regions/towns/races-per-place dossiers | 🟨 template + first region/town (port town + Pirate Faction) drafted — awaiting your reaction |
 | `12-companions-and-party` | ⚙️ | KOTOR-style recruitable companions + party management | 📝 seeded |
 | `20-character-creation` | ⚙️ | PC creation flow | 📝 seeded |
 | `21-stats-and-attributes` | ⚙️ | The 5+1 stats out of combat | 📝 seeded |

@@ -59,6 +59,10 @@ redemption-theme payoff (a Wildcat who broke from the Wildcat's own rule). **Tot
 | `comp_turtle_01` | [name TBD] | Turtle | 🟦 TBD | 🟦 TBD | |
 | `comp_wildcat_01` | [name TBD] | Wildcat | 🟦 TBD | 🟦 **Side quest**, not the main spine | The sole exception to the "Good six" rule — the antagonist race's redemption counterpoint |
 
+🟦 **One of the five still-open slots (Hare/Otter/Badger/Mouse/Turtle) is a Chancer**, recruited from the
+Pirate Faction at the port town ([[13-world-atlas-and-regions]] §5) — **which race gets that slot is still
+undecided.**
+
 🟦 *Also still open from the earlier dump: someone tied to [ORG] (possibly the Leader), and at least one
 "redeemable" ex-enemy per the redemption theme ([[10-storyline]] §7) — these may or may not overlap with the
 race slots above (e.g. the [ORG Leader] could BE the Hare/Otter/etc. slot rather than an extra companion).

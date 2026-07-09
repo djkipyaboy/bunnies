@@ -14,6 +14,10 @@ adders, ravens, searats, a warlord… plus any signature named bosses. Bullet fr
 species list from [[10-storyline]] §6 (Bat-folk called out as an example), not just First-9/classic-Redwall
 vermin. Enemies aren't restricted the way companions are (§ below) — any species can be a threat.
 
+🟦 **The Tainted Fleet** (flagged 2026-07-09 via [[13-world-atlas-and-regions]] §5) — corrupted sailors/sea
+creatures serving the Wildcat, the Pirate Faction's real enemy off the Saltmere Coast. Not authored yet;
+likely a later/climax-adjacent chapter batch given its dark-continent ties.
+
 &nbsp;
 
 &nbsp;

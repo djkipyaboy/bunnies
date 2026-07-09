@@ -21,7 +21,9 @@
 - 💡 **Abbey/hub upgrade system** (Paper Mario Flipside→Flopside): the hub unlocks wings/vendors as you
   progress, rewarding return trips. Pairs with [[11-world-and-overworld]] §2.
 - 💡 **Faction reputation.** Standing with woodlander orders / reformed-vermin clans changes prices, recruits,
-  quests — a natural KOTOR-adjacent layer on top of [[10-storyline]] factions.
+  quests — a natural KOTOR-adjacent layer on top of [[10-storyline]] factions. 🔬 *Now has a concrete pull:
+  [[13-world-atlas-and-regions]]'s Pirate Faction is explicitly "friendly once trust is earned through story
+  actions" — nudges this toward ⬆️ whenever that chapter gets built.*
 - 💡 **Dialogue & choice system** (the engine itself): branching, skill/stat-gated lines, alignment. Big; it's
   the substrate for storyline + companions + NPCs. **Likely ⬆️ early if the story is branching.**
 - 💡 **Cooking** (Redwall LOVES food): consumables crafted from gathered ingredients — a flavorful sub-track of
