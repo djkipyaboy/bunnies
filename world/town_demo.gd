@@ -41,6 +41,7 @@ func _ready() -> void:
 func _build_exterior() -> void:
 	_exterior = Node2D.new()
 	_exterior.name = "Exterior"
+	_exterior.y_sort_enabled = true
 	add_child(_exterior)
 
 	var ground := ColorRect.new()
@@ -101,6 +102,7 @@ func _build_shop_facade() -> Node2D:
 func _build_interior() -> void:
 	_interior = Node2D.new()
 	_interior.name = "ShopInterior"
+	_interior.y_sort_enabled = true
 	add_child(_interior)
 
 	var floor_rect := ColorRect.new()
@@ -142,7 +144,7 @@ func _build_pc() -> void:
 	visual.size = Vector2(16, 24)
 	_pc.add_child(visual)
 
-	add_child(_pc)
+	_exterior.add_child(_pc)
 
 func _build_camera() -> void:
 	_camera = Camera2D.new()
