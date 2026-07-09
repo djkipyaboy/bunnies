@@ -36,6 +36,7 @@ func _ready() -> void:
 func _build_world() -> void:
 	_world = Node2D.new()
 	_world.name = "World"
+	_world.y_sort_enabled = true
 	add_child(_world)
 
 	var ground := ColorRect.new()
@@ -149,7 +150,7 @@ func _build_pc() -> void:
 	visual.size = Vector2(16, 24)
 	_pc.add_child(visual)
 
-	add_child(_pc)
+	_world.add_child(_pc)
 
 func _build_camera() -> void:
 	_camera = Camera2D.new()
