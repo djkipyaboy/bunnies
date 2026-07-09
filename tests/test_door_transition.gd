@@ -21,6 +21,7 @@ func _init() -> void:
 	# Instance behavior — interact() wires toggle_areas + PC teleport + camera bounds.
 	var pc := Node2D.new()
 	pc.global_position = Vector2(999, 999)
+	exterior.add_child(pc)
 	var entry_marker := Marker2D.new()
 	entry_marker.global_position = Vector2(160, 180)
 	var camera := Camera2D.new()
@@ -37,6 +38,7 @@ func _init() -> void:
 	_check(not exterior.visible, "interact() hides the current area")
 	_check(interior.visible, "interact() shows the target area")
 	_check(pc.global_position == Vector2(160, 180), "interact() teleports the PC to the entry marker")
+	_check(pc.get_parent() == interior, "interact() reparents the PC into the target area")
 	_check(camera.limit_left == 0 and camera.limit_top == 0, "interact() sets the camera's top-left bound")
 	_check(camera.limit_right == 320 and camera.limit_bottom == 240, "interact() sets the camera's bottom-right bound")
 
@@ -54,13 +56,13 @@ func _init() -> void:
 	_check(is_equal_approx(arrow.modulate.a, Door.DIM_ALPHA), "set_highlighted(false) dims the highlight_visual back down")
 
 	# None of these Node-derived objects were ever added to a tree — free them explicitly
-	# or the process reports leaked instances at exit.
+	# or the process reports leaked instances at exit. `pc` is now a child of `interior`, so
+	# freeing `interior` cascades to free `pc` too — an explicit pc.free() here would double-free.
 	arrow.free()
 	bare_door.free()
 	door.free()
 	camera.free()
 	entry_marker.free()
-	pc.free()
 	interior.free()
 	exterior.free()
 	quit()

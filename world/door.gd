@@ -30,6 +30,7 @@ static func toggle_areas(current_area_node: Node2D, target_area_node: Node2D) ->
 func interact() -> void:
 	toggle_areas(current_area, target_area)
 	pc.global_position = entry_marker.global_position
+	pc.reparent(target_area, true)
 	camera.limit_left = int(target_camera_limits.position.x)
 	camera.limit_top = int(target_camera_limits.position.y)
 	camera.limit_right = int(target_camera_limits.end.x)
