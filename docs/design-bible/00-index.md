@@ -68,10 +68,10 @@ build** (exactly how combat features ship). Status is tracked in the table below
 | `25-inventory-and-storage` | ⚙️ | Personal + cross-character inventory | 📝 seeded |
 | `26-banking-cross-character` | ⚙️ | The cross-character vault (replayability spine) | 📝 seeded |
 | `27-crafting` | ⚙️ | Reel-mod crafting + salvage | 📝 seeded |
-| `28-encounter-design-framework` | ⚙️ | Boss parts/phases, multi-target, encounter variety | 📝 seeded |
-| `40-enemy-roster` | 🗂️ | Hundreds of designed enemies | 🟨 first draft batch added — awaiting your reaction |
+| `28-encounter-design-framework` | ⚙️ | Boss parts/phases, multi-target, encounter variety | 🟨 first worked example (ch.1 combat tutorial) added — awaiting your reaction |
+| `40-enemy-roster` | 🗂️ | Hundreds of designed enemies | 🟨 "Wildcat's Talon" locked as ch.1 faction — awaiting more |
 | `41-npc-roster` | 🗂️ | Static merchants / townsfolk / quest-givers | 🟨 first draft rows added — awaiting your reaction |
-| `42-companion-roster` | 🗂️ | Recruitable allies | 🟨 first draft row added — awaiting your reaction |
+| `42-companion-roster` | 🗂️ | Recruitable allies | 🟨 Rrrobert locked; one-per-race plan added — awaiting your reaction |
 | `99-parking-lot` | — | Stray ideas + systems you may have left off | 💡 my proposals |
 
 **Suggested first three to work** (highest leverage, everything else hangs off them):

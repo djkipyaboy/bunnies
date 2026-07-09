@@ -1,6 +1,6 @@
 # Encounter Design Framework (boss parts, phases, multi-target, variety) — Design Bible
 
-> **Style:** ⚙️ Systems Brief (proposals AGGRESSIVE) · **Status:** 📝 seeded
+> **Style:** ⚙️ Systems Brief (proposals AGGRESSIVE) · **Status:** 🟨 first worked example (ch.1 combat tutorial) added — awaiting your reaction
 > **Related:** `DESIGN.md`/`ARCHITECTURE.md` (combat) · [[11-world-and-overworld]] · [[40-enemy-roster]]
 > **Your direction:** *fluctuating enemy counts; combat scenarios designed as uniquely as possible — single
 > bosses with multiple targetable elements, multi-phase bosses, etc.*
@@ -67,8 +67,69 @@ result means* — they never replace the spin.
 ### 6. Data model sketch (→ Godot)
 💡 *`Combatant` gains `boss_group_id/is_part/core`; an `Encounter` resource = `{ combatants[], phases{}, special_mechanics[], rewards }`.* The combat scene already accepts arbitrary combatant lists.
 
-### 7. Open questions
+### 7. Worked example — Ch.1 Combat Tutorial encounter (locked shape, 2026-07-09)
+
+The first encounter authored against the template above, doubling as the game's mechanics tutorial. Roster =
+**Wildcat's Talon** ([[40-enemy-roster]]); companion = **Rrrobert** ([[42-companion-roster]]).
+
+1. **Identity & Fantasy** — the player's very first fight; teaches the spin, abilities, item use, targeting,
+   and (briefly) an Ultimate — all before any class exists. Campaign slot: ch.1 opening, right after character
+   creation. Feeling target: *"I can already do cool things, and this game has depth."*
+2. **Roster & Board** —
+   - **Phase 1 (2v2):** PC (starting weapon = **sword / bow / staff, player's choice** — weapon type only, no
+     class) + **Rrrobert** (Skirmisher, L1 kit) vs. **Talon Scout** + **Talon Archer**.
+   - **Phase 2 (2v3):** **Talon Leader** arrives, revitalizes the Scout & Archer → same PC + Rrrobert now
+     face all three.
+   - No boss parts/core here — straightforward roster, not a multi-part fight.
+3. **The Core Decision** — Phase 1 is pure onboarding (no real tactical question yet); Phase 2 introduces the
+   first real one: **focus the Talon Leader** (tutorial explicitly nudges the player to target him), teaching
+   that targeting is a deliberate choice, not automatic.
+4. **Phases** —
+   - **Phase 1, turns 1–3 (kept short by design):**
+     - **Turn 1 (PC):** only option is a **plain weapon spin** — no abilities/items yet. Teaches the base spin.
+     - **Turn 2 (Rrrobert, AI-scripted):** uses a **level-1 Skirmisher ability**, teaching the player what an
+       ability turn looks like before they're asked to use one themselves.
+     - **Turn 3 (PC):** a dedicated **"use an item" turn** — opens the (new, see below) in-combat item panel
+       and uses a consumable. 🟦 *Which item is TBD — player's call later; needs only to demo the panel.*
+     - Announce line: none needed — Talon Scout/Archer are simple enough Phase 1 has no phase-change event.
+   - **Transition:** short in-fiction beat — Talon Leader arrives and roars **"Fight for Your Lives!"**
+     ([[40-enemy-roster]] on-enter effect) — an intimidation-driven command, not encouragement, that bullies
+     the Scout & Archer back to full fighting shape → phase changes to 2v3. This IS a `BossPhase`-style
+     trigger even though Talon Leader isn't a boss — reuse the same `phase_changed` signal/UI treatment (§2)
+     for the free legibility win.
+   - **Phase 2:** the Bonus Meter is **pre-filled for tutorial purposes only** (not earned through play) so
+     the PC can immediately use a **temporary Ultimate** — see Special Mechanics below. Tutorial UI explicitly
+     encourages targeting the **Talon Leader**, teaching the click-to-target system from §-shipped conventions.
+5. **Special Mechanics** —
+   - **The "Classless Outlander" temp Ultimate** `[ASSUMPTION]` — a one-time, tutorial-only grant explained
+     in-fiction by the Outlander trait ([[10-storyline]] §4), NOT a real class Ultimate (PC hasn't picked a
+     class yet). Spec: **5 action reels total**, **all WILD**, **crit-biased** (reuse the shipped sticky-wild
+     crit-bias convention, e.g. Skirmisher/Warden precedent), **full damage to the targeted enemy** (steered
+     toward the Talon Leader) **+ half damage (`ceil`, per CLAUDE.md round-up convention) to every other
+     enemy struck** — i.e. Collateral Damage/Earthquake's splash shape, reused rather than reinvented. This
+     never recurs after the tutorial (no other "classless" Ultimate exists in the real kit).
+   - **Talon Leader's on-enter "Fight for Your Lives!"** — an intimidation-based forced rally (heals Scout &
+     Archer + a short Empowered buff, see [[40-enemy-roster]] `[ASSUMPTION]`) — his minions fear HIM, not PC.
+6. **Build Hooks** — none yet (PC is classless) — this encounter's job is to demo mechanics that recur all
+   game (abilities, items, targeting, Ultimates), not to reward a build.
+7. **Tuning Levers** `[ASSUMPTION]` — Talon Scout/Archer/Leader HP, rally heal/buff magnitude, temp-Ultimate
+   splash %, how full the pre-filled meter needs to be, whether Phase 1 can be lost (probably not — it's a
+   tutorial; a loss state here would need its own design pass).
+8. **Legibility Checklist** — item hover-tooltip (new UI, below), ability-turn framing for Rrrobert, the
+   phase-change announce beat for the Leader's arrival, target-highlight during the temp Ultimate — all reuse
+   shipped conventions except the new item panel.
+9. **Win / Lose / Flee / Rewards** — win = Talon Leader defeated (Scout/Archer are trash, don't gate the win);
+   no flee (tutorial); rewards are narrative only (leads into §1 step 4 aftermath), no loot — starter gear was
+   already chosen as the weapon pick in step 2.
+
+**New combat-UI requirement this encounter surfaces (not yet built):** an in-combat **item-use panel** —
+open-able inventory list, one row per item: small icon, item name, hover-over description, and a compact
+effect indicator (e.g. *[bottle icon]  Minor Healing Draught  +4–10 HP*). This is real future combat-code
+work, tracked in [[25-inventory-and-storage]] §9 — **not built yet**, deferred until combat-side work resumes.
+
+### 8. Open questions
 - ❓ Flee/retreat allowed? ❓ Environmental hazards/terrain in scope? ❓ Difficulty band targets (deferred-difficulty memory: build one default now).
+- ❓ Ch.1 tutorial: exact item for the "use an item" turn (§7 above); final Talon Leader name; exact rally/temp-Ultimate numbers.
 
 ### Scope / phase
 ✅ Boss-part primitive + data phases + archetypes 1–4 for early chapters; 5–6 as the framework matures.

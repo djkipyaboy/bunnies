@@ -49,8 +49,20 @@ gear carrying reel/stat affixes (protect build pieces from accidental sale).
 💡 *Per-character `inventory: Item[]` (weightless) + a party-shared `gold: int`; categories are an item
 enum, not separate containers.* Transfer = reassign owner; bank = move to the shared vault container.
 
-### 8. Open questions
+### 9. In-combat item-use panel (new requirement, surfaced 2026-07-09 by [[28-encounter-design-framework]] §7)
+
+✅ **Combat needs an openable item panel**, not just an out-of-combat inventory. Per-row: a small **icon**,
+the **item name**, a **hover-over description**, and a compact **effect indicator** (e.g. *[bottle icon] 
+Minor Healing Draught  +4–10 HP*) so the player can judge an item's combat value without opening a tooltip
+wall of text. First needed for the ch.1 Combat Tutorial's dedicated "use an item" turn — 🟦 *which item is
+TBD, player's call later.* **Not built yet** — this is real future `combat/` code (an item list UI +
+`Item` resource with a short effect-preview string), tracked as a backlog item until combat-side work
+resumes ([[bonus-meter-gear-stat-idea]] is the precedent for this kind of "raise again when combat resumes"
+note).
+
+### Open questions
 - ❓ Confirm no encumbrance & shared gold. ❓ Consumables: how many can a character hold/use per turn (ties to combat)?
+- ❓ What's the first item stocked for the ch.1 tutorial's item-use turn?
 
 ### Scope / phase
 ✅ Weightless per-character bags + shared gold + free in-party transfer + Stow for 1.0. ⏳ Encumbrance, bind rules = not planned (parked).
