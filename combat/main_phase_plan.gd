@@ -343,7 +343,7 @@ func commit() -> void:
 	if ability_staged and not ability_is_free():
 		match ability_id:
 			&"flurry":
-				combatant.try_splice_reel(combatant.weapon_type(), combatant.weapon.base_damage, ability_cost, reel_cap)
+				combatant.try_splice_reel(combatant.weapon_type(), combatant.weapon_effective_base_damage(), ability_cost, reel_cap)
 			&"rend":
 				combatant.try_rend_reel(combatant.weapon_type(), ability_cost, reel_cap)
 			&"heft":

@@ -6,6 +6,14 @@ extends RefCounted
 ## to its signals).
 
 # ---------------------------------------------------------------------------
+# Tunable constants (spec 2026-07-10 §5 — all [ASSUMPTION], tuned post-playtest)
+# ---------------------------------------------------------------------------
+
+## Weapon empowerment layer: +3%/level ABOVE level 1 (so level 1 is exactly neutral — no
+## existing test or combatant, which all default to level 1, sees any change).
+const WEAPON_LEVEL_DAMAGE_PCT: float = 0.03
+
+# ---------------------------------------------------------------------------
 # Signals
 # ---------------------------------------------------------------------------
 
@@ -297,6 +305,14 @@ func apply_luck() -> void:
 			f.multiplier = 2.0
 			reel.faces.append(f)
 		reel.faces.shuffle()
+
+## The equipped weapon's damage, scaled by the empowerment layer (spec §3.4): recomputed live from
+## [member level] every call — NOT a persisted "weapon level" — so swapping weapons or changing
+## level is always instantly reflected, never punished. Level 1 (the default) is exactly neutral.
+func weapon_effective_base_damage() -> float:
+	if weapon == null:
+		return 0.0
+	return weapon.base_damage * (1.0 + (level - 1) * WEAPON_LEVEL_DAMAGE_PCT)
 
 # ---------------------------------------------------------------------------
 # Effects & turn-order

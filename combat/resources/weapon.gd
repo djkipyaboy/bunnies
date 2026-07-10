@@ -10,3 +10,5 @@ extends Resource
 
 ## The Action reels this weapon spins in the Combat Phase. Size = the baseline reel band (2–5).
 @export var reels: Array[ActionReel] = []
+
+@export var rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON   # authored loot identity — sets affix budget, fixed, never changed by level

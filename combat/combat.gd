@@ -1253,7 +1253,7 @@ func _commit_main1() -> void:
 			# pattern above (rider.dot_base_damage) — without this, dot_base_damage stays at the
 			# Effect default of 0.0 and every Regen tick heals ceili(0.0 * fraction) = 0 (dead ability).
 			if _attacker.weapon != null:
-				regen.dot_base_damage = _attacker.weapon.base_damage
+				regen.dot_base_damage = _attacker.weapon_effective_base_damage()
 			ally.attach_effect(regen)
 			_log("  🌿 %s grants Regrowth to %s." % [_attacker.display_name, ally.display_name])
 		_attacker.regrowth_pending = false
@@ -1306,7 +1306,7 @@ func _do_spin() -> void:
 	var extra_lines: Array = []
 	if _attacker.loaded_dice_pending:
 		extra_lines.append(PaylineLibrary.bonus_line(weapon_count))
-	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon.base_damage, _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, extra_lines, true, dmg_mult)
+	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon_effective_base_damage(), _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, extra_lines, true, dmg_mult)
 	_attacker.loaded_dice_pending = false
 	# Post-spin Chancer pass (no-op for every other class — their flags are false). Overwrites attacks[i]
 	# IN PLACE so strips animate to the final index and damage applies once on settle.
@@ -1372,7 +1372,7 @@ func _do_spin() -> void:
 ## to the final index, damage applies once on settle, paylines score the final grid).
 func _apply_post_spin_rerolls(reels: Array[ActionReel], attacks: Array[CombatResolver.AttackResult], weapon_count: int) -> Array[int]:
 	var changed: Array[int] = []
-	var base: float = _attacker.weapon.base_damage
+	var base: float = _attacker.weapon_effective_base_damage()
 	var might: int = _attacker.effective_stats().might
 	if _attacker.reroll_pending:
 		var idx: int = Combatant.worst_reroll_index(attacks)
@@ -1454,7 +1454,7 @@ func _apply_attack(attack) -> void:
 				# A DoT (the Warrior's Rend → BLEED) bakes the caster's weapon base damage at apply time,
 				# so its per-turn damage scales off the attacker's weapon (spec §4B). Off the type chart.
 				if rider.kind == Effect.Kind.DAMAGE_OVER_TIME and _attacker.weapon != null:
-					rider.dot_base_damage = _attacker.weapon.base_damage
+					rider.dot_base_damage = _attacker.weapon_effective_base_damage()
 				t.attach_effect(rider)
 				_log("  %s is afflicted with %s (%d turns)." % [t.display_name, String(rider.id).to_upper(), rider.duration])
 				(_panels[t] as CombatantPanel).refresh_status()
@@ -1536,7 +1536,7 @@ func _on_paylines_resolved(hits: Array) -> void:
 			ReelFace.ResultTier.CRIT_SUCCESS:
 				var weapon_type: DamageType = _attacker.weapon.reels[0].damage_type if not _attacker.weapon.reels.is_empty() else null
 				var type_mult: float = weapon_type.multiplier_against(_defender.defense_type) if weapon_type != null else 1.0
-				var bonus: int = ceili(_attacker.weapon.base_damage * (float(hit.length) / 3.0) * type_mult)
+				var bonus: int = ceili(_attacker.weapon_effective_base_damage() * (float(hit.length) / 3.0) * type_mult)
 				_defender.take_damage(bonus)
 				_log("  ★ CRIT LINE (%d) %s → %d bonus damage!" % [hit.length, _describe_line(hit), bonus])
 				_append_banner("CRIT x%d" % hit.length)
@@ -1642,7 +1642,7 @@ func _finish_spin() -> void:
 	# SUCCESS → half-weapon shield, CRIT_SUCCESS → full-weapon shield, RALLYING_CRY_SHIELD_TURNS
 	# turns, higher-total-overrides.
 	if _attacker.rallying_cry_reel != null and _rallying_cry_tier != -1:
-		var base: float = _attacker.weapon.base_damage
+		var base: float = _attacker.weapon_effective_base_damage()
 		var amount: int = 0
 		if _rallying_cry_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 			amount = ceili(base)
