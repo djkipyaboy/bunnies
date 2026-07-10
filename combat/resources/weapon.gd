@@ -5,6 +5,9 @@ extends Resource
 ## The reel count is the weapon's baseline band (2–5); Main-Phase abilities add/subtract from it
 ## (deferred for the prototype). Each reel carries its own damage type (see [ActionReel]).
 
+## Shown in the paperdoll/Bag/Vault UI (spec 2026-07-10-equipment-inventory-banking-ui-design.md §3.1).
+@export var display_name: String = ""
+
 ## Base damage each landed reel multiplies by its face multiplier (DESIGN.md §4.5).
 @export var base_damage: float = 1.0
 

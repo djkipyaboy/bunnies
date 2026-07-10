@@ -317,6 +317,45 @@ func can_equip(g: Gear) -> bool:
 			return false
 	return true
 
+## Equips [param g] if can_equip() allows it. Returns whatever was previously equipped in that
+## slot (null if the slot was empty, or if the equip was rejected). Calls apply_stats() on success.
+func equip_gear(g: Gear) -> Gear:
+	if not can_equip(g):
+		return null
+	var displaced: Gear = null
+	for existing: Gear in gear:
+		if existing.slot == g.slot:
+			displaced = existing
+			break
+	if displaced != null:
+		gear.erase(displaced)
+	gear.append(g)
+	apply_stats()
+	return displaced
+
+## Removes and returns whatever is equipped in [param slot] (null if empty). Calls apply_stats().
+func unequip_gear(slot: Gear.Slot) -> Gear:
+	for existing: Gear in gear:
+		if existing.slot == slot:
+			gear.erase(existing)
+			apply_stats()
+			return existing
+	return null
+
+## Straight swap — Combatant.weapon is a single field, not a slotted array. Returns the previous weapon.
+func equip_weapon(w: Weapon) -> Weapon:
+	var previous: Weapon = weapon
+	weapon = w
+	apply_stats()
+	return previous
+
+## Removes and returns the currently-equipped weapon (null if none). Calls apply_stats().
+func unequip_weapon() -> Weapon:
+	var previous: Weapon = weapon
+	weapon = null
+	apply_stats()
+	return previous
+
 ## Recomputes the stat-derived values (max HP / pool max / meter floor / per-Upkeep resource regen).
 ## Call at setup AFTER gear is equipped and BEFORE start_combat(). [ASSUMPTION] flat 1:1 mappings for
 ## HP/pool/meter, EXCEPT Focus -> regen, which is a deliberate floori() BONUS on top of base regen
