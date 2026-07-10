@@ -437,6 +437,50 @@ target area on every same-scene transition so it stays a live Y-sort member thro
 front of wandering Villagers and the Shopkeeper depending on approach angle; `overworld_demo.tscn` (bridge,
 obstacles, village transition) still plays correctly with no regressions.
 
+**SHIPPED 2026-07-10 — EQUIPMENT / INVENTORY / BANKING FOUNDATION (data + combat-math layer, no UI yet).**
+Brainstormed, spec'd (`docs/superpowers/specs/2026-07-10-equipment-inventory-banking-design.md`), planned
+(`docs/superpowers/plans/2026-07-10-equipment-inventory-banking.md`), and built via subagent-driven
+development (11 tasks, each with its own implementer + reviewer, plus a final whole-branch review — **132
+headless suites green**, up from 107). Graduates `docs/design-bible/21-stats-and-attributes.md`,
+`24-equipment.md`, `25-inventory-and-storage.md`, and `26-banking-cross-character.md` from seeded proposals
+to ✅ LOCKED. This is a **data + pure-logic** pass only — no character-select screen, no camp/inventory UI,
+no authored items/loot tables (all explicitly deferred per player direction, "loot tables later"):
+- **Gear rework** — `Gear.Slot` is now **Headwear/Cloak/Chest/Hands/Charm** (5 slots; the old `ARMOR`/
+  `TRINKET` values are gone — Weapon is never a `Gear` instance, it stays on `Combatant.weapon`). New
+  **`RarityVisuals`** static helper (mirrors `TypeVisuals`/`RoleVisuals`) locks a shared 5-tier WoW-style
+  rarity ladder — **Common(L1)/Uncommon(L3)/Rare(L5)/Epic(L7)/Legendary(L9)**, white/green/blue/purple/
+  orange — doubling as the equip level-gate (anti-twink guardrail for the cross-character bank). Affix
+  budget scales with tier (1→2→1+1reel→2+1reel→2+2reel); a new **`ReelAffix`** resource (shape only, no
+  resolver wiring yet) carries the reel-editing side. **`Combatant.can_equip(g)`** enforces the level-gate
+  plus a **Resonance cap** (max 2 reel-affix *items* equipped, per-item not per-affix).
+- **Weapon empowerment layer** — `Weapon.rarity` (fixed loot identity/affix budget) is separate from a new
+  **`Combatant.weapon_effective_base_damage()`** (level-derived damage, `+3%/level ABOVE level 1` so level 1
+  is exactly neutral — swapping weapons is always safe, and a banked high-rarity weapon handed to a
+  lower-level alt keeps its affixes but rescales its damage down). Wired into all 7 combat-math call sites
+  that read weapon damage (`combat.gd` ×6, `main_phase_plan.gd`, including the Chancer reroll/gamble path —
+  caught and fixed by the final whole-branch review after the per-task passes missed it).
+- **Stat rework (WoW-vanilla-inspired, all `[ASSUMPTION]`)** — **Might** now funnels through a hidden
+  derived "Power" value into a **reel-count-normalized** flat damage bonus (the AP-normalized-by-weapon-
+  speed analog, reel count instead of weapon speed) via `Combatant.might_damage_bonus_per_reel()`. **Vigor**
+  now reduces incoming DoT tick damage (floored at 40%, was: reduce enemy crit-success chance) via
+  `dot_damage_multiplier()`. **Focus** now also boosts per-Upkeep resource regen on top of its existing max-
+  pool role, via new `base_stamina_regen`/`base_mana_regen` seed fields mirroring the `base_max_hp` pattern.
+  **Luck** now needs a threshold (3 points/crit face, was 1:1) and drives the **`extra_lines`** payline hook
+  that was reserved for it but never wired (Loaded Dice was the only prior user). Finesse/Grit unchanged.
+- **New `economy/resources/` folder** (parallel to `combat/`/`world/` — inventory/banking aren't turn-
+  resolution concerns): **`PartyInventory`** (one shared per-PC inventory; only the Gear tab is capped, 20 +
+  10/unlocked companion party-slot, capacity is slot-unlock-driven not active-headcount-driven; Materials/
+  Reel-Mods/Quest stay uncapped). **`Vault`** (the account-wide cross-character bank shared across a
+  player's WoW-alt-style PCs; finite, tab-based — Gear/Reel-Mods/Materials, deliberately **no Quest tab**;
+  expandable via a `Dictionary`-backed per-tab capacity, dual-sink economics deferred as content).
+  **`LootEntry`/`LootTable`** — WoW-style loot generation *mechanism* (every entry rolls independently, not
+  a single weighted pick); `Combatant.loot_table` is a hook-only nullable field, no tables authored.
+- **Multi-character structure (context, not code)** — confirmed the player creates multiple independent PCs
+  (WoW-alt style) via a character-select screen (noted for later); each PC gets its own full playthrough
+  (story/companions/level/build) — the **only** thing shared across a player's characters is the Vault.
+  Companion equipment access follows a BG3-camp model (noted for later): full roster manageable at hub/rest
+  points, benched companions' gear inaccessible only out in the field.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real
