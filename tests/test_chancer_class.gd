@@ -27,12 +27,12 @@ func _initialize() -> void:
 	_check(c.resource_pool.max_stamina == 0, "no stamina rail (got %d)" % c.resource_pool.max_stamina)
 	_check(c.resource_pool.max_mana == 10, "total mana 10 (got %d)" % c.resource_pool.max_mana)
 	_check(c.weapon.reels.size() == 4, "4 weapon reels (got %d)" % c.weapon.reels.size())
-	# apply_luck appended 1 crit-success face per reel (Luck 1) beyond the default composition's single
-	# crit face — so reel 0 carries 2 crit-success faces.
+	# apply_luck uses threshold conversion: every 3 Luck points grant +1 crit-success face.
+	# Luck 1 / 3 = 0 (integer division), so 0 bonus crit faces are added; reel 0 keeps its default single crit face.
 	var crit: int = 0
 	for f: ReelFace in c.weapon.reels[0].faces:
 		if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS: crit += 1
-	_check(crit == 2, "Luck 1 → 2 crit faces on reel 0 (got %d)" % crit)
+	_check(crit == 1, "Luck 1 → 1 crit face on reel 0 (got %d)" % crit)
 
 	print(("CHANCER CLASS TEST PASSED" if _failures == 0 else "CHANCER CLASS TEST FAILED: %d" % _failures))
 	quit(_failures)
