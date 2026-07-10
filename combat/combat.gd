@@ -1375,7 +1375,7 @@ func _do_spin() -> void:
 func _apply_post_spin_rerolls(reels: Array[ActionReel], attacks: Array[CombatResolver.AttackResult], weapon_count: int) -> Array[int]:
 	var changed: Array[int] = []
 	var base: float = _attacker.weapon_effective_base_damage()
-	var might: int = _attacker.effective_stats().might
+	var might: int = _attacker.might_damage_bonus_per_reel(reels.size())
 	if _attacker.reroll_pending:
 		var idx: int = Combatant.worst_reroll_index(attacks)
 		if idx >= 0 and idx < reels.size():

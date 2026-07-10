@@ -33,6 +33,10 @@ const LUCK_PER_CRIT_FACE: int = 3
 ## (spec 2026-07-10 §5.4).
 const LUCK_PER_EXTRA_LINE: int = 4
 
+## Resonance cap: a combatant may equip at most this many reel-affix ITEMS at once (spec §3.5;
+## per-item, not per-affix, so a Legendary's 2 reel affixes still cost only 1 slot).
+const RESONANCE_CAP: int = 2
+
 # ---------------------------------------------------------------------------
 # Signals
 # ---------------------------------------------------------------------------
@@ -299,10 +303,8 @@ func effective_stats() -> Stats:
 	return s
 
 ## True if this combatant may equip [param g]: meets the rarity level-gate, and — if [param g]
-## carries any reel affixes — doesn't exceed the Resonance cap of 2 reel-affix ITEMS equipped
-## (spec §3.5; per-item, not per-affix, so a Legendary's 2 reel affixes still cost only 1 slot).
-const RESONANCE_CAP: int = 2
-
+## carries any reel affixes — doesn't exceed the Resonance cap of reel-affix ITEMS equipped
+## (see [constant RESONANCE_CAP]).
 func can_equip(g: Gear) -> bool:
 	if level < RarityVisuals.min_level_for(g.rarity):
 		return false
@@ -315,8 +317,11 @@ func can_equip(g: Gear) -> bool:
 			return false
 	return true
 
-## Recomputes the stat-derived values (max HP / pool max / meter floor). Call at setup AFTER gear is
-## equipped and BEFORE start_combat(). [ASSUMPTION] flat 1:1 mappings.
+## Recomputes the stat-derived values (max HP / pool max / meter floor / per-Upkeep resource regen).
+## Call at setup AFTER gear is equipped and BEFORE start_combat(). [ASSUMPTION] flat 1:1 mappings for
+## HP/pool/meter, EXCEPT Focus -> regen, which is a deliberate floori() BONUS on top of base regen
+## (not the project's usual damage-rounds-up ceili() convention — this floors a bonus, it isn't
+## rounding damage).
 func apply_stats() -> void:
 	var s: Stats = effective_stats()
 	max_hp = base_max_hp + s.vigor
