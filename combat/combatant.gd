@@ -272,6 +272,23 @@ func effective_stats() -> Stats:
 			s = s.plus(g.stat_bonuses)
 	return s
 
+## True if this combatant may equip [param g]: meets the rarity level-gate, and — if [param g]
+## carries any reel affixes — doesn't exceed the Resonance cap of 2 reel-affix ITEMS equipped
+## (spec §3.5; per-item, not per-affix, so a Legendary's 2 reel affixes still cost only 1 slot).
+const RESONANCE_CAP: int = 2
+
+func can_equip(g: Gear) -> bool:
+	if level < RarityVisuals.min_level_for(g.rarity):
+		return false
+	if g.reel_affixes.size() > 0:
+		var resonance_count: int = 0
+		for existing: Gear in gear:
+			if existing != g and existing.reel_affixes.size() > 0:
+				resonance_count += 1
+		if resonance_count >= RESONANCE_CAP:
+			return false
+	return true
+
 ## Recomputes the stat-derived values (max HP / pool max / meter floor). Call at setup AFTER gear is
 ## equipped and BEFORE start_combat(). [ASSUMPTION] flat 1:1 mappings.
 func apply_stats() -> void:
