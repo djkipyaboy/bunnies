@@ -22,6 +22,9 @@ const VIGOR_DOT_RESIST_PER_POINT: float = 0.05
 ## Vigor DoT resistance floor: Vigor never grants more than 60% damage reduction (40% minimum taken).
 const VIGOR_DOT_RESIST_FLOOR: float = 0.4
 
+## Focus -> per-Upkeep resource regen bonus (spec 2026-07-10 §5.3): +0.5 regen/turn per point, floored.
+const FOCUS_REGEN_PER_POINT: float = 0.5
+
 # ---------------------------------------------------------------------------
 # Signals
 # ---------------------------------------------------------------------------
@@ -100,6 +103,8 @@ var base_max_hp: int = 1
 var base_max_stamina: int = 0
 var base_max_mana: int = 0
 var base_meter_floor: int = 0
+var base_stamina_regen: int = 0
+var base_mana_regen: int = 0
 
 # ---------------------------------------------------------------------------
 # Live state
@@ -310,6 +315,12 @@ func apply_stats() -> void:
 		resource_pool.stamina = mini(resource_pool.stamina, resource_pool.max_stamina)
 		resource_pool.max_mana = (base_max_mana + s.focus) if base_max_mana > 0 else 0
 		resource_pool.mana = mini(resource_pool.mana, resource_pool.max_mana)
+		# Focus also adds to the per-Upkeep regen tick (spec §5.3), same base>0 rail-gating as above.
+		var focus_regen_bonus: int = floori(s.focus * FOCUS_REGEN_PER_POINT)
+		if base_max_stamina > 0:
+			resource_pool.regen_per_turn = base_stamina_regen + focus_regen_bonus
+		if base_max_mana > 0:
+			resource_pool.mana_regen_per_turn = base_mana_regen + focus_regen_bonus
 	if bonus_meter != null:
 		bonus_meter.floor = base_meter_floor + s.grit
 

@@ -45,7 +45,7 @@ func _initialize() -> void:
 	_check(built.resource_pool != null, "built caster has a resource pool")
 	_check(built.resource_pool.max_mana == 15, "built max_mana 15 (got %d)" % built.resource_pool.max_mana)
 	_check(built.resource_pool.mana == 15, "built starts at full mana 15 (got %d)" % built.resource_pool.mana)
-	_check(built.resource_pool.mana_regen_per_turn == 1, "built mana regen 1 (got %d)" % built.resource_pool.mana_regen_per_turn)
+	_check(built.resource_pool.mana_regen_per_turn == 4, "built mana regen = 1 base + Focus 6 bonus 3 = 4 (got %d)" % built.resource_pool.mana_regen_per_turn)
 
 	print(("MANA DERIVATION TEST PASSED" if _failures == 0 else "MANA DERIVATION TEST FAILED: %d" % _failures))
 	quit(_failures)

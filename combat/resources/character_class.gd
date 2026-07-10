@@ -98,14 +98,14 @@ func build_combatant(is_player: bool) -> Combatant:
 	if is_player:
 		var pool: ResourcePool = ResourcePool.new()
 		pool.stamina = start_stamina
-		pool.regen_per_turn = stamina_regen
 		pool.mana = start_mana
-		pool.mana_regen_per_turn = mana_regen
 		c.resource_pool = pool
 		c.base_max_stamina = base_max_stamina
 		c.base_max_mana = base_max_mana
+		c.base_stamina_regen = stamina_regen
+		c.base_mana_regen = mana_regen
 
-	c.apply_stats()   # derive max_hp / max_stamina / meter.floor BEFORE seeding hp
+	c.apply_stats()   # derive max_hp / max_stamina / regen / meter.floor BEFORE seeding hp
 	c.apply_luck()    # edit weapon reels: +1 crit face per Luck. ONCE — not idempotent.
 	c.start_combat()
 	return c

@@ -210,12 +210,12 @@ func _make_combatant(name: String, is_player: bool, max_hp: int, defense: Damage
 	if is_player:
 		var pool: ResourcePool = ResourcePool.new()
 		pool.stamina = 3
-		pool.regen_per_turn = 1
 		c.resource_pool = pool
 		c.base_max_stamina = 5
+		c.base_stamina_regen = 1
 	c.base_stats = base_stats
 	c.gear = items
-	c.apply_stats()       # derive max_hp / max_stamina / meter.floor from stats BEFORE seeding hp
+	c.apply_stats()       # derive max_hp / max_stamina / regen / meter.floor from stats BEFORE seeding hp
 	c.apply_luck()        # edit weapon reels: +1 crit-success face per Luck. ONCE here — not idempotent.
 	c.start_combat()
 	return c
