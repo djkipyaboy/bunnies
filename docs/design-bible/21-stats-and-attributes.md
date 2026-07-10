@@ -1,6 +1,7 @@
 # Stats & Attributes — Design Bible
 
-> **Style:** ⚙️ Systems Brief (proposals AGGRESSIVE) · **Status:** 📝 seeded
+> **Style:** ⚙️ Systems Brief (proposals AGGRESSIVE) · **Status:** ✅ LOCKED 2026-07-10 — graduated to
+> `docs/superpowers/specs/2026-07-10-equipment-inventory-banking-design.md` §5 (source of truth for implementation).
 > **Related:** `DESIGN.md` (combat stat hooks) · [[22-leveling-and-progression]] · [[24-equipment]] · [[20-character-creation]]
 
 ---
@@ -22,21 +23,21 @@
 ✅ Shipped levers: **Might** → flat damage/hit · **Finesse** → initiative + d10 tie-break · **Vigor** → max HP ·
 **Focus** → caster resource/Stamina max · **Grit** → meter floor · **Luck** → adds crit-success faces (`apply_luck`).
 
-### 2. The "every stat edits the reel" mandate
-💡🔬 *D&D's failure mode is the **dump stat** — any score that doesn't feed your role is throwaway.* So the
-rule: **no stat without a visible reel/spin effect.** Proposed one-line hooks (Luck is the gold-standard
-template; `[ASSUMPTION]`):
+### 2. The "every stat edits the reel" mandate — ✅ LOCKED 2026-07-10
+✅🔬 *D&D's failure mode is the **dump stat** — any score that doesn't feed your role is throwaway.* So the
+rule: **no stat without a visible reel/spin effect.** Locked hooks (WoW vanilla stat-scaling as the model —
+see the spec for exact formulas; all magnitudes `[ASSUMPTION]`):
 
-| Stat | Reel/spin hook (proposed) |
+| Stat | Reel/spin hook (LOCKED) |
 |---|---|
-| Might | + flat damage on success/crit faces |
+| Might | Funnels through a hidden derived "Power" value (WoW Strength→Attack-Power analog), converted to a **flat damage bonus per reel, normalized by active reel count** (a low-reel/"heavy" loadout gets more damage per reel from the same Might than a high-reel/"rapid" loadout — mirrors AP being normalized by weapon speed) |
 | Finesse | nudges toward an extra reel-slot (2–5 band) *and* the initiative tie-break (shipped) |
-| Vigor | max HP **+** reduces enemy crit-success faces *against* you |
-| Focus | caster resource / **+1 payline** consideration |
+| Vigor | max HP **+** reduces incoming Damage-Over-Time tick damage |
+| Focus | caster resource pool max **+** adds to the flat per-Upkeep resource regen tick |
 | Grit | converts one **crit-fail → fail** face (mitigation) + meter floor |
-| Luck | adds crit-success faces (shipped) |
+| Luck | adds crit-success faces, but now needs **multiple points per face** (threshold conversion, like WoW crit rating) **+** drives the already-reserved `extra_lines` payline hook (moved here from Focus) |
 
-🟦 *React to these hooks — they're the anti-dump-stat discipline, all tunable.*
+Full formulas and code hook points: `docs/superpowers/specs/2026-07-10-equipment-inventory-banking-design.md` §5.
 
 ### 3. World/social hooks (optional, limited)
 💡🔬 **Dual-purpose only 2 stats** (Persona social-stat idea, but never busywork): e.g. **Grit** gates
@@ -60,7 +61,9 @@ values from the hooks above (e.g. Vigor→enemy-crit-reduction) get formula'd he
 screens preview before/after.
 
 ### 8. Open questions
-- ❓ Keep the 5+1 names or revise? ❓ World-gating in/out? ❓ Caps & DR values.
+- ✅ Keep the 5+1 names (no revision). ❓ World-gating in/out — still undecided, not needed for the
+  equipment/inventory/banking pass. ❓ Caps & DR values beyond what's in the spec — tune post-playtest.
 
 ### Scope / phase
-✅ The reel-hook table + deterministic growth for 1.0. ⏳ Deep social-stat web = later (and only if a hub/town justifies it).
+✅ The reel-hook table + deterministic growth for 1.0 — **LOCKED, graduated to spec 2026-07-10.**
+⏳ Deep social-stat web = later (and only if a hub/town justifies it).
