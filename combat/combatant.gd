@@ -16,6 +16,12 @@ const WEAPON_LEVEL_DAMAGE_PCT: float = 0.03
 ## Might -> Power ratio (WoW's 2 AP/Strength for plate/strength classes).
 const MIGHT_TO_POWER_RATIO: float = 2.0
 
+## Vigor DoT resistance: each point of Vigor reduces DoT damage taken by 5%.
+const VIGOR_DOT_RESIST_PER_POINT: float = 0.05
+
+## Vigor DoT resistance floor: Vigor never grants more than 60% damage reduction (40% minimum taken).
+const VIGOR_DOT_RESIST_FLOOR: float = 0.4
+
 # ---------------------------------------------------------------------------
 # Signals
 # ---------------------------------------------------------------------------
@@ -364,6 +370,11 @@ func incoming_damage_multiplier() -> float:
 		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and e.affects_incoming:
 			total *= e.effective_magnitude()
 	return total
+
+## Vigor's reel/spin hook (spec §5.2): reduces incoming DAMAGE_OVER_TIME tick damage. Floored so
+## Vigor never grants full DoT immunity.
+func dot_damage_multiplier() -> float:
+	return clampf(1.0 - effective_stats().vigor * VIGOR_DOT_RESIST_PER_POINT, VIGOR_DOT_RESIST_FLOOR, 1.0)
 
 ## The highest thorns_pct among active effects, or 0.0 if none carry it (Bastion, Task 22).
 func thorns_pct() -> float:

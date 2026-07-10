@@ -956,8 +956,9 @@ func _apply_dot(c: Combatant) -> void:
 					c.heal(amount)
 					_log("  %s regenerates %d HP from %s." % [c.display_name, amount, String(e.id).to_upper()])
 				else:
-					c.take_damage(amount)
-					_log("  %s suffers %d %s damage (×%d)." % [c.display_name, amount, String(e.id).to_upper(), e.stacks])
+					var resisted: int = ceili(amount * c.dot_damage_multiplier())
+					c.take_damage(resisted)
+					_log("  %s suffers %d %s damage (×%d)." % [c.display_name, resisted, String(e.id).to_upper(), e.stacks])
 	(_panels[c] as CombatantPanel).refresh_status()
 
 func _on_spin_pressed() -> void:
