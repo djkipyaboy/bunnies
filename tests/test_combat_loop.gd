@@ -52,7 +52,7 @@ func _on_turn_started(c: Combatant) -> void:
 	c.on_upkeep()
 	c.evaluate_stun(-20)  # maintain the stun flags; positive-init combatants here never stun
 	c.begin_turn()
-	var attacks: Array = _resolver.resolve_combat_phase(c.turn_reels, c.weapon.base_damage, defender.defense_type, c.wild_reel_indices(), c.weapon.reels.size(), c.effective_stats().might)
+	var attacks: Array = _resolver.resolve_combat_phase(c.turn_reels, c.weapon_effective_base_damage(), defender.defense_type, c.wild_reel_indices(), c.weapon.reels.size(), c.might_damage_bonus_per_reel(c.weapon.reels.size()))
 	c.consume_wild_spin()
 	for a in attacks:
 		defender.take_damage(a.final_damage)

@@ -13,6 +13,9 @@ extends RefCounted
 ## existing test or combatant, which all default to level 1, sees any change).
 const WEAPON_LEVEL_DAMAGE_PCT: float = 0.03
 
+## Might -> Power ratio (WoW's 2 AP/Strength for plate/strength classes).
+const MIGHT_TO_POWER_RATIO: float = 2.0
+
 # ---------------------------------------------------------------------------
 # Signals
 # ---------------------------------------------------------------------------
@@ -330,6 +333,15 @@ func weapon_effective_base_damage() -> float:
 	if weapon == null:
 		return 0.0
 	return weapon.base_damage * (1.0 + (level - 1) * WEAPON_LEVEL_DAMAGE_PCT)
+
+## Might's reel/spin hook (spec §5.1): funnels through a hidden derived "Power" value, then
+## converts to a flat damage bonus PER REEL, normalized by the active reel count — the reel-count
+## analog of WoW's Attack-Power-normalized-by-weapon-speed. A low-reel-count ("heavy") loadout gets
+## a bigger per-reel bonus from the same Might than a high-reel-count ("rapid") one; the total
+## Might-derived damage for the turn stays roughly conserved either way.
+func might_damage_bonus_per_reel(active_reel_count: int) -> int:
+	var power: float = effective_stats().might * MIGHT_TO_POWER_RATIO
+	return ceili(power / maxf(active_reel_count, 1))
 
 # ---------------------------------------------------------------------------
 # Effects & turn-order

@@ -1306,7 +1306,7 @@ func _do_spin() -> void:
 	var extra_lines: Array = []
 	if _attacker.loaded_dice_pending:
 		extra_lines.append(PaylineLibrary.bonus_line(weapon_count))
-	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon_effective_base_damage(), _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.effective_stats().might, extra_lines, true, dmg_mult)
+	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon_effective_base_damage(), _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.might_damage_bonus_per_reel(reels.size()), extra_lines, true, dmg_mult)
 	_attacker.loaded_dice_pending = false
 	# Post-spin Chancer pass (no-op for every other class — their flags are false). Overwrites attacks[i]
 	# IN PLACE so strips animate to the final index and damage applies once on settle.
