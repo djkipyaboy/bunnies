@@ -10,6 +10,7 @@ const BASE_GEAR_CAPACITY: int = 20
 const GEAR_CAPACITY_PER_SLOT: int = 10
 
 @export var gear: Array[Gear] = []
+@export var weapons: Array[Weapon] = []   # mirrors `gear`; uncapped like gear (only the Gear TAB's slot count is capped)
 @export var reel_mods: Array[Resource] = []    # uncapped; shape TBD when 27-crafting is designed
 @export var materials: Array[Resource] = []    # uncapped, stacking
 @export var quest_items: Array[Resource] = []  # uncapped; never banked (per-playthrough only)
@@ -21,3 +22,16 @@ func gear_capacity() -> int:
 
 func can_add_gear() -> bool:
 	return gear.size() < gear_capacity()
+
+## Bag-side add/remove — no capacity check (equip/unequip never touches bag capacity).
+func take_gear(g: Gear) -> void:
+	gear.erase(g)
+
+func give_gear(g: Gear) -> void:
+	gear.append(g)
+
+func take_weapon(w: Weapon) -> void:
+	weapons.erase(w)
+
+func give_weapon(w: Weapon) -> void:
+	weapons.append(w)
