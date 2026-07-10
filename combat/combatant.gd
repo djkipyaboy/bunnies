@@ -25,6 +25,14 @@ const VIGOR_DOT_RESIST_FLOOR: float = 0.4
 ## Focus -> per-Upkeep resource regen bonus (spec 2026-07-10 §5.3): +0.5 regen/turn per point, floored.
 const FOCUS_REGEN_PER_POINT: float = 0.5
 
+## Luck -> crit-success reel faces: every LUCK_PER_CRIT_FACE points adds 1 crit face (threshold,
+## not 1:1 — spec 2026-07-10 §5.4).
+const LUCK_PER_CRIT_FACE: int = 3
+
+## Luck -> extra scored payline lines: every LUCK_PER_EXTRA_LINE points grants 1 extra line
+## (spec 2026-07-10 §5.4).
+const LUCK_PER_EXTRA_LINE: int = 4
+
 # ---------------------------------------------------------------------------
 # Signals
 # ---------------------------------------------------------------------------
@@ -332,7 +340,7 @@ func apply_stats() -> void:
 func apply_luck() -> void:
 	if weapon == null:
 		return
-	var n: int = effective_stats().luck
+	var n: int = effective_stats().luck / LUCK_PER_CRIT_FACE
 	if n <= 0:
 		return
 	for reel: ActionReel in weapon.reels:
@@ -342,6 +350,16 @@ func apply_luck() -> void:
 			f.multiplier = 2.0
 			reel.faces.append(f)
 		reel.faces.shuffle()
+
+## Luck's payline hook (spec §5.4) — the extra_lines mechanism was reserved for Luck but never
+## wired (only Loaded Dice used it). Every LUCK_PER_EXTRA_LINE points grants one additional scored
+## payline line, stacking alongside any ability-granted extra lines (e.g. Loaded Dice).
+func luck_extra_lines(weapon_reel_count: int) -> Array:
+	var n: int = effective_stats().luck / LUCK_PER_EXTRA_LINE
+	var lines: Array = []
+	for i: int in range(n):
+		lines.append(PaylineLibrary.bonus_line(weapon_reel_count))
+	return lines
 
 ## The equipped weapon's damage, scaled by the empowerment layer (spec §3.4): recomputed live from
 ## [member level] every call — NOT a persisted "weapon level" — so swapping weapons or changing

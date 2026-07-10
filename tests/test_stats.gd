@@ -45,8 +45,8 @@ func _initialize() -> void:
 	_check(z.might == 0 and z.finesse == 0, "no base/gear -> zero stats")
 
 	# --- Luck: plus() includes luck; apply_luck adds crit faces to each weapon reel ---
-	var ls: Stats = Stats.new(); ls.luck = 2
-	_check(ls.plus(Stats.new()).luck == 2, "Stats.plus sums luck")
+	var ls: Stats = Stats.new(); ls.luck = 7
+	_check(ls.plus(Stats.new()).luck == 7, "Stats.plus sums luck")
 	var slashing2: DamageType = load("res://combat/resources/types/slashing.tres")
 	var lw: Weapon = Weapon.new()
 	lw.base_damage = 10.0
@@ -56,12 +56,12 @@ func _initialize() -> void:
 		if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS: base_crit += 1
 	var lc: Combatant = Combatant.new()
 	lc.weapon = lw
-	lc.base_stats = ls   # luck 2
+	lc.base_stats = ls   # luck 7
 	lc.apply_luck()
 	var new_crit: int = 0
 	for f: ReelFace in lc.weapon.reels[0].faces:
 		if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS: new_crit += 1
-	_check(new_crit == base_crit + 2, "apply_luck adds 2 crit faces (Luck 2): %d -> %d" % [base_crit, new_crit])
+	_check(new_crit == base_crit + 2, "apply_luck adds floor(7/3)=2 crit faces (Luck 7): %d -> %d" % [base_crit, new_crit])
 	# Idempotency note: apply_luck is called ONCE at setup; not re-applied.
 
 	print(("STATS TEST PASSED" if _failures == 0 else "STATS TEST FAILED: %d" % _failures))
