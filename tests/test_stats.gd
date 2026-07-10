@@ -22,7 +22,7 @@ func _initialize() -> void:
 	var c: Combatant = Combatant.new()
 	c.base_stats = _stats(1,0,0,0,0)
 	var jerkin: Gear = Gear.new()
-	jerkin.slot = Gear.Slot.ARMOR
+	jerkin.slot = Gear.Slot.CHEST
 	jerkin.stat_bonuses = _stats(3,2,0,0,0)
 	c.gear = [jerkin]
 	var eff: Stats = c.effective_stats()
