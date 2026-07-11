@@ -200,7 +200,13 @@ static func _signed(v: int) -> String:
 	return "+%d" % v if v >= 0 else "%d" % v
 
 ## Rebuilds and shows the panel for [param pc]'s party (spec §4). [param companions] has 0-2 entries.
+## The panel is a long-lived instance toggled via hide()/open_for() (not recreated each time), so
+## every reopen resets to the default Bag tab with no stale selection or Vault-full message carried
+## over from a previous session.
 func open_for(pc: Combatant, companions: Array, party_inventory: PartyInventory, vault: Vault) -> void:
+	_active_tab = &"bag"
+	_selected = {}
+	_vault_full_message = false
 	_pc = pc
 	_companions = companions
 	_party_inventory = party_inventory
@@ -449,3 +455,7 @@ func switch_tab_for_test(tab: StringName) -> void:
 
 func vault_full_message_shown_for_test() -> bool:
 	return _vault_full_message
+
+## The currently active tab (test hook).
+func active_tab_for_test() -> StringName:
+	return _active_tab

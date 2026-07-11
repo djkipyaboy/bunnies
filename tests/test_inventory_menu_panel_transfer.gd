@@ -84,5 +84,49 @@ func _init() -> void:
 	panel.press_withdraw_for_test()
 	_check(inv.gear.has(hat) and not vault.gear.has(hat), "Withdraw to Bag moves the item from Vault to bag")
 
+	# --- Weapon path: the panel's own orchestration of equip/unequip/deposit/withdraw for the
+	# Weapon slot (slot 0), mirroring the Gear-path coverage above. ---
+	panel.switch_tab_for_test(&"bag")
+
+	var old_weapon: Weapon = Weapon.new()
+	old_weapon.display_name = "Old Sword"
+	pc.weapon = old_weapon
+
+	var new_weapon: Weapon = Weapon.new()
+	new_weapon.display_name = "New Sword"
+	inv.weapons = [new_weapon]
+
+	# Equip: select the bag weapon, then click the PC's weapon slot (column 1, slot 0).
+	panel.select_grid_item_for_test(new_weapon, true)
+	panel.press_slot_for_test(1, 0)
+	_check(pc.weapon == new_weapon, "selecting a bag weapon then clicking the weapon slot equips it")
+	_check(inv.weapons.has(old_weapon), "the displaced weapon returns to the bag")
+	_check(not inv.weapons.has(new_weapon), "the equipped weapon leaves the bag")
+
+	# Unequip: nothing selected, click the occupied weapon slot.
+	panel.press_slot_for_test(1, 0)
+	_check(pc.weapon == null, "clicking the occupied weapon slot with nothing selected unequips it")
+	_check(inv.weapons.has(new_weapon), "the unequipped weapon returns to the bag")
+
+	# Weapon Bag -> Vault -> Bag.
+	vault.tab_capacity[&"weapons"] = 1
+	panel.select_grid_item_for_test(new_weapon, true)
+	panel.press_send_to_vault_for_test()
+	_check(vault.weapons.has(new_weapon) and not inv.weapons.has(new_weapon), "Send to Vault moves a weapon from bag to Vault")
+
+	panel.switch_tab_for_test(&"vault")
+	panel.select_grid_item_for_test(new_weapon, true)
+	panel.press_withdraw_for_test()
+	_check(inv.weapons.has(new_weapon) and not vault.weapons.has(new_weapon), "Withdraw to Bag moves a weapon from Vault to bag")
+
+	# --- Reopen reset: open_for() must reset to the Bag tab with no stale selection, even if the
+	# panel was left on the Vault tab with an item selected (the panel is a long-lived instance
+	# toggled via hide()/open_for(), never recreated). ---
+	panel.switch_tab_for_test(&"vault")
+	panel.select_grid_item_for_test(hat, false)
+	_check(panel.active_tab_for_test() == &"vault", "sanity: the panel is on the Vault tab before reopening")
+	panel.open_for(pc, [], inv, vault)
+	_check(panel.active_tab_for_test() == &"bag", "reopening the panel resets to the default Bag tab")
+
 	panel.free()
 	quit()
