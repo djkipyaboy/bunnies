@@ -8,6 +8,7 @@ extends CharacterBody2D
 @export var move_speed: float = 90.0
 
 var _tracked: Array[Interactable] = []
+var _movement_paused: bool = false
 
 func _ready() -> void:
 	var reach := Area2D.new()
@@ -36,10 +37,27 @@ func _on_reach_area_exited(area: Area2D) -> void:
 func nearest_interactable() -> Interactable:
 	return Interactable.nearest(_tracked, global_position)
 
+## Pure velocity calc so movement-pause logic is unit-testable without a running physics frame or
+## Input singleton (mirrors Villager.wander_target's "pure + static" pattern). paused (e.g. while
+## InventoryMenuPanel is open) always yields zero velocity regardless of input_vector.
+static func movement_velocity(input_vector: Vector2, move_speed: float, paused: bool) -> Vector2:
+	if paused:
+		return Vector2.ZERO
+	return input_vector.normalized() * move_speed
+
+## Pauses/resumes PC movement (e.g. while InventoryMenuPanel is open) — same convention as
+## Villager.set_wander_paused.
+func set_movement_paused(paused: bool) -> void:
+	_movement_paused = paused
+
+## Test hook — headless tests can't drive real Input, so expose the flag directly.
+func movement_paused_for_test() -> bool:
+	return _movement_paused
+
 func _physics_process(_delta: float) -> void:
 	var input_vector := Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
 	)
-	velocity = input_vector.normalized() * move_speed
+	velocity = movement_velocity(input_vector, move_speed, _movement_paused)
 	move_and_slide()
