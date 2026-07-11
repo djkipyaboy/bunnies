@@ -25,6 +25,12 @@ var _interact_prompt: InteractPrompt
 var _fade_overlay: FadeOverlay
 var _highlighted_target: Interactable
 
+var _pc_combatant: Combatant
+var _companions: Array = []
+var _party_inventory: PartyInventory
+var _vault: Vault
+var _inventory_panel: InventoryMenuPanel
+
 func _ready() -> void:
 	_fade_overlay = FadeOverlay.new()
 	add_child(_fade_overlay)
@@ -32,6 +38,7 @@ func _ready() -> void:
 	_build_pc()
 	_build_camera()
 	_build_ui()
+	_build_inventory_demo()
 
 func _build_world() -> void:
 	_world = Node2D.new()
@@ -171,7 +178,35 @@ func _build_ui() -> void:
 	_interact_prompt.position = Vector2(16, 16)
 	ui.add_child(_interact_prompt)
 
+	_inventory_panel = InventoryMenuPanel.new()
+	_inventory_panel.position = Vector2(140, 60)
+	_inventory_panel.hide()
+	ui.add_child(_inventory_panel)
+
+## The overworld map is not a safe zone — its own placeholder party/bag seed (independent of the
+## town demo's, matching this project's existing per-scene demo convention), with the Vault passed
+## in but marked unreachable (open_for's vault_available=false) so a player can still adjust Bag/
+## equipped gear before an overworld encounter without being able to bank.
+func _build_inventory_demo() -> void:
+	var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
+	_pc_combatant = party_seed["pc"]
+	_companions.assign(party_seed["companions"])
+	_party_inventory = party_seed["party_inventory"]
+	_vault = party_seed["vault"]
+
+func _toggle_inventory() -> void:
+	if _inventory_panel.visible:
+		_inventory_panel.hide()
+		_pc.set_movement_paused(false)
+	else:
+		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false)   # overworld = not a safe zone, Vault unreachable
+		_pc.set_movement_paused(true)
+
 func _process(_delta: float) -> void:
+	if _inventory_panel.visible:
+		_interact_prompt.hide_prompt()
+		_set_highlighted_target(null)
+		return
 	var target: Interactable = _pc.nearest_interactable()
 	if target != null:
 		_interact_prompt.show_prompt(target.prompt_text)
@@ -189,6 +224,11 @@ func _set_highlighted_target(target: Interactable) -> void:
 	_highlighted_target = target
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_inventory"):
+		_toggle_inventory()
+		return
+	if _inventory_panel.visible:
+		return
 	if not event.is_action_pressed("interact"):
 		return
 	var target: Interactable = _pc.nearest_interactable()

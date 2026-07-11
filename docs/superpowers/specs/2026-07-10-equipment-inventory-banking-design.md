@@ -5,6 +5,14 @@
 > (all now marked ✅ LOCKED, kept for history/rationale). This is the source of truth for implementation.
 > All numeric magnitudes are `[ASSUMPTION]` — data-driven, tuned post-playtest per CLAUDE.md §4, never
 > hardcoded as "the" balance.
+>
+> **Correction (2026-07-11):** §3.1's `Gear.Slot` enum below shipped with only one Charm slot, but
+> `docs/design-bible/24-equipment.md` §2 had already locked **two** independent Charm slots ("Charm
+> x2") the same day this spec was written — a spec/design-bible mismatch, not a later design change.
+> Found during the first human playtest of the equipment UI (a companion couldn't be given a second
+> Charm). Fixed in `combat/resources/gear.gd` (`Gear.Slot` now has `CHARM` and `CHARM_2`) and
+> `combat/ui/inventory_menu_panel.gd` (`SLOT_COUNT` 6→7). The code block and "5 non-weapon slots"
+> text below are left as originally written for history.
 
 ## 1. Goal
 

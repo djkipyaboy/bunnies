@@ -6,6 +6,13 @@
 > underlying model correct so that UI work later has real data to bind to") — this spec is that later
 > UI work. All numeric magnitudes (placeholder item stats, seed counts) are `[ASSUMPTION]` per
 > CLAUDE.md §4.
+>
+> **Correction (2026-07-11):** the "6 slot boxes: Weapon, Headwear, Cloak, Chest, Hands, Charm"
+> paperdoll description below (§3, Task 4) is missing the second Charm slot locked in
+> `docs/design-bible/24-equipment.md` §2 ("Charm x2") — it inherited the single-Charm mismatch from
+> the data-layer spec above it. Found during the first human playtest. Fixed: the paperdoll is now
+> 7 boxes (Weapon + 6 Gear slots, Charm listed twice); see the correction note in
+> `2026-07-10-equipment-inventory-banking-design.md`.
 
 ## 1. Goal
 

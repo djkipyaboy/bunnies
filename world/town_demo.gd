@@ -292,15 +292,18 @@ func _make_quest_entries() -> Array[QuestBoardEntry]:
 func _on_dialogue_requested(dialogue_set: DialogueSet, villager: Villager) -> void:
 	_talking_to = villager
 	villager.set_wander_paused(true)
+	_pc.set_movement_paused(true)
 	_dialogue_box.open(dialogue_set)
 
 func _on_dialogue_closed() -> void:
 	if _talking_to != null:
 		_talking_to.set_wander_paused(false)
 		_talking_to = null
+	_pc.set_movement_paused(false)
 
 func _on_board_opened(entries: Array[QuestBoardEntry]) -> void:
 	_board_panel.open_for(entries)
+	_pc.set_movement_paused(true)
 
 func _process(_delta: float) -> void:
 	if _dialogue_box.is_open():
@@ -330,7 +333,7 @@ func _toggle_inventory() -> void:
 		_inventory_panel.hide()
 		_pc.set_movement_paused(false)
 	else:
-		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault)
+		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, true)   # town = safe zone, Vault reachable
 		_pc.set_movement_paused(true)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -346,6 +349,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _board_panel.is_open():
 		_board_panel.close()
+		_pc.set_movement_paused(false)
 		return
 	var target: Interactable = _pc.nearest_interactable()
 	if target != null:

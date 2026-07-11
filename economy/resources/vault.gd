@@ -45,3 +45,16 @@ func deposit_weapon(w: Weapon, from: PartyInventory) -> bool:
 func withdraw_weapon(w: Weapon, to: PartyInventory) -> void:
 	weapons.erase(w)
 	to.give_weapon(w)
+
+## Bag-side add/remove — no capacity check (equip/unequip never touches vault capacity).
+func take_gear(g: Gear) -> void:
+	gear.erase(g)
+
+func give_gear(g: Gear) -> void:
+	gear.append(g)
+
+func take_weapon(w: Weapon) -> void:
+	weapons.erase(w)
+
+func give_weapon(w: Weapon) -> void:
+	weapons.append(w)

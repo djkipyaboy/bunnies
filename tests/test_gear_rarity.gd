@@ -14,10 +14,12 @@ func _initialize() -> void:
 	_check(g.reel_affixes.size() == 0, "Gear defaults to no reel affixes")
 	_check(g.slot == Gear.Slot.CHEST, "Gear defaults to Chest slot")
 
-	# The 5 non-weapon slots exist; ARMOR/TRINKET no longer do (compile-time — this line would fail
-	# to parse if the enum still had them removed/renamed differently).
-	var slots: Array = [Gear.Slot.HEADWEAR, Gear.Slot.CLOAK, Gear.Slot.CHEST, Gear.Slot.HANDS, Gear.Slot.CHARM]
-	_check(slots.size() == 5, "5 non-weapon Gear slots exist")
+	# The 6 non-weapon slots exist (two independent Charm slots, design-bible §24 "Charm x2");
+	# ARMOR/TRINKET no longer do (compile-time — this line would fail to parse if the enum still
+	# had them removed/renamed differently).
+	var slots: Array = [Gear.Slot.HEADWEAR, Gear.Slot.CLOAK, Gear.Slot.CHEST, Gear.Slot.HANDS, Gear.Slot.CHARM, Gear.Slot.CHARM_2]
+	_check(slots.size() == 6, "6 non-weapon Gear slots exist")
+	_check(Gear.Slot.CHARM != Gear.Slot.CHARM_2, "the two Charm slots are distinct enum values")
 
 	var affix: ReelAffix = ReelAffix.new()
 	_check(affix.kind == ReelAffix.Kind.ADD_FACE, "ReelAffix defaults to ADD_FACE")

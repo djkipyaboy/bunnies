@@ -508,11 +508,91 @@ scope per the spec's §7):
   the inventory panel was open, letting dialogue/door interactions stack on top of it — fixed with an
   early-return guard.
 
-**Verified-by-machine vs your call (§5 hard ceiling): all 140 suites are test-green and `town_demo.tscn`
-loads clean with the new panel wired in — that's as far as machine verification goes. A human has NOT yet
-playtested the live UI** (open `town_demo.tscn`, press `I`, click through equip/unequip/deposit/withdraw
-across the 3 paperdoll columns) — do not read this entry as "playtest-ready" or "working as intended," only
-as "built and test-green." That playtest is the next step before further equipment-system work.
+**SHIPPED 2026-07-11 — FIRST HUMAN PLAYTEST OF THE EQUIPMENT UI, 2 real issues found + fixed** (142
+headless suites green, up from 140). Playtest: opened `town_demo.tscn`, pressed `I`, clicked through
+equip/unequip across the 3 paperdoll columns.
+- **Missing second Charm slot** — `docs/design-bible/24-equipment.md` §2 had already locked **two**
+  independent Charm slots ("Charm x2") on 2026-07-10, but `Gear.Slot` only ever shipped with one —
+  a spec/design-bible mismatch from that day, not a new design call. Fixed: `Gear.Slot` gains
+  `CHARM_2` (`combat/resources/gear.gd`); `InventoryMenuPanel.SLOT_COUNT` 6→7, `SLOT_NAMES` lists
+  Charm twice (`combat/ui/inventory_menu_panel.gd`); `Combatant.equip_gear`/`can_equip` needed no
+  change (already slot-value-generic). Correction notes added to both 2026-07-10 locked specs rather
+  than rewriting their history. Demo now seeds a Common-rarity second charm ("Lucky Pebble") so a
+  low-level companion can equip it.
+- **Silent equip-rejection** — a level-gated equip (companion below the item's rarity tier) just
+  did nothing, no feedback, which read as "equipping is broken" rather than "correctly refused."
+  Fixed: `InventoryMenuPanel` now shows a "Requires level N" message next to the action button on
+  rejection (mirrors the existing "Vault full" pattern), cleared on reselect/tab-switch/reopen.
+- Both fixes were headless-test-green; see the follow-up entry immediately below for the
+  human-playtest re-confirmation and the next round of additions built off it.
+
+**SHIPPED 2026-07-11 — INVENTORY UX ADDITIONS: Vault-direct-equip, clicked-box targeting,
+valid-target highlighting, double-click auto-equip/withdraw, Charm placement rule, dialogue/board
+movement-pause fix** (142 headless test files green, +1 new file this pass —
+`tests/test_vault_take_give.gd`). Requested via `/btw` during the same playtest session, structured
+into a spec (`docs/superpowers/specs/2026-07-11-inventory-ux-additions-design.md`) and plan
+(`docs/superpowers/plans/2026-07-11-inventory-ux-additions.md`), built subagent-driven (3
+implementer passes + a final whole-branch review, all clean — no Critical/Important findings):
+- **Vault items are now directly equippable** — the old "must withdraw to Bag first" restriction
+  is gone. Equip/displace routes through whichever container is active (`_active_tab`): Bag-tab
+  equips still take from/displace into the Bag, Vault-tab equips take from/displace into the Vault
+  (no capacity bookkeeping needed — a take always precedes the give, so a same-container swap is
+  net-zero). `Vault` (`economy/resources/vault.gd`) gained bag-side `take_gear`/`give_gear`/
+  `take_weapon`/`give_weapon`, mirroring `PartyInventory`'s existing methods.
+- **Explicit paperdoll clicks now target the box actually clicked**, not just the item's own
+  `.slot` — a dormant bug since 2026-07-10 (invisible until Charm got a second box). A Charm item
+  gets its `.slot` reassigned to whichever physical box (`CHARM`/`CHARM_2`) was clicked, at equip
+  time, in `_equip_selected`.
+- **Valid-target highlighting** — selecting an item tints every paperdoll box (across all 3
+  columns) and the action button that would accept it, via a new static `is_valid_target()` helper;
+  Charm items highlight both Charm boxes since either is valid.
+- **Double-click**: a Bag item auto-equips onto the **PC** specifically (weapon straight-swap,
+  Gear via `can_equip`, Charm via the placement rule below); a Vault item auto-withdraws to the Bag
+  (never auto-equips, to avoid the "which of 3 characters" ambiguity). Godot's built-in
+  `InputEventMouseButton.double_click` on each grid button's `gui_input` — no manual timestamp
+  tracking.
+- **Charm auto-placement rule** (double-click-onto-PC only — explicit clicks always honor the
+  picked box): empty `CHARM` → fill it; else empty `CHARM_2` → fill it; else replace whichever has
+  the lower rarity; a tie replaces `CHARM` (slot 1).
+- **Rejection message unified** — "Requires level N" now shows identically on both the
+  explicit-click and double-click auto-equip paths via one shared `_set_equip_reject_message()`.
+- **Bug fix, same class as the inventory panel's existing pattern**: the PC could still walk
+  around during an NPC dialogue or the Adventuring Board panel — neither ever called
+  `PCController.set_movement_paused()`, only the inventory-panel toggle did. Fixed in
+  `world/town_demo.gd`: `_on_dialogue_requested`/`_on_dialogue_closed` and
+  `_on_board_opened`/the board's `_unhandled_input` close branch now pause/unpause to match.
+- **Final review flagged no code defects** — confirmed the `gui_input`+`pressed`+self-`queue_free()`
+  double-click pattern is safe (Godot's deferred `queue_free` + press/release-same-node `pressed`
+  semantics rule out the use-after-free/double-fire risk), and that container routing never
+  cross-contaminates Bag/Vault. One pre-existing, out-of-scope note surfaced: `Combatant.can_equip`
+  counts Resonance-affix items *before* displacement, so a legal 1-for-1 swap of a reel-affix item
+  at the cap would be wrongly rejected — not touched by this pass, noted for whenever gear/Resonance
+  work resumes.
+- **Verified-by-machine vs your call (§5 hard ceiling):** all of the above is headless-test-green;
+  a human has not yet playtested it live in `town_demo.tscn` — do that next (Vault-direct-equip,
+  the second Charm box via both single- and double-click, valid-target highlighting, and that
+  dialogue/board no longer let the PC wander off).
+
+**SHIPPED 2026-07-11 — INVENTORY AVAILABLE ON THE OVERWORLD, VAULT GATED TO SAFE ZONES.** Player
+direction: the equipment/inventory UI should also be reachable on the overworld map (which will
+carry combat/beneficial encounters), so a player can adjust gear before walking into one — but the
+account-wide Vault should only be reachable in a safe zone (towns/settlements), not out in the
+world. `world/overworld_demo.gd` now wires `InventoryMenuPanel` behind the same `I`-key toggle as
+`town_demo.gd` (its own placeholder party/bag seed via `InventoryDemoSetup`, independent of the
+town's — matches this project's existing per-scene demo-data convention, no shared/persistent game
+state yet), pausing PC movement and blocking `interact` while open, identically to the town.
+`InventoryMenuPanel.open_for()` gained a 5th param `vault_available: bool = true` (defaulted so
+every pre-existing call site keeps compiling unchanged) — `town_demo.gd` passes `true` (safe zone),
+`overworld_demo.gd` passes `false`. When `false`: the Vault tab stays clickable ("still presented as
+an option to be viewed" per the player), but its grid renders empty and shows a red **"Travel to
+the nearest settlement to access"** message instead of contents; the Bag tab's own "Send to Vault"
+action is hidden too (the bank is unreachable in either direction, not just for browsing). Bag/
+equip/paperdoll/highlighting/double-click all stay fully functional outside a safe zone. Guarded at
+two levels: the empty grid means no Vault item button exists to click in the live UI, and
+`_on_slot_pressed`/`_handle_double_click` additionally refuse to act on the Vault tab while
+unavailable, so nothing depends solely on the UI's affordance being absent. New
+`tests/test_overworld_demo_inventory.gd` (mirrors `test_town_demo_inventory.gd`) plus new
+Vault-unavailable coverage in `tests/test_inventory_menu_panel_transfer.gd`.
 
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)

@@ -43,6 +43,18 @@ func _initialize() -> void:
 	_check(c.equip_gear(rare) == null, "a rejected equip (level-gate) returns null")
 	_check(not c.gear.has(rare), "a rejected equip changes nothing")
 
+	# The two Charm slots are independent — equipping into CHARM_2 must not displace CHARM.
+	c.level = 9
+	var charm1: Gear = Gear.new()
+	charm1.slot = Gear.Slot.CHARM
+	charm1.stat_bonuses = Stats.new()
+	var charm2: Gear = Gear.new()
+	charm2.slot = Gear.Slot.CHARM_2
+	charm2.stat_bonuses = Stats.new()
+	_check(c.equip_gear(charm1) == null, "equipping into CHARM displaces nothing")
+	_check(c.equip_gear(charm2) == null, "equipping into CHARM_2 does not displace CHARM")
+	_check(c.gear.has(charm1) and c.gear.has(charm2), "both Charm slots hold their own item simultaneously")
+
 	# Weapon straight-swap.
 	var w1: Weapon = Weapon.new()
 	var w2: Weapon = Weapon.new()

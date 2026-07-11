@@ -27,13 +27,16 @@ static func seed_demo_party() -> Dictionary:
 	var uncommon_cloak: Gear = _make_gear("Traveler's Cloak", Gear.Slot.CLOAK, RarityVisuals.Rarity.UNCOMMON, _stats(0, 1, 0, 0, 0, 1))
 	var rare_gauntlets: Gear = _make_gear_with_affix("Warded Gauntlets", Gear.Slot.HANDS, RarityVisuals.Rarity.RARE, _stats(2, 0, 0, 0, 0, 0))
 	var epic_charm: Gear = _make_gear_with_affix("Glowing Charm", Gear.Slot.CHARM, RarityVisuals.Rarity.EPIC, _stats(0, 0, 2, 1, 0, 0))
+	# Second Charm slot demo item (design-bible §24 "Charm x2") — Common rarity so the level-3
+	# companion CAN equip it, distinguishing "not enough Resonance/level" from "works fine".
+	var lucky_pebble: Gear = _make_gear("Lucky Pebble", Gear.Slot.CHARM_2, RarityVisuals.Rarity.COMMON, _stats(0, 0, 0, 0, 0, 1))
 	var spare_sword: Weapon = _make_weapon("Spare Shortsword", 6.0, RarityVisuals.Rarity.COMMON)
 
 	# Pre-equip a couple of items so unequip is testable immediately, not just equip-into-empty.
 	pc.gear = [common_hat]
 	companion.gear = [common_chest]
 
-	inv.gear = [uncommon_cloak, rare_gauntlets, epic_charm]
+	inv.gear = [uncommon_cloak, rare_gauntlets, epic_charm, lucky_pebble]
 	inv.weapons = [spare_sword]
 
 	return {
