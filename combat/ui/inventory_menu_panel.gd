@@ -165,7 +165,6 @@ static func equipped_item_in_gear_slot(c: Combatant, gear_slot: int) -> Gear:
 	return null
 
 static func _compare_lines(item: Resource, columns: Array) -> Array[String]:
-	var labels: Array[String] = ["Companion 1", "PC", "Companion 2"]
 	var out: Array[String] = []
 	for i in range(columns.size()):
 		var c: Combatant = columns[i]
@@ -174,7 +173,7 @@ static func _compare_lines(item: Resource, columns: Array) -> Array[String]:
 		var current: Resource = equipped_item_in_gear_slot(c, (item as Gear).slot) if item is Gear else c.weapon
 		if current == null:
 			continue   # nothing equipped in that slot on this column — nothing to compare against
-		out.append("vs %s: %s" % [labels[i], _diff_summary(item, current)])
+		out.append("vs %s: %s" % [COLUMN_LABELS[i], _diff_summary(item, current)])
 	return out
 
 static func _diff_summary(new_item: Resource, old_item: Resource) -> String:
@@ -253,7 +252,9 @@ func _build_paperdoll_column(col: int, c: Combatant) -> void:
 			var item: Resource = equipped_item(c, slot_idx)
 			btn.text = "%s: %s" % [SLOT_NAMES[slot_idx], slot_display_text(item)]
 			btn.modulate = slot_display_color(item)
-			btn.tooltip_text = item_tooltip_text(item, _compare_enabled, paperdoll_columns(_pc, _companions)) if item != null else ""
+			# Paperdoll hover is always the base summary, never Compare lines (spec §3.3) — Compare
+			# is scoped to Bag/Vault items only, to avoid an item comparing against itself.
+			btn.tooltip_text = item_tooltip_text(item, false, paperdoll_columns(_pc, _companions)) if item != null else ""
 			btn.pressed.connect(_on_slot_pressed.bind(col, slot_idx))
 		add_child(btn)
 		_slot_buttons["%d_%d" % [col, slot_idx]] = btn
@@ -416,6 +417,16 @@ func _on_withdraw_pressed() -> void:
 func slot_button_text_for_test(col: int, slot_idx: int) -> String:
 	var btn: Button = _slot_buttons.get("%d_%d" % [col, slot_idx], null)
 	return btn.text if btn != null else ""
+
+## The tooltip text of paperdoll slot [param slot_idx] in column [param col] (test hook).
+func slot_button_tooltip_for_test(col: int, slot_idx: int) -> String:
+	var btn: Button = _slot_buttons.get("%d_%d" % [col, slot_idx], null)
+	return btn.tooltip_text if btn != null else ""
+
+## Sets whether the Compare checkbox is enabled and rebuilds (test hook).
+func set_compare_enabled_for_test(enabled: bool) -> void:
+	_compare_enabled = enabled
+	_rebuild()
 
 func select_grid_item_for_test(item: Resource, is_weapon: bool) -> void:
 	_on_grid_item_pressed(item, is_weapon)

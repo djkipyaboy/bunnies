@@ -42,4 +42,18 @@ func _init() -> void:
 	_check(not without_compare.contains("vs PC"), "Compare disabled -> no comparison lines at all")
 	_check(without_compare.contains("Candidate Cap"), "name/slot/stat summary still shown with Compare disabled")
 
+	# Spec §3.3: Compare is scoped to Bag/Vault items only. A paperdoll slot's own hover tooltip
+	# must NEVER show compare lines, even with the Compare checkbox ON — otherwise the PC's own
+	# equipped item would show a nonsensical "vs PC: No change" line against itself.
+	var inv: PartyInventory = PartyInventory.new()
+	var vault: Vault = Vault.new()
+	var panel: InventoryMenuPanel = InventoryMenuPanel.new()
+	panel.open_for(pc, [comp1, null], inv, vault)
+	panel.set_compare_enabled_for_test(true)
+	var pc_hat_tooltip: String = panel.slot_button_tooltip_for_test(1, 1)
+	_check(pc_hat_tooltip.contains("PC's Cap"), "paperdoll tooltip shows the equipped item's name")
+	_check(pc_hat_tooltip.contains("Vigor +3"), "paperdoll tooltip shows the equipped item's own stat summary")
+	_check(not pc_hat_tooltip.contains("vs "), "paperdoll tooltip never shows a compare line, even with Compare ON")
+	panel.free()
+
 	quit()
