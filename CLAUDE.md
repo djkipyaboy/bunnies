@@ -481,6 +481,39 @@ no authored items/loot tables (all explicitly deferred per player direction, "lo
   Companion equipment access follows a BG3-camp model (noted for later): full roster manageable at hub/rest
   points, benched companions' gear inaccessible only out in the field.
 
+**SHIPPED 2026-07-10 — EQUIPMENT / INVENTORY / BANKING UI.** Brainstormed, spec'd
+(`docs/superpowers/specs/2026-07-10-equipment-inventory-banking-ui-design.md`), planned
+(`docs/superpowers/plans/2026-07-10-equipment-inventory-banking-ui.md`), and built via subagent-driven
+development (9 tasks, each with its own implementer + reviewer — **140 headless suites green**, up from
+132). Puts a real UI on top of the data/combat-math foundation above; still **placeholder-data only** — no
+real authored items/loot tables, no real companion recruitment, no character-select screen (all out of
+scope per the spec's §7):
+- **`Combatant.equip_gear`/`unequip_gear`/`equip_weapon`/`unequip_weapon`** + `Weapon.display_name` — the
+  equip/unequip surface the UI drives.
+- **`PartyInventory`/`Vault` weapon storage + `deposit`/`withdraw`/`take`/`give` transfer methods** — closes
+  the gap the data-foundation pass left (weapons weren't storable/transferable yet).
+- **`combat/ui/inventory_menu_panel.gd` (`InventoryMenuPanel`)** — a 3-column paperdoll (Companion 1 | PC |
+  Companion 2), a tabbed Bag/Vault grid, click-to-select-then-click-target equip/unequip/deposit/withdraw,
+  hover tooltips, and a Compare toggle (Bag/Vault hover only, per spec — paperdoll hover never shows compare
+  lines).
+- **`world/pc_controller.gd`** — `PCController.set_movement_paused()`, a movement-pause hook so the PC
+  doesn't walk around while the panel is open.
+- **`world/inventory_demo_setup.gd` (`InventoryDemoSetup.seed_demo_party()`)** — placeholder PC + 2
+  companions + seeded bag/vault contents for the demo, no real loot/authoring.
+- **`world/town_demo.gd`** — wired behind an **`I`-key toggle**, pausing PC movement, guarded against
+  stacking with dialogue/board-panel UI in both directions.
+- **Two real bugs found + fixed during task review** (both traced to gaps in the task briefs, not
+  implementer error): (1) equipping from the Vault tab could duplicate an item instead of moving it — fixed
+  by gating paperdoll-slot equip on the Bag tab being active; (2) the `interact` key wasn't blocked while
+  the inventory panel was open, letting dialogue/door interactions stack on top of it — fixed with an
+  early-return guard.
+
+**Verified-by-machine vs your call (§5 hard ceiling): all 140 suites are test-green and `town_demo.tscn`
+loads clean with the new panel wired in — that's as far as machine verification goes. A human has NOT yet
+playtested the live UI** (open `town_demo.tscn`, press `I`, click through equip/unequip/deposit/withdraw
+across the 3 paperdoll columns) — do not read this entry as "playtest-ready" or "working as intended," only
+as "built and test-green." That playtest is the next step before further equipment-system work.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real

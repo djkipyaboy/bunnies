@@ -130,7 +130,26 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-> ### ▶ START HERE NEXT SESSION (set 2026-07-01, updated 2026-07-01 final review)
+> ### ▶ START HERE NEXT SESSION (set 2026-07-10 — supersedes the 2026-07-01 block below)
+> **Human-playtest the new EQUIPMENT / INVENTORY / BANKING UI before any further equipment-system
+> work.** Open `world/town_demo.tscn`, press **`I`** in the plaza, and click through:
+> equip/unequip and deposit/withdraw across all **3 paperdoll columns** (Companion 1 | PC |
+> Companion 2), toggling the Bag/Vault tabs and the Compare hover along the way. This is a fresh
+> `InventoryMenuPanel` (spec `docs/superpowers/specs/2026-07-10-equipment-inventory-banking-ui-design.md`,
+> plan `docs/superpowers/plans/2026-07-10-equipment-inventory-banking-ui.md`) built on top of the
+> equipment/inventory/banking data foundation from earlier the same day — **140 headless suites
+> green**, scene loads clean, but **no human has clicked through the live panel yet** (§5 hard
+> ceiling). It's placeholder-data only: no real authored items/loot tables, no real companion
+> recruitment, no character-select screen. See CLAUDE.md §8's two 2026-07-10 SHIPPED entries for
+> full detail.
+>
+> **Note on this file's staleness:** §6 below (and the rest of this file, last fully rewritten
+> 2026-06-27) predates a lot of shipped work — the remaining class kits, the ability-menu UI, the
+> town/overworld demos + Y-sort fix, and both 2026-07-10 equipment passes. Treat **`CLAUDE.md` §8**
+> as the current source of truth for what's shipped; the entries below are historical context, not
+> an up-to-date status.
+
+> ### ▶ (historical) START HERE NEXT SESSION (set 2026-07-01, updated 2026-07-01 final review)
 > **⚠ Build the extra-ability UI FIRST — the CLASS ABILITY EXPANSION is NOT playtest-ready yet.**
 > A final whole-branch review found that no task in the shipped plan (see the SHIPPED 2026-07-01
 > entry below) ever added combat-scene buttons/handlers for the 21 new L5/L7/L9 abilities:
