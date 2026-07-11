@@ -27,6 +27,12 @@ var _fade_overlay: FadeOverlay
 var _shop_entry_marker: Marker2D
 var _highlighted_target: Interactable
 var _talking_to: Villager
+var _ui_layer: CanvasLayer
+var _inventory_panel: InventoryMenuPanel
+var _pc_combatant: Combatant
+var _companions: Array[Combatant] = []
+var _party_inventory: PartyInventory
+var _vault: Vault
 
 func _ready() -> void:
 	_build_exterior()
@@ -35,6 +41,7 @@ func _ready() -> void:
 	_build_camera()
 	_build_ui()
 	_wire_doors()
+	_build_inventory_demo()
 	_interior.visible = false
 	_interior.process_mode = Node.PROCESS_MODE_DISABLED
 
@@ -157,27 +164,39 @@ func _build_camera() -> void:
 	_pc.add_child(_camera)
 
 func _build_ui() -> void:
-	var ui := CanvasLayer.new()
-	ui.name = "UI"
-	add_child(ui)
+	_ui_layer = CanvasLayer.new()
+	_ui_layer.name = "UI"
+	add_child(_ui_layer)
 
 	_fade_overlay = FadeOverlay.new()
 	add_child(_fade_overlay)
 
 	_interact_prompt = InteractPrompt.new()
 	_interact_prompt.position = Vector2(16, 16)
-	ui.add_child(_interact_prompt)
+	_ui_layer.add_child(_interact_prompt)
 
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
 	_dialogue_box.custom_minimum_size = Vector2(600, 100)
 	_dialogue_box.closed.connect(_on_dialogue_closed)
-	ui.add_child(_dialogue_box)
+	_ui_layer.add_child(_dialogue_box)
 
 	_board_panel = AdventuringBoardPanel.new()
 	_board_panel.position = Vector2(500, 150)
-	ui.add_child(_board_panel)
+	_ui_layer.add_child(_board_panel)
 	_board_panel.close()
+
+func _build_inventory_demo() -> void:
+	var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
+	_pc_combatant = party_seed["pc"]
+	_companions.assign(party_seed["companions"])
+	_party_inventory = party_seed["party_inventory"]
+	_vault = party_seed["vault"]
+
+	_inventory_panel = InventoryMenuPanel.new()
+	_inventory_panel.position = Vector2(140, 60)
+	_inventory_panel.hide()
+	_ui_layer.add_child(_inventory_panel)
 
 func _wire_doors() -> void:
 	# (525, 200) is the drawn door rectangle's center, which sits inside SHOP_BODY_RECT's
@@ -304,7 +323,20 @@ func _set_highlighted_target(target: Interactable) -> void:
 		target.set_highlighted(true)
 	_highlighted_target = target
 
+func _toggle_inventory() -> void:
+	if _dialogue_box.is_open() or _board_panel.is_open():
+		return
+	if _inventory_panel.visible:
+		_inventory_panel.hide()
+		_pc.set_movement_paused(false)
+	else:
+		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault)
+		_pc.set_movement_paused(true)
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_inventory"):
+		_toggle_inventory()
+		return
 	if not event.is_action_pressed("interact"):
 		return
 	if _dialogue_box.is_open():

@@ -23,6 +23,7 @@ func _init() -> void:
 	_add_action("move_left", [KEY_A, KEY_LEFT])
 	_add_action("move_right", [KEY_D, KEY_RIGHT])
 	_add_action("interact", [KEY_E])
+	_add_action("toggle_inventory", [KEY_I])
 	var save_error: Error = ProjectSettings.save()
 	print("input map saved with error code: ", save_error)
 	quit()
