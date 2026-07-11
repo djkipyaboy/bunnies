@@ -70,6 +70,14 @@ func _init() -> void:
 	_check(panel.vault_full_message_shown_for_test(), "a refused deposit shows the Vault-full message")
 	_check(inv.gear.has(overflow), "a refused deposit leaves the item in the bag")
 
+	# Vault items are not directly equippable (spec §3.2): selecting one and clicking a
+	# paperdoll slot must no-op, not equip-and-duplicate.
+	panel.switch_tab_for_test(&"vault")
+	panel.select_grid_item_for_test(hat, false)
+	panel.press_slot_for_test(1, 1)
+	_check(vault.gear.has(hat), "a Vault item selected while the Vault tab is active is not equipped and stays in the Vault")
+	_check(not pc.gear.has(hat), "clicking a paperdoll slot with a Vault item selected does not equip it onto the PC")
+
 	# Vault -> Bag.
 	panel.switch_tab_for_test(&"vault")
 	panel.select_grid_item_for_test(hat, false)

@@ -249,8 +249,12 @@ func _on_slot_pressed(col: int, slot_idx: int) -> void:
 		return
 	if _selected.is_empty():
 		_unequip_slot(c, slot_idx)
-	else:
+	elif _active_tab == &"bag":
 		_equip_selected(c)
+	else:
+		# Vault items are not directly equippable (spec §3.2) — must be withdrawn to the
+		# Bag first, to avoid ambiguity about which of the 3 characters a bank item equips to.
+		return
 	_rebuild()
 
 func _unequip_slot(c: Combatant, slot_idx: int) -> void:
