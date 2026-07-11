@@ -50,6 +50,7 @@ var _grid_buttons: Array[Button] = []
 var _action_button: Button
 var _action_label: Label
 var _tab_buttons: Dictionary = {}    # StringName -> Button
+var _compare_check: CheckBox
 
 ## The 3 paperdoll columns in display order [Companion1, PC, Companion2] (null = no companion
 ## assigned). [param companions] may have 0, 1, or 2 entries.
@@ -106,6 +107,99 @@ static func combined_items(gear_list: Array, weapon_list: Array) -> Array[Dictio
 		out.append({"item": w, "is_weapon": true})
 	return out
 
+## Tooltip text for [param item] (Gear or Weapon): name, slot, and a stat_bonuses/reel-affix summary.
+## When [param compare_enabled], appends one comparison line per entry in [param columns] (each a
+## Combatant or null, e.g. from paperdoll_columns()) that has an item equipped in the SAME slot as
+## [param item] — a column with that slot empty, or null (no companion), is skipped entirely.
+static func item_tooltip_text(item: Resource, compare_enabled: bool, columns: Array) -> String:
+	if item == null:
+		return ""
+	var lines: Array[String] = [_item_name(item), _item_slot_summary(item), _item_stat_summary(item)]
+	if compare_enabled:
+		lines.append_array(_compare_lines(item, columns))
+	return "\n".join(lines)
+
+static func _item_name(item: Resource) -> String:
+	if item is Gear:
+		return (item as Gear).display_name
+	if item is Weapon:
+		return (item as Weapon).display_name
+	return "?"
+
+## The paperdoll slot index (1..5) for a Gear.Slot value — the inverse of gear_slot_for().
+static func gear_slot_index_for(gear_slot: int) -> int:
+	return gear_slot + 1
+
+static func _item_slot_summary(item: Resource) -> String:
+	if item is Gear:
+		return "Slot: %s" % SLOT_NAMES[gear_slot_index_for((item as Gear).slot)]
+	if item is Weapon:
+		return "Slot: Weapon"
+	return ""
+
+static func _item_stat_summary(item: Resource) -> String:
+	if item is Gear:
+		var g: Gear = item as Gear
+		var parts: Array[String] = []
+		var s: Stats = g.stat_bonuses
+		if s != null:
+			if s.might != 0: parts.append("Might %s" % _signed(s.might))
+			if s.finesse != 0: parts.append("Finesse %s" % _signed(s.finesse))
+			if s.vigor != 0: parts.append("Vigor %s" % _signed(s.vigor))
+			if s.focus != 0: parts.append("Focus %s" % _signed(s.focus))
+			if s.grit != 0: parts.append("Grit %s" % _signed(s.grit))
+			if s.luck != 0: parts.append("Luck %s" % _signed(s.luck))
+		if g.reel_affixes.size() > 0:
+			parts.append("%d reel affix(es)" % g.reel_affixes.size())
+		return ", ".join(parts) if parts.size() > 0 else "No bonuses"
+	if item is Weapon:
+		return "Base damage %.1f" % (item as Weapon).base_damage
+	return ""
+
+## The Gear equipped in [param c]'s slot [param gear_slot] (a raw Gear.Slot value, not a paperdoll
+## index), or null.
+static func equipped_item_in_gear_slot(c: Combatant, gear_slot: int) -> Gear:
+	for g: Gear in c.gear:
+		if g != null and g.slot == gear_slot:
+			return g
+	return null
+
+static func _compare_lines(item: Resource, columns: Array) -> Array[String]:
+	var labels: Array[String] = ["Companion 1", "PC", "Companion 2"]
+	var out: Array[String] = []
+	for i in range(columns.size()):
+		var c: Combatant = columns[i]
+		if c == null:
+			continue
+		var current: Resource = equipped_item_in_gear_slot(c, (item as Gear).slot) if item is Gear else c.weapon
+		if current == null:
+			continue   # nothing equipped in that slot on this column — nothing to compare against
+		out.append("vs %s: %s" % [labels[i], _diff_summary(item, current)])
+	return out
+
+static func _diff_summary(new_item: Resource, old_item: Resource) -> String:
+	if new_item is Gear and old_item is Gear:
+		var a: Stats = (new_item as Gear).stat_bonuses
+		var b: Stats = (old_item as Gear).stat_bonuses
+		var parts: Array[String] = []
+		_diff_stat(parts, "Might", a.might if a != null else 0, b.might if b != null else 0)
+		_diff_stat(parts, "Finesse", a.finesse if a != null else 0, b.finesse if b != null else 0)
+		_diff_stat(parts, "Vigor", a.vigor if a != null else 0, b.vigor if b != null else 0)
+		_diff_stat(parts, "Focus", a.focus if a != null else 0, b.focus if b != null else 0)
+		_diff_stat(parts, "Grit", a.grit if a != null else 0, b.grit if b != null else 0)
+		_diff_stat(parts, "Luck", a.luck if a != null else 0, b.luck if b != null else 0)
+		return ", ".join(parts) if parts.size() > 0 else "No change"
+	if new_item is Weapon and old_item is Weapon:
+		return "Base damage %.1f (was %.1f)" % [(new_item as Weapon).base_damage, (old_item as Weapon).base_damage]
+	return "No change"
+
+static func _diff_stat(parts: Array[String], label: String, new_val: int, old_val: int) -> void:
+	if new_val != 0 or old_val != 0:
+		parts.append("%s %s (was %s)" % [label, _signed(new_val), _signed(old_val)])
+
+static func _signed(v: int) -> String:
+	return "+%d" % v if v >= 0 else "%d" % v
+
 ## Rebuilds and shows the panel for [param pc]'s party (spec §4). [param companions] has 0-2 entries.
 func open_for(pc: Combatant, companions: Array, party_inventory: PartyInventory, vault: Vault) -> void:
 	_pc = pc
@@ -129,6 +223,7 @@ func _rebuild() -> void:
 	_build_tab_row()
 	_build_grid()
 	_build_action_row()
+	_build_compare_check()
 
 	var rows: int = (_grid_item_count() + GRID_COLS - 1) / GRID_COLS
 	var bottom: float = GRID_TOP + float(maxi(rows, 1)) * (GRID_CELL_H + GRID_CELL_GAP) + ACTION_BTN_H + PAD
@@ -158,6 +253,7 @@ func _build_paperdoll_column(col: int, c: Combatant) -> void:
 			var item: Resource = equipped_item(c, slot_idx)
 			btn.text = "%s: %s" % [SLOT_NAMES[slot_idx], slot_display_text(item)]
 			btn.modulate = slot_display_color(item)
+			btn.tooltip_text = item_tooltip_text(item, _compare_enabled, paperdoll_columns(_pc, _companions)) if item != null else ""
 			btn.pressed.connect(_on_slot_pressed.bind(col, slot_idx))
 		add_child(btn)
 		_slot_buttons["%d_%d" % [col, slot_idx]] = btn
@@ -203,6 +299,7 @@ func _build_grid() -> void:
 		btn.custom_minimum_size = Vector2(GRID_CELL_W, GRID_CELL_H)
 		btn.text = slot_display_text(entry["item"])
 		btn.modulate = slot_display_color(entry["item"])
+		btn.tooltip_text = item_tooltip_text(entry["item"], _compare_enabled, paperdoll_columns(_pc, _companions))
 		if _selected.get("item") == entry["item"]:
 			btn.text += "  ✓"
 		btn.pressed.connect(_on_grid_item_pressed.bind(entry["item"], entry["is_weapon"]))
@@ -230,6 +327,18 @@ func _build_action_row() -> void:
 	_action_label.text = "Vault full" if _vault_full_message else ""
 	_action_label.modulate = Color(1.0, 0.4, 0.4)
 	add_child(_action_label)
+
+func _build_compare_check() -> void:
+	_compare_check = CheckBox.new()
+	_compare_check.text = "Compare"
+	_compare_check.button_pressed = _compare_enabled
+	_compare_check.position = Vector2(PANEL_W - PAD - 140.0, TABS_TOP)
+	_compare_check.toggled.connect(_on_compare_toggled)
+	add_child(_compare_check)
+
+func _on_compare_toggled(pressed: bool) -> void:
+	_compare_enabled = pressed
+	_rebuild()
 
 func _on_tab_pressed(tab: StringName) -> void:
 	_active_tab = tab
