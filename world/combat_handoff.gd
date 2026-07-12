@@ -39,20 +39,30 @@ func mark_defeated(encounter_id: StringName) -> void:
 func is_defeated(encounter_id: StringName) -> bool:
 	return defeated_encounter_ids.has(encounter_id)
 
-## Clears the fight data (pc/companions/enemy_ids/return_scene_path) once combat.gd has consumed
-## it, so a later standalone combat.tscn launch doesn't see stale handoff data. Deliberately does
-## NOT touch return_position/has_return_position — combat.gd calls this BEFORE the scene change,
-## while the destination scene (e.g. overworld_demo.gd) hasn't had a chance to read
-## return_position yet; clearing it here would silently discard it before anyone consumes it. See
-## clear_return_position() for that half, called by the destination scene once it has read it.
-func clear_fight_data() -> void:
+## Clears the combat-specific data (enemy_ids/pending_encounter_id/return_scene_path) once
+## combat.gd has read them, so a later standalone combat.tscn launch doesn't see stale handoff
+## data. Deliberately does NOT touch pc/companions/party_inventory/vault or
+## return_position/has_return_position — combat.gd calls this BEFORE the scene change, while the
+## destination scene (overworld_demo.gd) hasn't had a chance to read any of those yet. Clearing the
+## party here would silently discard whatever gear/HP changes happened in the fight before the
+## overworld ever got to reuse them (playtest-found gap, 2026-07-12 — the party was being reseeded
+## from scratch on every return, quietly dropping equipped items). See clear_party()/
+## clear_return_position() for those halves, called by the destination scene once it's consumed
+## them.
+func clear_combat_data() -> void:
+	enemy_ids = []
+	pending_encounter_id = &""
+	return_scene_path = ""
+
+## Clears pc/companions/party_inventory/vault — called by the destination scene (e.g.
+## overworld_demo.gd's _build_inventory_demo()) once it has reused them as its own live party,
+## so a later standalone combat.tscn launch doesn't see stale handoff data and a later return trip
+## doesn't re-consume the same references.
+func clear_party() -> void:
 	pc = null
 	companions = []
 	party_inventory = null
 	vault = null
-	enemy_ids = []
-	pending_encounter_id = &""
-	return_scene_path = ""
 
 ## Clears return_position/has_return_position — called by the destination scene (e.g.
 ## overworld_demo.gd's _build_pc()) once it has read them, so a later return trip doesn't reuse a
@@ -61,9 +71,10 @@ func clear_return_position() -> void:
 	return_position = Vector2.ZERO
 	has_return_position = false
 
-## Clears everything clear_fight_data()/clear_return_position() clear, combined — for callers (and
-## tests) that want a full reset in one call. Does NOT clear defeated_encounter_ids — that must
-## persist for the life of the session.
+## Clears everything the three narrower methods above clear, combined — for callers (and tests)
+## that want a full reset in one call. Does NOT clear defeated_encounter_ids — that must persist
+## for the life of the session.
 func clear_pending() -> void:
-	clear_fight_data()
+	clear_combat_data()
+	clear_party()
 	clear_return_position()

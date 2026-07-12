@@ -221,12 +221,26 @@ func _build_ui() -> void:
 ## town demo's, matching this project's existing per-scene demo convention), with the Vault passed
 ## in but marked unreachable (open_for's vault_available=false) so a player can still adjust Bag/
 ## equipped gear before an overworld encounter without being able to bank.
+##
+## Returning from a fight (CombatHandoff still holds a party — combat.gd's Continue handler
+## deliberately doesn't clear it) reuses that EXACT party/bag/vault instead of reseeding a fresh
+## one — playtest-found gap, 2026-07-12: gear equipped before an encounter was silently reverting
+## because this always called seed_demo_party() unconditionally, discarding whatever the fought
+## party's live equipment/HP state was.
 func _build_inventory_demo() -> void:
-	var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
-	_pc_combatant = party_seed["pc"]
-	_companions.assign(party_seed["companions"])
-	_party_inventory = party_seed["party_inventory"]
-	_vault = party_seed["vault"]
+	var handoff: Node = _handoff()
+	if handoff.pc != null:
+		_pc_combatant = handoff.pc
+		_companions.assign(handoff.companions)
+		_party_inventory = handoff.party_inventory
+		_vault = handoff.vault
+		handoff.clear_party()
+	else:
+		var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
+		_pc_combatant = party_seed["pc"]
+		_companions.assign(party_seed["companions"])
+		_party_inventory = party_seed["party_inventory"]
+		_vault = party_seed["vault"]
 
 ## Places the three placeholder NPCs the encounters spec calls for (2026-07-11-overworld-npc-
 ## encounters-design.md §3.6) — one hostile OverworldEnemy, one stationary RewardPickup, one

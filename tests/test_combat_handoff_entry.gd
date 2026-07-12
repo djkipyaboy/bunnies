@@ -95,21 +95,26 @@ func _initialize() -> void:
 	_check(not found_restart_button, "handoff launch's result card does NOT contain the standalone 'Fight again' button")
 
 	# -----------------------------------------------------------------------
-	# WIN via "Continue": mark_defeated fires, pending fields clear, defeated id persists.
+	# WIN via "Continue": mark_defeated fires, combat-specific fields clear, defeated id persists.
+	# The PARTY (pc/companions/party_inventory/vault) must SURVIVE this call — playtest-found gap,
+	# 2026-07-12: it used to be wiped here too, before the overworld ever got a chance to reuse it,
+	# silently discarding whatever gear/HP changes happened in the fight.
 	# -----------------------------------------------------------------------
 	inst._last_result_won = true
 	var returned_path_win: String = inst.press_continue_for_test()
 
 	_check(CombatHandoff.is_defeated(&"OverworldRat") == true, "WIN + Continue marks the encounter defeated")
-	_check(CombatHandoff.pc == null, "WIN + Continue clears the pending handoff pc")
+	_check(CombatHandoff.pc == handoff_pc, "WIN + Continue leaves the party (pc) intact for the overworld to reuse")
+	_check(CombatHandoff.companions.size() == 1 and CombatHandoff.companions[0] == handoff_companion, "WIN + Continue leaves companions intact")
 	_check(CombatHandoff.pending_encounter_id == &"", "WIN + Continue clears pending_encounter_id")
 	_check(returned_path_win == return_path, "WIN + Continue returns the correct scene path for the scene change")
 
+	CombatHandoff.clear_party()  # simulate the overworld consuming it, so the next section starts clean
 	inst.queue_free()
 	await process_frame
 
 	# -----------------------------------------------------------------------
-	# LOSS via "Continue": mark_defeated does NOT fire, but pending fields still clear and the
+	# LOSS via "Continue": mark_defeated does NOT fire, but the party still survives and the
 	# scene-change path is still correctly reported.
 	# -----------------------------------------------------------------------
 	CombatHandoff.clear_pending()  # start this section clean
@@ -127,7 +132,7 @@ func _initialize() -> void:
 	var returned_path_loss: String = loss_inst.press_continue_for_test()
 
 	_check(CombatHandoff.is_defeated(&"OverworldFerret") == false, "LOSS + Continue does NOT mark the encounter defeated")
-	_check(CombatHandoff.pc == null, "LOSS + Continue still clears the pending handoff pc")
+	_check(CombatHandoff.pc == loss_pc, "LOSS + Continue also leaves the party intact for the overworld to reuse")
 	_check(returned_path_loss == return_path, "LOSS + Continue still returns the correct scene path (scene change still happens)")
 
 	loss_inst.queue_free()

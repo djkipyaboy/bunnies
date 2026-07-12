@@ -63,16 +63,30 @@ func _initialize() -> void:
 	_check(CombatHandoff.has_return_position == false, "clear_pending resets has_return_position")
 	_check(CombatHandoff.is_defeated(&"OverworldRat") == true, "clear_pending does NOT clear defeated_encounter_ids")
 
-	# --- clear_fight_data() / clear_return_position() are the split halves clear_pending() composes
-	# (final-review fix, 2026-07-11): combat.gd must call ONLY clear_fight_data() before the scene
-	# change, so the destination scene can still read return_position/has_return_position
-	# afterward — clearing them too early was the Critical bug the review caught. ---
+	# --- clear_combat_data() / clear_party() / clear_return_position() are the three split halves
+	# clear_pending() composes. combat.gd's Continue handler calls ONLY clear_combat_data() before
+	# the scene change, so the destination scene can still read/reuse the party AND the return
+	# position afterward — clearing either too early was a real bug (return_position: final-review
+	# Critical finding 2026-07-11; the party: playtest-found gap 2026-07-12 — equipped gear was
+	# silently reverting because the party got wiped before the overworld could reuse it). ---
 	CombatHandoff.begin_encounter(pc, companions, inv, vault, enemy_ids, encounter_id, scene_path, position)
-	CombatHandoff.clear_fight_data()
-	_check(CombatHandoff.pc == null, "clear_fight_data resets pc")
-	_check(CombatHandoff.return_scene_path == "", "clear_fight_data resets return_scene_path")
-	_check(CombatHandoff.return_position == position, "clear_fight_data leaves return_position untouched")
-	_check(CombatHandoff.has_return_position == true, "clear_fight_data leaves has_return_position untouched")
+	CombatHandoff.clear_combat_data()
+	_check(CombatHandoff.pc == pc, "clear_combat_data leaves pc untouched")
+	_check(CombatHandoff.companions == companions, "clear_combat_data leaves companions untouched")
+	_check(CombatHandoff.party_inventory == inv, "clear_combat_data leaves party_inventory untouched")
+	_check(CombatHandoff.vault == vault, "clear_combat_data leaves vault untouched")
+	_check(CombatHandoff.enemy_ids == [], "clear_combat_data resets enemy_ids")
+	_check(CombatHandoff.pending_encounter_id == &"", "clear_combat_data resets pending_encounter_id")
+	_check(CombatHandoff.return_scene_path == "", "clear_combat_data resets return_scene_path")
+	_check(CombatHandoff.return_position == position, "clear_combat_data leaves return_position untouched")
+	_check(CombatHandoff.has_return_position == true, "clear_combat_data leaves has_return_position untouched")
+
+	CombatHandoff.clear_party()
+	_check(CombatHandoff.pc == null, "clear_party resets pc")
+	_check(CombatHandoff.companions == [], "clear_party resets companions")
+	_check(CombatHandoff.party_inventory == null, "clear_party resets party_inventory")
+	_check(CombatHandoff.vault == null, "clear_party resets vault")
+	_check(CombatHandoff.return_position == position, "clear_party leaves return_position untouched")
 
 	CombatHandoff.clear_return_position()
 	_check(CombatHandoff.return_position == Vector2.ZERO, "clear_return_position resets return_position")

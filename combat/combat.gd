@@ -1759,17 +1759,19 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 ## Shared by _on_continue_after_handoff_pressed() and press_continue_for_test() so the two can't
 ## drift apart (final-review Minor finding, 2026-07-11 — they used to duplicate this logic
 ## independently). Marks the encounter defeated on a win, reads return_scene_path into a local
-## BEFORE clear_fight_data() wipes it, clears the fight data, and returns the path to change to.
-## Deliberately calls clear_fight_data(), NOT clear_pending() — return_position/has_return_position
-## must survive this call so the destination scene (overworld_demo.gd's _build_pc()) can still read
-## them after the scene change; clear_pending() would wipe them here, before anyone's had a chance
-## to consume them (final-review Critical finding, 2026-07-11).
+## BEFORE clear_combat_data() wipes it, clears the combat-specific data, and returns the path to
+## change to. Deliberately calls clear_combat_data(), NOT clear_pending() — pc/companions/
+## party_inventory/vault and return_position/has_return_position must ALL survive this call so the
+## destination scene (overworld_demo.gd) can still read/reuse them after the scene change;
+## clear_pending() would wipe them here, before anyone's had a chance to consume them (final-review
+## Critical finding, 2026-07-11, for return_position; playtest-found gap, 2026-07-12, for the party
+## — it was being silently reseeded from scratch on every return, dropping equipped gear/HP).
 func _resolve_handoff_continue() -> String:
 	var handoff: Node = _handoff()
 	if _last_result_won:
 		handoff.mark_defeated(handoff.pending_encounter_id)
 	var return_path: String = handoff.return_scene_path
-	handoff.clear_fight_data()
+	handoff.clear_combat_data()
 	return return_path
 
 ## Overworld handoff "Continue" button (spec §3.5): mark the encounter defeated on a win, fade out,

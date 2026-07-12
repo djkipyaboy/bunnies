@@ -761,6 +761,29 @@ root cause of the specific symptom reported — a direct code-level simulation o
 was what finally separated "is the combat logic wrong" from "is the player being misled by the UI,"
 and should have been the first move, not the third.
 
+**SHIPPED 2026-07-12 — THE FOUGHT PARTY NOW SURVIVES THE RETURN TRIP (real, distinct gap from the
+Continue-button/return-position fixes above).** Player playtest found: gear equipped on the PC
+before walking into the rat was silently unequipped after the fight ended. Root cause:
+`combat.gd`'s "Continue" handler cleared `CombatHandoff.pc`/`.companions`/`.party_inventory`/
+`.vault` (via the old `clear_fight_data()`) BEFORE the scene changed, and
+`overworld_demo.gd`'s `_build_inventory_demo()` unconditionally called
+`InventoryDemoSetup.seed_demo_party()` on every load regardless of context — so returning from
+*any* fight silently reseeded a brand-new placeholder party from scratch, discarding whatever
+gear/HP the fought party actually had. This is the same class of gap as the return-position bug
+(§3.5's "destination scene must get a chance to read it before it's cleared" pattern applied only
+to position, not the party itself) — should have been caught applying that same lesson the first
+time. Fixed: split `CombatHandoff`'s clearing into three narrow methods —
+`clear_combat_data()` (enemy_ids/pending_encounter_id/return_scene_path, called by `combat.gd`
+before the scene change), `clear_party()` (pc/companions/party_inventory/vault, called by
+`overworld_demo.gd`'s `_build_inventory_demo()` once it's reused them), and the existing
+`clear_return_position()` — `clear_pending()` now composes all three for callers that want a full
+reset. `_build_inventory_demo()` now checks `CombatHandoff.pc != null` first: if set, reuse that
+exact party instead of reseeding (only seeding fresh on a genuinely first-ever launch). New
+regression test in `tests/test_overworld_demo_npcs.gd` gives a fought Combatant a distinctive piece
+of gear, runs the exact real clear-then-load sequence, and confirms that gear is still equipped
+after "returning" — this is the test that would have caught the bug directly, matching the
+end-to-end-simulation lesson from the earlier return-position fix.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real
