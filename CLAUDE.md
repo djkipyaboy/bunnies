@@ -638,6 +638,16 @@ across scenes to bridge into, explicitly deferred):
   the wandering NPC's dialogue, and confirm the debug message/movement-pause/reward-grant all read
   right before any further overworld-encounter work (which would need the combat-scene bridge next).
 
+**SHIPPED 2026-07-11 — FIRST PLAYTEST OF THE OVERWORLD NPC ENCOUNTERS, 2 fixes** (spec addendum
+§4.1). (1) The rat's `(500, 550)` spawn was only ~41px from a tree's collider — inside its own 48px
+wander radius — so a wander target could land inside the tree and visibly stick it there pushing
+against the collision shape; moved to `(800, 400)`, open ground 140px+ clear of everything. (2)
+Player asked for a pickup confirmation message matching the encounter-triggered one: `RewardPickup`
+gained `signal item_picked_up(item_name: String)`; `overworld_demo.gd` shows it via a new top-left
+yellow `_pickup_debug_label` ("Picked up: Shiny Trinket"), on its own line above/below the orange
+encounter message so both can show without one overwriting the other. Both changes headless-test-
+green (`test_reward_pickup.gd`, `test_overworld_demo_npcs.gd`) — re-verify live before further work.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real

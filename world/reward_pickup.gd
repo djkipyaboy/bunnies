@@ -12,6 +12,10 @@ extends Interactable
 ## wired externally rather than looked up).
 var party_inventory: PartyInventory
 
+## Emitted right before this pickup frees itself, so the driving scene can show a "you picked
+## this up" message (distinct from the encounter-triggered message — player request 2026-07-11).
+signal item_picked_up(item_name: String)
+
 func _init() -> void:
 	auto_trigger = true
 	prompt_text = "Pick up"
@@ -24,4 +28,5 @@ func _init() -> void:
 
 func interact() -> void:
 	party_inventory.give_gear(reward_gear)
+	item_picked_up.emit(reward_gear.display_name)
 	queue_free()

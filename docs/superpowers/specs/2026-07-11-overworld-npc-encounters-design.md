@@ -117,6 +117,18 @@ simplification to prove the map-side system in isolation — the later "wire int
 pass (out of scope here, needs a persistent-party bridge first) must change this so the enemy only
 disappears after the player actually wins the resulting fight.
 
+## 4.1 First playtest fixes (2026-07-11)
+
+- **`OverworldEnemy` spawn position** — the original `(500, 550)` placement was only ~41px from the
+  `(450, 550)` tree's collider, well inside the default 48px `wander_leash_radius`, so a wander
+  target could land inside the tree and visibly stick the rat in place pushing against it. Moved to
+  `(800, 400)` (open ground east of the river, 140px+ clear of every collider).
+- **Pickup confirmation message** (player request) — `RewardPickup` gained
+  `signal item_picked_up(item_name: String)`, emitted right before it frees itself.
+  `overworld_demo.gd` shows it via a new top-left `_pickup_debug_label` (same placement convention
+  as the encounter message, yellow instead of orange, its own line so both can show at once):
+  "Picked up: Shiny Trinket".
+
 ## 5. Out of scope
 
 - Launching `combat.tscn` from an overworld encounter (needs persistent party/PC state across scenes

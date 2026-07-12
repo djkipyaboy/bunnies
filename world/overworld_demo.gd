@@ -27,6 +27,7 @@ var _highlighted_target: Interactable
 var _dialogue_box: DialogueBox
 var _talking_to: Villager
 var _encounter_debug_label: Label
+var _pickup_debug_label: Label
 
 var _pc_combatant: Combatant
 var _companions: Array = []
@@ -203,6 +204,15 @@ func _build_ui() -> void:
 	_encounter_debug_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.15))
 	ui.add_child(_encounter_debug_label)
 
+	# Top-left pickup confirmation (player request 2026-07-11) — same top-left placement/style
+	# convention as the encounter message, but yellow and its own line so both can be visible at
+	# once without one overwriting the other.
+	_pickup_debug_label = Label.new()
+	_pickup_debug_label.name = "PickupDebugLabel"
+	_pickup_debug_label.position = Vector2(16, 70)
+	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
+	ui.add_child(_pickup_debug_label)
+
 ## The overworld map is not a safe zone — its own placeholder party/bag seed (independent of the
 ## town demo's, matching this project's existing per-scene demo convention), with the Vault passed
 ## in but marked unreachable (open_for's vault_available=false) so a player can still adjust Bag/
@@ -223,7 +233,11 @@ func _build_npcs() -> void:
 	var enemy := OverworldEnemy.new()
 	enemy.name = "OverworldRat"
 	enemy.enemy_ids = [&"rat"]
-	enemy.global_position = Vector2(500, 550)
+	# (800, 400) sits in open ground east of the river (river ends at x=660) and well clear of
+	# every tree/mountain/village collider by more than the default 48px wander_leash_radius —
+	# the previous (500, 550) placement was only ~41px from the (450, 550) tree's collider,
+	# close enough that a wander target could land inside it, visibly sticking the rat in place.
+	enemy.global_position = Vector2(800, 400)
 	enemy.encounter_triggered.connect(_on_encounter_triggered)
 	_world.add_child(enemy)
 
@@ -235,6 +249,7 @@ func _build_npcs() -> void:
 	reward.reward_gear = trinket_gear
 	reward.party_inventory = _party_inventory
 	reward.global_position = Vector2(900, 150)
+	reward.item_picked_up.connect(_on_item_picked_up)
 	_world.add_child(reward)
 
 	var wanderer := Villager.new()
@@ -282,6 +297,10 @@ func _on_encounter_triggered(enemy_ids: Array[StringName]) -> void:
 	for enemy_id: StringName in enemy_ids:
 		id_strings.append(String(enemy_id))
 	_encounter_debug_label.text = "Encounter triggered: %s — combat integration pending" % ", ".join(id_strings)
+
+## Shown top-left (like the encounter message, but yellow) whenever a RewardPickup is collected.
+func _on_item_picked_up(item_name: String) -> void:
+	_pickup_debug_label.text = "Picked up: %s" % item_name
 
 func _toggle_inventory() -> void:
 	if _inventory_panel.visible:

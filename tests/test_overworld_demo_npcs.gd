@@ -52,6 +52,7 @@ func _process(_delta: float) -> bool:
 		overworld._process(0.016)
 		_check(overworld._party_inventory.gear.has(reward_node.reward_gear), "RewardPickup's gear lands in _party_inventory")
 		_check(reward_node.is_queued_for_deletion(), "touching the RewardPickup queues it for deletion")
+		_check(overworld._pickup_debug_label.text.find("Shiny Trinket") != -1, "pickup debug label mentions the collected item's name")
 		overworld._pc._tracked.erase(reward_node)
 
 		# --- Regression (2026-07-11 final review, Important finding): a same-frame interact
