@@ -38,7 +38,7 @@ func nearest_interactable() -> Interactable:
 	return Interactable.nearest(_tracked, global_position)
 
 ## Pure velocity calc so movement-pause logic is unit-testable without a running physics frame or
-## Input singleton (mirrors Villager.wander_target's "pure + static" pattern). paused (e.g. while
+## Input singleton (mirrors Wander.random_target's "pure + static" pattern). paused (e.g. while
 ## InventoryMenuPanel is open) always yields zero velocity regardless of input_vector.
 static func movement_velocity(input_vector: Vector2, move_speed: float, paused: bool) -> Vector2:
 	if paused:

@@ -24,6 +24,9 @@ var _camera: Camera2D
 var _interact_prompt: InteractPrompt
 var _fade_overlay: FadeOverlay
 var _highlighted_target: Interactable
+var _dialogue_box: DialogueBox
+var _talking_to: Villager
+var _encounter_debug_label: Label
 
 var _pc_combatant: Combatant
 var _companions: Array = []
@@ -39,6 +42,7 @@ func _ready() -> void:
 	_build_camera()
 	_build_ui()
 	_build_inventory_demo()
+	_build_npcs()
 
 func _build_world() -> void:
 	_world = Node2D.new()
@@ -183,6 +187,22 @@ func _build_ui() -> void:
 	_inventory_panel.hide()
 	ui.add_child(_inventory_panel)
 
+	_dialogue_box = DialogueBox.new()
+	_dialogue_box.position = Vector2(20, 700)
+	_dialogue_box.custom_minimum_size = Vector2(600, 100)
+	_dialogue_box.closed.connect(_on_dialogue_closed)
+	ui.add_child(_dialogue_box)
+
+	# Scaffolding for this pass only (2026-07-11-overworld-npc-encounters-design.md §3.6) —
+	# there's no real combat.tscn transition yet, so an OverworldEnemy encounter just posts a
+	# transient debug line here instead. Distinct color/position from _interact_prompt so it
+	# doesn't read as the same UI element.
+	_encounter_debug_label = Label.new()
+	_encounter_debug_label.name = "EncounterDebugLabel"
+	_encounter_debug_label.position = Vector2(16, 50)
+	_encounter_debug_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.15))
+	ui.add_child(_encounter_debug_label)
+
 ## The overworld map is not a safe zone — its own placeholder party/bag seed (independent of the
 ## town demo's, matching this project's existing per-scene demo convention), with the Vault passed
 ## in but marked unreachable (open_for's vault_available=false) so a player can still adjust Bag/
@@ -194,6 +214,75 @@ func _build_inventory_demo() -> void:
 	_party_inventory = party_seed["party_inventory"]
 	_vault = party_seed["vault"]
 
+## Places the three placeholder NPCs the encounters spec calls for (2026-07-11-overworld-npc-
+## encounters-design.md §3.6) — one hostile OverworldEnemy, one stationary RewardPickup, one
+## friendly dialogue Villager — all children of _world (same Y-sort/collision context as every
+## other overworld object). Positions are disposable placeholders chosen clear of the river/
+## mountain/tree/village colliders and the PC spawn.
+func _build_npcs() -> void:
+	var enemy := OverworldEnemy.new()
+	enemy.name = "OverworldRat"
+	enemy.enemy_ids = [&"rat"]
+	enemy.global_position = Vector2(500, 550)
+	enemy.encounter_triggered.connect(_on_encounter_triggered)
+	_world.add_child(enemy)
+
+	var reward := RewardPickup.new()
+	reward.name = "ShinyTrinket"
+	var trinket_gear := Gear.new()
+	trinket_gear.display_name = "Shiny Trinket"
+	trinket_gear.stat_bonuses = Stats.new()
+	reward.reward_gear = trinket_gear
+	reward.party_inventory = _party_inventory
+	reward.global_position = Vector2(900, 150)
+	_world.add_child(reward)
+
+	var wanderer := Villager.new()
+	wanderer.name = "OverworldWanderer"
+	wanderer.dialogue = _make_dialogue("Careful out there, traveler.", "Wanderer")
+	wanderer.can_wander = true
+	wanderer.global_position = Vector2(300, 250)
+	wanderer.dialogue_requested.connect(_on_dialogue_requested.bind(wanderer))
+	_world.add_child(wanderer)
+
+func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> DialogueSet:
+	var greeting := DialogueLine.new()
+	greeting.speaker_name = speaker_name
+	greeting.text = line_text
+	var farewell := DialogueLine.new()
+	farewell.speaker_name = speaker_name
+	farewell.text = "Safe travels!"
+	var lines: Array[DialogueLine] = [greeting, farewell]
+	var dialogue_set := DialogueSet.new()
+	dialogue_set.lines = lines
+	return dialogue_set
+
+## Also pauses the talking Villager's own wandering — otherwise it can keep moving (and, via
+## move_and_slide()'s push-out, drag the PC along with it) for the whole conversation. Mirrors
+## town_demo.gd's handler exactly, including the PC-movement-pause fix added there earlier this
+## session.
+func _on_dialogue_requested(dialogue_set: DialogueSet, villager: Villager) -> void:
+	_talking_to = villager
+	villager.set_wander_paused(true)
+	_pc.set_movement_paused(true)
+	_dialogue_box.open(dialogue_set)
+
+func _on_dialogue_closed() -> void:
+	if _talking_to != null:
+		_talking_to.set_wander_paused(false)
+		_talking_to = null
+	_pc.set_movement_paused(false)
+
+## Scaffolding for this pass only (2026-07-11-overworld-npc-encounters-design.md §3.6/§4) — no
+## real combat.tscn transition exists yet (needs a persistent party/PC bridge across scenes,
+## explicitly out of scope here). This just proves the map-side trigger reaches the scene and
+## gives a human playtester on-screen confirmation.
+func _on_encounter_triggered(enemy_ids: Array[StringName]) -> void:
+	var id_strings: Array[String] = []
+	for enemy_id: StringName in enemy_ids:
+		id_strings.append(String(enemy_id))
+	_encounter_debug_label.text = "Encounter triggered: %s — combat integration pending" % ", ".join(id_strings)
+
 func _toggle_inventory() -> void:
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -203,11 +292,19 @@ func _toggle_inventory() -> void:
 		_pc.set_movement_paused(true)
 
 func _process(_delta: float) -> void:
-	if _inventory_panel.visible:
+	if _inventory_panel.visible or _dialogue_box.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
 	var target: Interactable = _pc.nearest_interactable()
+	if target != null and target.auto_trigger:
+		# Fire immediately on contact instead of showing a prompt for something that's about
+		# to disappear this frame (OverworldEnemy/RewardPickup) — the simplest of the two
+		# spec-approved options (2026-07-11-overworld-npc-encounters-design.md §3.1/§3.6).
+		target.interact()
+		_interact_prompt.hide_prompt()
+		_set_highlighted_target(null)
+		return
 	if target != null:
 		_interact_prompt.show_prompt(target.prompt_text)
 	else:
@@ -231,6 +328,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if not event.is_action_pressed("interact"):
 		return
+	if _dialogue_box.is_open():
+		_dialogue_box.advance()
+		return
 	var target: Interactable = _pc.nearest_interactable()
-	if target != null:
+	# auto_trigger targets are already fired by _process the moment they're in range — don't
+	# also fire them here, or a same-frame interact press double-grants a reward/double-emits
+	# an encounter (queue_free() is deferred, so the target is still "live" for this frame).
+	if target != null and not target.auto_trigger:
 		target.interact()

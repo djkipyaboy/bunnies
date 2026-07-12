@@ -80,10 +80,15 @@ hostile NPC reads as dangerous at a glance. `[ASSUMPTION]` exact color, tune lat
 var party_inventory: PartyInventory   # set by whoever instantiates this, mirrors Door's target/camera refs
 ```
 
-Sets the inherited `auto_trigger = true` in its own `_ready()` (after calling `super._ready()`) so
-every `RewardPickup` is contact-triggered by construction, without the base class needing to know
-about reward pickups. Overrides `interact()`: appends `reward_gear` into `party_inventory`, then
-`queue_free()`. Placeholder visual: a bright/gold tint so it reads as "grab me."
+Sets the inherited `auto_trigger = true` in its own `_init()` (mirroring `AdventuringBoard`'s
+convention of setting fields/building its visual at construction, before `Interactable._ready()`
+runs) so every `RewardPickup` is contact-triggered by construction, without the base class needing
+to know about reward pickups. Overrides `interact()`: appends `reward_gear` into `party_inventory`,
+then `queue_free()`. Placeholder visual: a bright/gold tint so it reads as "grab me."
+
+> **Implementation note (2026-07-11 final review):** built exactly as above via `_init()`, not
+> `_ready()` — actually more robust than the original wording here suggested, since the flag is set
+> at construction, well before anything reads it.
 
 ### 3.5 Friendly dialogue NPC
 

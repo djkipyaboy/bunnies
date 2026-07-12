@@ -22,6 +22,13 @@ extends Area2D
 ## free instead of re-declaring it.
 @export var highlight_visual: CanvasItem
 
+## When true, the driving scene calls interact() the instant this becomes the nearest
+## interactable in range — no keypress required. Default false, so every existing
+## interactable (Door, SceneExit, AdventuringBoard, Villager's Talk zone) is completely
+## unaffected. Read by whichever scene's _process() polls nearest_interactable() each
+## frame (see docs/superpowers/specs/2026-07-11-overworld-npc-encounters-design.md §3.1).
+@export var auto_trigger: bool = false
+
 const DIM_ALPHA: float = 0.2
 
 ## Emitted by the default interact() implementation. Subclasses that override interact()
@@ -51,11 +58,16 @@ func set_highlighted(active: bool) -> void:
 	highlight_visual.modulate.a = 1.0 if active else DIM_ALPHA
 
 ## Returns whichever candidate is closest to from_position, or null if candidates is
-## empty. Pure/static so it's unit-testable without a live physics query.
+## empty. Pure/static so it's unit-testable without a live physics query. Skips any candidate
+## that's been queue_free()'d (auto_trigger interactables like OverworldEnemy/RewardPickup free
+## themselves mid-scene; area_exited removes them from the tracker, but that's a deferred signal,
+## so a freed-yet-still-tracked reference can exist for part of a frame).
 static func nearest(candidates: Array[Interactable], from_position: Vector2) -> Interactable:
 	var best: Interactable = null
 	var best_dist: float = INF
 	for candidate: Interactable in candidates:
+		if not is_instance_valid(candidate):
+			continue
 		var dist: float = candidate.global_position.distance_squared_to(from_position)
 		if dist < best_dist:
 			best_dist = dist

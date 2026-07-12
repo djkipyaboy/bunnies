@@ -594,6 +594,50 @@ unavailable, so nothing depends solely on the UI's affordance being absent. New
 `tests/test_overworld_demo_inventory.gd` (mirrors `test_town_demo_inventory.gd`) plus new
 Vault-unavailable coverage in `tests/test_inventory_menu_panel_transfer.gd`.
 
+**SHIPPED 2026-07-11 — OVERWORLD NPC ENCOUNTERS (Chrono Trigger/Paper Mario TTYD-style map
+monsters).** Brainstormed, spec'd (`docs/superpowers/specs/2026-07-11-overworld-npc-encounters-
+design.md`), planned (`docs/superpowers/plans/2026-07-11-overworld-npc-encounters.md`), and built
+subagent-driven (5 implementer passes + a final whole-branch review that found 1 Important bug,
+fixed same session). Gives `world/overworld_demo.gd` visible NPCs representing encounters —
+map-side systems only, no real `combat.tscn` transition yet (no persistent party/PC state exists
+across scenes to bridge into, explicitly deferred):
+- **`Interactable` gains `auto_trigger: bool = false`** — when true, the driving scene's existing
+  per-frame `nearest_interactable()` poll calls `.interact()` immediately on proximity instead of
+  waiting for a keypress. Default false; every pre-existing interactable (Door/SceneExit/
+  AdventuringBoard/Villager's Talk zone) is unaffected.
+- **`world/wander.gd` (`Wander.random_target()`)** — extracted from `Villager.wander_target()` (a
+  small justified refactor so the new hostile NPC class doesn't have to depend on `Villager` just to
+  reuse wander math). `Villager` delegates to it unchanged; `tests/test_wander.gd` (renamed from
+  `tests/test_villager_wander.gd`) carries the same coverage.
+- **`OverworldEnemy` (new)** — a hostile wandering `CharacterBody2D` mirroring `Villager`'s shape
+  (red/dark placeholder tint instead of blue-gray) with a contact-sized (`10.0`) auto-triggering
+  composed `Interactable`. Touching it emits `encounter_triggered(enemy_ids)` and frees itself
+  (accepted simplification this pass — a real "only vanish if you win" needs the combat bridge).
+  Fixed roster per placement (`enemy_ids: Array[StringName]`), no shared `Encounter` resource yet.
+- **`RewardPickup` (new)** — a stationary, auto-triggering `Interactable` (gold placeholder tint,
+  `AdventuringBoard`'s "build visual + set fields in `_init()`" convention, not `Door`'s external-
+  wiring one). **Real, not stubbed**: grants a placeholder `Gear` directly into whatever
+  `PartyInventory` it's wired to, then frees itself.
+  - **Friendly dialogue NPC** — no new class, just a plain `Villager` placed on the overworld exactly
+  as `town_demo.gd` already does (dialogue-only; dialogue can't grant rewards yet — no effect hooks on
+  `DialogueSet`/`DialogueLine`, flagged as a future gap not solved here).
+- `world/overworld_demo.gd` places one of each (`_build_npcs()`), gained its own `_dialogue_box`
+  (mirroring `town_demo.gd`'s wiring, including the movement-pause-on-dialogue fix from earlier this
+  session), and a scaffolding debug `Label` showing "Encounter triggered: ... — combat integration
+  pending" until the real transition exists.
+- **Final review caught 1 Important bug, fixed**: `_unhandled_input`'s interact-key path had no
+  `auto_trigger` guard, so a same-frame interact keypress could double-fire an auto-trigger target
+  already fired by `_process` that same frame (`queue_free()` is deferred, so the target is still
+  "live") — would have double-granted a `RewardPickup`'s reward or double-emitted an encounter.
+  Fixed with a one-line guard; added a regression test proving the fix
+  (`tests/test_overworld_demo_npcs.gd`). Also hardened `Interactable.nearest()` with an
+  `is_instance_valid()` skip (Minor finding — these are the first interactables that can free
+  themselves mid-scene while still theoretically tracked for part of a frame).
+- **Verified-by-machine vs your call (§5 hard ceiling):** all headless-test-green; a human has not
+  yet playtested it live in `overworld_demo.tscn` — walk into the rat patrol, the reward pickup, and
+  the wandering NPC's dialogue, and confirm the debug message/movement-pause/reward-grant all read
+  right before any further overworld-encounter work (which would need the combat-scene bridge next).
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real
