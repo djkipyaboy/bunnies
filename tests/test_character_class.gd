@@ -26,12 +26,14 @@ func _initialize() -> void:
 	cc.ability_id = &"rend"
 	cc.start_stamina = 3
 	cc.stamina_regen = 1
+	cc.weapon_display_name = "Test Sword"
 
 	var c: Combatant = cc.build_combatant(true)
 	_check(c.display_name == "Test Warrior", "display_name copied")
 	_check(c.is_player == true, "is_player set")
 	_check(c.weapon != null and c.weapon.reels.size() == 3, "weapon has reel_count=3 reels (got %d)" % (c.weapon.reels.size() if c.weapon else -1))
 	_check(c.weapon.base_damage == 8.0, "weapon base_damage copied")
+	_check(c.weapon.display_name == "Test Sword", "weapon.display_name copied from weapon_display_name (player-reported gap, 2026-07-12: this used to be left blank, reading as 'no weapon equipped' in the inventory UI)")
 	_check(c.defense_type == slashing, "defense_type set")
 	_check(c.ability_id == &"rend", "ability_id set")
 	# Derived: max_hp = base 100 + vigor 3 = 103; max_stamina = base 5 + focus 1 = 6; floor = 3 + grit 2 = 5.
@@ -52,6 +54,13 @@ func _initialize() -> void:
 	var e: Combatant = ec.build_combatant(false)
 	_check(e.bonus_meter != null and e.bonus_meter.is_visible == false, "enemy meter hidden")
 	_check(e.resource_pool == null, "enemy has no stamina pool")
+
+	# Regression (player-reported, 2026-07-12): every real ClassLibrary class must name its starting
+	# weapon — a blank name reads as "nothing equipped" in the paperdoll even though it's a real,
+	# fully-functional weapon.
+	for id: StringName in ClassLibrary.IDS:
+		var built: Combatant = ClassLibrary.make(id).build_combatant(true)
+		_check(not built.weapon.display_name.is_empty(), "%s's starting weapon has a display_name" % id)
 
 	print(("CHARACTER CLASS TEST PASSED" if _failures == 0 else "CHARACTER CLASS TEST FAILED: %d" % _failures))
 	quit(_failures)

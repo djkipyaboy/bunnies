@@ -23,6 +23,11 @@ extends Resource
 @export var weapon_type: DamageType
 @export_range(2, 5) var reel_count: int = 3
 
+## Flavor name for this class's starting weapon (player-reported gap, 2026-07-12: build_combatant()
+## never set Weapon.display_name, so every class-native weapon rendered blank in the equipment UI —
+## easily misread as "nothing equipped" when it's actually a real, fully-functional weapon).
+@export var weapon_display_name: String = ""
+
 ## The type incoming attacks resolve against (this class's defensive type).
 @export var defense_type: DamageType
 
@@ -81,6 +86,7 @@ func build_combatant(is_player: bool) -> Combatant:
 	c.base_stats = base_stats
 
 	var w: Weapon = Weapon.new()
+	w.display_name = weapon_display_name
 	w.base_damage = weapon_base_damage
 	for i: int in range(reel_count):
 		w.reels.append(ActionReel.make_default(weapon_type))

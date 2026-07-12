@@ -33,6 +33,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.display_name = "Martin (Mouse)"; c.species = "Mouse"
 			c.base_stats = _stats(3, 2, 3, 1, 2, 0)
 			c.weapon_base_damage = 8.0; c.weapon_type = slashing; c.reel_count = 3
+			c.weapon_display_name = "Steel Longsword"
 			c.combat_role = &"melee"
 			c.defense_type = slashing
 			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing
@@ -52,6 +53,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.display_name = "Sunflash (Badger)"; c.species = "Badger"
 			c.base_stats = _stats(4, 0, 5, 0, 3, 0)
 			c.weapon_base_damage = 15.0; c.weapon_type = crushing; c.reel_count = 2
+			c.weapon_display_name = "War Hammer"
 			c.combat_role = &"melee"
 			c.defense_type = crushing
 			c.base_max_hp = 300; c.base_max_stamina = 5; c.base_meter_floor = 3; c.meter_cap = 15  # [ASSUMPTION] HP 300 for long-fight testing (badger identity re-differentiated later)
@@ -72,6 +74,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.display_name = "Basil Stag Hare"; c.species = "Hare"
 			c.base_stats = _stats(1, 5, 2, 2, 1, 0)
 			c.weapon_base_damage = 6.0; c.weapon_type = slashing; c.reel_count = 4
+			c.weapon_display_name = "Twin Daggers"
 			c.combat_role = &"melee"
 			c.defense_type = slashing
 			# [ASSUMPTION] HP 300 for testing; meter_cap 30 (raised from 15→20→30) — the 4-reel
@@ -93,6 +96,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.display_name = "Cheek (Otter)"; c.species = "Otter"
 			c.base_stats = _stats(2, 3, 2, 1, 0, 1)  # [ASSUMPTION] Luck 1 (was 4 — playtest: crit too often)
 			c.weapon_base_damage = 6.0; c.weapon_type = storm; c.reel_count = 4
+			c.weapon_display_name = "Storm Sling"
 			c.combat_role = &"ranged"
 			c.defense_type = storm
 			# Mana, not Stamina (playtest 2026-07-04, player call): Storm is a magical damage type and
@@ -116,6 +120,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.display_name = "Ranger (Squirrel)"; c.species = "Squirrel"
 			c.base_stats = _stats(2, 4, 2, 2, 1, 0)
 			c.weapon_base_damage = 7.0; c.weapon_type = piercing; c.reel_count = 4
+			c.weapon_display_name = "Hunting Bow"
 			c.combat_role = &"ranged"
 			c.defense_type = piercing
 			# [ASSUMPTION] HP 300 for testing; meter_cap 30 — a 4-reel class charges fast (like Skirmisher/Chancer).
@@ -136,6 +141,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.display_name = "Seer (Vole)"; c.species = "Vole"
 			c.base_stats = _stats(0, 2, 1, 6, 1, 0)
 			c.weapon_base_damage = 13.0; c.weapon_type = mystic; c.reel_count = 2
+			c.weapon_display_name = "Mystic War Staff"
 			c.combat_role = &"caster"
 			c.defense_type = mystic
 			# [ASSUMPTION] HP 300 for testing; meter_cap 15 — a 2-reel class charges slowly (standard cap).
@@ -158,6 +164,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.display_name = "Warden (Mole)"; c.species = "Mole"
 			c.base_stats = _stats(1, 1, 3, 4, 2, 0)
 			c.weapon_base_damage = 9.0; c.weapon_type = earth; c.reel_count = 3
+			c.weapon_display_name = "Earthstave"
 			c.combat_role = &"caster"
 			c.defense_type = earth
 			# [ASSUMPTION] HP 300 for testing; meter_cap 20 — raised from 15 (playtest 2026-06-29: Earthquake's

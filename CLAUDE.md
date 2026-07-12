@@ -738,6 +738,29 @@ coverage in `tests/test_inventory_demo_setup.gd` asserts every bag weapon has `r
 that equipping the spare weapon onto the PC still leaves real reels (not just at seed time — this is
 the scenario a human playtest actually exercises).
 
+**SHIPPED 2026-07-12 — CLASS WEAPONS GET A DISPLAY NAME (the actual root cause, third fix for the
+same symptom thread).** Neither of the two fixes above was the real story: a direct end-to-end
+simulation (seed party → unequip via the real `Combatant.unequip_weapon()` path → hand off →
+instantiate `combat.tscn` → check reels) proved the code chain already worked correctly end to end.
+The player's own follow-up nailed it: Basil's weapon slot showed a **blank space**, not "— empty —"
+— because `CharacterClass.build_combatant()` never set `Weapon.display_name`, so every class-native
+weapon (a real, fully-functional weapon with its full reel count) rendered with no visible name in
+the paperdoll. Clicking that blank-but-occupied slot (nothing selected) correctly triggered
+*unequip*, which is what the player actually saw turn into "Unarmed Strike" — the unequip fallback
+from the first fix was working exactly as designed, the whole time. There never was a combat-reels
+bug in this thread; it was a legibility gap that led to a real weapon being mistaken for an empty
+slot and then genuinely unequipped by hand. Fixed: `CharacterClass` gained `weapon_display_name`;
+`build_combatant()` copies it onto the built `Weapon`; all 7 `ClassLibrary` classes now name their
+starting weapon (Warrior "Steel Longsword", Vanguard "War Hammer", Skirmisher "Twin Daggers",
+Chancer "Storm Sling", Ranger "Hunting Bow", Seer "Mystic War Staff", Warden "Earthstave" — the last
+two reusing names already established in this file's own class-ship history). New regression test
+in `tests/test_character_class.gd` asserts every one of the 7 real classes' starting weapon has a
+non-blank name. **Lesson for this whole bug thread:** two prior "fixes" (unarmed fallback,
+spare-weapon reels) were each independently correct and worth keeping, but neither was the actual
+root cause of the specific symptom reported — a direct code-level simulation of the reported scenario
+was what finally separated "is the combat logic wrong" from "is the player being misled by the UI,"
+and should have been the first move, not the third.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real
