@@ -103,13 +103,18 @@ var _pending_strips: int = 0
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Set BEFORE _build_ui() — _build_ui() calls _build_overlay(), which reads _arrived_via_handoff
+	# to decide whether the result card gets "Continue" or "Fight again (re-pick rosters)". Checking
+	# the handoff AFTER _build_ui() (as this used to) meant _build_overlay() always saw the default
+	# false and always built "Fight again", even when arriving via handoff — playtest-found bug,
+	# 2026-07-12: the Continue button never appeared.
+	_arrived_via_handoff = _handoff().pc != null
 	_build_scenario()       # managers only — the party/enemies aren't chosen until BEGIN
 	_build_ui()             # center band, buttons, log, overlays (party columns are built at BEGIN)
 	_bind_signals()
-	if _handoff().pc != null:
+	if _arrived_via_handoff:
 		# Arrived from the overworld (spec §3.4): the real party is already chosen and equipped —
 		# skip the selection screen entirely and jump straight into the fight.
-		_arrived_via_handoff = true
 		_handoff_fade_overlay = FadeOverlay.new()
 		add_child(_handoff_fade_overlay)
 		_start_combat()

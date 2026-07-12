@@ -691,6 +691,21 @@ implementer passes + a final whole-branch review that caught 1 Critical bug, fix
   real party/gear, win, confirm you return to the overworld at the same spot with the rat gone and
   can't fight it again; then repeat and lose on purpose, confirm you return with the rat still there.
 
+**SHIPPED 2026-07-12 — FIRST PLAYTEST OF THE COMBAT HANDOFF, 1 real bug found + fixed.** Winning the
+rat fight left "Fight again (re-pick rosters)" as the only exit option — the "Continue" button never
+appeared. Root cause: `combat.gd`'s `_ready()` checked `CombatHandoff.pc` and set
+`_arrived_via_handoff = true` AFTER calling `_build_ui()`, but `_build_ui()` calls `_build_overlay()`,
+which reads `_arrived_via_handoff` to decide which result-card button to build — so
+`_build_overlay()` always saw the still-`false` default and always built "Fight again," even on a
+real handoff launch. The final review's regression check only asserted `_arrived_via_handoff`'s
+*final* value (true by the time `_ready()` finished) and never inspected which button was actually
+constructed, so it passed despite the bug. Fixed by moving the handoff check to the top of `_ready()`,
+before `_build_ui()` runs. Added a regression test that inspects `_overlay`'s actual child buttons
+(not just the flag) for both the handoff and standalone paths — this is the test that would have
+caught it. **Lesson for future work:** when a bool flag drives a UI-construction decision made
+earlier in the same function than where the flag gets set, test the constructed UI, not just the
+flag's eventual value.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real

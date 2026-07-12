@@ -37,6 +37,12 @@ func _initialize() -> void:
 	_check(standalone._arrived_via_handoff == false, "standalone launch does not set _arrived_via_handoff")
 	_check(standalone._turn_manager.round_number == 0, "standalone launch does NOT auto-start combat (round still 0)")
 
+	var standalone_has_restart_button: bool = false
+	for child: Node in standalone._overlay.get_children():
+		if child is Button and (child as Button).text == "Fight again (re-pick rosters)":
+			standalone_has_restart_button = true
+	_check(standalone_has_restart_button, "standalone launch's result card still contains the 'Fight again' button")
+
 	standalone.queue_free()
 	await process_frame
 
@@ -70,6 +76,23 @@ func _initialize() -> void:
 	_check(inst._enemies.size() == 1 and inst._enemies[0].display_name == EnemyLibrary.make(&"rat").display_name,
 		"_enemies built from CombatHandoff.enemy_ids via the existing EnemyLibrary loop")
 	_check(inst._turn_manager.round_number >= 1, "handoff launch auto-starts combat (round rolled)")
+
+	# Regression (playtest-found, 2026-07-12): _build_overlay() reads _arrived_via_handoff to decide
+	# which result-card button to build, but it used to run (via _build_ui()) BEFORE the handoff
+	# check set that flag — so the overlay ALWAYS got "Fight again", even on a real handoff launch,
+	# despite _arrived_via_handoff correctly reading true by the time _ready() finished. Checking the
+	# flag's final value (as the assertion above does) missed this; only inspecting what button was
+	# actually BUILT catches it.
+	var found_continue_button: bool = false
+	var found_restart_button: bool = false
+	for child: Node in inst._overlay.get_children():
+		if child is Button:
+			if (child as Button).text == "Continue":
+				found_continue_button = true
+			elif (child as Button).text == "Fight again (re-pick rosters)":
+				found_restart_button = true
+	_check(found_continue_button, "handoff launch's result card actually contains a 'Continue' button")
+	_check(not found_restart_button, "handoff launch's result card does NOT contain the standalone 'Fight again' button")
 
 	# -----------------------------------------------------------------------
 	# WIN via "Continue": mark_defeated fires, pending fields clear, defeated id persists.
