@@ -724,6 +724,20 @@ now assert the unarmed fallback instead). A future "Disarmed" status effect that
 weapon reels was suggested but explicitly deferred — this pass only guarantees a permanently-unequipped
 combatant always has *some* reels, it doesn't add a new debuff/effect type.
 
+**SHIPPED 2026-07-12 — SPARE BAG WEAPON NOW HAS REAL REELS (second, distinct fix for the same
+symptom).** The unarmed-fallback fix above did NOT resolve the player's report — because the actual
+weapon in play, `world/inventory_demo_setup.gd`'s "Spare Shortsword", was never `null`; it's a real,
+non-null `Weapon` whose `_make_weapon()` constructor never populated `.reels` at all. Equipping it
+onto either party member (displacing their class-native weapon, which DOES have reels, into the bag)
+left that combatant holding a genuinely non-null weapon with ZERO action reels — a case the
+unequip-fallback fix doesn't touch, since it only fires when a slot goes from equipped→empty, not
+when a real-but-broken item gets equipped. Fixed: `_make_weapon()` gained `reel_type`/`reel_count`
+params (default 3), and the "Spare Shortsword" call site now builds 3 real Slashing reels, matching
+the same `ActionReel.make_default(type)` pattern every class weapon already uses. New regression
+coverage in `tests/test_inventory_demo_setup.gd` asserts every bag weapon has `reels.size() > 0`, and
+that equipping the spare weapon onto the PC still leaves real reels (not just at seed time — this is
+the scenario a human playtest actually exercises).
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real

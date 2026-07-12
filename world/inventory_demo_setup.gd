@@ -30,7 +30,8 @@ static func seed_demo_party() -> Dictionary:
 	# Second Charm slot demo item (design-bible §24 "Charm x2") — Common rarity so the level-3
 	# companion CAN equip it, distinguishing "not enough Resonance/level" from "works fine".
 	var lucky_pebble: Gear = _make_gear("Lucky Pebble", Gear.Slot.CHARM_2, RarityVisuals.Rarity.COMMON, _stats(0, 0, 0, 0, 0, 1))
-	var spare_sword: Weapon = _make_weapon("Spare Shortsword", 6.0, RarityVisuals.Rarity.COMMON)
+	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
+	var spare_sword: Weapon = _make_weapon("Spare Shortsword", 6.0, RarityVisuals.Rarity.COMMON, slashing, 3)
 
 	# Pre-equip a couple of items so unequip is testable immediately, not just equip-into-empty.
 	pc.gear = [common_hat]
@@ -64,9 +65,16 @@ static func _make_gear_with_affix(display_name: String, slot: int, rarity: int, 
 	g.reel_affixes = [ReelAffix.new()]
 	return g
 
-static func _make_weapon(display_name: String, base_damage: float, rarity: int) -> Weapon:
+## [param reel_type]/[param reel_count] give this placeholder weapon real action reels (player-
+## reported bug, 2026-07-12: the original version left .reels empty, so equipping this weapon —
+## displacing a class-native weapon that DOES have reels — left that combatant with a real,
+## non-null Weapon that had zero attack reels. Distinct from Combatant.unequip_weapon()'s
+## null-fallback fix earlier the same day; this is "a real item with no reels," not "no item."
+static func _make_weapon(display_name: String, base_damage: float, rarity: int, reel_type: DamageType, reel_count: int = 3) -> Weapon:
 	var w: Weapon = Weapon.new()
 	w.display_name = display_name
 	w.base_damage = base_damage
 	w.rarity = rarity
+	for i in range(reel_count):
+		w.reels.append(ActionReel.make_default(reel_type))
 	return w
