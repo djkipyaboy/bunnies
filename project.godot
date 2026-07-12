@@ -14,6 +14,10 @@ config/name="Bunnies"
 run/main_scene="res://combat/combat.tscn"
 config/features=PackedStringArray("4.6", "Forward Plus")
 
+[autoload]
+
+CombatHandoff="*res://world/combat_handoff.gd"
+
 [display]
 
 window/size/viewport_width=1600

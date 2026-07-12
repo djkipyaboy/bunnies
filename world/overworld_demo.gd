@@ -26,7 +26,6 @@ var _fade_overlay: FadeOverlay
 var _highlighted_target: Interactable
 var _dialogue_box: DialogueBox
 var _talking_to: Villager
-var _encounter_debug_label: Label
 var _pickup_debug_label: Label
 
 var _pc_combatant: Combatant
@@ -34,6 +33,16 @@ var _companions: Array = []
 var _party_inventory: PartyInventory
 var _vault: Vault
 var _inventory_panel: InventoryMenuPanel
+
+## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global
+## identifier. Referencing the bare `CombatHandoff` identifier compiles fine when the editor/
+## exported game runs a scene normally, but fails to resolve ("Identifier not found") when this
+## script is compiled as a dependency under `--headless --script <test>.gd` (confirmed
+## empirically — see the identical fix + rationale in combat/combat.gd's own `_handoff()`) — the
+## autoload NODE still exists at /root/CombatHandoff either way, so this lookup works in both
+## contexts.
+func _handoff() -> Node:
+	return get_node("/root/CombatHandoff")
 
 func _ready() -> void:
 	_fade_overlay = FadeOverlay.new()
@@ -147,7 +156,12 @@ func _build_village() -> void:
 func _build_pc() -> void:
 	_pc = PCController.new()
 	_pc.name = "PC"
-	_pc.global_position = PC_SPAWN
+	var handoff: Node = _handoff()
+	_pc.global_position = handoff.return_position if handoff.has_return_position else PC_SPAWN
+	# Consumed — clear it so a LATER return trip (e.g. leaving to town and back) doesn't reuse this
+	# stale position (final-review Critical finding, 2026-07-11: combat.gd no longer clears this
+	# half of the handoff, so it's this scene's job once it's actually read the value).
+	handoff.clear_return_position()
 
 	var shape := CollisionShape2D.new()
 	var capsule := CapsuleShape2D.new()
@@ -194,16 +208,6 @@ func _build_ui() -> void:
 	_dialogue_box.closed.connect(_on_dialogue_closed)
 	ui.add_child(_dialogue_box)
 
-	# Scaffolding for this pass only (2026-07-11-overworld-npc-encounters-design.md §3.6) —
-	# there's no real combat.tscn transition yet, so an OverworldEnemy encounter just posts a
-	# transient debug line here instead. Distinct color/position from _interact_prompt so it
-	# doesn't read as the same UI element.
-	_encounter_debug_label = Label.new()
-	_encounter_debug_label.name = "EncounterDebugLabel"
-	_encounter_debug_label.position = Vector2(16, 50)
-	_encounter_debug_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.15))
-	ui.add_child(_encounter_debug_label)
-
 	# Top-left pickup confirmation (player request 2026-07-11) — same top-left placement/style
 	# convention as the encounter message, but yellow and its own line so both can be visible at
 	# once without one overwriting the other.
@@ -230,16 +234,23 @@ func _build_inventory_demo() -> void:
 ## other overworld object). Positions are disposable placeholders chosen clear of the river/
 ## mountain/tree/village colliders and the PC spawn.
 func _build_npcs() -> void:
-	var enemy := OverworldEnemy.new()
-	enemy.name = "OverworldRat"
-	enemy.enemy_ids = [&"rat"]
-	# (800, 400) sits in open ground east of the river (river ends at x=660) and well clear of
-	# every tree/mountain/village collider by more than the default 48px wander_leash_radius —
-	# the previous (500, 550) placement was only ~41px from the (450, 550) tree's collider,
-	# close enough that a wander target could land inside it, visibly sticking the rat in place.
-	enemy.global_position = Vector2(800, 400)
-	enemy.encounter_triggered.connect(_on_encounter_triggered)
-	_world.add_child(enemy)
+	if not _handoff().is_defeated(&"OverworldRat"):
+		var enemy := OverworldEnemy.new()
+		enemy.name = "OverworldRat"
+		enemy.enemy_ids = [&"rat"]
+		# (800, 400) sits in open ground east of the river (river ends at x=660) and well clear of
+		# every tree/mountain/village collider by more than the default 48px wander_leash_radius —
+		# the previous (500, 550) placement was only ~41px from the (450, 550) tree's collider,
+		# close enough that a wander target could land inside it, visibly sticking the rat in place.
+		enemy.global_position = Vector2(800, 400)
+		enemy.fade_overlay = _fade_overlay
+		enemy.pc_combatant = _pc_combatant
+		enemy.companions = _companions
+		enemy.party_inventory = _party_inventory
+		enemy.vault = _vault
+		enemy.return_scene_path = "res://world/overworld_demo.tscn"
+		enemy.pc_node = _pc
+		_world.add_child(enemy)
 
 	var reward := RewardPickup.new()
 	reward.name = "ShinyTrinket"
@@ -287,16 +298,6 @@ func _on_dialogue_closed() -> void:
 		_talking_to.set_wander_paused(false)
 		_talking_to = null
 	_pc.set_movement_paused(false)
-
-## Scaffolding for this pass only (2026-07-11-overworld-npc-encounters-design.md §3.6/§4) — no
-## real combat.tscn transition exists yet (needs a persistent party/PC bridge across scenes,
-## explicitly out of scope here). This just proves the map-side trigger reaches the scene and
-## gives a human playtester on-screen confirmation.
-func _on_encounter_triggered(enemy_ids: Array[StringName]) -> void:
-	var id_strings: Array[String] = []
-	for enemy_id: StringName in enemy_ids:
-		id_strings.append(String(enemy_id))
-	_encounter_debug_label.text = "Encounter triggered: %s — combat integration pending" % ", ".join(id_strings)
 
 ## Shown top-left (like the encounter message, but yellow) whenever a RewardPickup is collected.
 func _on_item_picked_up(item_name: String) -> void:

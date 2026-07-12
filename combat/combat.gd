@@ -79,6 +79,12 @@ var _defender: Combatant
 ## that PC's turn (so attacks/Hunter's Mark/Collateral aim there); defaults to the first living enemy.
 var _player_targets: Dictionary = {}   # Combatant(PC) -> Combatant(enemy)
 var _start_overlay: Panel
+## Overworld->combat handoff (spec 2026-07-11-overworld-combat-handoff-design.md §3.4/§3.5): when
+## CombatHandoff.pc is populated at _ready(), this scene skips the "Choose your Party" overlay and
+## builds the fight straight from the handoff's real, already-equipped Combatants.
+var _arrived_via_handoff: bool = false
+var _handoff_fade_overlay: FadeOverlay
+var _last_result_won: bool = false
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
@@ -100,8 +106,25 @@ func _ready() -> void:
 	_build_scenario()       # managers only — the party/enemies aren't chosen until BEGIN
 	_build_ui()             # center band, buttons, log, overlays (party columns are built at BEGIN)
 	_bind_signals()
-	_build_start_overlay()  # the selection screen — choose party + enemies, then BEGIN
+	if _handoff().pc != null:
+		# Arrived from the overworld (spec §3.4): the real party is already chosen and equipped —
+		# skip the selection screen entirely and jump straight into the fight.
+		_arrived_via_handoff = true
+		_handoff_fade_overlay = FadeOverlay.new()
+		add_child(_handoff_fade_overlay)
+		_start_combat()
+	else:
+		_build_start_overlay()  # the selection screen — choose party + enemies, then BEGIN
 	_relayout_action_block.call_deferred()
+
+## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global identifier.
+## Referencing the bare `CombatHandoff` identifier compiles fine when the editor/exported game runs
+## combat.tscn normally, but fails to resolve ("Identifier not found") when this script is compiled
+## as a dependency under `--headless --script <test>.gd` (confirmed empirically while building this
+## feature) — the autoload NODE still exists at /root/CombatHandoff either way, so this lookup works
+## in both contexts (mirrors the pattern tests/test_combat_handoff.gd already uses).
+func _handoff() -> Node:
+	return get_node("/root/CombatHandoff")
 
 # ---------------------------------------------------------------------------
 # Scenario (placeholder content + balance — all [ASSUMPTION])
@@ -122,19 +145,34 @@ func _build_scenario() -> void:
 ## selection screen has set _pc_class_ids / _enemy_ids (spec §5).
 func _build_combatants() -> void:
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
-	# Player party: one Combatant per selected class, in selection order. ClassLibrary supplies stats,
-	# weapon, defense, meter, resources, and the Main-1 base ability. Gear is deferred.
 	_pcs.clear()
-	for id: StringName in _pc_class_ids:
-		var pc: Combatant = ClassLibrary.make(id).build_combatant(true)
-		if _endgame_enabled:
-			pc.level = 9
-			_scale_up_for_endgame(pc)
-		_pcs.append(pc)
-	# Enemy party (§5.1): one Combatant per selected enemy id, in selection order.
 	_enemies.clear()
-	for id: StringName in _enemy_ids:
-		_enemies.append(EnemyLibrary.make(id))
+	if _arrived_via_handoff:
+		# Overworld handoff (spec §3.4): the party is already real, already-equipped Combatants — no
+		# ClassLibrary build, no ENDGAME scaling (that's a fresh-spawn testing aid, not appropriate for
+		# a real story-progress Combatant).
+		var handoff: Node = _handoff()
+		# Build _pcs by explicit typed appends rather than an `as Array[Combatant]` cast on a
+		# concatenated Variant array — that cast doesn't actually retype the array at runtime here
+		# (confirmed empirically: it throws "Trying to assign an array of type Array to a variable
+		# of type Array[Combatant]"), since handoff.pc/.companions are Variant (handoff is Node-typed).
+		_pcs.append(handoff.pc as Combatant)
+		for comp in handoff.companions:
+			_pcs.append(comp as Combatant)
+		for id: StringName in handoff.enemy_ids:
+			_enemies.append(EnemyLibrary.make(id))
+	else:
+		# Player party: one Combatant per selected class, in selection order. ClassLibrary supplies
+		# stats, weapon, defense, meter, resources, and the Main-1 base ability. Gear is deferred.
+		for id: StringName in _pc_class_ids:
+			var pc: Combatant = ClassLibrary.make(id).build_combatant(true)
+			if _endgame_enabled:
+				pc.level = 9
+				_scale_up_for_endgame(pc)
+			_pcs.append(pc)
+		# Enemy party (§5.1): one Combatant per selected enemy id, in selection order.
+		for id: StringName in _enemy_ids:
+			_enemies.append(EnemyLibrary.make(id))
 	# Anchors = first member of each side (defaults / first-panel references; control reads the active one).
 	_pc = _pcs[0]
 	_enemy = _enemies[0]
@@ -433,13 +471,22 @@ func _build_overlay() -> void:
 	_overlay.add_child(result_label)
 
 	const RESTART_SIZE := Vector2(280, 52)
-	var restart := Button.new()
-	restart.text = "Fight again (re-pick rosters)"
-	restart.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 150)
-	restart.custom_minimum_size = RESTART_SIZE
-	restart.tooltip_text = "Return to the party / enemy selection screen and fight again."
-	restart.pressed.connect(func() -> void: get_tree().reload_current_scene())
-	_overlay.add_child(restart)
+	if not _arrived_via_handoff:
+		var restart := Button.new()
+		restart.text = "Fight again (re-pick rosters)"
+		restart.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 150)
+		restart.custom_minimum_size = RESTART_SIZE
+		restart.tooltip_text = "Return to the party / enemy selection screen and fight again."
+		restart.pressed.connect(func() -> void: get_tree().reload_current_scene())
+		_overlay.add_child(restart)
+	else:
+		var continue_btn := Button.new()
+		continue_btn.text = "Continue"
+		continue_btn.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 150)
+		continue_btn.custom_minimum_size = RESTART_SIZE
+		continue_btn.tooltip_text = "Return to the overworld."
+		continue_btn.pressed.connect(_on_continue_after_handoff_pressed)
+		_overlay.add_child(continue_btn)
 
 ## Builds the Seer "Select your Fate!" type-picker: a centered modal with the 6 damage-type buttons and a
 ## Cancel. Hidden until the player stages Select your Fate; choosing a type stages the ability with it.
@@ -1693,6 +1740,7 @@ func _on_turn_finished() -> void:
 	_turn_manager.advance_turn()
 
 func _on_combat_ended(winner_is_player: bool) -> void:
+	_last_result_won = winner_is_player
 	_spin_button.disabled = true
 	_end_turn_button.disabled = true
 	_awaiting_player_spin = false
@@ -1702,6 +1750,39 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	_log("Combat over — %s wins." % ("you" if winner_is_player else "the enemy"))
 	move_child(_overlay, get_child_count() - 1)  # ensure the result card draws over everything
 	_overlay.visible = true
+
+## Shared by _on_continue_after_handoff_pressed() and press_continue_for_test() so the two can't
+## drift apart (final-review Minor finding, 2026-07-11 — they used to duplicate this logic
+## independently). Marks the encounter defeated on a win, reads return_scene_path into a local
+## BEFORE clear_fight_data() wipes it, clears the fight data, and returns the path to change to.
+## Deliberately calls clear_fight_data(), NOT clear_pending() — return_position/has_return_position
+## must survive this call so the destination scene (overworld_demo.gd's _build_pc()) can still read
+## them after the scene change; clear_pending() would wipe them here, before anyone's had a chance
+## to consume them (final-review Critical finding, 2026-07-11).
+func _resolve_handoff_continue() -> String:
+	var handoff: Node = _handoff()
+	if _last_result_won:
+		handoff.mark_defeated(handoff.pending_encounter_id)
+	var return_path: String = handoff.return_scene_path
+	handoff.clear_fight_data()
+	return return_path
+
+## Overworld handoff "Continue" button (spec §3.5): mark the encounter defeated on a win, fade out,
+## clear the fight data, then return to the overworld scene the fight was triggered from.
+func _on_continue_after_handoff_pressed() -> void:
+	await _handoff_fade_overlay.fade_out()
+	get_tree().change_scene_to_file(_resolve_handoff_continue())
+
+## Test-only hook (mirrors this project's _for_test() convention, e.g.
+## combat/ui/inventory_menu_panel.gd's press_slot_for_test()): runs the exact same
+## mark-defeated/clear-fight-data logic as _on_continue_after_handoff_pressed (via
+## _resolve_handoff_continue()) WITHOUT awaiting the real fade tween or calling
+## get_tree().change_scene_to_file() — a headless SceneTree test can't cleanly wait on a live Tween,
+## and shouldn't trigger a real scene swap mid-test. Set _last_result_won directly before calling
+## this to simulate a win or a loss. Returns the scene path the real handler would have changed to,
+## so a test can assert the "scene change still happens" behavior without it firing.
+func press_continue_for_test() -> String:
+	return _resolve_handoff_continue()
 
 # ---------------------------------------------------------------------------
 # Log

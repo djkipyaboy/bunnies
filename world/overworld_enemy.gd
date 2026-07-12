@@ -16,7 +16,20 @@ extends CharacterBody2D
 @export var wander_speed: float = 40.0
 @export var wander_pause_seconds: float = 1.5
 
-signal encounter_triggered(enemy_ids: Array[StringName])
+## The scene's FadeOverlay — interact() awaits its fade_out() before swapping scenes (mirrors
+## SceneExit.fade_overlay).
+@export var fade_overlay: FadeOverlay
+
+## Placement-time fields (set externally by the driving scene, same convention as
+## Door.pc/RewardPickup.party_inventory) — the real overworld party fighting this encounter.
+var pc_combatant: Combatant
+var companions: Array = []
+var party_inventory: PartyInventory
+var vault: Vault
+var return_scene_path: String = ""
+## The actual PC scene node (not this enemy's own position) — read at trigger time so
+## CombatHandoff.return_position reflects where the PC was standing, not where the enemy was.
+var pc_node: Node2D
 
 var _home_position: Vector2
 var _wander_target: Vector2
@@ -59,5 +72,23 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 func _on_interacted() -> void:
-	encounter_triggered.emit(enemy_ids)
-	queue_free()
+	_begin_handoff()
+	await fade_overlay.fade_out()
+	get_tree().change_scene_to_file("res://combat/combat.tscn")
+
+## Populates CombatHandoff with this encounter's party/enemy data. Split out from
+## _on_interacted() so tests can drive exactly the CombatHandoff-population effect without
+## triggering the fade + change_scene_to_file (which would try to swap the test runner's own
+## scene mid-test).
+func _begin_handoff() -> void:
+	_handoff().begin_encounter(pc_combatant, companions, party_inventory, vault, enemy_ids,
+		StringName(name), return_scene_path, pc_node.global_position)
+
+## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global
+## identifier. Referencing the bare `CombatHandoff` identifier compiles fine when the editor/
+## exported game runs a scene normally, but fails to resolve ("Identifier not found") when this
+## script is compiled as a dependency under `--headless --script <test>.gd` (confirmed empirically
+## — see the identical fix + rationale in combat/combat.gd's own `_handoff()`) — the autoload NODE
+## still exists at /root/CombatHandoff either way, so this lookup works in both contexts.
+func _handoff() -> Node:
+	return get_node("/root/CombatHandoff")

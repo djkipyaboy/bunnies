@@ -648,6 +648,49 @@ yellow `_pickup_debug_label` ("Picked up: Shiny Trinket"), on its own line above
 encounter message so both can show without one overwriting the other. Both changes headless-test-
 green (`test_reward_pickup.gd`, `test_overworld_demo_npcs.gd`) — re-verify live before further work.
 
+**SHIPPED 2026-07-11 — OVERWORLD → COMBAT HANDOFF.** Closes the gap the NPC-encounters pass
+deliberately stubbed: touching an `OverworldEnemy` now launches a REAL fight in `combat.tscn`, using
+the player's actual overworld party (real, already-equipped `Combatant`s, not a fresh
+`ClassLibrary`-built pick), and returns to the overworld afterward. Brainstormed, spec'd
+(`docs/superpowers/specs/2026-07-11-overworld-combat-handoff-design.md`), planned
+(`docs/superpowers/plans/2026-07-11-overworld-combat-handoff.md`), built subagent-driven (3
+implementer passes + a final whole-branch review that caught 1 Critical bug, fixed same session):
+- **`CombatHandoff` (new)** — this project's FIRST persistent-across-scenes autoload (`world/
+  combat_handoff.gd`, registered in `project.godot`'s new `[autoload]` section). Deliberately
+  minimal: carries `pc`/`companions`/`party_inventory`/`vault`/`enemy_ids` plus round-trip metadata
+  (`pending_encounter_id`, `return_scene_path`, `return_position`, `has_return_position`,
+  `defeated_encounter_ids`) — no leveling/story-flags/save-system groundwork, and it does NOT unify
+  town+overworld party state (those keep their own separate seeds; only the overworld↔combat
+  round-trip is bridged).
+- **`OverworldEnemy`'s trigger path** now populates `CombatHandoff` and fades into `combat.tscn`
+  (mirroring `SceneExit`'s pattern) instead of emitting a stub signal and freeing itself.
+- **`combat.gd` gained a handoff-aware entry point, fully additive** — `combat.tscn` is still this
+  project's primary standalone playtesting entry point (`run/main_scene`, used constantly all
+  session), and that path is provably untouched: with `CombatHandoff.pc == null`, `_ready()` builds
+  the "Choose your Party"/"Enemy Combatants" overlay exactly as before. When a handoff IS pending, it
+  skips straight to `_start_combat()` using the real `Combatant`s (no `ClassLibrary.make()`), and the
+  result card's "Fight again" button is replaced with "Continue" (mark-defeated-on-win → fade →
+  return to the overworld).
+- **Defeated-encounter persistence** — since `overworld_demo.gd`'s NPCs are built procedurally every
+  scene load (not saved `.tscn` content), `_build_npcs()` now checks
+  `CombatHandoff.is_defeated(name)` and skips a beaten enemy on rebuild, closing the "instant win"
+  gap the NPC-encounters pass had accepted. `RewardPickup` has the identical respawn-on-reload gap,
+  explicitly flagged as NOT fixed here (same root cause, separate concern).
+- **Final review caught 1 Critical bug, fixed**: `combat.gd`'s "Continue" handler called
+  `CombatHandoff.clear_pending()`, which also wiped `return_position`/`has_return_position` — but
+  that happened BEFORE the overworld scene ever got a chance to read them, silently making the
+  "return to your pre-fight spot" feature dead despite a fully green test suite (each side was
+  tested in isolation; the cross-scene ordering defect only showed up when traced end-to-end). Fixed
+  by splitting `clear_pending()` into `clear_fight_data()` (called by `combat.gd`, before the scene
+  change) and `clear_return_position()` (called by `overworld_demo.gd`'s `_build_pc()`, after it
+  reads the value) — `clear_pending()` now composes both, for callers that want a full reset. Added
+  a genuine end-to-end regression test (`tests/test_overworld_demo_npcs.gd`) that runs the exact
+  real sequence and would have caught this bug directly.
+- **Verified-by-machine vs your call (§5 hard ceiling):** all headless-test-green; a human has not
+  yet playtested the full round trip live — walk into the rat, fight it in `combat.tscn` with your
+  real party/gear, win, confirm you return to the overworld at the same spot with the rat gone and
+  can't fight it again; then repeat and lose on purpose, confirm you return with the rat still there.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real
