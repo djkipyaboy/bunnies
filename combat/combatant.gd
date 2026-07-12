@@ -349,12 +349,17 @@ func equip_weapon(w: Weapon) -> Weapon:
 	apply_stats()
 	return previous
 
-## Removes and returns the currently-equipped weapon (null if none). Calls apply_stats().
+## Removes and returns the currently-equipped weapon (null if the previous one was already the
+## unarmed fallback — a caller shouldn't try to bank/bag that). Calls apply_stats(). Never actually
+## leaves weapon null: falls back to Weapon.make_unarmed() (2 low-damage reels) so a combatant who
+## unequips their only weapon still has action reels instead of zero (player-reported gap,
+## 2026-07-12 — walking into a fight after unequipping via the inventory UI left one party member
+## attackable only through abilities).
 func unequip_weapon() -> Weapon:
 	var previous: Weapon = weapon
-	weapon = null
+	weapon = Weapon.make_unarmed()
 	apply_stats()
-	return previous
+	return null if (previous != null and previous.is_unarmed) else previous
 
 ## Recomputes the stat-derived values (max HP / pool max / meter floor / per-Upkeep resource regen).
 ## Call at setup AFTER gear is equipped and BEFORE start_combat(). [ASSUMPTION] flat 1:1 mappings for

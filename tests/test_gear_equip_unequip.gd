@@ -63,8 +63,15 @@ func _initialize() -> void:
 	_check(c.equip_weapon(w2) == w1, "equip_weapon returns the previous weapon")
 	_check(c.weapon == w2, "equip_weapon replaces Combatant.weapon")
 	_check(c.unequip_weapon() == w2, "unequip_weapon returns the removed weapon")
-	_check(c.weapon == null, "unequip_weapon clears Combatant.weapon")
-	_check(c.unequip_weapon() == null, "unequipping with no weapon returns null")
+
+	# Unarmed fallback (player-reported gap, 2026-07-12): unequip_weapon() never actually leaves
+	# Combatant.weapon null — it falls back to a real 2-reel Unarmed Strike, so a disarmed combatant
+	# still has action reels instead of zero.
+	_check(c.weapon != null, "unequip_weapon leaves a real (unarmed) weapon, not null")
+	_check(c.weapon.is_unarmed, "the fallback weapon is flagged is_unarmed")
+	_check(c.weapon.reels.size() == 2, "the unarmed fallback has 2 action reels")
+	_check(c.unequip_weapon() == null, "unequipping an already-unarmed combatant returns null (the unarmed placeholder itself is never treated as a real displaced item)")
+	_check(c.weapon.is_unarmed, "still unarmed (a fresh unarmed weapon, not the same instance, but still flagged) after a second unequip")
 
 	print(("GEAR EQUIP/UNEQUIP TEST PASSED" if _failures == 0 else "GEAR EQUIP/UNEQUIP TEST FAILED: %d" % _failures))
 	quit(_failures)

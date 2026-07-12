@@ -129,10 +129,14 @@ func _init() -> void:
 	_check(inv.weapons.has(old_weapon), "the displaced weapon returns to the bag")
 	_check(not inv.weapons.has(new_weapon), "the equipped weapon leaves the bag")
 
-	# Unequip: nothing selected, click the occupied weapon slot.
+	# Unequip: nothing selected, click the occupied weapon slot. Combatant.unequip_weapon() falls
+	# back to a real (unarmed) Weapon rather than leaving pc.weapon actually null (2026-07-12 fix —
+	# a combatant with no weapon equipped had zero action reels) — the real displaced weapon still
+	# returns to the bag correctly, and the unarmed fallback itself never does.
 	panel.press_slot_for_test(1, 0)
-	_check(pc.weapon == null, "clicking the occupied weapon slot with nothing selected unequips it")
+	_check(pc.weapon != null and pc.weapon.is_unarmed, "clicking the occupied weapon slot with nothing selected unequips it, falling back to Unarmed Strike")
 	_check(inv.weapons.has(new_weapon), "the unequipped weapon returns to the bag")
+	_check(not inv.weapons.any(func(w: Weapon) -> bool: return w.is_unarmed), "the unarmed fallback itself is never added to the bag")
 
 	# Weapon Bag -> Vault -> Bag.
 	vault.tab_capacity[&"weapons"] = 1

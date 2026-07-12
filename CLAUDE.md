@@ -706,6 +706,24 @@ caught it. **Lesson for future work:** when a bool flag drives a UI-construction
 earlier in the same function than where the flag gets set, test the constructed UI, not just the
 flag's eventual value.
 
+**SHIPPED 2026-07-12 — UNARMED FALLBACK ATTACK.** Same playtest surfaced a second, real gap: the
+overworld demo party's ONE spare weapon can be freely moved between the two party members via the
+(correctly-working) inventory equip/unequip UI, and `Combatant.unequip_weapon()` used to leave
+`weapon = null` — so whichever party member ended up without it had ZERO action reels in the
+resulting fight, attackable only through abilities. Player's own suggested fix, built as specified:
+`Weapon.make_unarmed()` (new static factory in `combat/resources/weapon.gd`) — a 2-reel, Crushing,
+`base_damage = 2.0` fallback (`[ASSUMPTION]`, tune post-playtest), flagged `is_unarmed = true` so it's
+never mistaken for a real item. `Combatant.unequip_weapon()` now falls back to a fresh
+`Weapon.make_unarmed()` instead of `null` — a combatant is never actually weapon-less — and its
+return value is `null` (not the unarmed placeholder) whenever the previously-equipped weapon was
+already the fallback, so `InventoryMenuPanel._unequip_slot()`'s existing `if w != null: give_weapon(w)`
+guard correctly never banks/bags the placeholder as if it were real loot (zero changes needed on the
+UI side). Updated the pre-existing test contract in `tests/test_gear_equip_unequip.gd`/
+`tests/test_inventory_menu_panel_transfer.gd` (both used to assert `weapon == null` after unequip —
+now assert the unarmed fallback instead). A future "Disarmed" status effect that TEMPORARILY strips
+weapon reels was suggested but explicitly deferred — this pass only guarantees a permanently-unequipped
+combatant always has *some* reels, it doesn't add a new debuff/effect type.
+
 **Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
 interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
 ready to build real content on top of. Candidates for whenever work resumes here: building out real
