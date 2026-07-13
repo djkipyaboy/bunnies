@@ -38,6 +38,15 @@ var pc_node: Node2D
 var _home_position: Vector2
 var _wander_target: Vector2
 var _pause_timer: float = 0.0
+## One-shot guard (playtest-found bug, 2026-07-13): unlike RewardPickup/GatheringNode/
+## RandomEncounterNode — which all queue_free() themselves inside interact(), making them
+## naturally single-shot — this enemy stays alive and in-range through the multi-frame
+## `await fade_overlay.fade_out()` below (FadeOverlay.FADE_DURATION = 0.3s, ~18-23 frames).
+## Without this guard, overworld_demo.gd's _process() re-fires interact() -> _on_interacted()
+## every one of those frames, which used to be harmless (begin_encounter() just overwrites the
+## same fields) but became visibly broken the moment _begin_handoff() started also calling
+## log_event() — 23 "Encounter started" lines for one trigger.
+var _triggered: bool = false
 
 func _ready() -> void:
 	_home_position = global_position
@@ -76,6 +85,9 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 func _on_interacted() -> void:
+	if _triggered:
+		return
+	_triggered = true
 	_begin_handoff()
 	await fade_overlay.fade_out()
 	get_tree().change_scene_to_file("res://combat/combat.tscn")

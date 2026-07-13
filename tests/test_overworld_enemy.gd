@@ -55,6 +55,9 @@ func _process(_delta: float) -> bool:
 	var party_inventory := PartyInventory.new()
 	var vault := Vault.new()
 	var fade_overlay := FadeOverlay.new()
+	# Added to the tree so _ready() runs and _rect initializes — otherwise fade_out() (exercised
+	# by the new repeated-_on_interacted() section below) hits a null _rect inside tween_property().
+	root.add_child(fade_overlay)
 
 	enemy.pc_combatant = pc_combatant
 	enemy.companions = companions
@@ -82,6 +85,27 @@ func _process(_delta: float) -> bool:
 	_check(combat_handoff.return_scene_path == "res://world/overworld_demo.tscn", "CombatHandoff.return_scene_path is set")
 	_check(combat_handoff.return_position == Vector2(321.0, 654.0), "CombatHandoff.return_position matches the PC node's global_position")
 	_check(combat_handoff.has_return_position == true, "CombatHandoff.has_return_position is true")
+
+	# --- Playtest-found bug (2026-07-13): OverworldEnemy doesn't queue_free() itself like
+	# RewardPickup/GatheringNode/RandomEncounterNode do, so it stays the nearest in-range
+	# auto_trigger target through the whole multi-frame `await fade_overlay.fade_out()` in
+	# _on_interacted() — overworld_demo.gd's _process() re-fires interact() -> _on_interacted()
+	# every one of those frames (~18-23 at FadeOverlay.FADE_DURATION = 0.3s), which used to be
+	# harmless (begin_encounter() just overwrites the same fields) but became visibly broken the
+	# moment _begin_handoff() started also calling log_event() (23 "Encounter started" lines for
+	# one trigger). Calling _on_interacted() here without awaiting it runs synchronously up to its
+	# own internal `await fade_overlay.fade_out()`, which suspends there — a real 0.3s tween never
+	# completes within this test's single synchronous frame, so change_scene_to_file() is never
+	# reached, exactly like the existing _begin_handoff()-only test above avoids it. ---
+	combat_handoff.event_log_lines = [] as Array[String]
+	enemy._on_interacted()
+	enemy._on_interacted()
+	enemy._on_interacted()
+	var start_count: int = 0
+	for line: String in combat_handoff.event_log_lines:
+		if line.begins_with("Encounter started:"):
+			start_count += 1
+	_check(start_count == 1, "repeated auto_trigger firing during the fade-out logs 'Encounter started' exactly ONCE, not once per frame (got %d)" % start_count)
 
 	print(("OVERWORLD ENEMY TEST PASSED" if _failures == 0 else "OVERWORLD ENEMY TEST FAILED: %d" % _failures))
 	quit(_failures)
