@@ -119,5 +119,28 @@ func _initialize() -> void:
 	_check(CombatHandoff.bench == [], "stash_party's bench param defaults to an empty array")
 	CombatHandoff.clear_party()
 
+	# --- log_event() / event_log_lines (2026-07-13-overworld-event-log-design.md §3) ---
+	CombatHandoff.event_log_lines = [] as Array[String]
+	var logged_lines: Array[String] = []
+	var on_logged: Callable = func(line: String) -> void: logged_lines.append(line)
+	CombatHandoff.event_logged.connect(on_logged)
+
+	CombatHandoff.log_event("Picked up: Shiny Trinket")
+	_check(CombatHandoff.event_log_lines == ["Picked up: Shiny Trinket"], "log_event() appends a line")
+	_check(logged_lines == ["Picked up: Shiny Trinket"], "log_event() emits event_logged with the new line")
+
+	CombatHandoff.event_log_lines = [] as Array[String]
+	for i: int in range(55):
+		CombatHandoff.log_event("Line %d" % i)
+	_check(CombatHandoff.event_log_lines.size() == CombatHandoff.MAX_EVENT_LOG_LINES, "event_log_lines caps at MAX_EVENT_LOG_LINES (got %d)" % CombatHandoff.event_log_lines.size())
+	_check(CombatHandoff.event_log_lines[0] == "Line 5", "the OLDEST entries drop off first (got '%s')" % CombatHandoff.event_log_lines[0])
+	_check(CombatHandoff.event_log_lines[-1] == "Line 54", "the newest entry is always last (got '%s')" % CombatHandoff.event_log_lines[-1])
+
+	CombatHandoff.clear_pending()
+	_check(CombatHandoff.event_log_lines.size() == CombatHandoff.MAX_EVENT_LOG_LINES, "clear_pending() does NOT clear event_log_lines")
+
+	CombatHandoff.event_logged.disconnect(on_logged)
+	CombatHandoff.event_log_lines = [] as Array[String]
+
 	print(("COMBAT HANDOFF TEST PASSED" if _failures == 0 else "COMBAT HANDOFF TEST FAILED: %d" % _failures))
 	quit(_failures)

@@ -32,6 +32,25 @@ var return_position: Vector2 = Vector2.ZERO
 var has_return_position: bool = false   # ZERO could be a legitimate spawn point; don't sentinel-compare
 var defeated_encounter_ids: Array[StringName] = []
 
+## Session-lifetime cross-scene history (2026-07-13-overworld-event-log-design.md) — a coarse,
+## capped view of notable events (pickups, XP, loot, encounters, companion changes), NOT the
+## detailed per-reel combat log (combat.gd's own _log_box stays separate/untouched). Persists for
+## the life of the session exactly like defeated_encounter_ids above, for the same reason: neither
+## clear_pending() nor its narrower siblings below may clear it.
+const MAX_EVENT_LOG_LINES: int = 50
+
+signal event_logged(line: String)
+
+var event_log_lines: Array[String] = []
+
+## Appends one line, trimming the OLDEST entry once the cap is exceeded, and notifies any open
+## EventLogPanel via event_logged so it can append live instead of re-rendering from scratch.
+func log_event(line: String) -> void:
+	event_log_lines.append(line)
+	if event_log_lines.size() > MAX_EVENT_LOG_LINES:
+		event_log_lines.pop_front()
+	event_logged.emit(line)
+
 ## Carries the party across a plain cross-scene transition (SceneExit, e.g. town<->overworld) —
 ## no combat/return-position fields involved, unlike begin_encounter(). The destination scene reads
 ## pc/companions/party_inventory/vault the same way it already does for a combat return trip
@@ -98,8 +117,8 @@ func clear_return_position() -> void:
 	has_return_position = false
 
 ## Clears everything the three narrower methods above clear, combined — for callers (and tests)
-## that want a full reset in one call. Does NOT clear defeated_encounter_ids — that must persist
-## for the life of the session.
+## that want a full reset in one call. Does NOT clear defeated_encounter_ids or event_log_lines —
+## both must persist for the life of the session.
 func clear_pending() -> void:
 	clear_combat_data()
 	clear_party()
