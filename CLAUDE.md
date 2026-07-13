@@ -883,12 +883,43 @@ Selection again) — "truly starting to feel like a videogame." Found:
   `[[level-parity-pc-companions]]` (the real game gets BG3-style level parity between PC and
   companions — NOT applicable to this prototype's intentionally-uneven test levels).
 
-**Next: undetermined — resume point, not a mandate.** Candidates for whenever work resumes: continue
-playtesting (the 4 fixes above haven't been re-verified live yet); building out real settlement
-content (docs/design-bible/ roster drafts are still sitting as proposals, see status below); picking
-the tilted/dimetric overworld visual style back up; or picking up any of the "not decided this pass"
-notes left in 27-crafting.md/companion recruitment (full KOTOR-style system), post-combat recovery,
-or PC/companion level parity for deeper design work. The remaining combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish,
+**SHIPPED 2026-07-13 — COMBAT LOOT DROPS** (sub-project 1 of a player-directed 4-part overworld-
+playtest arc: shopkeepers → item drops → a combat Items menu → a 4-floor dungeon, in that order;
+brainstormed → spec'd → planned → built subagent-driven, 4 tasks + a final-review fix round, all
+task-reviewed clean). Defeated `rat`/`ferret`/`stoat` now auto-loot equippable Gear straight into the
+party's Bag, surfaced on the VICTORY/DEFEAT result card next to the existing `+N XP` line — same
+"fight ends, then you see what happened" rhythm as the XP fix. New `LootTableLibrary` (mirrors
+ClassLibrary/EnemyLibrary/EncounterLibrary) authors one shared `overworld_trash` table (Common/
+Uncommon Gear only, no weapons this pass — `[ASSUMPTION]` names/rates); all three enemies wired to
+it via `EnemyLibrary._build()`'s new `loot_table_id` param. Fixed a real aliasing bug found along the
+way: `LootTable.roll()` used to return the SAME `Resource` reference from `LootEntry.item` on every
+roll — now `.duplicate(true)`s each drop, plus a null-item guard (an authored entry with no item set
+is skipped, not a crash). `combat.gd` gained `_party_inventory`/`_fight_loot_names`, set ONLY on a
+real handoff-launched fight — the standalone "Choose your Party" testing flow has no real
+`PartyInventory` (or any UI to view one) behind it, so it deliberately never rolls or grants loot.
+Spec: `docs/superpowers/specs/2026-07-12-combat-loot-drops-design.md`. Plan:
+`docs/superpowers/plans/2026-07-12-combat-loot-drops.md`. **163 → 164 headless test files, all
+green** (net +1: a new null-item regression case landed in the existing `test_loot_table.gd` rather
+than a new file).
+
+**Deferred for the shopkeeper sub-project (next), flagged by the final review, not fixed here:**
+`PartyInventory.give_gear()` grants loot unconditionally, bypassing `can_add_gear()`/
+`gear_capacity()` — fine while nothing enforces Bag capacity pressure, but once a shop economy exists
+this becomes a real design lever (does a full Bag block loot? Auto-sell overflow? Just let it grow?)
+that the shopkeeper spec should decide explicitly, not inherit by accident.
+
+**Verified-by-machine vs your call (§5 hard ceiling):** all of the above is headless-test-green; a
+human has not yet playtested a real loot drop live in `combat.tscn`/`overworld_demo.tscn` — that's
+the next step before moving on to sub-project 2 (the combat Items menu).
+
+**Next: sub-project 2 of the overworld-playtest arc — a usable Items menu in combat** (potions etc.,
+consumed in place of an ability on a turn), per the player-confirmed build order. Playtest the loot
+drops above first. Other candidates for whenever THIS arc wraps or work resumes elsewhere: building
+out real settlement content (docs/design-bible/ roster drafts are still sitting as proposals, see
+status below); picking the tilted/dimetric overworld visual style back up; or picking up any of the
+"not decided this pass" notes left in 27-crafting.md/companion recruitment (full KOTOR-style
+system), post-combat recovery, or PC/companion level parity for deeper design work. The remaining
+combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish,
 `Bunnies_Playtest_Tracker.xlsx` follow-ups) are parked, not abandoned — resume alongside town/overworld work
 whenever it's convenient.
 
