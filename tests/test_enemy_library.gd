@@ -34,5 +34,12 @@ func _initialize() -> void:
 	_check(EnemyLibrary.make(&"rat") != rat, "make returns a fresh instance each call")
 	_check(EnemyLibrary.make(&"nope") == null, "unknown id -> null")
 
+	# Loot (2026-07-12 combat loot drops spec): all 3 enemies share the overworld_trash table.
+	_check(rat.loot_table != null, "rat carries a loot_table")
+	_check(rat.loot_table.entries.size() == 3, "rat's loot_table has 3 entries (got %d)" % rat.loot_table.entries.size())
+	_check(ferret.loot_table != null, "ferret carries a loot_table")
+	_check(stoat.loot_table != null, "stoat carries a loot_table")
+	_check(rat.loot_table != ferret.loot_table, "each Combatant gets its OWN fresh LootTable instance, not a shared reference")
+
 	print(("ENEMY LIBRARY TEST PASSED" if _failures == 0 else "ENEMY LIBRARY TEST FAILED: %d" % _failures))
 	quit(_failures)
