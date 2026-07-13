@@ -219,7 +219,7 @@ func _build_ui() -> void:
 	_event_log_panel.visible = false
 	_ui_layer.add_child(_event_log_panel)
 	_event_log_panel.build()
-	_event_log_panel.refresh(_handoff().event_log_lines)
+	_event_log_panel.refresh(_handoff().event_log_entries)
 	_handoff().event_logged.connect(_event_log_panel.append_line)
 
 ## Reuses the shared party carried by CombatHandoff (from a SceneExit transition or a combat
@@ -369,13 +369,13 @@ func _on_add_companion_requested(companion: Combatant) -> void:
 		return
 	_companions.append(companion)
 	_bench.erase(companion)
-	_handoff().log_event("Recruited %s to the party" % companion.display_name)
+	_handoff().log_event("Recruited %s to the party" % companion.display_name, &"party")
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
 
 func _on_remove_companion_requested(companion: Combatant) -> void:
 	_companions.erase(companion)
 	_bench.append(companion)
-	_handoff().log_event("Benched %s" % companion.display_name)
+	_handoff().log_event("Benched %s" % companion.display_name, &"party")
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
 
 func _process(_delta: float) -> void:

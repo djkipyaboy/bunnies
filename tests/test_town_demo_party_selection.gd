@@ -41,8 +41,8 @@ func _process(_delta: float) -> bool:
 		_check(not town._bench.has(recruit), "the recruited companion leaves the bench")
 		_check(town._companions.size() == starting_companion_count + 1, "party size grows by exactly one")
 		var combat_handoff: Node = town.get_node("/root/CombatHandoff")
-		_check(combat_handoff.event_log_lines.has("Recruited %s to the party" % recruit.display_name),
-			"recruiting a companion logs 'Recruited <name> to the party'")
+		_check(combat_handoff.event_log_entries.has({"line": "Recruited %s to the party" % recruit.display_name, "category": &"party"}),
+			"recruiting a companion logs 'Recruited <name> to the party' tagged party")
 
 		# The panel rebuilds after every add/remove — re-fetch fresh row indices rather than assume
 		# stale ones still point at the same buttons.
@@ -50,8 +50,8 @@ func _process(_delta: float) -> bool:
 		_check(not town._companions.has(recruit), "pressing Remove sends the companion back to the bench")
 		_check(town._bench.has(recruit), "the removed companion is back on the bench")
 		_check(town._companions.size() == starting_companion_count, "party size returns to its starting count")
-		_check(town.get_node("/root/CombatHandoff").event_log_lines.has("Benched %s" % recruit.display_name),
-			"benching a companion logs 'Benched <name>'")
+		_check(town.get_node("/root/CombatHandoff").event_log_entries.has({"line": "Benched %s" % recruit.display_name, "category": &"party"}),
+			"benching a companion logs 'Benched <name>' tagged party")
 
 		# Recruiting up to the 2-companion cap disables further Add rows (PartySelectionPanel.
 		# party_full()) — exercise it through the real handler, not just the panel's own unit test.
