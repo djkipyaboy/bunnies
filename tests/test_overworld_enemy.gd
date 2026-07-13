@@ -50,12 +50,15 @@ func _process(_delta: float) -> bool:
 	var pc_combatant := Combatant.new()
 	var companion := Combatant.new()
 	var companions: Array = [companion]
+	var bench_companion := Combatant.new()
+	var bench: Array = [bench_companion]
 	var party_inventory := PartyInventory.new()
 	var vault := Vault.new()
 	var fade_overlay := FadeOverlay.new()
 
 	enemy.pc_combatant = pc_combatant
 	enemy.companions = companions
+	enemy.bench = bench
 	enemy.party_inventory = party_inventory
 	enemy.vault = vault
 	enemy.fade_overlay = fade_overlay
@@ -66,6 +69,9 @@ func _process(_delta: float) -> bool:
 
 	_check(combat_handoff.pc == pc_combatant, "triggering the composed Interactable sets CombatHandoff.pc")
 	_check(combat_handoff.companions == companions, "CombatHandoff.companions is set")
+	# Playtest-found bug (2026-07-12, fixed same session): begin_encounter() originally had no
+	# bench param at all, so every real combat trigger silently reset CombatHandoff.bench to [].
+	_check(combat_handoff.bench == bench, "CombatHandoff.bench is set (playtest-found bug, 2026-07-12: this used to silently reset to [])")
 	_check(combat_handoff.party_inventory == party_inventory, "CombatHandoff.party_inventory is set")
 	_check(combat_handoff.vault == vault, "CombatHandoff.vault is set")
 	_check(combat_handoff.enemy_ids == [&"rat"], "CombatHandoff.enemy_ids carries the authored enemy_ids")

@@ -24,6 +24,10 @@ extends CharacterBody2D
 ## Door.pc/RewardPickup.party_inventory) — the real overworld party fighting this encounter.
 var pc_combatant: Combatant
 var companions: Array = []
+## Precreated companions available to recruit but not currently in the active party (2026-07-12
+## Party Selection work) — carried through so a combat round-trip doesn't silently wipe it (see
+## CombatHandoff.bench's own playtest-found-bug note).
+var bench: Array = []
 var party_inventory: PartyInventory
 var vault: Vault
 var return_scene_path: String = ""
@@ -82,7 +86,7 @@ func _on_interacted() -> void:
 ## scene mid-test).
 func _begin_handoff() -> void:
 	_handoff().begin_encounter(pc_combatant, companions, party_inventory, vault, enemy_ids,
-		StringName(name), return_scene_path, pc_node.global_position)
+		StringName(name), return_scene_path, pc_node.global_position, bench)
 
 ## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global
 ## identifier. Referencing the bare `CombatHandoff` identifier compiles fine when the editor/

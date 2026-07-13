@@ -48,6 +48,18 @@ func _process(_delta: float) -> bool:
 		_check(not town._inventory_panel.visible, "toggle again closes the panel")
 		_check(not town._pc.movement_paused_for_test(), "toggle again resumes PC movement")
 
+		# 'C' keybinding (2026-07-12): opens the same panel directly to the Stats tab.
+		var stats_event := InputEventAction.new()
+		stats_event.action = &"toggle_stats"
+		stats_event.pressed = true
+		town._unhandled_input(stats_event)
+		_check(town._inventory_panel.visible, "toggle_stats opens the panel")
+		_check(town._inventory_panel.active_tab_for_test() == &"stats", "toggle_stats opens directly to the Stats tab")
+		_check(town._pc.movement_paused_for_test(), "toggle_stats pauses PC movement")
+		town._unhandled_input(stats_event)
+		_check(not town._inventory_panel.visible, "toggle_stats again closes the panel")
+		_check(not town._pc.movement_paused_for_test(), "toggle_stats again resumes PC movement")
+
 		# Dialogue box must also pause/resume PC movement (previously only the talking
 		# Villager's own wandering was paused — the PC itself could still walk around).
 		town._on_dialogue_requested(villager.dialogue, villager)

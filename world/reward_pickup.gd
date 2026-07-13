@@ -27,6 +27,12 @@ func _init() -> void:
 	add_child(glow)
 
 func interact() -> void:
+	_handoff().mark_defeated(StringName(name))
 	party_inventory.give_gear(reward_gear)
 	item_picked_up.emit(reward_gear.display_name)
 	queue_free()
+
+## Fetches the CombatHandoff autoload by path rather than a bare global identifier — same fix +
+## rationale as OverworldEnemy._handoff() (bare identifier fails under headless --script test runs).
+func _handoff() -> Node:
+	return get_node("/root/CombatHandoff")

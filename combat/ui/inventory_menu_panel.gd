@@ -11,6 +11,18 @@ const SLOT_COUNT: int = 7
 const SLOT_NAMES: Array[String] = ["Weapon", "Headwear", "Cloak", "Chest", "Hands", "Charm", "Charm"]
 const COLUMN_LABELS: Array[String] = ["Companion 1", "PC", "Companion 2"]
 
+## The Stats tab (2026-07-12, player-requested WoW-style character pane): the 6-stat spread's
+## names and their hover-tooltip descriptions, index-aligned with stat_value_at()'s field order.
+const STAT_ROWS: Array[String] = ["Might", "Finesse", "Vigor", "Focus", "Grit", "Luck"]
+const STAT_TOOLTIPS: Array[String] = [
+	"Adds flat damage per action reel, normalized by how many reels you're spinning this turn — a heavy 2-reel loadout gets a bigger per-reel bonus than a rapid 5-reel one for the same Might.",
+	"Raises your Initiative roll, and breaks Initiative ties against an equal current_initiative.",
+	"Adds Max HP, and reduces incoming damage-over-time tick damage (floored — never full DoT immunity).",
+	"Adds Max Stamina/Mana, and increases how much your resources regen each Upkeep.",
+	"Raises your Bonus Meter floor — how much meter charge carries over.",
+	"Adds bonus crit-success faces to your action reels, and — at a higher threshold — extra scored payline lines.",
+]
+
 const PAD: float = 12.0
 const COLUMN_W: float = 220.0
 const COLUMN_GAP: float = 16.0
@@ -65,6 +77,8 @@ var _action_button: Button
 var _action_label: Label
 var _tab_buttons: Dictionary = {}    # StringName -> Button
 var _compare_check: CheckBox
+var _stat_labels: Dictionary = {}    # "%d_%d" % [col, row] -> Label; "%d_dmg" % col -> Label
+var _list_labels: Array[Label] = []  # Materials/Quest tab rows (2026-07-12)
 
 ## The 3 paperdoll columns in display order [Companion1, PC, Companion2] (null = no companion
 ## assigned). [param companions] may have 0, 1, or 2 entries.
@@ -77,6 +91,18 @@ static func paperdoll_columns(pc: Combatant, companions: Array) -> Array:
 ## special-case, which has no Gear.Slot — it lives on Combatant.weapon).
 static func gear_slot_for(slot_idx: int) -> int:
 	return slot_idx - 1   # Gear.Slot.HEADWEAR == 0, so paperdoll index 1 -> 0, 2 -> 1, ...
+
+## Reads the STAT_ROWS[index]-named field off an already-computed effective Stats total —
+## index-aligned with STAT_ROWS/STAT_TOOLTIPS (Might/Finesse/Vigor/Focus/Grit/Luck).
+static func stat_value_at(s: Stats, index: int) -> int:
+	match index:
+		0: return s.might
+		1: return s.finesse
+		2: return s.vigor
+		3: return s.focus
+		4: return s.grit
+		5: return s.luck
+	return 0
 
 ## True if [param gear_slot] is either of the two Charm boxes (spec §2) — the only slot family
 ## with more than one physical box, hence the only one needing item.slot reassignment at equip time.
@@ -237,8 +263,8 @@ static func _signed(v: int) -> String:
 ## The panel is a long-lived instance toggled via hide()/open_for() (not recreated each time), so
 ## every reopen resets to the default Bag tab with no stale selection or Vault-full message carried
 ## over from a previous session.
-func open_for(pc: Combatant, companions: Array, party_inventory: PartyInventory, vault: Vault, vault_available: bool = true) -> void:
-	_active_tab = &"bag"
+func open_for(pc: Combatant, companions: Array, party_inventory: PartyInventory, vault: Vault, vault_available: bool = true, initial_tab: StringName = &"bag") -> void:
+	_active_tab = initial_tab
 	_selected = {}
 	_vault_full_message = false
 	_equip_reject_message = ""
@@ -256,19 +282,36 @@ func _rebuild() -> void:
 	_slot_buttons.clear()
 	_grid_buttons.clear()
 	_tab_buttons.clear()
+	_stat_labels.clear()
+	_list_labels.clear()
 
 	var columns: Array = paperdoll_columns(_pc, _companions)
 	for col in range(3):
 		_build_paperdoll_column(col, columns[col])
 
 	_build_tab_row()
-	_build_grid()
-	_build_vault_unavailable_message()
-	_build_action_row()
-	_build_compare_check()
+	if _active_tab == &"stats":
+		_build_stats_panel()
+	elif _active_tab == &"materials":
+		_build_materials_panel()
+	elif _active_tab == &"quest":
+		_build_quest_panel()
+	else:
+		_build_grid()
+		_build_vault_unavailable_message()
+		_build_action_row()
+		_build_compare_check()
 
-	var rows: int = (_grid_item_count() + GRID_COLS - 1) / GRID_COLS
-	var bottom: float = GRID_TOP + float(maxi(rows, 1)) * (GRID_CELL_H + GRID_CELL_GAP) + ACTION_BTN_H + PAD
+	var bottom: float
+	if _active_tab == &"stats":
+		# title row + 6 stat rows + weapon-damage row + xp row.
+		bottom = GRID_TOP + float(STAT_ROWS.size() + 3) * (SLOT_H + SLOT_GAP) + PAD
+	elif _active_tab == &"materials" or _active_tab == &"quest":
+		var list: Array = _party_inventory.materials if _active_tab == &"materials" else _party_inventory.quest_items
+		bottom = GRID_TOP + float(maxi(list.size(), 1)) * (SLOT_H + SLOT_GAP) + PAD
+	else:
+		var rows: int = (_grid_item_count() + GRID_COLS - 1) / GRID_COLS
+		bottom = GRID_TOP + float(maxi(rows, 1)) * (GRID_CELL_H + GRID_CELL_GAP) + ACTION_BTN_H + PAD
 	custom_minimum_size = Vector2(PANEL_W, bottom)
 	size = custom_minimum_size
 
@@ -304,26 +347,27 @@ func _build_paperdoll_column(col: int, c: Combatant) -> void:
 		add_child(btn)
 		_slot_buttons["%d_%d" % [col, slot_idx]] = btn
 
-func _build_tab_row() -> void:
-	var bag_btn := Button.new()
-	bag_btn.text = "Bag"
-	bag_btn.position = Vector2(PAD, TABS_TOP)
-	bag_btn.custom_minimum_size = Vector2(TAB_BTN_W, TAB_BTN_H)
-	if _active_tab == &"bag":
-		bag_btn.modulate = Color(0.6, 1.0, 0.6)
-	bag_btn.pressed.connect(_on_tab_pressed.bind(&"bag"))
-	add_child(bag_btn)
-	_tab_buttons[&"bag"] = bag_btn
+## Tab order (2026-07-12: Materials/Quest added alongside the existing Bag/Vault/Stats — player
+## direction, gathered materials/quest items had nowhere to be seen). One Button per entry, laid
+## out left-to-right in TAB_ROW order.
+const TAB_ROW: Array = [
+	[&"bag", "Bag"], [&"vault", "Vault"], [&"stats", "Stats"],
+	[&"materials", "Materials"], [&"quest", "Quest"],
+]
 
-	var vault_btn := Button.new()
-	vault_btn.text = "Vault"
-	vault_btn.position = Vector2(PAD + TAB_BTN_W + 8.0, TABS_TOP)
-	vault_btn.custom_minimum_size = Vector2(TAB_BTN_W, TAB_BTN_H)
-	if _active_tab == &"vault":
-		vault_btn.modulate = Color(0.6, 1.0, 0.6)
-	vault_btn.pressed.connect(_on_tab_pressed.bind(&"vault"))
-	add_child(vault_btn)
-	_tab_buttons[&"vault"] = vault_btn
+func _build_tab_row() -> void:
+	for i in range(TAB_ROW.size()):
+		var tab_id: StringName = TAB_ROW[i][0]
+		var label: String = TAB_ROW[i][1]
+		var btn := Button.new()
+		btn.text = label
+		btn.position = Vector2(PAD + float(i) * (TAB_BTN_W + 8.0), TABS_TOP)
+		btn.custom_minimum_size = Vector2(TAB_BTN_W, TAB_BTN_H)
+		if _active_tab == tab_id:
+			btn.modulate = Color(0.6, 1.0, 0.6)
+		btn.pressed.connect(_on_tab_pressed.bind(tab_id))
+		add_child(btn)
+		_tab_buttons[tab_id] = btn
 
 func _active_gear_list() -> Array:
 	if _active_tab == &"bag":
@@ -356,6 +400,114 @@ func _build_grid() -> void:
 		btn.gui_input.connect(_on_grid_item_gui_input.bind(entry["item"], entry["is_weapon"]))
 		add_child(btn)
 		_grid_buttons.append(btn)
+
+## Stats tab (2026-07-12, player-requested): WoW-style character-pane columns mirroring the
+## paperdoll's Companion1/PC/Companion2 layout, each showing the live 6-stat spread (gear bonuses
+## included, via Combatant.effective_stats()) with hover descriptions, plus weapon base damage.
+func _build_stats_panel() -> void:
+	var columns: Array = paperdoll_columns(_pc, _companions)
+	for col in range(3):
+		_build_stats_column(col, columns[col])
+
+func _build_stats_column(col: int, c: Combatant) -> void:
+	var x: float = PAD + float(col) * (COLUMN_W + COLUMN_GAP)
+
+	var title := Label.new()
+	title.text = COLUMN_LABELS[col]
+	title.position = Vector2(x, GRID_TOP)
+	title.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
+	title.add_theme_font_size_override("font_size", 14)
+	if c == null:
+		title.modulate = Color(0.5, 0.5, 0.5)
+	add_child(title)
+
+	var s: Stats = c.effective_stats() if c != null else null
+	for row in range(STAT_ROWS.size()):
+		var y: float = GRID_TOP + float(row + 1) * (SLOT_H + SLOT_GAP)
+		var label := Label.new()
+		label.position = Vector2(x, y)
+		label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
+		# Labels default to MOUSE_FILTER_IGNORE, which swallows hover events before tooltip_text
+		# ever shows — STOP lets these rows behave like every other hoverable row in this panel.
+		label.mouse_filter = Control.MOUSE_FILTER_STOP
+		if c == null:
+			label.text = "%s: —" % STAT_ROWS[row]
+			label.modulate = Color(0.5, 0.5, 0.5)
+		else:
+			label.text = "%s: %d" % [STAT_ROWS[row], stat_value_at(s, row)]
+			label.tooltip_text = STAT_TOOLTIPS[row]
+		add_child(label)
+		_stat_labels["%d_%d" % [col, row]] = label
+
+	var dmg_y: float = GRID_TOP + float(STAT_ROWS.size() + 1) * (SLOT_H + SLOT_GAP)
+	var dmg_label := Label.new()
+	dmg_label.position = Vector2(x, dmg_y)
+	dmg_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
+	if c == null:
+		dmg_label.text = "Weapon Base Damage: —"
+		dmg_label.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		dmg_label.text = "Weapon Base Damage: %.1f" % c.weapon_effective_base_damage()
+	add_child(dmg_label)
+	_stat_labels["%d_dmg" % col] = dmg_label
+
+	# XP row (player direction 2026-07-12: XP gain wasn't visible enough anywhere). Plain running
+	# count, not a progress-toward-next-level bar — no XP curve/level-up thresholds exist yet
+	# (docs/design-bible/22-leveling-and-progression.md is still undesigned), so a bar implying a
+	# real threshold would misrepresent a number that doesn't exist yet.
+	var xp_y: float = GRID_TOP + float(STAT_ROWS.size() + 2) * (SLOT_H + SLOT_GAP)
+	var xp_label := Label.new()
+	xp_label.position = Vector2(x, xp_y)
+	xp_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
+	if c == null:
+		xp_label.text = "XP: —"
+		xp_label.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		xp_label.text = "XP: %d" % c.xp
+	add_child(xp_label)
+	_stat_labels["%d_xp" % col] = xp_label
+
+## Materials tab (2026-07-12, player-requested): gathered CraftingMaterial entries from
+## PartyInventory.materials, stacked by material_type (PartyInventory.give_material()). Bag-side
+## only for this starter version — Vault also has a materials array (design-bible §26 cross-
+## character banking) but nothing populates it yet, so a Bag/Vault toggle here is future work, not
+## a gap in this pass. A plain read-only list, not part of the equip-selection grid (materials
+## aren't equippable).
+func _build_materials_panel() -> void:
+	if _party_inventory.materials.is_empty():
+		_build_list_empty_message("No materials gathered yet.")
+		return
+	for i in range(_party_inventory.materials.size()):
+		var m: CraftingMaterial = _party_inventory.materials[i]
+		_build_list_row(i, "%s x%d" % [m.display_name, m.quantity])
+
+## Quest Items tab (2026-07-12, player-requested): PartyInventory.quest_items is currently always
+## empty — no quest system or quest-item Resource shape exists yet. This is a working shell
+## (structurally complete, per-item display undesigned) so the tab is visibly presented rather than
+## silently missing, matching the Vault-unavailable message's "still presented as an option" convention.
+func _build_quest_panel() -> void:
+	if _party_inventory.quest_items.is_empty():
+		_build_list_empty_message("No quest items yet.")
+		return
+	for i in range(_party_inventory.quest_items.size()):
+		_build_list_row(i, "Quest item %d" % (i + 1))   # [ASSUMPTION] placeholder — no quest-item display shape designed yet
+
+func _build_list_empty_message(text: String) -> void:
+	var label := Label.new()
+	label.text = text
+	label.position = Vector2(PAD, GRID_TOP)
+	label.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
+	label.modulate = Color(0.6, 0.6, 0.6)
+	add_child(label)
+	_list_labels.append(label)
+
+func _build_list_row(index: int, text: String) -> void:
+	var label := Label.new()
+	label.text = text
+	label.position = Vector2(PAD, GRID_TOP + float(index) * (SLOT_H + SLOT_GAP))
+	label.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
+	add_child(label)
+	_list_labels.append(label)
 
 ## Shows the "Travel to the nearest settlement to access" message in the grid area when the Vault
 ## tab is active but out of reach (spec: overworld/non-safe-zone). The Vault tab itself stays
@@ -642,3 +794,35 @@ func equip_reject_message_for_test() -> String:
 ## The currently active tab (test hook).
 func active_tab_for_test() -> StringName:
 	return _active_tab
+
+## The rendered text of the Stats tab's [param row]-th stat row (0..5) in column [param col]
+## (test hook).
+func stat_row_text_for_test(col: int, row: int) -> String:
+	var label: Label = _stat_labels.get("%d_%d" % [col, row], null)
+	return label.text if label != null else ""
+
+## The hover-tooltip text of the Stats tab's [param row]-th stat row (0..5) in column [param col]
+## (test hook).
+func stat_row_tooltip_for_test(col: int, row: int) -> String:
+	var label: Label = _stat_labels.get("%d_%d" % [col, row], null)
+	return label.tooltip_text if label != null else ""
+
+## The rendered text of the Stats tab's weapon-base-damage row in column [param col] (test hook).
+func stat_damage_text_for_test(col: int) -> String:
+	var label: Label = _stat_labels.get("%d_dmg" % col, null)
+	return label.text if label != null else ""
+
+## The rendered text of the Stats tab's XP row in column [param col] (test hook).
+func stat_xp_text_for_test(col: int) -> String:
+	var label: Label = _stat_labels.get("%d_xp" % col, null)
+	return label.text if label != null else ""
+
+## The rendered text of the Materials/Quest tab's [param index]-th row (test hook). When the tab
+## is empty, index 0 is the placeholder message.
+func list_row_text_for_test(index: int) -> String:
+	return _list_labels[index].text if index < _list_labels.size() else ""
+
+## The number of rows currently rendered in the Materials/Quest tab (test hook) — 1 for the empty
+## placeholder message, otherwise the item count.
+func list_row_count_for_test() -> int:
+	return _list_labels.size()

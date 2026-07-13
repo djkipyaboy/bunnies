@@ -27,12 +27,15 @@ var _highlighted_target: Interactable
 var _dialogue_box: DialogueBox
 var _talking_to: Villager
 var _pickup_debug_label: Label
+var _random_encounter_panel: RandomEncounterPanel
 
 var _pc_combatant: Combatant
 var _companions: Array = []
+var _bench: Array = []
 var _party_inventory: PartyInventory
 var _vault: Vault
 var _inventory_panel: InventoryMenuPanel
+var _village_entrance: SceneExit
 
 ## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global
 ## identifier. Referencing the bare `CombatHandoff` identifier compiles fine when the editor/
@@ -52,6 +55,14 @@ func _ready() -> void:
 	_build_camera()
 	_build_ui()
 	_build_inventory_demo()
+	# VillageEntrance was built in _build_world(), before the party existed — wire its party
+	# fields now (2026-07-12 shared-party-state work) so entering town carries the SAME party
+	# town_demo.tscn will pick back up.
+	_village_entrance.pc_combatant = _pc_combatant
+	_village_entrance.companions = _companions
+	_village_entrance.bench = _bench
+	_village_entrance.party_inventory = _party_inventory
+	_village_entrance.vault = _vault
 	_build_npcs()
 
 func _build_world() -> void:
@@ -152,6 +163,7 @@ func _build_village() -> void:
 	entrance.global_position = VILLAGE_POSITION + Vector2(0, 40)
 	entrance.fade_overlay = _fade_overlay
 	_world.add_child(entrance)
+	_village_entrance = entrance
 
 func _build_pc() -> void:
 	_pc = PCController.new()
@@ -208,6 +220,12 @@ func _build_ui() -> void:
 	_dialogue_box.closed.connect(_on_dialogue_closed)
 	ui.add_child(_dialogue_box)
 
+	_random_encounter_panel = RandomEncounterPanel.new()
+	_random_encounter_panel.position = Vector2(140, 60)
+	_random_encounter_panel.resolved.connect(_on_random_encounter_resolved)
+	ui.add_child(_random_encounter_panel)
+	_random_encounter_panel.close()
+
 	# Top-left pickup confirmation (player request 2026-07-11) — same top-left placement/style
 	# convention as the encounter message, but yellow and its own line so both can be visible at
 	# once without one overwriting the other.
@@ -217,21 +235,25 @@ func _build_ui() -> void:
 	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
 	ui.add_child(_pickup_debug_label)
 
-## The overworld map is not a safe zone — its own placeholder party/bag seed (independent of the
-## town demo's, matching this project's existing per-scene demo convention), with the Vault passed
-## in but marked unreachable (open_for's vault_available=false) so a player can still adjust Bag/
-## equipped gear before an overworld encounter without being able to bank.
+## The overworld map is not a safe zone — the Vault is passed in but marked unreachable
+## (open_for's vault_available=false) so a player can still adjust Bag/equipped gear before an
+## overworld encounter without being able to bank.
 ##
-## Returning from a fight (CombatHandoff still holds a party — combat.gd's Continue handler
-## deliberately doesn't clear it) reuses that EXACT party/bag/vault instead of reseeding a fresh
-## one — playtest-found gap, 2026-07-12: gear equipped before an encounter was silently reverting
-## because this always called seed_demo_party() unconditionally, discarding whatever the fought
-## party's live equipment/HP state was.
+## Reuses the shared party carried by CombatHandoff (town_demo.gd's SceneExit, or a combat return
+## trip) if one exists, instead of always reseeding a fresh independent placeholder party — as of
+## 2026-07-12 town and overworld share ONE live party rather than two independently-seeded demos
+## (closes the seam this comment used to describe). Falls back to InventoryDemoSetup.
+## seed_demo_party() only on a genuinely first-ever launch (no prior handoff at all).
+##
+## History: returning from a fight used to always call seed_demo_party() unconditionally,
+## discarding whatever the fought party's live equipment/HP state was (playtest-found gap,
+## 2026-07-12) — fixed by checking CombatHandoff.pc first, which this method still does.
 func _build_inventory_demo() -> void:
 	var handoff: Node = _handoff()
 	if handoff.pc != null:
 		_pc_combatant = handoff.pc
 		_companions.assign(handoff.companions)
+		_bench.assign(handoff.bench)
 		_party_inventory = handoff.party_inventory
 		_vault = handoff.vault
 		handoff.clear_party()
@@ -239,6 +261,7 @@ func _build_inventory_demo() -> void:
 		var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
 		_pc_combatant = party_seed["pc"]
 		_companions.assign(party_seed["companions"])
+		_bench.assign(party_seed["bench"])
 		_party_inventory = party_seed["party_inventory"]
 		_vault = party_seed["vault"]
 
@@ -248,34 +271,27 @@ func _build_inventory_demo() -> void:
 ## other overworld object). Positions are disposable placeholders chosen clear of the river/
 ## mountain/tree/village colliders and the PC spawn.
 func _build_npcs() -> void:
-	if not _handoff().is_defeated(&"OverworldRat"):
-		var enemy := OverworldEnemy.new()
-		enemy.name = "OverworldRat"
-		enemy.enemy_ids = [&"rat"]
-		# (800, 400) sits in open ground east of the river (river ends at x=660) and well clear of
-		# every tree/mountain/village collider by more than the default 48px wander_leash_radius —
-		# the previous (500, 550) placement was only ~41px from the (450, 550) tree's collider,
-		# close enough that a wander target could land inside it, visibly sticking the rat in place.
-		enemy.global_position = Vector2(800, 400)
-		enemy.fade_overlay = _fade_overlay
-		enemy.pc_combatant = _pc_combatant
-		enemy.companions = _companions
-		enemy.party_inventory = _party_inventory
-		enemy.vault = _vault
-		enemy.return_scene_path = "res://world/overworld_demo.tscn"
-		enemy.pc_node = _pc
-		_world.add_child(enemy)
+	# (800, 400) sits in open ground east of the river (river ends at x=660) and well clear of
+	# every tree/mountain/village collider by more than the default 48px wander_leash_radius —
+	# the previous (500, 550) placement was only ~41px from the (450, 550) tree's collider,
+	# close enough that a wander target could land inside it, visibly sticking the rat in place.
+	_place_overworld_enemy("OverworldRat", [&"rat"], Vector2(800, 400))
+	# More overworld encounter variety (player direction 2026-07-12): ferret/stoat were already
+	# authored in EnemyLibrary but never placed. Positions clear of every collider/other NPC above.
+	_place_overworld_enemy("OverworldFerret", [&"ferret"], Vector2(1000, 250))
+	_place_overworld_enemy("OverworldStoat", [&"stoat"], Vector2(700, 600))
 
-	var reward := RewardPickup.new()
-	reward.name = "ShinyTrinket"
-	var trinket_gear := Gear.new()
-	trinket_gear.display_name = "Shiny Trinket"
-	trinket_gear.stat_bonuses = Stats.new()
-	reward.reward_gear = trinket_gear
-	reward.party_inventory = _party_inventory
-	reward.global_position = Vector2(900, 150)
-	reward.item_picked_up.connect(_on_item_picked_up)
-	_world.add_child(reward)
+	if not _handoff().is_defeated(&"ShinyTrinket"):
+		var reward := RewardPickup.new()
+		reward.name = "ShinyTrinket"
+		var trinket_gear := Gear.new()
+		trinket_gear.display_name = "Shiny Trinket"
+		trinket_gear.stat_bonuses = Stats.new()
+		reward.reward_gear = trinket_gear
+		reward.party_inventory = _party_inventory
+		reward.global_position = Vector2(900, 150)
+		reward.item_picked_up.connect(_on_item_picked_up)
+		_world.add_child(reward)
 
 	var wanderer := Villager.new()
 	wanderer.name = "OverworldWanderer"
@@ -284,6 +300,61 @@ func _build_npcs() -> void:
 	wanderer.global_position = Vector2(300, 250)
 	wanderer.dialogue_requested.connect(_on_dialogue_requested.bind(wanderer))
 	_world.add_child(wanderer)
+
+	# Environmental gathering nodes (design-bible 27-crafting.md §11, player direction 2026-07-12) —
+	# basic one-shot interactables for this playtest, no mini-game reel yet. Positions chosen clear
+	# of every tree/mountain/village/river collider and the other placed NPCs above.
+	if not _handoff().is_defeated(&"WildBerries"):
+		var berries := GatheringNode.new()
+		berries.name = "WildBerries"
+		berries.material_type = &"forage_herb"
+		berries.material_display_name = "Wild Berries"
+		berries.quantity = 1
+		berries.party_inventory = _party_inventory
+		berries.global_position = Vector2(150, 550)
+		berries.material_gathered.connect(_on_material_gathered)
+		_world.add_child(berries)
+
+	if not _handoff().is_defeated(&"FishingSpot"):
+		var fish := GatheringNode.new()
+		fish.name = "FishingSpot"
+		fish.material_type = &"fish_meat"
+		fish.material_display_name = "Freshwater Fish"
+		fish.quantity = 1
+		fish.party_inventory = _party_inventory
+		fish.global_position = Vector2(560, 340)
+		fish.material_gathered.connect(_on_material_gathered)
+		_world.add_child(fish)
+
+	# Slay-the-Spire-style "?" random encounter (player direction 2026-07-12) — one authored
+	# example (bandit_ambush) for this playtest. Positioned clear of every collider/other NPC.
+	if not _handoff().is_defeated(&"BanditAmbush"):
+		var encounter_node := RandomEncounterNode.new()
+		encounter_node.name = "BanditAmbush"
+		encounter_node.encounter_id = &"bandit_ambush"
+		encounter_node.global_position = Vector2(1000, 600)
+		encounter_node.encounter_triggered.connect(_on_encounter_triggered)
+		_world.add_child(encounter_node)
+
+## Places one OverworldEnemy with the given [param enemy_ids] roster, skipping placement if
+## already marked defeated. Factored out (2026-07-12) once ferret/stoat joined the rat as real
+## placements — all three wire the identical set of placement-time fields.
+func _place_overworld_enemy(node_name: StringName, enemy_ids: Array[StringName], position: Vector2) -> void:
+	if _handoff().is_defeated(node_name):
+		return
+	var enemy := OverworldEnemy.new()
+	enemy.name = node_name
+	enemy.enemy_ids = enemy_ids
+	enemy.global_position = position
+	enemy.fade_overlay = _fade_overlay
+	enemy.pc_combatant = _pc_combatant
+	enemy.companions = _companions
+	enemy.bench = _bench
+	enemy.party_inventory = _party_inventory
+	enemy.vault = _vault
+	enemy.return_scene_path = "res://world/overworld_demo.tscn"
+	enemy.pc_node = _pc
+	_world.add_child(enemy)
 
 func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> DialogueSet:
 	var greeting := DialogueLine.new()
@@ -317,7 +388,25 @@ func _on_dialogue_closed() -> void:
 func _on_item_picked_up(item_name: String) -> void:
 	_pickup_debug_label.text = "Picked up: %s" % item_name
 
+## Reuses the same top-left pickup label for gathering nodes (GatheringNode) — conceptually the
+## same "you got something" feedback as _on_item_picked_up, just materials instead of gear.
+func _on_material_gathered(item_name: String, quantity: int) -> void:
+	_pickup_debug_label.text = "Gathered: %s x%d" % [item_name, quantity]
+
+## Opens the "?" encounter's choice panel (player direction 2026-07-12) and pauses PC movement —
+## mirrors _on_dialogue_requested/_on_board_opened's existing pattern.
+func _on_encounter_triggered(encounter: RandomEncounter) -> void:
+	_random_encounter_panel.open_for(encounter, _pc_combatant, _party_inventory)
+	_pc.set_movement_paused(true)
+
+## The panel already hides itself on Continue (mirrors DialogueBox.closed) — this just resumes
+## movement, mirroring _on_dialogue_closed().
+func _on_random_encounter_resolved() -> void:
+	_pc.set_movement_paused(false)
+
 func _toggle_inventory() -> void:
+	if _random_encounter_panel.is_open():
+		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
 		_pc.set_movement_paused(false)
@@ -325,8 +414,21 @@ func _toggle_inventory() -> void:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false)   # overworld = not a safe zone, Vault unreachable
 		_pc.set_movement_paused(true)
 
+## Opens the same InventoryMenuPanel directly to its Stats tab (2026-07-12, player-requested
+## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
+## different starting tab.
+func _toggle_stats() -> void:
+	if _random_encounter_panel.is_open():
+		return
+	if _inventory_panel.visible:
+		_inventory_panel.hide()
+		_pc.set_movement_paused(false)
+	else:
+		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false, &"stats")
+		_pc.set_movement_paused(true)
+
 func _process(_delta: float) -> void:
-	if _inventory_panel.visible or _dialogue_box.is_open():
+	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
@@ -358,7 +460,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_inventory"):
 		_toggle_inventory()
 		return
-	if _inventory_panel.visible:
+	if event.is_action_pressed("toggle_stats"):
+		_toggle_stats()
+		return
+	if _inventory_panel.visible or _random_encounter_panel.is_open():
 		return
 	if not event.is_action_pressed("interact"):
 		return

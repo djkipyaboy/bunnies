@@ -45,10 +45,19 @@ deliberate build choice (Pillar 4), never a slot machine of its own.
 💡 *Recipe-craft (make faces) + Reforge (re-type) + Salvage (source essence).* ❓ *Cooking/consumables a
 separate track, or out of scope for 1.0?* (See [[99-parking-lot]].)
 
+> **UPDATE 2026-07-12 (player direction):** Cooking is IN — its own profession/track alongside
+> Reelforge/Reforge/Salvage, producing consumables rather than reel-mods. Not designed yet (no recipes,
+> no consumable-effect shape) — see §11.
+
 ### 6. Material taxonomy & economy
 💡 *Materials: typed **Reel-Essence** (from salvage) + maybe rarer catalysts (from bosses). Live in the
 Vault's Materials tab.* ❓ *Define the **inflation metric** (essence earned per run vs. spent per craft) and
 the threshold that triggers a tuning pass.* All rates `[ASSUMPTION]`.
+
+> **UPDATE 2026-07-12 (player direction):** Environmental gathering nodes (Foraging/Fishing) are now a
+> LOCKED second material source alongside Salvage→Essence — see §11. Both feed the same Materials tab;
+> whether gathered materials and salvage Essence share one taxonomy or are kept distinct types is still
+> open (❓, not decided this pass).
 
 ### 7. Recipe acquisition & the account-wide tie-in
 💡 *Recipes found via exploration/quests/bosses; once learned, **unlocked account-wide** ([[26-banking-cross-character]]).*
@@ -65,5 +74,28 @@ salvage maps `Gear → essence` by type/rarity.* Outputs are the same reel descr
 ### 10. Open questions
 - ❓ Make vs. upgrade vs. consumables scope. ❓ Material sources. ❓ Economy rates & inflation threshold. ❓ Cooking track in/out.
 
+### 11. Gathering nodes & profession mini-game reels (player direction, 2026-07-12)
+✅ **Environmental gathering nodes are a second material source**, alongside Salvage→Essence — interactable
+plants/ore/fish spots placed on the overworld map, one per gathering profession (**Foraging**, **Fishing**).
+Salvaging remains inventory-side (break down owned Gear), not a placed node.
+
+💡🔬 **Four professions total, each eventually with its OWN unique reel-spin mini-game**: Foraging, Salvaging,
+Fishing, Cooking. The reel spin determines the profession's outcome roll — rarity and/or quantity of
+materials gathered/salvaged, or quantity/bonus-affix strength on a crafted-from-materials item (Cooking's
+consumables, and potentially Reelforge output). This keeps **the reel IS the dice** (Pillar 1) true even for
+non-combat systems — professions get their own themed reels the same way weapons do, not a bolted-on
+percentage roll. **Not designed or built yet** — no reel-face tiers, no per-profession multiplier tables, no
+mini-game UI. `[ASSUMPTION]` that this is even the right shape; revisit once combat-reel-adjacent UX exists
+to borrow from.
+
+✅ **Current playtest scope (deliberately below the mini-game vision above):** gathering nodes are plain
+one-shot interactables (mirrors `RewardPickup`'s pattern) that grant a flat `Material` resource into the
+Materials tab on touch, then remove themselves (tracked via `CombatHandoff.is_defeated`, same
+respawn-on-reload fix as `RewardPickup`/`OverworldEnemy`). No mini-game, no rarity/quantity roll, no
+respawn/timer — a renewable-node model (WoW-style respawn timers) is a future note, not solved here.
+
 ### Scope / phase
-✅ Reelforge + Salvage→Essence + Reforge, deterministic & previewed, for 1.0. ⏳ Cooking/consumable crafting, rare-catalyst tiers = later.
+✅ Reelforge + Salvage→Essence + Reforge, deterministic & previewed, for 1.0. Gathering nodes (Foraging/
+Fishing) as a second material source, for 1.0 (basic interactable version now; profession mini-game reels
+later — see §11). ⏳ Cooking/consumable crafting (now confirmed IN, see §5), rare-catalyst tiers,
+profession mini-game reels = later.

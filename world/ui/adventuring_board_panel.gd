@@ -8,6 +8,11 @@ extends Panel
 
 signal entry_selected(entry: QuestBoardEntry)
 
+## Emitted by the Party Selection button (2026-07-12, player-requested companion recruitment) —
+## the board itself doesn't manage the party, it just hands off to whoever opened this panel
+## (town_demo.gd), matching entry_selected's "emit and let the caller act" pattern.
+signal party_selection_pressed
+
 const PAD: float = 16.0
 const ROW_H: float = 28.0
 const PANEL_W: float = 420.0
@@ -25,6 +30,7 @@ const CATEGORY_LABELS: Dictionary = {
 
 var _row_buttons: Array[Button] = []
 var _detail_label: Label
+var _party_selection_button: Button
 
 ## Groups entries by category, preserving CURRENT/SIDE/RECAP order within each bucket.
 ## Pure/static so it's unit-testable without building the panel.
@@ -43,8 +49,16 @@ func open_for(entries: Array[QuestBoardEntry]) -> void:
 		child.queue_free()
 	_row_buttons.clear()
 
-	var groups: Dictionary = group_by_category(entries)
 	var y: float = PAD
+	_party_selection_button = Button.new()
+	_party_selection_button.text = "Party Selection"
+	_party_selection_button.position = Vector2(PAD, y)
+	_party_selection_button.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
+	_party_selection_button.pressed.connect(func() -> void: party_selection_pressed.emit())
+	add_child(_party_selection_button)
+	y += ROW_H + 6.0
+
+	var groups: Dictionary = group_by_category(entries)
 	for category: QuestBoardEntry.Category in CATEGORY_ORDER:
 		var header := Label.new()
 		header.text = CATEGORY_LABELS[category]
@@ -85,3 +99,6 @@ func _select_entry(entry: QuestBoardEntry) -> void:
 
 func press_row_for_test(index: int) -> void:
 	_row_buttons[index].pressed.emit()
+
+func press_party_selection_for_test() -> void:
+	_party_selection_button.pressed.emit()

@@ -72,5 +72,11 @@ func _initialize() -> void:
 	_check(c.hp == 0, "damage while dead stays 0 (got %d)" % c.hp)
 	_check(_defeated_count == 1, "defeated does not re-fire (got %d)" % _defeated_count)
 
+	# --- xp is a flat accumulator (player direction 2026-07-12) — no leveling math yet ---
+	var xp_c: Combatant = _make_combatant()
+	_check(xp_c.xp == 0, "xp defaults to 0")
+	xp_c.xp += 10
+	_check(xp_c.xp == 10, "xp is a plain settable int accumulator")
+
 	print(("COMBATANT TEST PASSED" if _failures == 0 else "COMBATANT TEST FAILED: %d" % _failures))
 	quit(_failures)

@@ -16,6 +16,17 @@ static func seed_demo_party() -> Dictionary:
 	companion.display_name = "Basil"
 	companion.level = 3   # can equip Common/Uncommon only — exercises a visible level-gate rejection
 
+	# Precreated companion bench (2026-07-12 Party Selection work) — one per remaining class
+	# (everything except the PC's own Warrior and the already-in-party Skirmisher/Basil), all at
+	# level 3 like Basil — base ability + Ultimate only, no L5/L7/L9 kit, per player direction.
+	var bench: Array[Combatant] = []
+	for class_id: StringName in ClassLibrary.IDS:
+		if class_id == &"warrior" or class_id == &"skirmisher":
+			continue
+		var recruit: Combatant = ClassLibrary.make(class_id).build_combatant(true)
+		recruit.level = 3
+		bench.append(recruit)
+
 	var inv: PartyInventory = PartyInventory.new()
 	var vault: Vault = Vault.new()
 	vault.tab_capacity[&"gear"] = 10
@@ -43,6 +54,7 @@ static func seed_demo_party() -> Dictionary:
 	return {
 		"pc": pc,
 		"companions": [companion],
+		"bench": bench,
 		"party_inventory": inv,
 		"vault": vault,
 	}

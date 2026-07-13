@@ -31,5 +31,29 @@ func _initialize() -> void:
 		inv.materials.append(Resource.new())
 	_check(inv.materials.size() == 500, "Materials tab uncapped (got %d)" % inv.materials.size())
 
+	# give_material() stacks by material_type (design-bible 27-crafting.md §11) rather than growing
+	# the array unbounded — a fresh inventory so the 500 plain Resources above don't interfere.
+	var stack_inv: PartyInventory = PartyInventory.new()
+	var berries1: CraftingMaterial = CraftingMaterial.new()
+	berries1.material_type = &"forage_herb"
+	berries1.display_name = "Wild Berries"
+	berries1.quantity = 1
+	stack_inv.give_material(berries1)
+	_check(stack_inv.materials.size() == 1, "give_material() adds a new entry for a new material_type")
+	_check(stack_inv.materials[0].quantity == 1, "the new entry starts at its own quantity")
+
+	var berries2: CraftingMaterial = CraftingMaterial.new()
+	berries2.material_type = &"forage_herb"
+	berries2.quantity = 2
+	stack_inv.give_material(berries2)
+	_check(stack_inv.materials.size() == 1, "give_material() stacks onto the existing entry instead of adding a second one")
+	_check(stack_inv.materials[0].quantity == 3, "stacking sums the quantities (1 + 2 = 3)")
+
+	var fish: CraftingMaterial = CraftingMaterial.new()
+	fish.material_type = &"fish_meat"
+	fish.quantity = 1
+	stack_inv.give_material(fish)
+	_check(stack_inv.materials.size() == 2, "a different material_type adds a second, separate entry")
+
 	print(("PARTY INVENTORY TEST PASSED" if _failures == 0 else "PARTY INVENTORY TEST FAILED: %d" % _failures))
 	quit(_failures)

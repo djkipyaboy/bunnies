@@ -784,12 +784,111 @@ of gear, runs the exact real clear-then-load sequence, and confirms that gear is
 after "returning" — this is the test that would have caught the bug directly, matching the
 end-to-end-simulation lesson from the earlier return-position fix.
 
-**Next: undetermined — resume point, not a mandate.** Both demos are locked-in conventions (movement/
-interaction/scene-architecture for towns; obstacle-navigation/cross-scene-transition for the overworld)
-ready to build real content on top of. Candidates for whenever work resumes here: building out real
-settlement content (docs/design-bible/ roster drafts are still sitting as proposals, see status below), or
-picking the tilted/dimetric overworld visual style back up. The
-remaining combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish,
+**SHIPPED 2026-07-12 — SEVEN-ITEM OVERWORLD PLAYTEST BACKLOG** (player-directed day; **159 headless
+test files, all green** — up from 144; full end-to-end sweeps re-run after every item, including a
+class-name collision caught and fixed mid-session). Worked in an order the player and the assistant
+agreed on together (shared-party-state moved up from its original spot since it unblocks companion
+recruitment):
+1. **`RewardPickup` respawn-on-reload fix** — mirrors the already-shipped `OverworldEnemy` defeated-
+   tracking pattern exactly: `interact()` now calls `CombatHandoff.mark_defeated(StringName(name))`,
+   and `overworld_demo.gd`'s `_build_npcs()` skips an already-collected `ShinyTrinket` on rebuild.
+2. **Town+overworld shared persistent party state** — the biggest architectural piece. `SceneExit`
+   (town's `TownExit` / overworld's `VillageEntrance`) now carries `pc_combatant`/`companions`/
+   `party_inventory`/`vault` via a new `CombatHandoff.stash_party()` (distinct from
+   `begin_encounter()` — no combat/return-position fields), and both `town_demo.gd`'s and
+   `overworld_demo.gd`'s `_build_inventory_demo()` check `CombatHandoff.pc != null` FIRST (reuse +
+   `clear_party()`) before falling back to `InventoryDemoSetup.seed_demo_party()`. Closes the "town
+   and overworld each seed their own independent placeholder party" seam noted throughout the
+   2026-07-11 handoff work. Full round-trip (town → overworld → town) proven end-to-end in
+   `tests/test_shared_party_state.gd`, including a recruited companion and equipped gear surviving
+   the whole loop.
+3. **Character stat-distribution display** — a third **Stats** tab on `InventoryMenuPanel` (alongside
+   Bag/Vault), WoW-style: 3 columns mirroring the paperdoll (Companion1/PC/Companion2), each showing
+   the live 6-stat spread via `Combatant.effective_stats()` (gear bonuses included) with hover
+   tooltips explaining each stat's actual combat-math hook (Might→per-reel damage, Finesse→Initiative
+   +tiebreak, Vigor→HP+DoT resist, Focus→pool+regen, Grit→meter floor, Luck→crit faces+extra
+   paylines), plus each character's `weapon_effective_base_damage()`. New **`toggle_stats` input
+   action bound to `C`** opens the panel directly to this tab (`open_for()` gained an `initial_tab`
+   param, defaulted so every existing call site is unaffected) in both town and overworld.
+4. **Companion recruitment** — NOT full KOTOR-style recruitment yet (see
+   `[[kotor-companion-system]]`/design-bible). A **"Party Selection" button on the Town Adventuring
+   Board** opens a new `PartySelectionPanel`: add/remove any precreated level-3 companion (base
+   ability + Ultimate only) between the active party and a bench; the PC (Martin, level 9) can never
+   be removed; adding is disabled once the party holds its 2-companion max. `InventoryDemoSetup.
+   seed_demo_party()` now also seeds a 5-companion bench (one per remaining class); `CombatHandoff`/
+   `SceneExit` carry the bench alongside the active party so it survives every scene transition too.
+5. **Environmental gathering nodes + `docs/design-bible/27-crafting.md` update** — new
+   `GatheringNode` (mirrors `RewardPickup`'s shape, incl. the same defeated-tracking) grants a new
+   **`CraftingMaterial`** resource into `PartyInventory`'s Materials tab, stacking by
+   `material_type` (`PartyInventory.give_material()`). Two placed on the overworld: Foraging ("Wild
+   Berries") and Fishing ("Fishing Spot"). **Real bug caught by this session's own tests**: the
+   resource was originally named `Material`, which collides with Godot's built-in engine `Material`
+   (shader/rendering base class) — `Material.new()` silently resolved to the ENGINE class, failing
+   property assignment at runtime with a confusing error; renamed to `CraftingMaterial`. Crafting doc
+   updated (§5/§6/§11): gathering nodes are now a locked second material source alongside Salvage→
+   Essence; Cooking is confirmed IN SCOPE as its own profession/track (was an open question); and a
+   new proposal is logged (not built) — every profession (Foraging/Salvaging/Fishing/Cooking) will
+   eventually get its own unique mini-game REEL SPIN determining rarity/quantity/bonus-affix
+   strength, keeping "the reel IS the dice" true even for non-combat systems.
+6. **Overworld encounter variety** — ferret and stoat (already authored in `EnemyLibrary`, never
+   placed) are now real `OverworldEnemy` placements (`_build_npcs()` refactored to a shared
+   `_place_overworld_enemy()` helper). New **Slay-the-Spire-style "?" random encounter** framework:
+   `RandomEncounter`/`EncounterOption` resources (an option's outcome is resolved via a REEL SPIN,
+   bucketed critfail/fail→BAD, neutral→NEUTRAL, success/critsuccess→GOOD via
+   `EncounterOption.bucket_for()` — not a plain probability roll, to stay on-theme with Pillar 1),
+   `EncounterLibrary` (mirrors ClassLibrary/EnemyLibrary), `RandomEncounterNode` (mirrors
+   `AdventuringBoard`'s "emit and let the scene open a panel" shape), and `RandomEncounterPanel`
+   (choice buttons → spin → result text + flat gold/HP deltas → Continue). One authored example for
+   this playtest: `&"bandit_ambush"` (the player's own scenario — challenge the leader to a duel /
+   cause a distraction and flee / convince them to let you pass), placed on the overworld.
+7. **Minimal XP-per-kill loop** — `Combatant.xp` (flat accumulator, `int = 0`) + `combat.gd`'s new
+   `_on_enemy_defeated()`, connected to every enemy's `Combatant.defeated` signal at
+   `_build_combatants()` time: awards a flat `ENEMY_XP_REWARD = 10` `[ASSUMPTION]` to every LIVING
+   PC-side combatant per enemy kill (target dummies can't award XP — they're a separate array from
+   `_enemies` and never actually reach `hp == 0`). Deliberately does NOT drive level-ups — no XP
+   curve, no level-up effects, no talent-point system exist yet; all of that is explicitly deferred
+   to a future dedicated brainstorm (`docs/design-bible/22-leveling-and-progression.md`), per the
+   player's own scoping.
+
+**FIRST HUMAN PLAYTEST of the above, SHIPPED 2026-07-12 — 4 fixes, 163 headless test files green**
+(up from 159). Player ran the full loop (town → Party Selection → overworld → gathering → 2 combat
+encounters → equip the Shiny Trinket → 3rd combat encounter → foraging node → back to town → Party
+Selection again) — "truly starting to feel like a videogame." Found:
+- **Real bug, fixed: the recruitable bench emptied after one combat encounter.**
+  `CombatHandoff.begin_encounter()` (fired by every `OverworldEnemy` trigger) never carried `bench`
+  through — by the time a SECOND encounter fired, the FIRST encounter's return trip had already
+  consumed+cleared it, and `begin_encounter()` never repopulated it. Invisible to
+  `tests/test_shared_party_state.gd` (which only exercises `SceneExit.stash_party()`, a plain scene
+  transition, never an actual combat round-trip). Fixed: `begin_encounter()` gained a `bench` param;
+  `OverworldEnemy` gained a `bench` field wired from `overworld_demo.gd`'s `_place_overworld_enemy()`.
+  New end-to-end regression (`tests/test_bench_survives_combat.gd`) drives the exact real sequence:
+  recruit → leave town → trigger a REAL `OverworldEnemy` encounter → simulate the win-and-return →
+  a fresh scene load must still see the untouched remaining bench.
+- **XP gain wasn't visible anywhere** — fixed two ways: (1) `combat.gd` now tracks
+  `_fight_xp_gained` (reset per `_build_combatants()`) and appends `"+N XP"` to the VICTORY/DEFEAT
+  result card (guaranteed on-screen, unlike the log line which apparently didn't register); (2) a
+  new **XP row** on the Stats tab's per-character column, right under Weapon Base Damage — plain
+  `"XP: N"` text, deliberately NOT a progress bar (no XP curve/level-up thresholds exist yet, so a
+  bar would misrepresent a number that doesn't exist — see §4 "don't guess balance numbers").
+- **Materials and Quest Items tabs added to `InventoryMenuPanel`** — two new plain read-only list
+  tabs (not part of the equip-selection grid, since materials/quest items aren't equippable):
+  Materials shows `PartyInventory.materials` (name × quantity, Bag-side only — Vault's own
+  materials array stays unpopulated/future work); Quest Items is a working shell (`quest_items` is
+  currently always empty — no quest system or quest-item resource shape exists yet), shown rather
+  than silently missing, matching the Vault-unavailable message's "still present as an option"
+  convention. `TAB_ROW`-driven tab-button building replaces the old 3× hand-copied block now that
+  there are 5 tabs.
+- **Two notes logged to memory, explicitly deferred, no code change**: `[[post-combat-recovery-deferred]]`
+  (some Bonus Meter reduction + HP/mana/stamina recovery after a win, a later balance/feel pass) and
+  `[[level-parity-pc-companions]]` (the real game gets BG3-style level parity between PC and
+  companions — NOT applicable to this prototype's intentionally-uneven test levels).
+
+**Next: undetermined — resume point, not a mandate.** Candidates for whenever work resumes: continue
+playtesting (the 4 fixes above haven't been re-verified live yet); building out real settlement
+content (docs/design-bible/ roster drafts are still sitting as proposals, see status below); picking
+the tilted/dimetric overworld visual style back up; or picking up any of the "not decided this pass"
+notes left in 27-crafting.md/companion recruitment (full KOTOR-style system), post-combat recovery,
+or PC/companion level parity for deeper design work. The remaining combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish,
 `Bunnies_Playtest_Tracker.xlsx` follow-ups) are parked, not abandoned — resume alongside town/overworld work
 whenever it's convenient.
 

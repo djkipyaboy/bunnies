@@ -31,8 +31,16 @@ var _ui_layer: CanvasLayer
 var _inventory_panel: InventoryMenuPanel
 var _pc_combatant: Combatant
 var _companions: Array[Combatant] = []
+var _bench: Array[Combatant] = []
 var _party_inventory: PartyInventory
 var _vault: Vault
+var _town_exit: SceneExit
+var _party_selection_panel: PartySelectionPanel
+
+## Fetches the CombatHandoff autoload by path — see overworld_demo.gd's _handoff() for the
+## identical rationale (bare `CombatHandoff` identifier fails under headless --script test runs).
+func _handoff() -> Node:
+	return get_node("/root/CombatHandoff")
 
 func _ready() -> void:
 	_build_exterior()
@@ -42,6 +50,14 @@ func _ready() -> void:
 	_build_ui()
 	_wire_doors()
 	_build_inventory_demo()
+	# TownExit was built in _wire_doors(), before the party existed — wire its party fields now
+	# (2026-07-12 shared-party-state work) so leaving town carries the SAME party the overworld
+	# will pick back up, instead of each scene seeding its own independent placeholder party.
+	_town_exit.pc_combatant = _pc_combatant
+	_town_exit.companions = _companions
+	_town_exit.bench = _bench
+	_town_exit.party_inventory = _party_inventory
+	_town_exit.vault = _vault
 	_interior.visible = false
 	_interior.process_mode = Node.PROCESS_MODE_DISABLED
 
@@ -183,15 +199,38 @@ func _build_ui() -> void:
 
 	_board_panel = AdventuringBoardPanel.new()
 	_board_panel.position = Vector2(500, 150)
+	_board_panel.party_selection_pressed.connect(_on_party_selection_pressed)
 	_ui_layer.add_child(_board_panel)
 	_board_panel.close()
 
+	_party_selection_panel = PartySelectionPanel.new()
+	_party_selection_panel.position = Vector2(500, 150)
+	_party_selection_panel.add_companion_requested.connect(_on_add_companion_requested)
+	_party_selection_panel.remove_companion_requested.connect(_on_remove_companion_requested)
+	_ui_layer.add_child(_party_selection_panel)
+	_party_selection_panel.close()
+
+## Reuses the shared party carried by CombatHandoff (from a SceneExit transition or a combat
+## return trip) if one exists, instead of always seeding a fresh independent placeholder party —
+## 2026-07-12 shared-party-state work, closes the town/overworld split noted in
+## overworld_demo.gd's own _build_inventory_demo() comment. Mirrors that method's handoff-check
+## exactly.
 func _build_inventory_demo() -> void:
-	var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
-	_pc_combatant = party_seed["pc"]
-	_companions.assign(party_seed["companions"])
-	_party_inventory = party_seed["party_inventory"]
-	_vault = party_seed["vault"]
+	var handoff: Node = _handoff()
+	if handoff.pc != null:
+		_pc_combatant = handoff.pc
+		_companions.assign(handoff.companions)
+		_bench.assign(handoff.bench)
+		_party_inventory = handoff.party_inventory
+		_vault = handoff.vault
+		handoff.clear_party()
+	else:
+		var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
+		_pc_combatant = party_seed["pc"]
+		_companions.assign(party_seed["companions"])
+		_bench.assign(party_seed["bench"])
+		_party_inventory = party_seed["party_inventory"]
+		_vault = party_seed["vault"]
 
 	_inventory_panel = InventoryMenuPanel.new()
 	_inventory_panel.position = Vector2(140, 60)
@@ -248,6 +287,7 @@ func _wire_doors() -> void:
 	town_exit.global_position = Vector2(320, 340)
 	town_exit.fade_overlay = _fade_overlay
 	_exterior.add_child(town_exit)
+	_town_exit = town_exit
 
 	var town_exit_arrow := Polygon2D.new()
 	town_exit_arrow.name = "TownExitArrow"
@@ -305,6 +345,25 @@ func _on_board_opened(entries: Array[QuestBoardEntry]) -> void:
 	_board_panel.open_for(entries)
 	_pc.set_movement_paused(true)
 
+## Party Selection (2026-07-12, player-requested): the board hands off to a separate panel rather
+## than growing its own quest-row UI to also manage the party. Closes the board panel first so only
+## one modal panel is ever open at a time (mirrors _toggle_inventory's existing dialogue/board guard).
+func _on_party_selection_pressed() -> void:
+	_board_panel.close()
+	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
+
+func _on_add_companion_requested(companion: Combatant) -> void:
+	if PartySelectionPanel.party_full(_companions):
+		return
+	_companions.append(companion)
+	_bench.erase(companion)
+	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
+
+func _on_remove_companion_requested(companion: Combatant) -> void:
+	_companions.erase(companion)
+	_bench.append(companion)
+	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
+
 func _process(_delta: float) -> void:
 	if _dialogue_box.is_open():
 		_interact_prompt.hide_prompt()
@@ -327,7 +386,7 @@ func _set_highlighted_target(target: Interactable) -> void:
 	_highlighted_target = target
 
 func _toggle_inventory() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -336,9 +395,25 @@ func _toggle_inventory() -> void:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, true)   # town = safe zone, Vault reachable
 		_pc.set_movement_paused(true)
 
+## Opens the same InventoryMenuPanel directly to its Stats tab (2026-07-12, player-requested
+## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
+## different starting tab.
+func _toggle_stats() -> void:
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open():
+		return
+	if _inventory_panel.visible:
+		_inventory_panel.hide()
+		_pc.set_movement_paused(false)
+	else:
+		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, true, &"stats")
+		_pc.set_movement_paused(true)
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_inventory"):
 		_toggle_inventory()
+		return
+	if event.is_action_pressed("toggle_stats"):
+		_toggle_stats()
 		return
 	if _inventory_panel.visible:
 		return
@@ -349,6 +424,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _board_panel.is_open():
 		_board_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _party_selection_panel.is_open():
+		_party_selection_panel.close()
 		_pc.set_movement_paused(false)
 		return
 	var target: Interactable = _pc.nearest_interactable()

@@ -43,6 +43,18 @@ func _process(_delta: float) -> bool:
 		overworld._toggle_inventory()
 		_check(not overworld._inventory_panel.visible, "toggle again closes the panel")
 		_check(not overworld._pc.movement_paused_for_test(), "toggle again resumes PC movement")
+
+		# 'C' keybinding (2026-07-12): opens the same panel directly to the Stats tab.
+		var stats_event := InputEventAction.new()
+		stats_event.action = &"toggle_stats"
+		stats_event.pressed = true
+		overworld._unhandled_input(stats_event)
+		_check(overworld._inventory_panel.visible, "toggle_stats opens the panel")
+		_check(overworld._inventory_panel.active_tab_for_test() == &"stats", "toggle_stats opens directly to the Stats tab")
+		_check(overworld._pc.movement_paused_for_test(), "toggle_stats pauses PC movement")
+		overworld._unhandled_input(stats_event)
+		_check(not overworld._inventory_panel.visible, "toggle_stats again closes the panel")
+		_check(not overworld._pc.movement_paused_for_test(), "toggle_stats again resumes PC movement")
 	if _frames >= 5:
 		print("ok overworld_demo inventory wiring smoke test complete")
 		_instance.free()

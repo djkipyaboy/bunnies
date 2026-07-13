@@ -38,6 +38,14 @@ func _init() -> void:
 	panel.press_row_for_test(0)
 	_check(selected[0] == current, "pressing row 0 selects the first entry (CURRENT header comes first)")
 
+	# Party Selection button (2026-07-12, player-requested companion recruitment) — re-open first
+	# since close() above hid it, and re-open rebuilds every row from scratch anyway.
+	panel.open_for(entries)
+	var party_selection_pressed_count: int = 0
+	panel.party_selection_pressed.connect(func() -> void: party_selection_pressed_count += 1)
+	panel.press_party_selection_for_test()
+	_check(party_selection_pressed_count == 1, "pressing Party Selection emits party_selection_pressed")
+
 	panel.close()
 	_check(not panel.visible, "close() hides the panel")
 	panel.free()  # never entered the tree, so free manually (matches test_ability_menu_panel.gd)

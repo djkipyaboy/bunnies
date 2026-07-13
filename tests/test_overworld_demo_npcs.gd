@@ -43,9 +43,20 @@ func _process(_delta: float) -> bool:
 		var enemy_node: OverworldEnemy = overworld._world.get_node("OverworldRat")
 		var reward_node: RewardPickup = overworld._world.get_node("ShinyTrinket")
 		var wanderer_node: Villager = overworld._world.get_node("OverworldWanderer")
+		var berries_node: GatheringNode = overworld._world.get_node("WildBerries")
+		var fish_node: GatheringNode = overworld._world.get_node("FishingSpot")
+		var ferret_node: OverworldEnemy = overworld._world.get_node("OverworldFerret")
+		var stoat_node: OverworldEnemy = overworld._world.get_node("OverworldStoat")
+		var encounter_node: RandomEncounterNode = overworld._world.get_node("BanditAmbush")
 		_check(enemy_node != null, "OverworldEnemy exists as a child of _world")
 		_check(reward_node != null, "RewardPickup exists as a child of _world")
 		_check(wanderer_node != null, "friendly Villager exists as a child of _world")
+		_check(berries_node != null, "the Foraging GatheringNode (WildBerries) exists as a child of _world")
+		_check(fish_node != null, "the Fishing GatheringNode (FishingSpot) exists as a child of _world")
+		_check(berries_node.party_inventory == overworld._party_inventory, "WildBerries.party_inventory wired to the scene's live PartyInventory")
+		_check(ferret_node != null and ferret_node.enemy_ids == [&"ferret"], "OverworldFerret is placed with the ferret roster (2026-07-12 encounter variety)")
+		_check(stoat_node != null and stoat_node.enemy_ids == [&"stoat"], "OverworldStoat is placed with the stoat roster (2026-07-12 encounter variety)")
+		_check(encounter_node != null and encounter_node.encounter_id == &"bandit_ambush", "the BanditAmbush RandomEncounterNode is placed (2026-07-12 '?' encounters)")
 
 		# --- OverworldEnemy <-> CombatHandoff wiring: _build_npcs() sets the placement-time
 		# fields that feed CombatHandoff.begin_encounter() on trigger (not triggered here, see
@@ -74,6 +85,16 @@ func _process(_delta: float) -> bool:
 		_check(reward_node.is_queued_for_deletion(), "touching the RewardPickup queues it for deletion")
 		_check(overworld._pickup_debug_label.text.find("Shiny Trinket") != -1, "pickup debug label mentions the collected item's name")
 		overworld._pc._tracked.erase(reward_node)
+
+		# --- GatheringNode (WildBerries): force it into reach, drive one real _process() frame,
+		# confirm the Material lands in _party_inventory and the node frees itself. ---
+		overworld._pc._tracked.append(berries_node)
+		overworld._process(0.016)
+		_check(overworld._party_inventory.materials.size() == 1, "touching WildBerries gives one Material into _party_inventory")
+		_check(overworld._party_inventory.materials[0].material_type == &"forage_herb", "the granted Material carries WildBerries' material_type")
+		_check(berries_node.is_queued_for_deletion(), "touching WildBerries queues it for deletion")
+		_check(overworld._pickup_debug_label.text.find("Wild Berries") != -1, "pickup debug label mentions the gathered material's name")
+		overworld._pc._tracked.erase(berries_node)
 
 		# --- Regression (2026-07-11 final review, Important finding): a same-frame interact
 		# keypress must NOT double-fire an auto_trigger target alongside _process's own
@@ -116,6 +137,29 @@ func _process(_delta: float) -> bool:
 		root.add_child(defeated_instance)
 		_check(defeated_instance._world.get_node_or_null("OverworldRat") == null, "an already-defeated OverworldRat is skipped on scene rebuild")
 		defeated_instance.free()
+
+		# --- Same skip behavior for a collected RewardPickup (2026-07-12 respawn-on-reload fix) —
+		# mirrors OverworldEnemy's defeated-tracking exactly, keyed off RewardPickup's own node name
+		# ("ShinyTrinket") rather than an enemy id. ---
+		_combat_handoff.defeated_encounter_ids = [] as Array[StringName]
+		_combat_handoff.mark_defeated(&"ShinyTrinket")
+
+		var reward_scene: PackedScene = load("res://world/overworld_demo.tscn")
+		var reward_defeated_instance: OverworldDemo = reward_scene.instantiate()
+		root.add_child(reward_defeated_instance)
+		_check(reward_defeated_instance._world.get_node_or_null("ShinyTrinket") == null, "an already-collected ShinyTrinket is skipped on scene rebuild")
+		reward_defeated_instance.free()
+
+		# --- Same skip behavior for a gathered GatheringNode (2026-07-12 §11 work) — mirrors
+		# RewardPickup's defeated-tracking exactly. ---
+		_combat_handoff.defeated_encounter_ids = [] as Array[StringName]
+		_combat_handoff.mark_defeated(&"WildBerries")
+
+		var berries_scene: PackedScene = load("res://world/overworld_demo.tscn")
+		var berries_defeated_instance: OverworldDemo = berries_scene.instantiate()
+		root.add_child(berries_defeated_instance)
+		_check(berries_defeated_instance._world.get_node_or_null("WildBerries") == null, "an already-gathered WildBerries is skipped on scene rebuild")
+		berries_defeated_instance.free()
 
 		# Reset before the next section so the defeated-mark doesn't leak into it.
 		_combat_handoff.defeated_encounter_ids = [] as Array[StringName]

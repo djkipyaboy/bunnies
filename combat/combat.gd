@@ -17,6 +17,9 @@ const CASINO_MIN_RUN: int = 3  # [ASSUMPTION] Chancer casino lines pay on a left
 ## turn's worth of protection before ever taking a hit.
 const BIG_BANG_SHIELD_TURNS: int = 3  # Seer Big Bang: heal-overflow shield duration
 const RALLYING_CRY_SHIELD_TURNS: int = 3  # Warden Rallying Cry: party shield duration
+## [ASSUMPTION] flat per-kill XP (player direction 2026-07-12) — no curve/scaling by enemy type
+## yet, that's leveling-system work (docs/design-bible/22-leveling-and-progression.md), deferred.
+const ENEMY_XP_REWARD: int = 10
 
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
@@ -85,6 +88,9 @@ var _start_overlay: Panel
 var _arrived_via_handoff: bool = false
 var _handoff_fade_overlay: FadeOverlay
 var _last_result_won: bool = false
+## Total XP awarded to the party THIS fight (player direction 2026-07-12: XP gain wasn't visible
+## enough) — reset per _build_combatants() call, surfaced on the result card in _on_combat_ended().
+var _fight_xp_gained: int = 0
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
@@ -152,6 +158,7 @@ func _build_combatants() -> void:
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 	_pcs.clear()
 	_enemies.clear()
+	_fight_xp_gained = 0
 	if _arrived_via_handoff:
 		# Overworld handoff (spec §3.4): the party is already real, already-equipped Combatants — no
 		# ClassLibrary build, no ENDGAME scaling (that's a fresh-spawn testing aid, not appropriate for
@@ -181,6 +188,12 @@ func _build_combatants() -> void:
 	# Anchors = first member of each side (defaults / first-panel references; control reads the active one).
 	_pc = _pcs[0]
 	_enemy = _enemies[0]
+
+	# Minimal XP-per-kill loop (player direction 2026-07-12) — flat XP to every living PC when an
+	# enemy dies, via Combatant.defeated (emitted once, exactly at the hp==0 transition). Target
+	# dummies are never in _enemies (a separate array, see below) so they can't award XP.
+	for enemy_combatant: Combatant in _enemies:
+		enemy_combatant.defeated.connect(_on_enemy_defeated.bind(enemy_combatant))
 
 	_turn_manager.combatants = []
 	_turn_manager.combatants.append_array(_pcs)
@@ -1744,6 +1757,16 @@ func _on_end_turn_pressed() -> void:
 func _on_turn_finished() -> void:
 	_turn_manager.advance_turn()
 
+## Minimal XP-per-kill loop (player direction 2026-07-12): flat XP to every living PC when an
+## enemy dies. Other XP sources (quests, crafting/random-encounter successes) are future work —
+## combat is expected to stay the most common source, per the player's own framing.
+func _on_enemy_defeated(enemy: Combatant) -> void:
+	for pc: Combatant in _pcs:
+		if pc.is_alive():
+			pc.xp += ENEMY_XP_REWARD
+	_fight_xp_gained += ENEMY_XP_REWARD
+	_log("%s defeated — party gains %d XP! (total this fight: %d)" % [enemy.display_name, ENEMY_XP_REWARD, _fight_xp_gained])
+
 func _on_combat_ended(winner_is_player: bool) -> void:
 	_last_result_won = winner_is_player
 	_spin_button.disabled = true
@@ -1752,6 +1775,10 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	_awaiting_end_turn = false
 	var label: Label = _overlay.get_node("ResultLabel")
 	label.text = "VICTORY!" if winner_is_player else "DEFEAT"
+	# XP gain wasn't visible enough in the log alone (player direction 2026-07-12) — the result
+	# card is guaranteed on-screen and uncrowded, so it's the reliable place to show the total.
+	if _fight_xp_gained > 0:
+		label.text += "\n+%d XP" % _fight_xp_gained
 	_log("Combat over — %s wins." % ("you" if winner_is_player else "the enemy"))
 	move_child(_overlay, get_child_count() - 1)  # ensure the result card draws over everything
 	_overlay.visible = true

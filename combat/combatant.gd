@@ -75,9 +75,14 @@ var ability_resource: StringName = &"stamina"
 var ultimate_id: StringName = &"sticky_wild"
 
 ## Character level — gates extra_abilities (spec 2026-07-01). Default 1 = only the L1 base ability
-## + nothing extra. NOT a real progression system yet (no XP) — a test/tester knob until the
-## design-bible leveling system lands.
+## + nothing extra. Still a test/tester knob, not driven by [member xp] yet — the full leveling
+## curve/level-up effects are deferred (docs/design-bible/22-leveling-and-progression.md).
 var level: int = 1
+
+## Flat XP accumulator (player direction 2026-07-12) — awarded per enemy defeated in combat
+## (combat.gd's _on_enemy_defeated). Deliberately does NOT drive level-ups yet: no XP curve, no
+## level-up effects, no talent-point system exist — this is only the counter, not the loop.
+var xp: int = 0
 
 ## The class's 3 NEW (L5/L7/L9) abilities, parallel to the single ability_id (untouched — plan
 ## "Corrections to the locked spec" §1). Empty for a combatant with no extra kit (e.g. enemies).

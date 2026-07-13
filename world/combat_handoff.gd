@@ -11,6 +11,18 @@ extends Node
 
 var pc: Combatant
 var companions: Array = []
+## Precreated companions available to recruit but not currently in the active party (2026-07-12
+## Party Selection work) — rides along with pc/companions/party_inventory/vault everywhere they do
+## (stash_party()/begin_encounter()/clear_party()), even though combat itself never reads it (bench
+## companions don't fight, so clear_combat_data() deliberately leaves it untouched).
+##
+## PLAYTEST-FOUND BUG (2026-07-12, fixed same session): begin_encounter() originally had no bench
+## param at all, so every real combat encounter silently reset this to [] — by the time the player
+## triggered a SECOND fight, _build_inventory_demo() had already consumed+cleared the FIRST
+## encounter's bench, and OverworldEnemy's begin_handoff() call never repopulated it. A human
+## playtest caught this (companions vanished from Party Selection's Add list after one fight); no
+## automated test had exercised a REAL combat round-trip's effect on bench, only SceneExit's.
+var bench: Array = []
 var party_inventory: PartyInventory
 var vault: Vault
 var enemy_ids: Array[StringName] = []
@@ -20,10 +32,23 @@ var return_position: Vector2 = Vector2.ZERO
 var has_return_position: bool = false   # ZERO could be a legitimate spawn point; don't sentinel-compare
 var defeated_encounter_ids: Array[StringName] = []
 
-func begin_encounter(p: Combatant, comps: Array, inv: PartyInventory, v: Vault,
-		ids: Array[StringName], encounter_id: StringName, scene_path: String, position: Vector2) -> void:
+## Carries the party across a plain cross-scene transition (SceneExit, e.g. town<->overworld) —
+## no combat/return-position fields involved, unlike begin_encounter(). The destination scene reads
+## pc/companions/party_inventory/vault the same way it already does for a combat return trip
+## (checks pc != null, reuses, then calls clear_party()).
+func stash_party(p: Combatant, comps: Array, inv: PartyInventory, v: Vault, b: Array = []) -> void:
 	pc = p
 	companions = comps
+	bench = b
+	party_inventory = inv
+	vault = v
+
+func begin_encounter(p: Combatant, comps: Array, inv: PartyInventory, v: Vault,
+		ids: Array[StringName], encounter_id: StringName, scene_path: String, position: Vector2,
+		b: Array = []) -> void:
+	pc = p
+	companions = comps
+	bench = b
 	party_inventory = inv
 	vault = v
 	enemy_ids = ids
@@ -61,6 +86,7 @@ func clear_combat_data() -> void:
 func clear_party() -> void:
 	pc = null
 	companions = []
+	bench = []
 	party_inventory = null
 	vault = null
 

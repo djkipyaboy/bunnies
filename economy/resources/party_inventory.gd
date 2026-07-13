@@ -35,3 +35,12 @@ func take_weapon(w: Weapon) -> void:
 
 func give_weapon(w: Weapon) -> void:
 	weapons.append(w)
+
+## Adds a gathered/salvaged CraftingMaterial, stacking onto an existing entry of the same
+## material_type rather than growing the array unbounded (design-bible 27-crafting.md §11 "stacking").
+func give_material(m: CraftingMaterial) -> void:
+	for existing: CraftingMaterial in materials:
+		if existing is CraftingMaterial and existing.material_type == m.material_type:
+			existing.quantity += m.quantity
+			return
+	materials.append(m)
