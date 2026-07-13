@@ -30,9 +30,9 @@ static func make(id: StringName) -> Combatant:
 	var piercing: DamageType = load("res://combat/resources/types/piercing.tres")
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 	match id:
-		&"rat":    return _build("Cluny's Rat", crushing, 8.0, 2, earth, 300, &"", 0, &"overworld_trash")       # plain melee baseline
-		&"ferret": return _build("Redtooth (Ferret)", slashing, 7.0, 3, slashing, 260, &"flurry", 2, &"overworld_trash")
-		&"stoat":  return _build("Killconey (Stoat)", piercing, 6.0, 4, piercing, 220, &"hunters_mark", 3, &"overworld_trash")
+		&"rat":    return _build(label(id), crushing, 8.0, 2, earth, 300, &"", 0, &"overworld_trash")       # plain melee baseline
+		&"ferret": return _build(label(id), slashing, 7.0, 3, slashing, 260, &"flurry", 2, &"overworld_trash")
+		&"stoat":  return _build(label(id), piercing, 6.0, 4, piercing, 220, &"hunters_mark", 3, &"overworld_trash")
 		_:         return null
 
 ## Stamps a fresh enemy Combatant. Enemies have NO Ultimate (ultimate_id cleared). An enemy with a

@@ -41,5 +41,11 @@ func _initialize() -> void:
 	_check(stoat.loot_table != null, "stoat carries a loot_table")
 	_check(rat.loot_table != ferret.loot_table, "each Combatant gets its OWN fresh LootTable instance, not a shared reference")
 
+	# --- Name-format coupling fix (2026-07-13-event-log-tabs-design.md §5): display_name must be
+	# DERIVED from label(), not an independently-typed literal that merely happens to match today. ---
+	_check(rat.display_name == EnemyLibrary.label(&"rat"), "rat's display_name matches its label")
+	_check(ferret.display_name == EnemyLibrary.label(&"ferret"), "ferret's display_name matches its label")
+	_check(stoat.display_name == EnemyLibrary.label(&"stoat"), "stoat's display_name matches its label")
+
 	print(("ENEMY LIBRARY TEST PASSED" if _failures == 0 else "ENEMY LIBRARY TEST FAILED: %d" % _failures))
 	quit(_failures)
