@@ -244,7 +244,7 @@ func _build_ui() -> void:
 	_event_log_panel.visible = false
 	ui.add_child(_event_log_panel)
 	_event_log_panel.build()
-	_event_log_panel.refresh(_handoff().event_log_lines)
+	_event_log_panel.refresh(_handoff().event_log_entries)
 	_handoff().event_logged.connect(_event_log_panel.append_line)
 
 ## The overworld map is not a safe zone — the Vault is passed in but marked unreachable
@@ -399,13 +399,13 @@ func _on_dialogue_closed() -> void:
 ## Shown top-left (like the encounter message, but yellow) whenever a RewardPickup is collected.
 func _on_item_picked_up(item_name: String) -> void:
 	_pickup_debug_label.text = "Picked up: %s" % item_name
-	_handoff().log_event("Picked up: %s" % item_name)
+	_handoff().log_event("Picked up: %s" % item_name, &"loot")
 
 ## Reuses the same top-left pickup label for gathering nodes (GatheringNode) — conceptually the
 ## same "you got something" feedback as _on_item_picked_up, just materials instead of gear.
 func _on_material_gathered(item_name: String, quantity: int) -> void:
 	_pickup_debug_label.text = "Gathered: %s x%d" % [item_name, quantity]
-	_handoff().log_event("Gathered: %s x%d" % [item_name, quantity])
+	_handoff().log_event("Gathered: %s x%d" % [item_name, quantity], &"loot")
 
 ## Opens the "?" encounter's choice panel (player direction 2026-07-12) and pauses PC movement —
 ## mirrors _on_dialogue_requested/_on_board_opened's existing pattern.
