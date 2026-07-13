@@ -16,7 +16,23 @@ func _initialize() -> void:
 	panel.build()
 
 	_check(is_equal_approx(panel.modulate.a, EventLogPanel.TRANSLUCENT_ALPHA), "starts translucent (got %f)" % panel.modulate.a)
-	_check(panel.mouse_filter == Control.MOUSE_FILTER_PASS, "the panel's mouse_filter is PASS so background clicks reach whatever's underneath")
+
+	# Draggable (playtest request 2026-07-13: movable in combat.tscn like the Type Chart) — mirrors
+	# TypeChartPanel's own drag-handle convention, but the tab buttons and log text stay interactive
+	# (unlike TypeChartPanel's fully-decorative children) instead of being forced to MOUSE_FILTER_IGNORE.
+	_check(panel.mouse_filter == Control.MOUSE_FILTER_STOP, "the panel itself receives mouse input (drag handle)")
+	for tab_id: StringName in panel._tab_buttons:
+		var btn: Button = panel._tab_buttons[tab_id]
+		_check(btn.mouse_filter != Control.MOUSE_FILTER_IGNORE, "tab button '%s' stays clickable, not forced to ignore the mouse" % tab_id)
+	var vp: Vector2 = panel.get_viewport_rect().size
+	panel.position = Vector2(99999, 99999)
+	panel._clamp_to_viewport()
+	_check(panel.position.x >= 0.0 and panel.position.x <= maxf(0.0, vp.x - panel.size.x) + 0.5, "clamp keeps the panel's X on-screen")
+	_check(panel.position.y >= 0.0 and panel.position.y <= maxf(0.0, vp.y - panel.size.y) + 0.5, "clamp keeps the panel's Y on-screen")
+	panel.position = Vector2(-500, -500)
+	panel._clamp_to_viewport()
+	_check(panel.position.x == 0.0 and panel.position.y == 0.0, "clamp pins a negative drag back to the top-left")
+	panel.position = Vector2.ZERO
 
 	var seed_entries: Array[Dictionary] = [
 		{"line": "Picked up: Shiny Trinket", "category": &"loot"},

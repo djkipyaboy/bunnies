@@ -32,6 +32,7 @@ var _log_box: RichTextLabel
 var _entries: Array[Dictionary] = []
 var _active_category: StringName = &""
 var _tab_buttons: Dictionary = {}   # StringName -> Button
+var _dragging: bool = false   # the player is dragging the panel to reposition it (playtest request 2026-07-13)
 
 ## Builds the widget's children. Call once after adding to the tree; does not set visibility or
 ## position — the owning scene controls both (mirrors TypeChartPanel.build()'s convention).
@@ -39,16 +40,19 @@ func build() -> void:
 	custom_minimum_size = Vector2(PANEL_W, PANEL_H)
 	size = custom_minimum_size
 	modulate.a = TRANSLUCENT_ALPHA
-	# Final-review Minor finding (2026-07-13-overworld-event-log-design.md §8 follow-up): default
-	# to PASS so a click on the panel's bare background (not on a tab button or the log text)
-	# reaches whatever's underneath instead of being silently swallowed if a future layout shift
-	# puts this panel over a clickable region (e.g. combat.tscn's target column).
-	mouse_filter = Control.MOUSE_FILTER_PASS
+	# Draggable, same as TypeChartPanel (playtest request 2026-07-13: movable in combat.tscn like the
+	# Type Chart). The panel itself is the drag handle (STOP so it receives the press/motion), which
+	# supersedes the earlier PASS fix — a click-through concern doesn't apply to a window the player
+	# can just drag out of the way. Unlike TypeChartPanel, the tab Buttons and the RichTextLabel stay
+	# fully interactive (their own default STOP filters are left alone) — only the bare background
+	# (title area, margins) acts as the drag handle.
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	mouse_default_cursor_shape = Control.CURSOR_MOVE
 	mouse_entered.connect(_on_mouse_entered)
 	mouse_exited.connect(_on_mouse_exited)
 
 	var title := Label.new()
-	title.text = "Event Log"
+	title.text = "Event Log — drag to move"
 	title.position = Vector2(8.0, 4.0)
 	title.add_theme_font_size_override("font_size", 13)
 	add_child(title)
@@ -62,6 +66,23 @@ func build() -> void:
 	_log_box.position = Vector2(8.0, LOG_TOP)
 	_log_box.size = Vector2(PANEL_W - 16.0, PANEL_H - LOG_TOP - 8.0)
 	add_child(_log_box)
+
+## Drag-to-reposition: hold the left button on the panel's bare background (not a tab button or the
+## log text, which keep their own input) and move it. Mirrors TypeChartPanel._gui_input() exactly.
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT:
+		_dragging = (event as InputEventMouseButton).pressed
+		accept_event()
+	elif event is InputEventMouseMotion and _dragging:
+		position += (event as InputEventMouseMotion).relative
+		_clamp_to_viewport()
+		accept_event()
+
+## Keeps the panel fully on-screen after a drag. Mirrors TypeChartPanel._clamp_to_viewport() exactly.
+func _clamp_to_viewport() -> void:
+	var vp: Vector2 = get_viewport_rect().size
+	position.x = clampf(position.x, 0.0, maxf(0.0, vp.x - size.x))
+	position.y = clampf(position.y, 0.0, maxf(0.0, vp.y - size.y))
 
 func _build_tab_row() -> void:
 	for i in range(TAB_ROW.size()):
