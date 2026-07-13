@@ -400,7 +400,6 @@ func _build_ui() -> void:
 	_event_log_button.position = Vector2(col_x.call(3), ROW2_Y)
 	_event_log_button.custom_minimum_size = Vector2(BTN_W, 44)
 	_event_log_button.tooltip_text = "Show/hide the cross-scene event log (pickups, XP, loot, encounters)."
-	_event_log_button.pressed.connect(_on_event_log_button_pressed)
 	add_child(_event_log_button)
 
 	# Scrollable combat log — keeps the full history; fills the center band below the button bar (its bottom
@@ -863,6 +862,7 @@ func _bind_signals() -> void:
 	_paylines_button.pressed.connect(_on_paylines_pressed)
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
 	_type_chart_button.pressed.connect(_on_type_chart_toggle_pressed)
+	_event_log_button.pressed.connect(_on_event_log_button_pressed)
 
 func _start_combat() -> void:
 	_build_combatants()      # build the chosen party + enemies (+ dummies) now that selection is locked
