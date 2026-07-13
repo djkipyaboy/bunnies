@@ -25,10 +25,15 @@ var _continue_button: Button
 var _pc: Combatant
 var _party_inventory: PartyInventory
 var _resolved: bool = false
+## The triggering encounter's id (2026-07-13-overworld-event-log-design.md §6.3) — captured here so
+## _apply_outcome() can log which encounter resolved without threading the whole RandomEncounter
+## through every subsequent call.
+var _current_encounter_id: StringName = &""
 
 func open_for(encounter: RandomEncounter, pc: Combatant, party_inventory: PartyInventory) -> void:
 	_pc = pc
 	_party_inventory = party_inventory
+	_current_encounter_id = encounter.id
 	_resolved = false
 	_build_choice(encounter)
 	show()
@@ -76,6 +81,20 @@ func _apply_outcome(option: EncounterOption, outcome: EncounterOption.Outcome) -
 		_pc.heal(hp_delta)
 	elif hp_delta < 0:
 		_pc.take_damage(-hp_delta)
+
+	var deltas: Array[String] = []
+	if gold_delta != 0:
+		deltas.append("gold %+d" % gold_delta)
+	if hp_delta != 0:
+		deltas.append("HP %+d" % hp_delta)
+	var suffix: String = " (%s)" % ", ".join(deltas) if not deltas.is_empty() else ""
+	_handoff().log_event("%s: %s%s" % [String(_current_encounter_id).capitalize(), option.label, suffix])
+
+## Fetches the CombatHandoff autoload by path rather than a bare identifier — same reason as every
+## other _handoff() in this project (see combat.gd's own for the full explanation): resolving the
+## bare `CombatHandoff` identifier fails when this script is compiled as a headless test dependency.
+func _handoff() -> Node:
+	return get_node("/root/CombatHandoff")
 
 func _show_result(text: String) -> void:
 	for child in get_children():
