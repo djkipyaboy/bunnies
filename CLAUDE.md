@@ -953,6 +953,50 @@ review — **all clean, 0 Critical/Important**):
   SIGSEGV in `tests/test_shared_party_state.gd` (safe — never occurs in real gameplay, only in that
   one test's 3-scenes-in-one-process pattern).
 
+**SHIPPED 2026-07-13 — EVENT LOG CATEGORY TABS, human-playtested and confirmed working.** A same-day
+follow-up request from the cross-scene event log's own playtest ("give the event log different tabs
+that will separate the messages into the appropriate groups"). Brainstormed → spec'd
+(`docs/superpowers/specs/2026-07-13-event-log-tabs-design.md`) → planned
+(`docs/superpowers/plans/2026-07-13-event-log-tabs.md`) → built subagent-driven (10 tasks, each
+implementer + reviewer, plus an Opus final whole-branch review — 0 Critical/Important, **166
+headless test files green**, up from 164):
+- **`CombatHandoff.event_log_lines: Array[String]`** → **`event_log_entries: Array[Dictionary]`**
+  (`{"line": String, "category": StringName}`) — one array of small entries instead of two parallel
+  arrays, so a line and its category can never desync during trim/append. Three category constants
+  (`CATEGORY_LOOT`/`CATEGORY_COMBAT`/`CATEGORY_PARTY`); `log_event(line, category)` and
+  `event_logged(line, category)` replace the old single-arg forms. All 10 existing call sites tagged
+  per the player's own grouping: **Loot** = item pickups + gathering; **Combat** = encounter started/
+  won/lost/XP/combat-loot/random-encounter outcomes; **Party** = companion recruit/bench. One combined
+  50-line cap (not per-category), matching the existing "not a permanent record" design intent.
+- **`EventLogPanel`** gained a `TAB_ROW`-driven 4-button row (**All**/Loot/Combat/Party — All is the
+  default, mirrors `InventoryMenuPanel`'s own tab convention) that filters the panel's own `_entries`
+  copy at render time — no new `CombatHandoff` dependency, stays a pure view.
+- **Bundled fixes** (player-selected, from the original event-log ship's deferred final-review
+  findings): `EnemyLibrary.make()` now derives every enemy's display name from `label(id)` instead of
+  a hand-duplicated literal (closes the same class of drift bug `EnemyLibrary`'s own name/label
+  coupling risked); a new end-to-end `tests/test_event_log_continuity.gd` proves a line logged in one
+  scene survives into a freshly-built second scene's panel (the missing cross-scene case flagged by
+  the original review).
+- **Real bug found + fixed mid-build (Task 9):** the plan's own literal test script for the new
+  continuity test hit a genuine Godot gotcha — assigning a bare `[]` to `event_log_entries` (a
+  property statically typed `Array[Dictionary]`) through a `Node`-typed handle throws a **silent**
+  "Invalid assignment of property" engine error that aborts the rest of that frame's statements,
+  producing a **false-positive PASS** with zero real assertions run. Every OTHER task (1/5/6/7) had
+  independently dodged this by adding an `as Array[Dictionary]` cast to the same style of reset line —
+  a deviation from the plan's literal text that each task's own reviewer called "unnecessary/harmless"
+  without realizing it was load-bearing. Fixed by removing the two redundant reset lines in the new
+  test (a fresh `SceneTree` process per test file has no prior-run state to clear). Memory written:
+  `gdscript-typed-array-node-set-gotcha.md` — this will recur wherever a headless test resets a typed-
+  array/dictionary autoload property via a `Node`-typed handle.
+- **Playtest feedback (same session, 2 items):** (1) the Event Log window in `combat.tscn` needed to
+  be movable like the Type Chart — fixed by giving `EventLogPanel` the same drag-to-reposition
+  handling `TypeChartPanel` already has (`mouse_filter` back to `STOP` as the drag handle, superseding
+  the earlier PASS click-through fix — moot once the player can just drag the window aside; unlike
+  `TypeChartPanel`, the tab buttons and log text stay interactive rather than being forced to ignore
+  the mouse). (2) **Confirmed working exactly as designed** in both town and overworld: the drag, the
+  All/Loot/Combat/Party split, and companion recruit/bench tracking all read correctly, both on the
+  All tab and each line's own correct tab.
+
 **Next: sub-project 2 of the overworld-playtest arc — a usable Items menu in combat** (potions etc.,
 consumed in place of an ability on a turn), per the player-confirmed build order. Playtest the loot
 drops above first. Other candidates for whenever THIS arc wraps or work resumes elsewhere: building
