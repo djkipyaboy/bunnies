@@ -36,6 +36,7 @@ var _party_inventory: PartyInventory
 var _vault: Vault
 var _town_exit: SceneExit
 var _party_selection_panel: PartySelectionPanel
+var _event_log_panel: EventLogPanel
 
 ## Fetches the CombatHandoff autoload by path — see overworld_demo.gd's _handoff() for the
 ## identical rationale (bare `CombatHandoff` identifier fails under headless --script test runs).
@@ -210,6 +211,17 @@ func _build_ui() -> void:
 	_ui_layer.add_child(_party_selection_panel)
 	_party_selection_panel.close()
 
+	# Cross-scene event log (2026-07-13-overworld-event-log-design.md) — same widget/wiring as
+	# overworld_demo.gd's own EventLogPanel; town needs it too since companion recruit/bench events
+	# only happen here.
+	_event_log_panel = EventLogPanel.new()
+	_event_log_panel.position = Vector2(880, 500)
+	_event_log_panel.visible = false
+	_ui_layer.add_child(_event_log_panel)
+	_event_log_panel.build()
+	_event_log_panel.refresh(_handoff().event_log_lines)
+	_handoff().event_logged.connect(_event_log_panel.append_line)
+
 ## Reuses the shared party carried by CombatHandoff (from a SceneExit transition or a combat
 ## return trip) if one exists, instead of always seeding a fresh independent placeholder party —
 ## 2026-07-12 shared-party-state work, closes the town/overworld split noted in
@@ -357,11 +369,13 @@ func _on_add_companion_requested(companion: Combatant) -> void:
 		return
 	_companions.append(companion)
 	_bench.erase(companion)
+	_handoff().log_event("Recruited %s to the party" % companion.display_name)
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
 
 func _on_remove_companion_requested(companion: Combatant) -> void:
 	_companions.erase(companion)
 	_bench.append(companion)
+	_handoff().log_event("Benched %s" % companion.display_name)
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
 
 func _process(_delta: float) -> void:
@@ -409,6 +423,9 @@ func _toggle_stats() -> void:
 		_pc.set_movement_paused(true)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_event_log"):
+		_event_log_panel.visible = not _event_log_panel.visible
+		return
 	if event.is_action_pressed("toggle_inventory"):
 		_toggle_inventory()
 		return
