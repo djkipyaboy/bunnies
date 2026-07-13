@@ -119,28 +119,32 @@ func _initialize() -> void:
 	_check(CombatHandoff.bench == [], "stash_party's bench param defaults to an empty array")
 	CombatHandoff.clear_party()
 
-	# --- log_event() / event_log_lines (2026-07-13-overworld-event-log-design.md §3) ---
-	CombatHandoff.event_log_lines = [] as Array[String]
+	# --- log_event() / event_log_entries (2026-07-13-event-log-tabs-design.md §3) ---
+	CombatHandoff.event_log_entries = [] as Array[Dictionary]
 	var logged_lines: Array[String] = []
-	var on_logged: Callable = func(line: String) -> void: logged_lines.append(line)
+	var logged_categories: Array[StringName] = []
+	var on_logged: Callable = func(line: String, category: StringName) -> void:
+		logged_lines.append(line)
+		logged_categories.append(category)
 	CombatHandoff.event_logged.connect(on_logged)
 
-	CombatHandoff.log_event("Picked up: Shiny Trinket")
-	_check(CombatHandoff.event_log_lines == ["Picked up: Shiny Trinket"], "log_event() appends a line")
+	CombatHandoff.log_event("Picked up: Shiny Trinket", CombatHandoff.CATEGORY_LOOT)
+	_check(CombatHandoff.event_log_entries == [{"line": "Picked up: Shiny Trinket", "category": CombatHandoff.CATEGORY_LOOT}], "log_event() appends a {line, category} entry")
 	_check(logged_lines == ["Picked up: Shiny Trinket"], "log_event() emits event_logged with the new line")
+	_check(logged_categories == [CombatHandoff.CATEGORY_LOOT], "log_event() emits event_logged with the new category")
 
-	CombatHandoff.event_log_lines = [] as Array[String]
+	CombatHandoff.event_log_entries = [] as Array[Dictionary]
 	for i: int in range(55):
-		CombatHandoff.log_event("Line %d" % i)
-	_check(CombatHandoff.event_log_lines.size() == CombatHandoff.MAX_EVENT_LOG_LINES, "event_log_lines caps at MAX_EVENT_LOG_LINES (got %d)" % CombatHandoff.event_log_lines.size())
-	_check(CombatHandoff.event_log_lines[0] == "Line 5", "the OLDEST entries drop off first (got '%s')" % CombatHandoff.event_log_lines[0])
-	_check(CombatHandoff.event_log_lines[-1] == "Line 54", "the newest entry is always last (got '%s')" % CombatHandoff.event_log_lines[-1])
+		CombatHandoff.log_event("Line %d" % i, CombatHandoff.CATEGORY_COMBAT)
+	_check(CombatHandoff.event_log_entries.size() == CombatHandoff.MAX_EVENT_LOG_LINES, "event_log_entries caps at MAX_EVENT_LOG_LINES (got %d)" % CombatHandoff.event_log_entries.size())
+	_check(CombatHandoff.event_log_entries[0]["line"] == "Line 5", "the OLDEST entries drop off first (got '%s')" % CombatHandoff.event_log_entries[0]["line"])
+	_check(CombatHandoff.event_log_entries[-1]["line"] == "Line 54", "the newest entry is always last (got '%s')" % CombatHandoff.event_log_entries[-1]["line"])
 
 	CombatHandoff.clear_pending()
-	_check(CombatHandoff.event_log_lines.size() == CombatHandoff.MAX_EVENT_LOG_LINES, "clear_pending() does NOT clear event_log_lines")
+	_check(CombatHandoff.event_log_entries.size() == CombatHandoff.MAX_EVENT_LOG_LINES, "clear_pending() does NOT clear event_log_entries")
 
 	CombatHandoff.event_logged.disconnect(on_logged)
-	CombatHandoff.event_log_lines = [] as Array[String]
+	CombatHandoff.event_log_entries = [] as Array[Dictionary]
 
 	print(("COMBAT HANDOFF TEST PASSED" if _failures == 0 else "COMBAT HANDOFF TEST FAILED: %d" % _failures))
 	quit(_failures)

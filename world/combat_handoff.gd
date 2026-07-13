@@ -32,24 +32,32 @@ var return_position: Vector2 = Vector2.ZERO
 var has_return_position: bool = false   # ZERO could be a legitimate spawn point; don't sentinel-compare
 var defeated_encounter_ids: Array[StringName] = []
 
-## Session-lifetime cross-scene history (2026-07-13-overworld-event-log-design.md) — a coarse,
-## capped view of notable events (pickups, XP, loot, encounters, companion changes), NOT the
-## detailed per-reel combat log (combat.gd's own _log_box stays separate/untouched). Persists for
-## the life of the session exactly like defeated_encounter_ids above, for the same reason: neither
-## clear_pending() nor its narrower siblings below may clear it.
+## Session-lifetime cross-scene history (2026-07-13-overworld-event-log-design.md, categorized
+## per 2026-07-13-event-log-tabs-design.md) — a coarse, capped view of notable events (pickups,
+## XP, loot, encounters, companion changes), NOT the detailed per-reel combat log (combat.gd's
+## own _log_box stays separate/untouched). Persists for the life of the session exactly like
+## defeated_encounter_ids above, for the same reason: neither clear_pending() nor its narrower
+## siblings below may clear it.
 const MAX_EVENT_LOG_LINES: int = 50
 
-signal event_logged(line: String)
+## Category tags for the EventLogPanel tab filter (2026-07-13-event-log-tabs-design.md §2/§3).
+const CATEGORY_LOOT: StringName = &"loot"
+const CATEGORY_COMBAT: StringName = &"combat"
+const CATEGORY_PARTY: StringName = &"party"
 
-var event_log_lines: Array[String] = []
+signal event_logged(line: String, category: StringName)
 
-## Appends one line, trimming the OLDEST entry once the cap is exceeded, and notifies any open
+## Each entry is {"line": String, "category": StringName} — one array of small entries instead
+## of two parallel arrays, so trimming/appending can never desync a line from its category.
+var event_log_entries: Array[Dictionary] = []
+
+## Appends one entry, trimming the OLDEST entry once the cap is exceeded, and notifies any open
 ## EventLogPanel via event_logged so it can append live instead of re-rendering from scratch.
-func log_event(line: String) -> void:
-	event_log_lines.append(line)
-	if event_log_lines.size() > MAX_EVENT_LOG_LINES:
-		event_log_lines.pop_front()
-	event_logged.emit(line)
+func log_event(line: String, category: StringName) -> void:
+	event_log_entries.append({"line": line, "category": category})
+	if event_log_entries.size() > MAX_EVENT_LOG_LINES:
+		event_log_entries.pop_front()
+	event_logged.emit(line, category)
 
 ## Carries the party across a plain cross-scene transition (SceneExit, e.g. town<->overworld) —
 ## no combat/return-position fields involved, unlike begin_encounter(). The destination scene reads
@@ -117,7 +125,7 @@ func clear_return_position() -> void:
 	has_return_position = false
 
 ## Clears everything the three narrower methods above clear, combined — for callers (and tests)
-## that want a full reset in one call. Does NOT clear defeated_encounter_ids or event_log_lines —
+## that want a full reset in one call. Does NOT clear defeated_encounter_ids or event_log_entries —
 ## both must persist for the life of the session.
 func clear_pending() -> void:
 	clear_combat_data()
