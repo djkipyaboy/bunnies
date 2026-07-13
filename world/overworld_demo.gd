@@ -28,6 +28,7 @@ var _dialogue_box: DialogueBox
 var _talking_to: Villager
 var _pickup_debug_label: Label
 var _random_encounter_panel: RandomEncounterPanel
+var _event_log_panel: EventLogPanel
 
 var _pc_combatant: Combatant
 var _companions: Array = []
@@ -235,6 +236,17 @@ func _build_ui() -> void:
 	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
 	ui.add_child(_pickup_debug_label)
 
+	# Cross-scene event log (2026-07-13-overworld-event-log-design.md) — non-modal, toggled with
+	# toggle_event_log (L), translucent until hovered. Seeded from whatever history already exists
+	# (a prior town/combat visit this session) and kept live via CombatHandoff.event_logged.
+	_event_log_panel = EventLogPanel.new()
+	_event_log_panel.position = Vector2(880, 500)
+	_event_log_panel.visible = false
+	ui.add_child(_event_log_panel)
+	_event_log_panel.build()
+	_event_log_panel.refresh(_handoff().event_log_lines)
+	_handoff().event_logged.connect(_event_log_panel.append_line)
+
 ## The overworld map is not a safe zone — the Vault is passed in but marked unreachable
 ## (open_for's vault_available=false) so a player can still adjust Bag/equipped gear before an
 ## overworld encounter without being able to bank.
@@ -387,11 +399,13 @@ func _on_dialogue_closed() -> void:
 ## Shown top-left (like the encounter message, but yellow) whenever a RewardPickup is collected.
 func _on_item_picked_up(item_name: String) -> void:
 	_pickup_debug_label.text = "Picked up: %s" % item_name
+	_handoff().log_event("Picked up: %s" % item_name)
 
 ## Reuses the same top-left pickup label for gathering nodes (GatheringNode) — conceptually the
 ## same "you got something" feedback as _on_item_picked_up, just materials instead of gear.
 func _on_material_gathered(item_name: String, quantity: int) -> void:
 	_pickup_debug_label.text = "Gathered: %s x%d" % [item_name, quantity]
+	_handoff().log_event("Gathered: %s x%d" % [item_name, quantity])
 
 ## Opens the "?" encounter's choice panel (player direction 2026-07-12) and pauses PC movement —
 ## mirrors _on_dialogue_requested/_on_board_opened's existing pattern.
@@ -457,6 +471,9 @@ func _set_highlighted_target(target: Interactable) -> void:
 	_highlighted_target = target
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_event_log"):
+		_event_log_panel.visible = not _event_log_panel.visible
+		return
 	if event.is_action_pressed("toggle_inventory"):
 		_toggle_inventory()
 		return

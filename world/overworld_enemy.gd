@@ -85,6 +85,10 @@ func _on_interacted() -> void:
 ## triggering the fade + change_scene_to_file (which would try to swap the test runner's own
 ## scene mid-test).
 func _begin_handoff() -> void:
+	var enemy_names: Array[String] = []
+	for id: StringName in enemy_ids:
+		enemy_names.append(EnemyLibrary.label(id))
+	_handoff().log_event("Encounter started: %s" % ", ".join(enemy_names))
 	_handoff().begin_encounter(pc_combatant, companions, party_inventory, vault, enemy_ids,
 		StringName(name), return_scene_path, pc_node.global_position, bench)
 

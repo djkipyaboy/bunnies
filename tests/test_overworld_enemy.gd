@@ -65,8 +65,11 @@ func _process(_delta: float) -> bool:
 	enemy.return_scene_path = "res://world/overworld_demo.tscn"
 	enemy.pc_node = _pc_node
 
+	combat_handoff.event_log_lines = [] as Array[String]
 	enemy._begin_handoff()
 
+	_check(combat_handoff.event_log_lines.has("Encounter started: %s" % EnemyLibrary.label(&"rat")),
+		"triggering the composed Interactable logs 'Encounter started: <names>' (got %s)" % str(combat_handoff.event_log_lines))
 	_check(combat_handoff.pc == pc_combatant, "triggering the composed Interactable sets CombatHandoff.pc")
 	_check(combat_handoff.companions == companions, "CombatHandoff.companions is set")
 	# Playtest-found bug (2026-07-12, fixed same session): begin_encounter() originally had no

@@ -84,6 +84,7 @@ func _process(_delta: float) -> bool:
 		_check(overworld._party_inventory.gear.has(reward_node.reward_gear), "RewardPickup's gear lands in _party_inventory")
 		_check(reward_node.is_queued_for_deletion(), "touching the RewardPickup queues it for deletion")
 		_check(overworld._pickup_debug_label.text.find("Shiny Trinket") != -1, "pickup debug label mentions the collected item's name")
+		_check(_combat_handoff.event_log_lines.has("Picked up: Shiny Trinket"), "picking up a RewardPickup logs 'Picked up: <name>'")
 		overworld._pc._tracked.erase(reward_node)
 
 		# --- GatheringNode (WildBerries): force it into reach, drive one real _process() frame,
@@ -94,6 +95,7 @@ func _process(_delta: float) -> bool:
 		_check(overworld._party_inventory.materials[0].material_type == &"forage_herb", "the granted Material carries WildBerries' material_type")
 		_check(berries_node.is_queued_for_deletion(), "touching WildBerries queues it for deletion")
 		_check(overworld._pickup_debug_label.text.find("Wild Berries") != -1, "pickup debug label mentions the gathered material's name")
+		_check(_combat_handoff.event_log_lines.has("Gathered: Wild Berries x1"), "gathering WildBerries logs 'Gathered: <name> x<qty>'")
 		overworld._pc._tracked.erase(berries_node)
 
 		# --- Regression (2026-07-11 final review, Important finding): a same-frame interact
