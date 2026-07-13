@@ -68,11 +68,11 @@ func _process(_delta: float) -> bool:
 	enemy.return_scene_path = "res://world/overworld_demo.tscn"
 	enemy.pc_node = _pc_node
 
-	combat_handoff.event_log_lines = [] as Array[String]
+	combat_handoff.event_log_entries = [] as Array[Dictionary]
 	enemy._begin_handoff()
 
-	_check(combat_handoff.event_log_lines.has("Encounter started: %s" % EnemyLibrary.label(&"rat")),
-		"triggering the composed Interactable logs 'Encounter started: <names>' (got %s)" % str(combat_handoff.event_log_lines))
+	_check(combat_handoff.event_log_entries.has({"line": "Encounter started: %s" % EnemyLibrary.label(&"rat"), "category": &"combat"}),
+		"triggering the composed Interactable logs 'Encounter started: <names>' tagged combat (got %s)" % str(combat_handoff.event_log_entries))
 	_check(combat_handoff.pc == pc_combatant, "triggering the composed Interactable sets CombatHandoff.pc")
 	_check(combat_handoff.companions == companions, "CombatHandoff.companions is set")
 	# Playtest-found bug (2026-07-12, fixed same session): begin_encounter() originally had no
@@ -97,13 +97,13 @@ func _process(_delta: float) -> bool:
 	# own internal `await fade_overlay.fade_out()`, which suspends there — a real 0.3s tween never
 	# completes within this test's single synchronous frame, so change_scene_to_file() is never
 	# reached, exactly like the existing _begin_handoff()-only test above avoids it. ---
-	combat_handoff.event_log_lines = [] as Array[String]
+	combat_handoff.event_log_entries = [] as Array[Dictionary]
 	enemy._on_interacted()
 	enemy._on_interacted()
 	enemy._on_interacted()
 	var start_count: int = 0
-	for line: String in combat_handoff.event_log_lines:
-		if line.begins_with("Encounter started:"):
+	for entry: Dictionary in combat_handoff.event_log_entries:
+		if String(entry["line"]).begins_with("Encounter started:"):
 			start_count += 1
 	_check(start_count == 1, "repeated auto_trigger firing during the fade-out logs 'Encounter started' exactly ONCE, not once per frame (got %d)" % start_count)
 

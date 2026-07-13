@@ -100,7 +100,7 @@ func _begin_handoff() -> void:
 	var enemy_names: Array[String] = []
 	for id: StringName in enemy_ids:
 		enemy_names.append(EnemyLibrary.label(id))
-	_handoff().log_event("Encounter started: %s" % ", ".join(enemy_names))
+	_handoff().log_event("Encounter started: %s" % ", ".join(enemy_names), &"combat")
 	_handoff().begin_encounter(pc_combatant, companions, party_inventory, vault, enemy_ids,
 		StringName(name), return_scene_path, pc_node.global_position, bench)
 
