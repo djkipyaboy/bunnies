@@ -109,8 +109,10 @@ var bonus_meter: BonusMeter
 ## Stamina/Focus/Mana spent in Main 1 (DESIGN.md §10 Dec 6). Null = no resource economy.
 var resource_pool: ResourcePool
 
-## Optional loot table (spec §4.3) — null until real items/tables are authored. Hook only, not
-## wired into any drop logic this pass.
+## The enemy's loot table (spec §4.3), rolled via LootTable.roll() when this Combatant is defeated
+## in a real (handoff-launched) fight — see combat.gd's _on_enemy_defeated(). Populated by
+## EnemyLibrary for rat/ferret/stoat; null for combatants with no loot (PCs, target dummies, any
+## enemy EnemyLibrary doesn't wire one for).
 var loot_table: LootTable = null
 
 ## Base (innate) stats from race/class. Gear adds on top — see [method effective_stats].

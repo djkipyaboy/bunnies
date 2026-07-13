@@ -15,6 +15,6 @@ extends Resource
 static func roll(table: LootTable) -> Array:
 	var drops: Array = []
 	for e: LootEntry in table.entries:
-		if randf() < e.drop_chance:
+		if e.item != null and randf() < e.drop_chance:
 			drops.append(e.item.duplicate(true))
 	return drops

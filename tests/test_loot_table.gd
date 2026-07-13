@@ -49,5 +49,13 @@ func _initialize() -> void:
 	var empty: LootTable = LootTable.new()
 	_check(LootTable.roll(empty).size() == 0, "empty table -> no drops")
 
+	# An entry with its item left unset (null) at 100% is silently skipped — no crash, no drop —
+	# while a sibling 100% entry with a real item in the same table still drops normally.
+	var unset: LootTable = LootTable.new()
+	unset.entries = [_entry(null, 1.0), _entry(item_a, 1.0)]
+	var unset_drops: Array = LootTable.roll(unset)
+	_check(unset_drops.size() == 1 and (unset_drops[0] as Gear).display_name == "Item A",
+			"null-item 100%% entry is skipped, sibling real 100%% entry still drops (got %d)" % unset_drops.size())
+
 	print(("LOOT TABLE TEST PASSED" if _failures == 0 else "LOOT TABLE TEST FAILED: %d" % _failures))
 	quit(_failures)
