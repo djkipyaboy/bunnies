@@ -91,6 +91,14 @@ var _last_result_won: bool = false
 ## Total XP awarded to the party THIS fight (player direction 2026-07-12: XP gain wasn't visible
 ## enough) — reset per _build_combatants() call, surfaced on the result card in _on_combat_ended().
 var _fight_xp_gained: int = 0
+## The real overworld party's shared inventory (2026-07-12 combat loot drops) — set ONLY in the
+## handoff launch path (_build_combatants()); stays null for a standalone "Choose your Party"
+## launch, since there's no real PartyInventory (or any UI to view one) behind that flow. Every
+## loot-granting code path must check this for null before touching it.
+var _party_inventory: PartyInventory
+## Display names of everything looted THIS fight, in drop order — reset per _build_combatants()
+## call alongside _fight_xp_gained, surfaced on the result card in _on_combat_ended().
+var _fight_loot_names: Array[String] = []
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
@@ -159,6 +167,7 @@ func _build_combatants() -> void:
 	_pcs.clear()
 	_enemies.clear()
 	_fight_xp_gained = 0
+	_fight_loot_names = []
 	if _arrived_via_handoff:
 		# Overworld handoff (spec §3.4): the party is already real, already-equipped Combatants — no
 		# ClassLibrary build, no ENDGAME scaling (that's a fresh-spawn testing aid, not appropriate for
@@ -173,6 +182,11 @@ func _build_combatants() -> void:
 			_pcs.append(comp as Combatant)
 		for id: StringName in handoff.enemy_ids:
 			_enemies.append(EnemyLibrary.make(id))
+		# Loot (2026-07-12): only the handoff path has a real PartyInventory to grant drops into —
+		# a standalone "Choose your Party" launch has nowhere for a dropped item to go (no
+		# PartyInventory, no InventoryMenuPanel in this scene), so _party_inventory stays null there
+		# and every loot-granting code path below checks it before touching it.
+		_party_inventory = handoff.party_inventory as PartyInventory
 	else:
 		# Player party: one Combatant per selected class, in selection order. ClassLibrary supplies
 		# stats, weapon, defense, meter, resources, and the Main-1 base ability. Gear is deferred.
@@ -1766,6 +1780,16 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 			pc.xp += ENEMY_XP_REWARD
 	_fight_xp_gained += ENEMY_XP_REWARD
 	_log("%s defeated — party gains %d XP! (total this fight: %d)" % [enemy.display_name, ENEMY_XP_REWARD, _fight_xp_gained])
+	# Loot (2026-07-12): standalone launches (_party_inventory == null) skip this entirely — see
+	# _build_combatants()'s comment for why.
+	if _party_inventory != null and enemy.loot_table != null:
+		var drops: Array = LootTable.roll(enemy.loot_table)
+		for item: Resource in drops:
+			if item is Gear:
+				var g: Gear = item as Gear
+				_party_inventory.give_gear(g)
+				_fight_loot_names.append(g.display_name)
+				_log("Loot: %s" % g.display_name)
 
 func _on_combat_ended(winner_is_player: bool) -> void:
 	_last_result_won = winner_is_player
@@ -1779,6 +1803,8 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	# card is guaranteed on-screen and uncrowded, so it's the reliable place to show the total.
 	if _fight_xp_gained > 0:
 		label.text += "\n+%d XP" % _fight_xp_gained
+	if not _fight_loot_names.is_empty():
+		label.text += "\nLoot: %s" % ", ".join(_fight_loot_names)
 	_log("Combat over — %s wins." % ("you" if winner_is_player else "the enemy"))
 	move_child(_overlay, get_child_count() - 1)  # ensure the result card draws over everything
 	_overlay.visible = true
