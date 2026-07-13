@@ -1,6 +1,9 @@
 extends SceneTree
 
-# Headless test: LootTable rolls are INDEPENDENT per entry (WoW-style), not a single weighted pick.
+# Headless test: LootTable rolls are INDEPENDENT per entry (WoW-style), not a single weighted pick,
+# and every drop is a DUPLICATE of its LootEntry.item template, never the same object (2026-07-12
+# fix — two drops of the same entry, or the same table rolled across multiple kills, must not hand
+# out aliased Resources).
 # Run: Godot_v4.6.3-stable_win64_console.exe --headless --path . --script res://tests/test_loot_table.gd
 
 var _failures: int = 0
@@ -14,22 +17,33 @@ func _entry(item: Resource, chance: float) -> LootEntry:
 	e.drop_chance = chance
 	return e
 
+func _make_item(item_name: String) -> Gear:
+	var g: Gear = Gear.new()
+	g.display_name = item_name
+	return g
+
 func _initialize() -> void:
-	var item_a: Resource = Resource.new()
-	var item_b: Resource = Resource.new()
+	var item_a: Gear = _make_item("Item A")
+	var item_b: Gear = _make_item("Item B")
 
 	# Two 100% entries: both always drop together (proves independence, not a single pick).
 	var certain: LootTable = LootTable.new()
 	certain.entries = [_entry(item_a, 1.0), _entry(item_b, 1.0)]
 	var drops: Array = LootTable.roll(certain)
-	_check(drops.size() == 2 and item_a in drops and item_b in drops, "two 100%% entries both always drop (got %d)" % drops.size())
+	_check(drops.size() == 2, "two 100%% entries both always drop (got %d)" % drops.size())
+	var names: Array[String] = []
+	for d: Resource in drops:
+		names.append((d as Gear).display_name)
+	_check(names.has("Item A") and names.has("Item B"), "both entries' items are represented by display_name")
+	_check(not drops.has(item_a) and not drops.has(item_b), "roll() returns DUPLICATES, not the same template references")
 
-	# One 0%, one 100%: exactly the 100% one drops, every time.
+	# One 0%, one 100%: exactly the 100% one drops, every time, as a duplicate.
 	var mixed: LootTable = LootTable.new()
 	mixed.entries = [_entry(item_a, 0.0), _entry(item_b, 1.0)]
 	for i: int in range(20):
 		var d: Array = LootTable.roll(mixed)
-		_check(d.size() == 1 and d[0] == item_b, "0%% never drops, 100%% always does (trial %d)" % i)
+		var ok: bool = d.size() == 1 and (d[0] as Gear).display_name == "Item B" and d[0] != item_b
+		_check(ok, "0%% never drops, 100%% always does as a duplicate (trial %d)" % i)
 
 	# Empty table -> empty drops, no crash.
 	var empty: LootTable = LootTable.new()
