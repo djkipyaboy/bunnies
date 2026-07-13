@@ -109,6 +109,8 @@ var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds
 var _fate_picker_title: Label            # picker heading, re-captioned per mode
 var _type_chart: TypeChartPanel          # toggleable 6×6 type-effectiveness graphic (hidden until toggled on)
 var _type_chart_button: Button
+var _event_log_panel: EventLogPanel      # cross-scene event log (2026-07-13); hidden until toggled on
+var _event_log_button: Button
 var _ability_menu: AbilityMenuPanel
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
@@ -390,6 +392,17 @@ func _build_ui() -> void:
 	_dummy_toggle_button.tooltip_text = "Add/remove two immortal 30-HP target dummies for testing AoE/splash. Reloads the fight."
 	add_child(_dummy_toggle_button)
 
+	# Cross-scene event log toggle (2026-07-13) — combat.gd has no keyboard input handling (unlike
+	# the world scenes' toggle_inventory/toggle_stats), so this follows Type Chart's button
+	# convention instead of introducing this scene's first keyboard handler.
+	_event_log_button = Button.new()
+	_event_log_button.text = "Event Log"
+	_event_log_button.position = Vector2(col_x.call(3), ROW2_Y)
+	_event_log_button.custom_minimum_size = Vector2(BTN_W, 44)
+	_event_log_button.tooltip_text = "Show/hide the cross-scene event log (pickups, XP, loot, encounters)."
+	_event_log_button.pressed.connect(_on_event_log_button_pressed)
+	add_child(_event_log_button)
+
 	# Scrollable combat log — keeps the full history; fills the center band below the button bar (its bottom
 	# close to but not touching the buttons above). Positioned/sized in _relayout_action_block.
 	_log_bg = Panel.new()
@@ -400,6 +413,17 @@ func _build_ui() -> void:
 	_log_box.scroll_active = true
 	_log_box.scroll_following = true
 	add_child(_log_box)
+
+	# Cross-scene event log (2026-07-13-overworld-event-log-design.md) — separate from the detailed
+	# per-reel _log_box above; a coarse, capped history shared with the overworld/town. Floats over
+	# the center band while open, same convention as _ability_menu/_type_chart below.
+	_event_log_panel = EventLogPanel.new()
+	_event_log_panel.position = Vector2(550.0, 130.0)
+	_event_log_panel.visible = false
+	add_child(_event_log_panel)
+	_event_log_panel.build()
+	_event_log_panel.refresh(_handoff().event_log_lines)
+	_handoff().event_logged.connect(_event_log_panel.append_line)
 
 	# The chart graphic itself — built once, hidden until toggled. Floats over the center band on demand.
 	_type_chart = TypeChartPanel.new()
@@ -1805,6 +1829,20 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 		label.text += "\n+%d XP" % _fight_xp_gained
 	if not _fight_loot_names.is_empty():
 		label.text += "\nLoot: %s" % ", ".join(_fight_loot_names)
+	# Cross-scene event log (2026-07-13): only a real handoff-launched fight has anywhere to
+	# return to (an overworld/town event log) worth logging into — mirrors the loot-granting gate.
+	if _arrived_via_handoff:
+		var enemy_names: Array[String] = []
+		for e: Combatant in _enemies:
+			enemy_names.append(e.display_name)
+		if winner_is_player:
+			_handoff().log_event("Won: %s" % ", ".join(enemy_names))
+		else:
+			_handoff().log_event("Lost to: %s" % ", ".join(enemy_names))
+		if _fight_xp_gained > 0:
+			_handoff().log_event("Party gained %d XP" % _fight_xp_gained)
+		if not _fight_loot_names.is_empty():
+			_handoff().log_event("Looted: %s" % ", ".join(_fight_loot_names))
 	_log("Combat over — %s wins." % ("you" if winner_is_player else "the enemy"))
 	move_child(_overlay, get_child_count() - 1)  # ensure the result card draws over everything
 	_overlay.visible = true
@@ -1843,6 +1881,9 @@ func _on_continue_after_handoff_pressed() -> void:
 ## so a test can assert the "scene change still happens" behavior without it firing.
 func press_continue_for_test() -> String:
 	return _resolve_handoff_continue()
+
+func _on_event_log_button_pressed() -> void:
+	_event_log_panel.visible = not _event_log_panel.visible
 
 # ---------------------------------------------------------------------------
 # Log
