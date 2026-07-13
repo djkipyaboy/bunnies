@@ -64,8 +64,8 @@ func log_event(line: String, category: StringName) -> void:
 `clear_pending()` and siblings are untouched — `event_log_entries` persists for the life of the
 session exactly as `event_log_lines` did.
 
-**Call-site category assignments** (all 8 existing `log_event(...)` calls gain a category arg, no new
-call sites):
+**Call-site category assignments** (all 10 existing `log_event(...)` calls gain a category arg, no new
+call sites — the Won/Lost row below is 2 separate mutually-exclusive calls in `_on_combat_ended`):
 
 | Call site | File | Category |
 |---|---|---|
@@ -123,7 +123,7 @@ log line) are provably the same string for every enemy, present and future.
   category)` signatures; new cases: each tab renders only its category's lines, All renders
   everything, switching tabs re-renders without re-seeding, `append_line` on a non-active category
   updates `_entries` but doesn't change the visible render.
-- Each of the 8 call-site tests (existing, extended) — asserts the exact line AND the expected
+- Each of the 10 call-site tests (existing, extended) — asserts the exact line AND the expected
   category were passed to `log_event`.
 - **New `tests/test_event_log_continuity.gd`** — the missing end-to-end case: log an event in one
   scene instance (e.g. town), tear it down, build a second scene instance (e.g. overworld), and assert
