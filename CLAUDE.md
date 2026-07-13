@@ -912,6 +912,47 @@ that the shopkeeper spec should decide explicitly, not inherit by accident.
 human has not yet playtested a real loot drop live in `combat.tscn`/`overworld_demo.tscn` — that's
 the next step before moving on to sub-project 2 (the combat Items menu).
 
+**SHIPPED 2026-07-13 — COMBAT LOOT DROPS PLAYTEST + CROSS-SCENE EVENT LOG** (human-playtested and
+confirmed working). Playtesting the loot drops above went as designed (1 of 3 fights dropped an
+Uncommon Charm, equipped correctly, stats applied correctly — an acceptable per-entry loot-table RNG
+outcome) and surfaced a real player request: a scrollable, persistent, cross-scene event log — the
+same value the existing per-fight combat log already proved during playtest, but coarse and spanning
+scene transitions, since the overworld had nothing but two transient overwritten debug labels.
+Brainstormed → spec'd (`docs/superpowers/specs/2026-07-13-overworld-event-log-design.md`) → planned
+(`docs/superpowers/plans/2026-07-13-overworld-event-log.md`) → built via subagent-driven development
+(6 tasks, each implementer + reviewer, 2 fix rounds from review findings, plus a final whole-branch
+review — **all clean, 0 Critical/Important**):
+- **`CombatHandoff.log_event()`/`event_log_lines`/`event_logged`** — a fourth piece of session-lifetime
+  cross-scene state (alongside `defeated_encounter_ids`), capped at **50 lines** (oldest evicted first),
+  never cleared by `clear_pending()`. Deliberately separate from `combat.gd`'s existing detailed
+  per-reel `_log_box` — this is a coarse, one-line-per-notable-event summary, not a replacement.
+- **`EventLogPanel`** (`combat/ui/event_log_panel.gd`) — a shared, pure-view widget (`build()`/
+  `refresh()`/`append_line()`), non-modal, translucent by default, opaque on hover — reused across
+  all three scenes exactly like `InventoryMenuPanel` already is.
+- **All 7 event categories wired**: item pickups, gathering materials, combat loot, XP gained,
+  encounter started/won/lost, random-encounter outcomes (gold/HP deltas, format conditional on which
+  deltas actually apply), companion recruit/bench. Toggled with a new `L` key (`toggle_event_log`) in
+  the world scenes; a new "Event Log" button in `combat.tscn` (which has no other keyboard input at
+  all, so it follows the Type Chart/Abilities button convention instead).
+- **Playtest-found bug, fixed same session**: "Encounter started" logged **23 times** for one trigger.
+  Root cause: unlike `RewardPickup`/`GatheringNode`/`RandomEncounterNode` (which `queue_free()`
+  themselves inside `interact()`, making them naturally single-shot), `OverworldEnemy` stays alive and
+  in-range through the whole multi-frame `await fade_overlay.fade_out()` (~18-23 frames @ 0.3s) — the
+  driving scene's per-frame auto-trigger poll re-fired `interact()` on it every one of those frames.
+  Harmless before today (`begin_encounter()` just overwrites the same fields); visibly broken the
+  moment `log_event()` started appending. Fixed with a one-shot `_triggered` guard in
+  `world/overworld_enemy.gd`; regression test in `tests/test_overworld_enemy.gd` confirmed RED before
+  the fix (got 3), GREEN after (got 1).
+- **Deferred, logged to memory for next session, not fixed here**: a UI request from the same
+  playtest — split the log into tabs by category (loot/encounter/etc.) instead of one undifferentiated
+  scrollback — plus 3 Minor items from the final whole-branch review (no direct end-to-end
+  cross-scene-continuity test; the "Encounter started" vs "Won/Lost" name-format coupling between
+  `EnemyLibrary.label()` and `Combatant.display_name` isn't enforced, only true by coincidence today;
+  `EventLogPanel`'s default mouse-blocking could swallow target-clicks in `combat.tscn` if it's ever
+  repositioned to overlap the enemy column) and the Task-5-reviewer-confirmed test-only intermittent
+  SIGSEGV in `tests/test_shared_party_state.gd` (safe — never occurs in real gameplay, only in that
+  one test's 3-scenes-in-one-process pattern).
+
 **Next: sub-project 2 of the overworld-playtest arc — a usable Items menu in combat** (potions etc.,
 consumed in place of an ability on a turn), per the player-confirmed build order. Playtest the loot
 drops above first. Other candidates for whenever THIS arc wraps or work resumes elsewhere: building
