@@ -15,7 +15,6 @@ const TRANSLUCENT_ALPHA: float = 0.35
 const OPAQUE_ALPHA: float = 1.0
 
 var _log_box: RichTextLabel
-var _lines: Array[String] = []
 
 ## Builds the widget's children. Call once after adding to the tree; does not set visibility or
 ## position — the owning scene controls both (mirrors TypeChartPanel.build()'s convention).
@@ -43,15 +42,13 @@ func build() -> void:
 ## Full re-render from a line list — used once at scene startup to seed from
 ## CombatHandoff.event_log_lines (which may already hold history from an earlier scene).
 func refresh(lines: Array[String]) -> void:
-	_lines = lines.duplicate()
 	_log_box.clear()
-	for line: String in _lines:
+	for line: String in lines:
 		_log_box.add_text(line + "\n")
 
 ## Appends one line without clearing prior text — connect directly to CombatHandoff.event_logged
 ## for live updates while a scene is running.
 func append_line(line: String) -> void:
-	_lines.append(line)
 	_log_box.add_text(line + "\n")
 
 func _on_mouse_entered() -> void:
@@ -69,4 +66,4 @@ func simulate_mouse_exited_for_test() -> void:
 	_on_mouse_exited()
 
 func text_for_test() -> String:
-	return "\n".join(_lines)
+	return _log_box.get_parsed_text()
