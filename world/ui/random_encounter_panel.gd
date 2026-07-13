@@ -88,7 +88,7 @@ func _apply_outcome(option: EncounterOption, outcome: EncounterOption.Outcome) -
 	if hp_delta != 0:
 		deltas.append("HP %+d" % hp_delta)
 	var suffix: String = " (%s)" % ", ".join(deltas) if not deltas.is_empty() else ""
-	_handoff().log_event("%s: %s%s" % [String(_current_encounter_id).capitalize(), option.label, suffix])
+	_handoff().log_event("%s: %s%s" % [String(_current_encounter_id).capitalize(), option.label, suffix], &"combat")
 
 ## Fetches the CombatHandoff autoload by path rather than a bare identifier — same reason as every
 ## other _handoff() in this project (see combat.gd's own for the full explanation): resolving the

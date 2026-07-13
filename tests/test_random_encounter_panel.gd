@@ -26,7 +26,7 @@ func _single_tier_reel(tier: ReelFace.ResultTier) -> ActionReel:
 
 func _initialize() -> void:
 	var combat_handoff: Node = get_root().get_node("CombatHandoff")
-	combat_handoff.event_log_lines = [] as Array[String]
+	combat_handoff.event_log_entries = [] as Array[Dictionary]
 
 	var pc: Combatant = Combatant.new()
 	pc.max_hp = 100
@@ -70,8 +70,8 @@ func _initialize() -> void:
 	_check(panel.result_text_for_test() == "It worked out great.", "the shown result text matches the rolled outcome's text")
 	_check(inv.gold == 35, "the GOOD outcome's gold delta applied (20 + 15 = 35)")
 	_check(pc.hp == 45, "the GOOD outcome's hp delta applied (50 - 5 = 45, via take_damage)")
-	_check(combat_handoff.event_log_lines.has("Stranger On The Road: Sure thing (gold +15, HP -5)"),
-		"the GOOD outcome logs the encounter/option/deltas (got %s)" % str(combat_handoff.event_log_lines))
+	_check(combat_handoff.event_log_entries.has({"line": "Stranger On The Road: Sure thing (gold +15, HP -5)", "category": &"combat"}),
+		"the GOOD outcome logs the encounter/option/deltas tagged combat (got %s)" % str(combat_handoff.event_log_entries))
 
 	# GDScript lambdas capture outer locals BY VALUE — a plain `var resolved_count` incremented
 	# inside the lambda would never propagate out. Route it through a one-element array (same
@@ -98,8 +98,8 @@ func _initialize() -> void:
 	_check(panel.result_text_for_test() == "It went badly.", "the BAD outcome's text is shown")
 	_check(inv2.gold == 10, "the BAD outcome's gold delta applied (20 - 10 = 10)")
 	_check(pc2.hp == 80, "the BAD outcome's hp delta applied (100 - 20 = 80)")
-	_check(combat_handoff.event_log_lines.has("Stranger On The Road: Risky thing (gold -10, HP -20)"),
-		"the BAD outcome logs the encounter/option/deltas (got %s)" % str(combat_handoff.event_log_lines))
+	_check(combat_handoff.event_log_entries.has({"line": "Stranger On The Road: Risky thing (gold -10, HP -20)", "category": &"combat"}),
+		"the BAD outcome logs the encounter/option/deltas tagged combat (got %s)" % str(combat_handoff.event_log_entries))
 
 	# A gold-only outcome (no HP delta) proves the log line only includes deltas that actually
 	# apply, not a fixed "gold X, HP Y" template.
@@ -114,9 +114,9 @@ func _initialize() -> void:
 	encounter3.options = [gold_only_option]
 	panel.open_for(encounter3, pc2, inv2)
 	panel.press_option_for_test(0)
-	_check(combat_handoff.event_log_lines.has("Haggling Test: Haggle (gold -5)"),
-		"a delta-only-in-gold outcome logs just the gold delta, no HP mention")
+	_check(combat_handoff.event_log_entries.has({"line": "Haggling Test: Haggle (gold -5)", "category": &"combat"}),
+		"a delta-only-in-gold outcome logs just the gold delta, no HP mention, tagged combat")
 
 	panel.free()
-	combat_handoff.event_log_lines = [] as Array[String]
+	combat_handoff.event_log_entries = [] as Array[Dictionary]
 	quit()
