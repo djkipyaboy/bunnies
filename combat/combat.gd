@@ -421,7 +421,7 @@ func _build_ui() -> void:
 	_event_log_panel.visible = false
 	add_child(_event_log_panel)
 	_event_log_panel.build()
-	_event_log_panel.refresh(_handoff().event_log_lines)
+	_event_log_panel.refresh(_handoff().event_log_entries)
 	_handoff().event_logged.connect(_event_log_panel.append_line)
 
 	# The chart graphic itself — built once, hidden until toggled. Floats over the center band on demand.
@@ -1836,13 +1836,13 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 		for e: Combatant in _enemies:
 			enemy_names.append(e.display_name)
 		if winner_is_player:
-			_handoff().log_event("Won: %s" % ", ".join(enemy_names))
+			_handoff().log_event("Won: %s" % ", ".join(enemy_names), &"combat")
 		else:
-			_handoff().log_event("Lost to: %s" % ", ".join(enemy_names))
+			_handoff().log_event("Lost to: %s" % ", ".join(enemy_names), &"combat")
 		if _fight_xp_gained > 0:
-			_handoff().log_event("Party gained %d XP" % _fight_xp_gained)
+			_handoff().log_event("Party gained %d XP" % _fight_xp_gained, &"combat")
 		if not _fight_loot_names.is_empty():
-			_handoff().log_event("Looted: %s" % ", ".join(_fight_loot_names))
+			_handoff().log_event("Looted: %s" % ", ".join(_fight_loot_names), &"combat")
 	_log("Combat over — %s wins." % ("you" if winner_is_player else "the enemy"))
 	move_child(_overlay, get_child_count() - 1)  # ensure the result card draws over everything
 	_overlay.visible = true

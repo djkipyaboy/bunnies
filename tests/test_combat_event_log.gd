@@ -23,7 +23,7 @@ func _make_stub_table(item_name: String) -> LootTable:
 func _initialize() -> void:
 	var CombatHandoff: Node = get_root().get_node("CombatHandoff")
 	CombatHandoff.clear_pending()
-	CombatHandoff.event_log_lines = [] as Array[String]
+	CombatHandoff.event_log_entries = [] as Array[Dictionary]
 
 	# --- Handoff-path win logs Won/XP/Loot, and the panel/button toggle works ---
 	var pc: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
@@ -52,19 +52,19 @@ func _initialize() -> void:
 	inst._enemies[0].take_damage(9999)
 	inst._turn_manager.advance_turn()   # the only real enemy is dead -> ends combat as a win
 
-	_check(CombatHandoff.event_log_lines.has("Won: %s" % enemy_name),
-		"a handoff win logs 'Won: <enemy names>' (got %s)" % str(CombatHandoff.event_log_lines))
-	_check(CombatHandoff.event_log_lines.has("Party gained %d XP" % inst._fight_xp_gained),
-		"a handoff win logs the XP total")
-	_check(CombatHandoff.event_log_lines.has("Looted: Event Log Test Drop"),
-		"a handoff win logs the loot")
+	_check(CombatHandoff.event_log_entries.has({"line": "Won: %s" % enemy_name, "category": &"combat"}),
+		"a handoff win logs 'Won: <enemy names>' tagged combat (got %s)" % str(CombatHandoff.event_log_entries))
+	_check(CombatHandoff.event_log_entries.has({"line": "Party gained %d XP" % inst._fight_xp_gained, "category": &"combat"}),
+		"a handoff win logs the XP total tagged combat")
+	_check(CombatHandoff.event_log_entries.has({"line": "Looted: Event Log Test Drop", "category": &"combat"}),
+		"a handoff win logs the loot tagged combat")
 
 	inst.queue_free()
 	await process_frame
 
 	# --- Standalone-path launch never logs (no CombatHandoff context worth logging into) ---
 	CombatHandoff.clear_pending()
-	CombatHandoff.event_log_lines = [] as Array[String]
+	CombatHandoff.event_log_entries = [] as Array[Dictionary]
 	Combat._pc_class_ids = [&"warrior"]
 	Combat._enemy_ids = [&"rat"]
 	Combat._dummies_enabled = false
@@ -85,7 +85,7 @@ func _initialize() -> void:
 
 	standalone._enemies[0].take_damage(9999)
 	standalone._turn_manager.advance_turn()
-	_check(CombatHandoff.event_log_lines.is_empty(), "a standalone (non-handoff) fight never logs to the event log")
+	_check(CombatHandoff.event_log_entries.is_empty(), "a standalone (non-handoff) fight never logs to the event log")
 
 	standalone.queue_free()
 	await process_frame
