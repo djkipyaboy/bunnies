@@ -997,6 +997,25 @@ headless test files green**, up from 164):
   All/Loot/Combat/Party split, and companion recruit/bench tracking all read correctly, both on the
   All tab and each line's own correct tab.
 
+**SHIPPED 2026-07-13 — STATS TAB HP/RESOURCE/BONUS METER SECTION, human-playtested and confirmed
+working.** Same-session follow-up request from the same live playtest that confirmed the event-log
+tabs: `InventoryMenuPanel`'s Stats tab (2026-07-12) showed the 6-stat spread + Weapon Base Damage + XP
+per column, but nothing about a character's actual HP/resource/meter state. Brainstormed → spec'd
+(`docs/superpowers/specs/2026-07-13-stats-tab-resources-design.md`) → planned
+(`docs/superpowers/plans/2026-07-13-stats-tab-resources.md`) → built subagent-driven (single task,
+implementer + reviewer, 0 Critical/Important — 124 assertions across 3 test files green):
+- **3 new rows inserted above the 6 stat rows**, per column (Companion1/PC/Companion2): **HP**
+  (`c.hp`/`c.max_hp`), **Resource** (whichever rail the character actually uses — Stamina or Mana, via
+  a new `InventoryMenuPanel.resource_line_text(c)` static helper mirroring `stat_value_at()`'s own
+  pure-static-helper convention; falls back to `"Resource: —"` for a `null`/rail-less pool), and
+  **Bonus Meter** (`value`/`cap`, always shown — no `is_visible` gate, since that only exists to hide
+  non-elite *enemy* meters and this tab is PC/companion-only). Plain text rows, matching this tab's
+  existing style — no progress bars.
+- Every row below shifted down 3 slots; the tab's dynamic panel-height calc grew from
+  `STAT_ROWS.size() + 3` to `+ 6` to fit.
+- **Human-playtested "immaculately"** with a full party through every interaction — HP/resource/meter
+  values read correctly and immediately useful alongside the existing stat spread.
+
 **Next: sub-project 2 of the overworld-playtest arc — a usable Items menu in combat** (potions etc.,
 consumed in place of an ability on a turn), per the player-confirmed build order. Playtest the loot
 drops above first. Other candidates for whenever THIS arc wraps or work resumes elsewhere: building
