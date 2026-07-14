@@ -363,4 +363,33 @@ func _init() -> void:
 
 	nz_panel.free()
 
+	# --- Materials tab selection (2026-07-14 ground-item-pickups) ---
+	var mat_inv: PartyInventory = PartyInventory.new()
+	var ore: CraftingMaterial = CraftingMaterial.new()
+	ore.material_type = &"iron_ore"
+	ore.display_name = "Iron Ore"
+	ore.quantity = 4
+	mat_inv.materials = [ore]
+	var mat_pc: Combatant = Combatant.new()
+	mat_pc.level = 9
+	mat_pc.base_stats = Stats.new()
+	var mat_vault: Vault = Vault.new()
+	var mat_panel: InventoryMenuPanel = InventoryMenuPanel.new()
+	mat_panel.open_for(mat_pc, [], mat_inv, mat_vault)
+	mat_panel.switch_tab_for_test(&"materials")
+
+	mat_panel.select_material_for_test(ore)
+	_check(mat_panel.list_row_text_for_test(0).find("✓") != -1, "selecting a material shows a checkmark on its row")
+
+	# Selecting a Gear item elsewhere clears the material selection (mutual exclusion).
+	var mat_gear: Gear = Gear.new()
+	mat_gear.display_name = "Some Gear"
+	mat_inv.gear = [mat_gear]
+	mat_panel.switch_tab_for_test(&"bag")
+	mat_panel.select_grid_item_for_test(mat_gear, false)
+	mat_panel.switch_tab_for_test(&"materials")
+	_check(mat_panel.list_row_text_for_test(0).find("✓") == -1, "selecting a Gear item elsewhere clears the material selection")
+
+	mat_panel.free()
+
 	quit()

@@ -61,6 +61,7 @@ var _slot_buttons: Dictionary = {}   # "%d_%d" % [col, slot_idx] -> Button
 
 var _active_tab: StringName = &"bag"
 var _selected: Dictionary = {}       # {"item": Resource, "is_weapon": bool} or {} if none
+var _selected_material: CraftingMaterial = null   # mutually exclusive with _selected (Gear/Weapon)
 var _vault_full_message: bool = false
 var _equip_reject_message: String = ""
 
@@ -78,7 +79,7 @@ var _action_label: Label
 var _tab_buttons: Dictionary = {}    # StringName -> Button
 var _compare_check: CheckBox
 var _stat_labels: Dictionary = {}    # "%d_%d" % [col, row] -> Label; "%d_dmg" % col -> Label
-var _list_labels: Array[Label] = []  # Materials/Quest tab rows (2026-07-12)
+var _list_labels: Array[Control] = []  # Materials (selectable Buttons)/Quest (read-only Labels) tab rows
 
 ## The 3 paperdoll columns in display order [Companion1, PC, Companion2] (null = no companion
 ## assigned). [param companions] may have 0, 1, or 2 entries.
@@ -266,6 +267,7 @@ static func _signed(v: int) -> String:
 func open_for(pc: Combatant, companions: Array, party_inventory: PartyInventory, vault: Vault, vault_available: bool = true, initial_tab: StringName = &"bag") -> void:
 	_active_tab = initial_tab
 	_selected = {}
+	_selected_material = null
 	_vault_full_message = false
 	_equip_reject_message = ""
 	_pc = pc
@@ -529,7 +531,25 @@ func _build_materials_panel() -> void:
 		return
 	for i in range(_party_inventory.materials.size()):
 		var m: CraftingMaterial = _party_inventory.materials[i]
-		_build_list_row(i, "%s x%d" % [m.display_name, m.quantity])
+		_build_material_row(i, m)
+
+## A selectable Button row for the Materials tab (unlike Quest's plain read-only Labels) — Discard
+## (Task 7) needs something to select.
+func _build_material_row(index: int, m: CraftingMaterial) -> void:
+	var btn := Button.new()
+	btn.text = "%s x%d" % [m.display_name, m.quantity]
+	if _selected_material == m:
+		btn.text += "  ✓"
+	btn.position = Vector2(PAD, GRID_TOP + float(index) * (SLOT_H + SLOT_GAP))
+	btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
+	btn.pressed.connect(_on_material_pressed.bind(m))
+	add_child(btn)
+	_list_labels.append(btn)
+
+func _on_material_pressed(m: CraftingMaterial) -> void:
+	_selected_material = m
+	_selected = {}
+	_rebuild()
 
 ## Quest Items tab (2026-07-12, player-requested): PartyInventory.quest_items is currently always
 ## empty — no quest system or quest-item Resource shape exists yet. This is a working shell
@@ -617,12 +637,14 @@ func _on_compare_toggled(pressed: bool) -> void:
 func _on_tab_pressed(tab: StringName) -> void:
 	_active_tab = tab
 	_selected = {}
+	_selected_material = null
 	_vault_full_message = false
 	_equip_reject_message = ""
 	_rebuild()
 
 func _on_grid_item_pressed(item: Resource, is_weapon: bool) -> void:
 	_selected = {"item": item, "is_weapon": is_weapon}
+	_selected_material = null
 	_vault_full_message = false
 	_equip_reject_message = ""
 	_rebuild()
@@ -807,6 +829,9 @@ func set_compare_enabled_for_test(enabled: bool) -> void:
 
 func select_grid_item_for_test(item: Resource, is_weapon: bool) -> void:
 	_on_grid_item_pressed(item, is_weapon)
+
+func select_material_for_test(m: CraftingMaterial) -> void:
+	_on_material_pressed(m)
 
 func press_slot_for_test(col: int, slot_idx: int) -> void:
 	var btn: Button = _slot_buttons.get("%d_%d" % [col, slot_idx], null)
