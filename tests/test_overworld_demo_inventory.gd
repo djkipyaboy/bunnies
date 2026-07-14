@@ -40,6 +40,22 @@ func _process(_delta: float) -> bool:
 		overworld._inventory_panel.switch_tab_for_test(&"vault")
 		_check(overworld._inventory_panel.vault_unavailable_message_shown_for_test(), "Vault tab on the overworld shows the Vault-unavailable message")
 
+		# Manual Discard spawns a real GroundItemPickup at the PC's position
+		# (2026-07-14-ground-item-pickups-design.md §3.7).
+		overworld._inventory_panel.switch_tab_for_test(&"bag")
+		var junk: Gear = Gear.new()
+		junk.display_name = "Discard Test Item"
+		overworld._party_inventory.gear.append(junk)
+		overworld._inventory_panel._rebuild()
+		overworld._inventory_panel.select_grid_item_for_test(junk, false)
+		overworld._inventory_panel.press_discard_for_test()
+		overworld._inventory_panel.confirm_discard_for_test()
+		var found_pickup: bool = false
+		for child in overworld._world.get_children():
+			if child is GroundItemPickup and (child.item as Gear).display_name == "Discard Test Item":
+				found_pickup = true
+		_check(found_pickup, "manually discarding an item spawns a GroundItemPickup in the world")
+
 		overworld._toggle_inventory()
 		_check(not overworld._inventory_panel.visible, "toggle again closes the panel")
 		_check(not overworld._pc.movement_paused_for_test(), "toggle again resumes PC movement")

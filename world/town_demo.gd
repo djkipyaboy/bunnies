@@ -248,6 +248,18 @@ func _build_inventory_demo() -> void:
 	_inventory_panel.position = Vector2(140, 60)
 	_inventory_panel.hide()
 	_ui_layer.add_child(_inventory_panel)
+	_inventory_panel.item_discarded.connect(_on_item_discarded)
+
+## Manual Discard (2026-07-14-ground-item-pickups-design.md §3.7): drop the item at the PC's
+## current position. _quantity isn't needed here — [param item] already carries its own
+## post-discard quantity (InventoryMenuPanel built a fresh duplicate sized to exactly what left the
+## Bag).
+func _on_item_discarded(item: Resource, _quantity: int) -> void:
+	var pickup := GroundItemPickup.new()
+	pickup.item = item
+	pickup.party_inventory = _party_inventory
+	pickup.global_position = _pc.global_position + Vector2(0, 16)
+	_pc.get_parent().add_child(pickup)
 
 func _wire_doors() -> void:
 	# (525, 200) is the drawn door rectangle's center, which sits inside SHOP_BODY_RECT's

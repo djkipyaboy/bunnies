@@ -216,6 +216,7 @@ func _build_ui() -> void:
 	_inventory_panel.position = Vector2(140, 60)
 	_inventory_panel.hide()
 	ui.add_child(_inventory_panel)
+	_inventory_panel.item_discarded.connect(_on_item_discarded)
 
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
@@ -386,6 +387,17 @@ func _spawn_ground_drops() -> void:
 		pickup.global_position = pos
 		_world.add_child(pickup)
 	handoff.clear_ground_drops()
+
+## Manual Discard (2026-07-14-ground-item-pickups-design.md §3.7): drop the item at the PC's
+## current position. _quantity isn't needed here — [param item] already carries its own
+## post-discard quantity (InventoryMenuPanel built a fresh duplicate sized to exactly what left the
+## Bag).
+func _on_item_discarded(item: Resource, _quantity: int) -> void:
+	var pickup := GroundItemPickup.new()
+	pickup.item = item
+	pickup.party_inventory = _party_inventory
+	pickup.global_position = _pc.global_position + Vector2(0, 16)
+	_pc.get_parent().add_child(pickup)
 
 func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> DialogueSet:
 	var greeting := DialogueLine.new()

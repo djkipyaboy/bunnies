@@ -44,6 +44,20 @@ func _process(_delta: float) -> bool:
 		town._unhandled_input(interact_event)
 		_check(not town._dialogue_box.is_open(), "interact is blocked while inventory panel is open")
 
+		town._inventory_panel.switch_tab_for_test(&"bag")
+		var junk: Gear = Gear.new()
+		junk.display_name = "Discard Test Item"
+		town._party_inventory.gear.append(junk)
+		town._inventory_panel._rebuild()
+		town._inventory_panel.select_grid_item_for_test(junk, false)
+		town._inventory_panel.press_discard_for_test()
+		town._inventory_panel.confirm_discard_for_test()
+		var found_pickup: bool = false
+		for child in town._pc.get_parent().get_children():
+			if child is GroundItemPickup and (child.item as Gear).display_name == "Discard Test Item":
+				found_pickup = true
+		_check(found_pickup, "manually discarding an item spawns a GroundItemPickup in the world")
+
 		town._toggle_inventory()
 		_check(not town._inventory_panel.visible, "toggle again closes the panel")
 		_check(not town._pc.movement_paused_for_test(), "toggle again resumes PC movement")
