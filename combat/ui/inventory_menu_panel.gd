@@ -51,6 +51,11 @@ const GRID_TOP: float = TABS_TOP + TAB_BTN_H + 8.0
 const HIGHLIGHT_COLOR: Color = Color(0.3, 1.0, 1.0)
 const HIGHLIGHT_BLEND: float = 0.6
 
+## Emitted after this panel has already removed [param item]/[param quantity] from the Bag —
+## the driving scene only needs to place a GroundItemPickup holding [param item] in the world
+## (2026-07-14-ground-item-pickups-design.md §3.6).
+signal item_discarded(item: Resource, quantity: int)
+
 var _pc: Combatant
 var _companions: Array = []
 var _party_inventory: PartyInventory
@@ -64,6 +69,13 @@ var _selected: Dictionary = {}       # {"item": Resource, "is_weapon": bool} or 
 var _selected_material: CraftingMaterial = null   # mutually exclusive with _selected (Gear/Weapon)
 var _vault_full_message: bool = false
 var _equip_reject_message: String = ""
+
+var _discard_button: Button
+var _discard_spin: SpinBox
+var _discard_all_check: CheckBox
+var _discard_prompt_open: bool = false
+var _discard_quantity: int = 1
+var _discard_all: bool = false
 
 ## True in a safe zone (towns/settlements) where the Vault is reachable; false elsewhere (e.g. the
 ## overworld map). The Vault tab stays viewable either way — when false, its grid is empty and a
@@ -118,6 +130,10 @@ static func is_valid_target(item: Resource, is_weapon: bool, slot_idx: int) -> b
 		return false
 	if is_weapon:
 		return slot_idx == 0
+	if not (item is Gear):
+		# A selected ConsumableItem/CraftingMaterial (Discard, 2026-07-14 ground-item-pickups) is
+		# never a paperdoll equip target — avoids an `(item as Gear).slot` crash on a non-Gear item.
+		return false
 	if slot_idx == 0:
 		return false
 	var gs: int = gear_slot_for(slot_idx)
@@ -268,6 +284,9 @@ func open_for(pc: Combatant, companions: Array, party_inventory: PartyInventory,
 	_active_tab = initial_tab
 	_selected = {}
 	_selected_material = null
+	_discard_prompt_open = false
+	_discard_all = false
+	_discard_quantity = 1
 	_vault_full_message = false
 	_equip_reject_message = ""
 	_pc = pc
@@ -286,6 +305,13 @@ func _rebuild() -> void:
 	_tab_buttons.clear()
 	_stat_labels.clear()
 	_list_labels.clear()
+	# queue_free() is deferred — in a single-frame headless test run, a queued-for-deletion Button
+	# is still a non-null reference for the rest of this call. Null single-Control references here
+	# (not just the Array/Dictionary buffers above) so a XXX_for_test() query correctly reports
+	# "not built this rebuild" rather than seeing a stale pre-rebuild node.
+	_discard_button = null
+	_discard_spin = null
+	_discard_all_check = null
 
 	var columns: Array = paperdoll_columns(_pc, _companions)
 	for col in range(3):
@@ -296,6 +322,7 @@ func _rebuild() -> void:
 		_build_stats_panel()
 	elif _active_tab == &"materials":
 		_build_materials_panel()
+		_build_materials_action_row()
 	elif _active_tab == &"quest":
 		_build_quest_panel()
 	else:
@@ -311,9 +338,15 @@ func _rebuild() -> void:
 	elif _active_tab == &"materials" or _active_tab == &"quest":
 		var list: Array = _party_inventory.materials if _active_tab == &"materials" else _party_inventory.quest_items
 		bottom = GRID_TOP + float(maxi(list.size(), 1)) * (SLOT_H + SLOT_GAP) + PAD
+		if _active_tab == &"materials" and _selected_material != null:
+			bottom += (SLOT_H + SLOT_GAP)
+			if _discard_prompt_open:
+				bottom += 3.0 * (SLOT_H + SLOT_GAP)
 	else:
 		var rows: int = (_grid_item_count() + GRID_COLS - 1) / GRID_COLS
 		bottom = GRID_TOP + float(maxi(rows, 1)) * (GRID_CELL_H + GRID_CELL_GAP) + ACTION_BTN_H + PAD
+		if _active_tab == &"bag" and _discard_prompt_open:
+			bottom += 3.0 * (SLOT_H + SLOT_GAP)
 	custom_minimum_size = Vector2(PANEL_W, bottom)
 	size = custom_minimum_size
 
@@ -551,6 +584,20 @@ func _on_material_pressed(m: CraftingMaterial) -> void:
 	_selected = {}
 	_rebuild()
 
+func _build_materials_action_row() -> void:
+	if _selected_material == null:
+		return
+	var y: float = GRID_TOP + float(maxi(_party_inventory.materials.size(), 1)) * (SLOT_H + SLOT_GAP) + 6.0
+	_discard_button = Button.new()
+	_discard_button.text = "Discard"
+	_discard_button.position = Vector2(PAD, y)
+	_discard_button.custom_minimum_size = Vector2(ACTION_BTN_W, ACTION_BTN_H)
+	_discard_button.modulate = Color(1.0, 0.5, 0.3)
+	_discard_button.pressed.connect(_on_discard_pressed)
+	add_child(_discard_button)
+	if _discard_prompt_open:
+		_build_discard_prompt(y + ACTION_BTN_H + 6.0, _selected_material.quantity)
+
 ## Quest Items tab (2026-07-12, player-requested): PartyInventory.quest_items is currently always
 ## empty — no quest system or quest-item Resource shape exists yet. This is a working shell
 ## (structurally complete, per-item display undesigned) so the tab is visibly presented rather than
@@ -595,32 +642,153 @@ func _build_vault_unavailable_message() -> void:
 func _build_action_row() -> void:
 	if _selected.is_empty():
 		return
-	if not _vault_available:
-		# The Vault is unreachable outside a safe zone — no Send-to-Vault from the Bag either
-		# (Vault-tab selections can't happen at all here, since its grid is empty).
-		return
 	var rows: int = (_grid_item_count() + GRID_COLS - 1) / GRID_COLS
 	var y: float = GRID_TOP + float(maxi(rows, 1)) * (GRID_CELL_H + GRID_CELL_GAP) + 6.0
-	_action_button = Button.new()
-	_action_button.position = Vector2(PAD, y)
-	_action_button.custom_minimum_size = Vector2(ACTION_BTN_W, ACTION_BTN_H)
-	_action_button.modulate = HIGHLIGHT_COLOR
-	if _active_tab == &"bag":
-		_action_button.text = "Send to Vault"
-		_action_button.pressed.connect(_on_send_to_vault_pressed)
-	else:
-		_action_button.text = "Withdraw to Bag"
-		_action_button.pressed.connect(_on_withdraw_pressed)
-	add_child(_action_button)
+	var next_x: float = PAD
 
-	_action_label = Label.new()
-	_action_label.position = Vector2(PAD + ACTION_BTN_W + 10.0, y + 4.0)
-	if _vault_full_message:
-		_action_label.text = "Vault full"
+	# The Vault-transfer action is gated on _vault_available (unchanged from before this feature);
+	# Discard is NOT gated on it — discarding your own carried items works anywhere.
+	if _vault_available:
+		_action_button = Button.new()
+		_action_button.position = Vector2(next_x, y)
+		_action_button.custom_minimum_size = Vector2(ACTION_BTN_W, ACTION_BTN_H)
+		_action_button.modulate = HIGHLIGHT_COLOR
+		if _active_tab == &"bag":
+			_action_button.text = "Send to Vault"
+			_action_button.pressed.connect(_on_send_to_vault_pressed)
+		else:
+			_action_button.text = "Withdraw to Bag"
+			_action_button.pressed.connect(_on_withdraw_pressed)
+		add_child(_action_button)
+		next_x += ACTION_BTN_W + 10.0
+
+		_action_label = Label.new()
+		_action_label.position = Vector2(next_x, y + 4.0)
+		if _vault_full_message:
+			_action_label.text = "Vault full"
+		else:
+			_action_label.text = _equip_reject_message
+		_action_label.modulate = Color(1.0, 0.4, 0.4)
+		add_child(_action_label)
+		next_x += 160.0
+
+	if _active_tab == &"bag":
+		_discard_button = Button.new()
+		_discard_button.text = "Discard"
+		_discard_button.position = Vector2(next_x, y)
+		_discard_button.custom_minimum_size = Vector2(ACTION_BTN_W, ACTION_BTN_H)
+		_discard_button.modulate = Color(1.0, 0.5, 0.3)
+		_discard_button.pressed.connect(_on_discard_pressed)
+		add_child(_discard_button)
+		if _discard_prompt_open:
+			var item: Resource = _selected["item"]
+			var qty: int = item.quantity if item is ConsumableItem else 1
+			_build_discard_prompt(y + ACTION_BTN_H + 6.0, qty)
+
+## Discard confirmation — item name, a quantity stepper + "All" checkbox for stackable items
+## (Consumable/Material), or a plain Confirm/Cancel for non-stackable Gear/Weapon (spec §3.6).
+func _build_discard_prompt(y: float, max_quantity: int) -> void:
+	var stackable: bool = max_quantity > 1
+	var label := Label.new()
+	label.text = "Discard how many?" if stackable else "Discard this item?"
+	label.position = Vector2(PAD, y)
+	label.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
+	add_child(label)
+
+	var row_y: float = y + SLOT_H + 4.0
+	if stackable:
+		_discard_quantity = clampi(_discard_quantity, 1, max_quantity)
+		_discard_spin = SpinBox.new()
+		_discard_spin.min_value = 1
+		_discard_spin.max_value = max_quantity
+		_discard_spin.value = _discard_quantity
+		_discard_spin.editable = not _discard_all
+		_discard_spin.position = Vector2(PAD, row_y)
+		_discard_spin.custom_minimum_size = Vector2(80.0, ACTION_BTN_H)
+		_discard_spin.value_changed.connect(_on_discard_quantity_changed)
+		add_child(_discard_spin)
+
+		_discard_all_check = CheckBox.new()
+		_discard_all_check.text = "All"
+		_discard_all_check.button_pressed = _discard_all
+		_discard_all_check.position = Vector2(PAD + 90.0, row_y)
+		_discard_all_check.toggled.connect(_on_discard_all_toggled)
+		add_child(_discard_all_check)
+		row_y += ACTION_BTN_H + 6.0
+
+	var confirm := Button.new()
+	confirm.text = "Confirm"
+	confirm.position = Vector2(PAD, row_y)
+	confirm.custom_minimum_size = Vector2(ACTION_BTN_W * 0.5, ACTION_BTN_H)
+	confirm.pressed.connect(_on_discard_confirm_pressed)
+	add_child(confirm)
+
+	var cancel := Button.new()
+	cancel.text = "Cancel"
+	cancel.position = Vector2(PAD + ACTION_BTN_W * 0.5 + 8.0, row_y)
+	cancel.custom_minimum_size = Vector2(ACTION_BTN_W * 0.5, ACTION_BTN_H)
+	cancel.pressed.connect(_on_discard_cancel_pressed)
+	add_child(cancel)
+
+func _on_discard_pressed() -> void:
+	_discard_prompt_open = true
+	_discard_all = false
+	_discard_quantity = 1
+	_rebuild()
+
+func _on_discard_quantity_changed(value: float) -> void:
+	_discard_quantity = int(value)
+
+func _on_discard_all_toggled(pressed: bool) -> void:
+	_discard_all = pressed
+	_rebuild()
+
+func _on_discard_cancel_pressed() -> void:
+	_discard_prompt_open = false
+	_rebuild()
+
+func _on_discard_confirm_pressed() -> void:
+	if _selected_material != null:
+		_confirm_discard_material()
+	elif not _selected.is_empty():
+		_confirm_discard_bag_item()
+	_discard_prompt_open = false
+	_rebuild()
+
+func _confirm_discard_bag_item() -> void:
+	var item: Resource = _selected["item"]
+	var is_weapon: bool = _selected["is_weapon"]
+	if is_weapon:
+		_party_inventory.take_weapon(item)
+		item_discarded.emit(item, 1)
+	elif item is ConsumableItem:
+		var qty: int = item.quantity if _discard_all else mini(_discard_quantity, item.quantity)
+		item.quantity -= qty
+		var dropped: ConsumableItem = ConsumableItem.new()
+		dropped.display_name = item.display_name
+		dropped.item_type = item.item_type
+		dropped.heal_amount = item.heal_amount
+		dropped.quantity = qty
+		if item.quantity <= 0:
+			_party_inventory.items.erase(item)
+		item_discarded.emit(dropped, qty)
 	else:
-		_action_label.text = _equip_reject_message
-	_action_label.modulate = Color(1.0, 0.4, 0.4)
-	add_child(_action_label)
+		_party_inventory.take_gear(item)
+		item_discarded.emit(item, 1)
+	_selected = {}
+
+func _confirm_discard_material() -> void:
+	var m: CraftingMaterial = _selected_material
+	var qty: int = m.quantity if _discard_all else mini(_discard_quantity, m.quantity)
+	m.quantity -= qty
+	var dropped: CraftingMaterial = CraftingMaterial.new()
+	dropped.display_name = m.display_name
+	dropped.material_type = m.material_type
+	dropped.quantity = qty
+	if m.quantity <= 0:
+		_party_inventory.materials.erase(m)
+	item_discarded.emit(dropped, qty)
+	_selected_material = null
 
 func _build_compare_check() -> void:
 	_compare_check = CheckBox.new()
@@ -638,6 +806,9 @@ func _on_tab_pressed(tab: StringName) -> void:
 	_active_tab = tab
 	_selected = {}
 	_selected_material = null
+	_discard_prompt_open = false
+	_discard_all = false
+	_discard_quantity = 1
 	_vault_full_message = false
 	_equip_reject_message = ""
 	_rebuild()
@@ -917,3 +1088,25 @@ func list_row_text_for_test(index: int) -> String:
 ## placeholder message, otherwise the item count.
 func list_row_count_for_test() -> int:
 	return _list_labels.size()
+
+func press_discard_for_test() -> void:
+	if _discard_button != null:
+		_on_discard_pressed()
+
+func set_discard_quantity_for_test(q: int) -> void:
+	_discard_quantity = q
+
+func toggle_discard_all_for_test(pressed: bool) -> void:
+	_on_discard_all_toggled(pressed)
+
+func confirm_discard_for_test() -> void:
+	_on_discard_confirm_pressed()
+
+func cancel_discard_for_test() -> void:
+	_on_discard_cancel_pressed()
+
+func discard_prompt_open_for_test() -> bool:
+	return _discard_prompt_open
+
+func discard_button_visible_for_test() -> bool:
+	return _discard_button != null

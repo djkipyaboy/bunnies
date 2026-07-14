@@ -392,4 +392,88 @@ func _init() -> void:
 
 	mat_panel.free()
 
+	# --- Discard: Gear/Weapon (qty always 1) ---
+	var discard_inv: PartyInventory = PartyInventory.new()
+	var junk: Gear = Gear.new()
+	junk.display_name = "Junk Helmet"
+	discard_inv.gear = [junk]
+	var discard_pc: Combatant = Combatant.new()
+	discard_pc.level = 9
+	discard_pc.base_stats = Stats.new()
+	var discard_vault: Vault = Vault.new()
+	var discard_panel: InventoryMenuPanel = InventoryMenuPanel.new()
+	# GDScript lambdas capture outer locals BY VALUE (same gotcha as tests/test_ground_item_pickup.gd
+	# in this same plan) — a plain captured Resource/int would never propagate a reassignment back
+	# out, so use a 2-element Array (a reference type) instead: [0] = item, [1] = quantity.
+	var discarded: Array = [null, -1]
+	discard_panel.item_discarded.connect(func(item: Resource, qty: int): discarded[0] = item; discarded[1] = qty)
+	discard_panel.open_for(discard_pc, [], discard_inv, discard_vault)
+
+	discard_panel.select_grid_item_for_test(junk, false)
+	discard_panel.press_discard_for_test()
+	_check(discard_panel.discard_prompt_open_for_test(), "pressing Discard opens the quantity prompt")
+	discard_panel.confirm_discard_for_test()
+	_check(not discard_inv.gear.has(junk), "confirming Discard removes the Gear item from the Bag")
+	_check(discarded[0] == junk, "item_discarded fires with the exact discarded Gear object")
+	_check(discarded[1] == 1, "item_discarded reports quantity 1 for a non-stackable item")
+	_check(not discard_panel.discard_prompt_open_for_test(), "confirming closes the prompt")
+
+	# --- Discard: Cancel leaves everything unchanged ---
+	var junk2: Gear = Gear.new()
+	junk2.display_name = "Junk Boots"
+	discard_inv.gear = [junk2]
+	discarded[0] = null
+	discard_panel.switch_tab_for_test(&"bag")
+	discard_panel.select_grid_item_for_test(junk2, false)
+	discard_panel.press_discard_for_test()
+	discard_panel.cancel_discard_for_test()
+	_check(discard_inv.gear.has(junk2), "Cancel leaves the item in the Bag")
+	_check(discarded[0] == null, "Cancel never emits item_discarded")
+	_check(not discard_panel.discard_prompt_open_for_test(), "Cancel closes the prompt")
+
+	# --- Discard: Consumable, partial quantity ---
+	var potions: ConsumableItem = ConsumableItem.new()
+	potions.item_type = &"healing_potion"
+	potions.display_name = "Healing Potion"
+	potions.quantity = 5
+	discard_inv.items = [potions]
+	discard_panel.switch_tab_for_test(&"bag")
+	discard_panel.select_grid_item_for_test(potions, false)
+	discard_panel.press_discard_for_test()
+	discard_panel.set_discard_quantity_for_test(2)
+	discard_panel.confirm_discard_for_test()
+	_check(potions.quantity == 3, "discarding 2 of 5 leaves 3 in the original stack (got %d)" % potions.quantity)
+	_check(discarded[0] != potions, "the dropped item is a DUPLICATE, not the original stack object")
+	_check(discarded[0].quantity == 2, "the dropped duplicate carries exactly the discarded quantity")
+	_check(discarded[0].item_type == &"healing_potion", "the dropped duplicate carries the same item_type")
+
+	# --- Discard: Consumable, "All" toggle removes the entry entirely ---
+	discard_panel.switch_tab_for_test(&"bag")
+	discard_panel.select_grid_item_for_test(potions, false)
+	discard_panel.press_discard_for_test()
+	discard_panel.toggle_discard_all_for_test(true)
+	discard_panel.confirm_discard_for_test()
+	_check(discard_inv.items.is_empty(), "discarding ALL of a stack removes the entry from the Bag entirely")
+	_check(discarded[0].quantity == 3, "the dropped duplicate carries the remaining 3 when 'All' is chosen")
+
+	# --- Discard: Material, mirrors Consumable behavior ---
+	var ore2: CraftingMaterial = CraftingMaterial.new()
+	ore2.material_type = &"iron_ore"
+	ore2.display_name = "Iron Ore"
+	ore2.quantity = 4
+	discard_inv.materials = [ore2]
+	discard_panel.switch_tab_for_test(&"materials")
+	discard_panel.select_material_for_test(ore2)
+	discard_panel.press_discard_for_test()
+	discard_panel.set_discard_quantity_for_test(1)
+	discard_panel.confirm_discard_for_test()
+	_check(ore2.quantity == 3, "discarding 1 of 4 material leaves 3 (got %d)" % ore2.quantity)
+	_check(discarded[0].quantity == 1, "the dropped material duplicate carries exactly 1")
+
+	# --- Discard is unavailable on Vault and Quest tabs ---
+	discard_panel.switch_tab_for_test(&"vault")
+	_check(not discard_panel.discard_button_visible_for_test(), "no Discard action on the Vault tab")
+	discard_panel.switch_tab_for_test(&"quest")
+	_check(not discard_panel.discard_button_visible_for_test(), "no Discard action on the Quest Items tab")
+
 	quit()
