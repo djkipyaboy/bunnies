@@ -55,5 +55,12 @@ func _initialize() -> void:
 	_check(pc.weapon.reels.size() > 0, "equipping the bag's spare weapon onto the PC still leaves real action reels")
 	_check(displaced != null and displaced.reels.size() > 0, "the displaced (original) weapon still has its own action reels, ready to re-equip")
 
+	# --- Healing Potions (2026-07-14 combat items menu) — seeded so the Items menu has something
+	# to test immediately, matching this file's existing convention for gear/weapons/materials. ---
+	_check(inv.items.size() >= 1, "the bag is seeded with at least one consumable item")
+	var potion_seed: ConsumableItem = inv.find_item(&"healing_potion")
+	_check(potion_seed != null and potion_seed.quantity > 0, "the seeded Healing Potion has a positive quantity")
+	_check(potion_seed.heal_amount > 0, "the seeded Healing Potion has a positive heal_amount")
+
 	print(("INVENTORY DEMO SETUP TEST PASSED" if _failures == 0 else "INVENTORY DEMO SETUP TEST FAILED: %d" % _failures))
 	quit(_failures)

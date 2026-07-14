@@ -51,6 +51,15 @@ static func seed_demo_party() -> Dictionary:
 	inv.gear = [uncommon_cloak, rare_gauntlets, epic_charm, lucky_pebble]
 	inv.weapons = [spare_sword]
 
+	# Healing Potions (2026-07-14 combat items menu) — no shop exists yet, so seed a few directly,
+	# same placeholder convention already used for the gear/weapon variety above.
+	var healing_potion: ConsumableItem = ConsumableItem.new()
+	healing_potion.item_type = &"healing_potion"
+	healing_potion.display_name = "Healing Potion"
+	healing_potion.heal_amount = 30
+	healing_potion.quantity = 3
+	inv.items = [healing_potion]
+
 	return {
 		"pc": pc,
 		"companions": [companion],
