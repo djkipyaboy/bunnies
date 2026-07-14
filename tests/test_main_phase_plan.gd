@@ -152,5 +152,88 @@ func _initialize() -> void:
 	pcj.toggle_item(&"healing_potion")
 	_check(pcj.staged_item_type == &"", "toggle_item() is a no-op with no party_inventory")
 
+	# --- items: reciprocal clearing on the remaining 4 mutual-exclusion entry points (coordinator
+	# review 2026-07-14 — toggle_ability() was already covered above; these 4 had the code but no
+	# regression test locking it in) ---
+
+	# stage_select_fate() (Seer base-ability alternate entry point)
+	var item_inv2: PartyInventory = PartyInventory.new()
+	var potion2: ConsumableItem = ConsumableItem.new()
+	potion2.item_type = &"healing_potion"
+	potion2.quantity = 1
+	item_inv2.items = [potion2]
+	var seer: Combatant = Combatant.new()
+	seer.ability_id = &"select_fate"
+	seer.ability_resource = &"mana"
+	seer.resource_pool = ResourcePool.new()
+	seer.resource_pool.max_mana = 10
+	seer.resource_pool.mana = 10
+	seer.weapon = Weapon.new()
+	seer.weapon.base_damage = 10.0
+	seer.weapon.reels = [ActionReel.make_default(slashing), ActionReel.make_default(slashing)]
+	seer.begin_turn()
+	var plan_seer: MainPhasePlan = MainPhasePlan.new(seer, 6, 5, 2, item_inv2)
+	plan_seer.toggle_item(&"healing_potion")
+	plan_seer.stage_select_fate(slashing)
+	_check(plan_seer.ability_staged, "stage_select_fate() stages the ability")
+	_check(plan_seer.staged_item_type == &"", "stage_select_fate() un-stages the item (mutual exclusion)")
+
+	# stage_big_bang() (Seer Ultimate alternate entry point)
+	var item_inv3: PartyInventory = PartyInventory.new()
+	var potion3: ConsumableItem = ConsumableItem.new()
+	potion3.item_type = &"healing_potion"
+	potion3.quantity = 1
+	item_inv3.items = [potion3]
+	var seer2: Combatant = Combatant.new()
+	seer2.ultimate_id = &"big_bang"
+	seer2.bonus_meter = BonusMeter.new()
+	seer2.bonus_meter.cap = 10
+	seer2.bonus_meter.value = 10
+	seer2.weapon = Weapon.new()
+	seer2.weapon.base_damage = 10.0
+	seer2.weapon.reels = [ActionReel.make_default(slashing), ActionReel.make_default(slashing)]
+	seer2.begin_turn()
+	var plan_seer2: MainPhasePlan = MainPhasePlan.new(seer2, 6, 5, 2, item_inv3)
+	plan_seer2.toggle_item(&"healing_potion")
+	plan_seer2.stage_big_bang(slashing)
+	_check(plan_seer2.fire_ultimate_staged, "stage_big_bang() stages the ultimate")
+	_check(plan_seer2.staged_item_type == &"", "stage_big_bang() un-stages the item (mutual exclusion)")
+
+	# toggle_ultimate()
+	var item_inv4: PartyInventory = PartyInventory.new()
+	var potion4: ConsumableItem = ConsumableItem.new()
+	potion4.item_type = &"healing_potion"
+	potion4.quantity = 1
+	item_inv4.items = [potion4]
+	var cu: Combatant = _mk_pc(3, 10)  # meter already armed
+	var pcu: MainPhasePlan = MainPhasePlan.new(cu, 2, 5, 2, item_inv4)
+	pcu.toggle_item(&"healing_potion")
+	pcu.toggle_ultimate()
+	_check(pcu.fire_ultimate_staged, "toggle_ultimate() stages the ultimate")
+	_check(pcu.staged_item_type == &"", "toggle_ultimate() un-stages the item (mutual exclusion)")
+
+	# toggle_extra_ability()
+	var item_inv5: PartyInventory = PartyInventory.new()
+	var potion5: ConsumableItem = ConsumableItem.new()
+	potion5.item_type = &"healing_potion"
+	potion5.quantity = 1
+	item_inv5.items = [potion5]
+	var ce: Combatant = _mk_pc(3, 0)
+	ce.level = 9
+	ce.resource_pool.stamina = 10
+	ce.resource_pool.max_stamina = 10
+	var extra_def: AbilityDef = AbilityDef.new()
+	extra_def.id = &"riposte_storm"
+	extra_def.unlock_level = 9
+	extra_def.cost = 4
+	extra_def.resource = &"stamina"
+	extra_def.cooldown_turns = 3
+	ce.extra_abilities = [extra_def]
+	var pce: MainPhasePlan = MainPhasePlan.new(ce, 2, 5, 2, item_inv5)
+	pce.toggle_item(&"healing_potion")
+	pce.toggle_extra_ability(&"riposte_storm")
+	_check(pce.staged_extra_ability_id == &"riposte_storm", "toggle_extra_ability() stages the extra ability")
+	_check(pce.staged_item_type == &"", "toggle_extra_ability() un-stages the item (mutual exclusion)")
+
 	print(("MAIN PHASE PLAN TEST PASSED" if _failures == 0 else "MAIN PHASE PLAN TEST FAILED: %d" % _failures))
 	quit(_failures)
