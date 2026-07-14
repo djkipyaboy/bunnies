@@ -32,6 +32,13 @@ var return_position: Vector2 = Vector2.ZERO
 var has_return_position: bool = false   # ZERO could be a legitimate spawn point; don't sentinel-compare
 var defeated_encounter_ids: Array[StringName] = []
 
+## Combat-loot items that overflowed the Bag's capacity when a fight ended — carried across the
+## combat.tscn -> overworld scene change so the destination scene can drop them as real
+## GroundItemPickup nodes at the return position (2026-07-14-ground-item-pickups-design.md §3.4).
+## Set by combat.gd BEFORE the scene change; cleared by the destination scene AFTER it reads them —
+## same "who clears what and when" convention as return_position/clear_return_position().
+var pending_ground_drops: Array[Resource] = []
+
 ## Session-lifetime cross-scene history (2026-07-13-overworld-event-log-design.md, categorized
 ## per 2026-07-13-event-log-tabs-design.md) — a coarse, capped view of notable events (pickups,
 ## XP, loot, encounters, companion changes), NOT the detailed per-reel combat log (combat.gd's
@@ -124,6 +131,11 @@ func clear_return_position() -> void:
 	return_position = Vector2.ZERO
 	has_return_position = false
 
+## Clears pending_ground_drops — called by the destination scene (overworld_demo.gd) once it has
+## spawned GroundItemPickup nodes for them.
+func clear_ground_drops() -> void:
+	pending_ground_drops = [] as Array[Resource]
+
 ## Clears everything the three narrower methods above clear, combined — for callers (and tests)
 ## that want a full reset in one call. Does NOT clear defeated_encounter_ids or event_log_entries —
 ## both must persist for the life of the session.
@@ -131,3 +143,4 @@ func clear_pending() -> void:
 	clear_combat_data()
 	clear_party()
 	clear_return_position()
+	clear_ground_drops()
