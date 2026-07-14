@@ -304,8 +304,8 @@ func _rebuild() -> void:
 
 	var bottom: float
 	if _active_tab == &"stats":
-		# title row + 6 stat rows + weapon-damage row + xp row.
-		bottom = GRID_TOP + float(STAT_ROWS.size() + 3) * (SLOT_H + SLOT_GAP) + PAD
+		# title row + HP/Resource/Bonus-Meter rows + 6 stat rows + weapon-damage row + xp row.
+		bottom = GRID_TOP + float(STAT_ROWS.size() + 6) * (SLOT_H + SLOT_GAP) + PAD
 	elif _active_tab == &"materials" or _active_tab == &"quest":
 		var list: Array = _party_inventory.materials if _active_tab == &"materials" else _party_inventory.quest_items
 		bottom = GRID_TOP + float(maxi(list.size(), 1)) * (SLOT_H + SLOT_GAP) + PAD
@@ -421,9 +421,46 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 		title.modulate = Color(0.5, 0.5, 0.5)
 	add_child(title)
 
+	var hp_y: float = GRID_TOP + float(1) * (SLOT_H + SLOT_GAP)
+	var hp_label := Label.new()
+	hp_label.position = Vector2(x, hp_y)
+	hp_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
+	if c == null:
+		hp_label.text = "HP: —"
+		hp_label.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		hp_label.text = "HP: %d / %d" % [c.hp, c.max_hp]
+	add_child(hp_label)
+	_stat_labels["%d_hp" % col] = hp_label
+
+	var resource_y: float = GRID_TOP + float(2) * (SLOT_H + SLOT_GAP)
+	var resource_label := Label.new()
+	resource_label.position = Vector2(x, resource_y)
+	resource_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
+	if c == null:
+		resource_label.text = "Resource: —"
+		resource_label.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		resource_label.text = resource_line_text(c)
+	add_child(resource_label)
+	_stat_labels["%d_resource" % col] = resource_label
+
+	var meter_y: float = GRID_TOP + float(3) * (SLOT_H + SLOT_GAP)
+	var meter_label := Label.new()
+	meter_label.position = Vector2(x, meter_y)
+	meter_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
+	if c == null or c.bonus_meter == null:
+		meter_label.text = "Bonus Meter: —"
+		if c == null:
+			meter_label.modulate = Color(0.5, 0.5, 0.5)
+	else:
+		meter_label.text = "Bonus Meter: %d / %d" % [c.bonus_meter.value, c.bonus_meter.cap]
+	add_child(meter_label)
+	_stat_labels["%d_meter" % col] = meter_label
+
 	var s: Stats = c.effective_stats() if c != null else null
 	for row in range(STAT_ROWS.size()):
-		var y: float = GRID_TOP + float(row + 1) * (SLOT_H + SLOT_GAP)
+		var y: float = GRID_TOP + float(row + 4) * (SLOT_H + SLOT_GAP)
 		var label := Label.new()
 		label.position = Vector2(x, y)
 		label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -439,7 +476,7 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 		add_child(label)
 		_stat_labels["%d_%d" % [col, row]] = label
 
-	var dmg_y: float = GRID_TOP + float(STAT_ROWS.size() + 1) * (SLOT_H + SLOT_GAP)
+	var dmg_y: float = GRID_TOP + float(STAT_ROWS.size() + 4) * (SLOT_H + SLOT_GAP)
 	var dmg_label := Label.new()
 	dmg_label.position = Vector2(x, dmg_y)
 	dmg_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -455,7 +492,7 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 	# count, not a progress-toward-next-level bar — no XP curve/level-up thresholds exist yet
 	# (docs/design-bible/22-leveling-and-progression.md is still undesigned), so a bar implying a
 	# real threshold would misrepresent a number that doesn't exist yet.
-	var xp_y: float = GRID_TOP + float(STAT_ROWS.size() + 2) * (SLOT_H + SLOT_GAP)
+	var xp_y: float = GRID_TOP + float(STAT_ROWS.size() + 5) * (SLOT_H + SLOT_GAP)
 	var xp_label := Label.new()
 	xp_label.position = Vector2(x, xp_y)
 	xp_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -466,6 +503,19 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 		xp_label.text = "XP: %d" % c.xp
 	add_child(xp_label)
 	_stat_labels["%d_xp" % col] = xp_label
+
+## Derives the Stats tab's Resource row content for a non-null Combatant (spec
+## 2026-07-13-stats-tab-resources-design.md §3): whichever rail (Stamina or Mana) the character
+## actually uses, or a dimmed placeholder if neither rail is populated (no resource_pool, or a pool
+## with both rails at 0 — never true for any of the 7 shipped classes today, only possible for an
+## incompletely-built test Combatant).
+static func resource_line_text(c: Combatant) -> String:
+	var pool: ResourcePool = c.resource_pool
+	if pool != null and pool.max_stamina > 0:
+		return "Stamina: %d / %d" % [pool.stamina, pool.max_stamina]
+	if pool != null and pool.max_mana > 0:
+		return "Mana: %d / %d" % [pool.mana, pool.max_mana]
+	return "Resource: —"
 
 ## Materials tab (2026-07-12, player-requested): gathered CraftingMaterial entries from
 ## PartyInventory.materials, stacked by material_type (PartyInventory.give_material()). Bag-side
@@ -815,6 +865,22 @@ func stat_damage_text_for_test(col: int) -> String:
 ## The rendered text of the Stats tab's XP row in column [param col] (test hook).
 func stat_xp_text_for_test(col: int) -> String:
 	var label: Label = _stat_labels.get("%d_xp" % col, null)
+	return label.text if label != null else ""
+
+## The rendered text of the Stats tab's HP row in column [param col] (test hook).
+func stat_hp_text_for_test(col: int) -> String:
+	var label: Label = _stat_labels.get("%d_hp" % col, null)
+	return label.text if label != null else ""
+
+## The rendered text of the Stats tab's Resource (Stamina-or-Mana) row in column [param col]
+## (test hook).
+func stat_resource_text_for_test(col: int) -> String:
+	var label: Label = _stat_labels.get("%d_resource" % col, null)
+	return label.text if label != null else ""
+
+## The rendered text of the Stats tab's Bonus Meter row in column [param col] (test hook).
+func stat_meter_text_for_test(col: int) -> String:
+	var label: Label = _stat_labels.get("%d_meter" % col, null)
 	return label.text if label != null else ""
 
 ## The rendered text of the Materials/Quest tab's [param index]-th row (test hook). When the tab
