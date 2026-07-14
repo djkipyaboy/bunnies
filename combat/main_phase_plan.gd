@@ -57,13 +57,24 @@ var staged_extra_ability_id: StringName = &""
 ## (the orchestrator's 6-button type-picker modal); consumed by [method commit]. Null = not chosen.
 var selected_fate_type: DamageType = null
 
-func _init(c: Combatant, p_ability_cost: int = 2, p_reel_cap: int = 5, p_wild_spins: int = 2) -> void:
+## The currently-staged consumable item's item_type, or "" for none. Mutually exclusive with
+## ability_staged/staged_extra_ability_id/fire_ultimate_staged — same "one special action per turn"
+## slot (2026-07-14 combat items menu spec §4).
+var staged_item_type: StringName = &""
+
+## The party's shared inventory, so item staging can check/consume without a separate reference
+## threaded through every call site. Null for a standalone (non-handoff) combat.tscn launch or an
+## enemy's turn — can_stage_item() always returns false when null.
+var party_inventory: PartyInventory = null
+
+func _init(c: Combatant, p_ability_cost: int = 2, p_reel_cap: int = 5, p_wild_spins: int = 2, p_party_inventory: PartyInventory = null) -> void:
 	combatant = c
 	ability_id = c.ability_id if c != null else &""
 	ultimate_id = c.ultimate_id if c != null else &"sticky_wild"
 	ability_cost = p_ability_cost
 	reel_cap = p_reel_cap
 	wild_spins = p_wild_spins
+	party_inventory = p_party_inventory
 
 ## The cost dictionary for this combatant's base ability (amount on its declared rail).
 func _ability_cost_dict() -> Dictionary:
@@ -123,6 +134,7 @@ func toggle_extra_ability(id: StringName) -> void:
 		ability_staged = false  # mutually exclusive with the base ability slot
 		if _ultimate_conflicts_with_extra_ability(id):
 			fire_ultimate_staged = false  # e.g. staging Loaded Dice un-stages an armed Wildcard Gamble
+		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
 
 ## True when the active Ultimate is a crit-bias WILD variant (Warrior 1-spin / Skirmisher 2-spin sticky).
 func _is_wild_ultimate() -> bool:
@@ -194,6 +206,7 @@ func toggle_ability() -> void:
 			                                # SUCCESSFUL stage (mirrors toggle_extra_ability's success-only clear) —
 			                                # a failed attempt (unaffordable/at cap) must not silently drop an
 			                                # already-staged extra ability (2026-07-01 finding on commit 76e4099)
+			staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
 
 ## Stages Select your Fate! with a player-chosen damage type (from the orchestrator's type-picker modal).
 ## No-op unless this is the Seer's ability and it can currently be staged.
@@ -203,6 +216,7 @@ func stage_select_fate(type: DamageType) -> void:
 	if can_stage_ability():
 		selected_fate_type = type
 		ability_staged = true
+		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
 
 ## Stages The Big Bang with a player-chosen damage type (from the Ultimate's type-picker modal — the same
 ## 6-type chooser as Select your Fate, but free). No-op unless this is the Seer's big_bang and it's armed.
@@ -214,6 +228,7 @@ func stage_big_bang(type: DamageType) -> void:
 		fire_ultimate_staged = true
 		if _ultimate_subsumes_ability():
 			ability_staged = false   # Big Bang provides type choice + reels — don't also pay Select your Fate
+		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
 
 func toggle_ultimate() -> void:
 	if fire_ultimate_staged:
@@ -231,6 +246,24 @@ func toggle_ultimate() -> void:
 		# else: leave the base ability as the player staged it — it's usable alongside this Ultimate
 		if _ultimate_conflicts_with_extra_ability(staged_extra_ability_id):
 			staged_extra_ability_id = &""  # e.g. staging Wildcard Gamble un-stages an armed Loaded Dice
+		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
+
+## True iff the party owns at least one of item_type. Un-staging (passing the already-staged type to
+## toggle_item) is always allowed, same convention as every other stage/un-stage pair here.
+func can_stage_item(item_type: StringName) -> bool:
+	if party_inventory == null:
+		return false
+	var item: ConsumableItem = party_inventory.find_item(item_type)
+	return item != null and item.quantity > 0
+
+func toggle_item(item_type: StringName) -> void:
+	if staged_item_type == item_type:
+		staged_item_type = &""
+	elif can_stage_item(item_type):
+		staged_item_type = item_type
+		ability_staged = false
+		staged_extra_ability_id = &""
+		fire_ultimate_staged = false
 
 ## The reels the spin WOULD use. A staged reel-adding ability (flurry/rend) appends a previewed
 ## own-type reel (rend's preview reel is a no-damage BLEED reel). Heft edits faces in place on commit,
@@ -424,3 +457,9 @@ func commit() -> void:
 	# apply_select_fate (and is locked out while Big Bang is staged), so this is the Big Bang path only.
 	if selected_fate_type != null and fire_ultimate_staged and ultimate_id == &"big_bang":
 		combatant.convert_turn_reels_to(selected_fate_type)
+	if staged_item_type != &"" and party_inventory != null:
+		var item: ConsumableItem = party_inventory.find_item(staged_item_type)
+		if item != null:
+			combatant.pending_heal_amount = item.heal_amount
+			combatant.healing_potion_pending = true
+			party_inventory.consume_item(staged_item_type)

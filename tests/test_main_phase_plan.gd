@@ -116,5 +116,41 @@ func _initialize() -> void:
 	pcn.commit()
 	_check(cn.turn_reels.size() == 3 and cn.resource_pool.stamina == 3 and cn.bonus_meter.value == 10, "empty commit is a no-op")
 
+	# --- items (2026-07-14 combat items menu): staging, mutual exclusion, commit ---
+	var item_inv: PartyInventory = PartyInventory.new()
+	var potion: ConsumableItem = ConsumableItem.new()
+	potion.item_type = &"healing_potion"
+	potion.display_name = "Healing Potion"
+	potion.heal_amount = 25
+	potion.quantity = 2
+	item_inv.items = [potion]
+
+	var ci: Combatant = _mk_pc(3, 0)
+	var pci: MainPhasePlan = MainPhasePlan.new(ci, 2, 5, 2, item_inv)
+	_check(pci.can_stage_item(&"healing_potion"), "can_stage_item() true when the party owns one")
+	_check(not pci.can_stage_item(&"mana_potion"), "can_stage_item() false for an unowned item_type")
+
+	pci.toggle_item(&"healing_potion")
+	_check(pci.staged_item_type == &"healing_potion", "toggle_item() stages the item")
+
+	pci.toggle_ability()
+	_check(pci.staged_item_type == &"", "staging the base ability un-stages the item (mutual exclusion)")
+	_check(pci.ability_staged, "the base ability IS staged")
+
+	pci.toggle_item(&"healing_potion")
+	_check(not pci.ability_staged, "re-staging the item un-stages the base ability (mutual exclusion, both directions)")
+
+	pci.commit()
+	_check(ci.healing_potion_pending, "commit() sets healing_potion_pending")
+	_check(ci.pending_heal_amount == 25, "commit() sets pending_heal_amount from the item (got %d)" % ci.pending_heal_amount)
+	_check(item_inv.items[0].quantity == 1, "commit() consumes exactly one potion (got %d)" % item_inv.items[0].quantity)
+
+	# --- items: no party_inventory (standalone launch) never allows staging ---
+	var cj: Combatant = _mk_pc(3, 0)
+	var pcj: MainPhasePlan = MainPhasePlan.new(cj, 2, 5, 2)  # party_inventory defaults to null
+	_check(not pcj.can_stage_item(&"healing_potion"), "can_stage_item() is always false with no party_inventory")
+	pcj.toggle_item(&"healing_potion")
+	_check(pcj.staged_item_type == &"", "toggle_item() is a no-op with no party_inventory")
+
 	print(("MAIN PHASE PLAN TEST PASSED" if _failures == 0 else "MAIN PHASE PLAN TEST FAILED: %d" % _failures))
 	quit(_failures)

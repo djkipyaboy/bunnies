@@ -189,6 +189,12 @@ var foresight_pending: bool = false
 ## (combat.gd, reusing Task 27's _lowest_hp_pct_ally) and grants them Regen.
 var regrowth_pending: bool = false
 
+## Healing Potion pending flag (2026-07-14 combat items menu): the orchestrator (which knows the
+## party) picks the lowest-HP% living ally (combat.gd, reusing _lowest_hp_pct_ally()) and heals them
+## for pending_heal_amount.
+var healing_potion_pending: bool = false
+var pending_heal_amount: int = 0
+
 ## Skirmisher Riposte Storm (Task 18) charge count: +1 per weapon-attack reel an enemy spins
 ## against this combatant while Evasion is active (spec 2026-07-01 §4). Reset to 0 on use.
 var riposte_charges: int = 0
