@@ -1149,6 +1149,7 @@ func _on_abilities_pressed() -> void:
 		return
 	if not _awaiting_player_spin or _plan == null:
 		return
+	_item_menu.hide()  # the two menus float at the same spot (2026-07-14 final review) — only one at a time
 	_ability_menu.open_for(_attacker, _plan)
 	move_child(_ability_menu, get_child_count() - 1)  # draw over the reel strips while up
 
@@ -1181,6 +1182,7 @@ func _on_items_pressed() -> void:
 		return
 	if not _awaiting_player_spin or _plan == null:
 		return
+	_ability_menu.hide()  # the two menus float at the same spot (2026-07-14 final review) — only one at a time
 	_item_menu.open_for(_plan, _party_inventory)
 	move_child(_item_menu, get_child_count() - 1)  # draw over the reel strips while up
 

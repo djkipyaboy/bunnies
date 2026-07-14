@@ -117,8 +117,10 @@ func consume_item(item_type: StringName) -> void: ...
 (non-modal floating panel, rebuilt on every `open_for()`, one row per option, `✕` close button, same
 `PAD`/`ROW_H` sizing conventions):
 
-- `open_for(c: Combatant, plan: MainPhasePlan, inventory: PartyInventory) -> void` — one row per
-  distinct `ConsumableItem` in `inventory.items` (today: just Healing Potion). Row text: `"%s x%d" %
+- `open_for(plan: MainPhasePlan, inventory: PartyInventory) -> void` — no `Combatant` param; row
+  content depends only on `inventory.items`, not who's using it (built as a 2-param signature, tighter
+  than this spec's original 3-param sketch). One row per distinct `ConsumableItem` in `inventory.items`
+  (today: just Healing Potion). Row text: `"%s x%d" %
   [item.display_name, item.quantity]`; pressing toggles `plan.toggle_item(item.item_type)` and re-
   renders (mirrors `AbilityMenuPanel`'s `ability_pressed` signal + row-state re-render).
 - Row visual state: staged (green tint + ✓, mirrors `AbilityMenuPanel.COLOR_STAGED`) or normal —
