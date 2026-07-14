@@ -17,6 +17,7 @@ const BRIDGE_GAP_HEIGHT: float = 80.0
 const MOUNTAIN_RECT := Rect2(1080, 40, 160, 160)
 const VILLAGE_POSITION := Vector2(200, 360)
 const PC_SPAWN := Vector2(200, 460)
+const GROUND_DROP_SCATTER_RADIUS: float = 24.0   # [ASSUMPTION] small fixed ring around the return spot
 
 var _world: Node2D
 var _pc: PCController
@@ -65,6 +66,7 @@ func _ready() -> void:
 	_village_entrance.party_inventory = _party_inventory
 	_village_entrance.vault = _vault
 	_build_npcs()
+	_spawn_ground_drops()
 
 func _build_world() -> void:
 	_world = Node2D.new()
@@ -367,6 +369,23 @@ func _place_overworld_enemy(node_name: StringName, enemy_ids: Array[StringName],
 	enemy.return_scene_path = "res://world/overworld_demo.tscn"
 	enemy.pc_node = _pc
 	_world.add_child(enemy)
+
+## Turns any combat-loot overflow left in CombatHandoff into real, collectible GroundItemPickup
+## nodes scattered around the PC's current position (2026-07-14-ground-item-pickups-design.md
+## §3.5). Must run AFTER _build_pc() (needs _pc.global_position) and AFTER _build_inventory_demo()
+## (needs _party_inventory) — called last in _ready().
+func _spawn_ground_drops() -> void:
+	var handoff: Node = _handoff()
+	var drops: Array = handoff.pending_ground_drops
+	for i in range(drops.size()):
+		var angle: float = float(i) * TAU / maxf(float(drops.size()), 1.0)
+		var pos: Vector2 = Wander.random_target(_pc.global_position, GROUND_DROP_SCATTER_RADIUS, angle, 1.0)
+		var pickup := GroundItemPickup.new()
+		pickup.item = drops[i]
+		pickup.party_inventory = _party_inventory
+		pickup.global_position = pos
+		_world.add_child(pickup)
+	handoff.clear_ground_drops()
 
 func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> DialogueSet:
 	var greeting := DialogueLine.new()
