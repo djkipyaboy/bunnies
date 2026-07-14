@@ -100,6 +100,10 @@ var _party_inventory: PartyInventory
 ## Display names of everything looted THIS fight, in drop order — reset per _build_combatants()
 ## call alongside _fight_xp_gained, surfaced on the result card in _on_combat_ended().
 var _fight_loot_names: Array[String] = []
+## Combat-loot items that overflowed the Bag's capacity this fight — reset alongside
+## _fight_loot_names in _build_combatants(). Copied into CombatHandoff.pending_ground_drops on
+## Continue (2026-07-14-ground-item-pickups-design.md §3.3).
+var _fight_overflow_items: Array[Gear] = []
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
@@ -172,6 +176,7 @@ func _build_combatants() -> void:
 	_enemies.clear()
 	_fight_xp_gained = 0
 	_fight_loot_names = []
+	_fight_overflow_items = []
 	if _arrived_via_handoff:
 		# Overworld handoff (spec §3.4): the party is already real, already-equipped Combatants — no
 		# ClassLibrary build, no ENDGAME scaling (that's a fresh-spawn testing aid, not appropriate for
@@ -1891,9 +1896,12 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 		for item: Resource in drops:
 			if item is Gear:
 				var g: Gear = item as Gear
-				_party_inventory.give_gear(g)
-				_fight_loot_names.append(g.display_name)
-				_log("Loot: %s" % g.display_name)
+				if _party_inventory.try_give_gear(g):
+					_fight_loot_names.append(g.display_name)
+					_log("Loot: %s" % g.display_name)
+				else:
+					_fight_overflow_items.append(g)
+					_log("Loot: %s (Bag full — left on the ground)" % g.display_name)
 
 func _on_combat_ended(winner_is_player: bool) -> void:
 	_last_result_won = winner_is_player
@@ -1909,6 +1917,11 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 		label.text += "\n+%d XP" % _fight_xp_gained
 	if not _fight_loot_names.is_empty():
 		label.text += "\nLoot: %s" % ", ".join(_fight_loot_names)
+	if not _fight_overflow_items.is_empty():
+		var overflow_names: Array[String] = []
+		for g: Gear in _fight_overflow_items:
+			overflow_names.append(g.display_name)
+		label.text += "\nBag was full — left behind: %s" % ", ".join(overflow_names)
 	# Cross-scene event log (2026-07-13): only a real handoff-launched fight has anywhere to
 	# return to (an overworld/town event log) worth logging into — mirrors the loot-granting gate.
 	if _arrived_via_handoff:
@@ -1941,6 +1954,16 @@ func _resolve_handoff_continue() -> String:
 	var handoff: Node = _handoff()
 	if _last_result_won:
 		handoff.mark_defeated(handoff.pending_encounter_id)
+	# NOTE: _fight_overflow_items.duplicate() as Array[Resource] does NOT actually retype the array
+	# when assigned through this Node-typed handle's dynamic Object.set() path — the runtime value
+	# stays tagged Array[Gear], and the property setter rejects it (a variant of the documented
+	# gdscript-typed-array-node-set-gotcha: `as` only reliably retypes a fresh/untyped array literal,
+	# not an already concretely-typed Array[Gear]). Build a genuinely Array[Resource]-typed array
+	# instead.
+	var overflow_drops: Array[Resource] = []
+	for g: Gear in _fight_overflow_items:
+		overflow_drops.append(g)
+	handoff.pending_ground_drops = overflow_drops
 	var return_path: String = handoff.return_scene_path
 	handoff.clear_combat_data()
 	return return_path
