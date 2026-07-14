@@ -6,23 +6,58 @@ extends Resource
 ## Materials/Reel-Mods/Quest stay uncapped. `unlocked_companion_slots` increments PERMANENTLY at
 ## story beats regardless of whether a companion currently occupies the slot.
 
-const BASE_GEAR_CAPACITY: int = 20
-const GEAR_CAPACITY_PER_SLOT: int = 10
+const BASE_BAG_CAPACITY: int = 20
+const BAG_CAPACITY_PER_SLOT: int = 10
 
 @export var gear: Array[Gear] = []
-@export var weapons: Array[Weapon] = []   # mirrors `gear`; uncapped like gear (only the Gear TAB's slot count is capped)
+@export var weapons: Array[Weapon] = []   # mirrors `gear`; uncapped like gear (only the Bag TAB's slot count is capped)
 @export var reel_mods: Array[Resource] = []    # uncapped; shape TBD when 27-crafting is designed
 @export var materials: Array[Resource] = []    # uncapped, stacking
 @export var quest_items: Array[Resource] = []  # uncapped; never banked (per-playthrough only)
-@export var items: Array[ConsumableItem] = []  # uncapped, stacking (Healing Potion et al. — 2026-07-14 combat items menu)
+@export var items: Array[ConsumableItem] = []  # uncapped array, but stacks count toward bag capacity
 @export var gold: int = 0
 @export var unlocked_companion_slots: int = 0  # 0-2, story-gated
 
-func gear_capacity() -> int:
-	return BASE_GEAR_CAPACITY + GEAR_CAPACITY_PER_SLOT * unlocked_companion_slots
+func bag_capacity() -> int:
+	return BASE_BAG_CAPACITY + BAG_CAPACITY_PER_SLOT * unlocked_companion_slots
 
-func can_add_gear() -> bool:
-	return gear.size() < gear_capacity()
+## Gear + Weapons + Consumables share one pool (2026-07-14 ground-item-pickups design §2/§3.1);
+## Materials/Quest Items stay uncapped. A Consumable STACK counts as 1 slot, not per-unit — `items`
+## already holds one entry per item_type (give_item()/try_give_item() merge into it), so items.size()
+## is already "number of distinct stacks."
+func bag_count() -> int:
+	return gear.size() + weapons.size() + items.size()
+
+func can_add_to_bag() -> bool:
+	return bag_count() < bag_capacity()
+
+## "Try" variants are for granting a NEW item from OUTSIDE the bag (loot, ground pickups) — they can
+## fail. The existing unconditional give_gear()/give_weapon()/give_item() below stay as-is for
+## internal moves that must never fail (equip/unequip swaps, Vault transfers, demo seeding) since
+## those never grow bag_count() net (a take always precedes the give).
+func try_give_gear(g: Gear) -> bool:
+	if not can_add_to_bag():
+		return false
+	gear.append(g)
+	return true
+
+func try_give_weapon(w: Weapon) -> bool:
+	if not can_add_to_bag():
+		return false
+	weapons.append(w)
+	return true
+
+## Merging into an existing stack never grows bag_count(), so it always succeeds regardless of
+## capacity — only a genuinely new stack entry is capacity-gated.
+func try_give_item(item: ConsumableItem) -> bool:
+	for existing: ConsumableItem in items:
+		if existing.item_type == item.item_type:
+			existing.quantity += item.quantity
+			return true
+	if not can_add_to_bag():
+		return false
+	items.append(item)
+	return true
 
 ## Bag-side add/remove — no capacity check (equip/unequip never touches bag capacity).
 func take_gear(g: Gear) -> void:
