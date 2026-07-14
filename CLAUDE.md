@@ -1016,14 +1016,73 @@ implementer + reviewer, 0 Critical/Important — 124 assertions across 3 test fi
 - **Human-playtested "immaculately"** with a full party through every interaction — HP/resource/meter
   values read correctly and immediately useful alongside the existing stat spread.
 
-**Next: sub-project 2 of the overworld-playtest arc — a usable Items menu in combat** (potions etc.,
-consumed in place of an ability on a turn), per the player-confirmed build order. Playtest the loot
-drops above first. Other candidates for whenever THIS arc wraps or work resumes elsewhere: building
-out real settlement content (docs/design-bible/ roster drafts are still sitting as proposals, see
-status below); picking the tilted/dimetric overworld visual style back up; or picking up any of the
-"not decided this pass" notes left in 27-crafting.md/companion recruitment (full KOTOR-style
-system), post-combat recovery, or PC/companion level parity for deeper design work. The remaining
-combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish,
+**SHIPPED 2026-07-14 — COMBAT ITEMS MENU (Healing Potion), human-playtested and confirmed working
+(items 1-6 of the playtest checklist all passed).** Sub-project 2 of the overworld-playtest arc
+(loot drops → **Items menu** → shopkeepers → dungeon). Brainstormed → spec'd
+(`docs/superpowers/specs/2026-07-14-combat-items-menu-design.md`) → planned
+(`docs/superpowers/plans/2026-07-14-combat-items-menu.md`) → built subagent-driven (6 tasks, each
+implementer + reviewer, 2 fix rounds for test-coverage gaps, plus an Opus final whole-branch review
+— 0 Critical/Important):
+- New `ConsumableItem` (`economy/resources/consumable_item.gd`, mirrors `CraftingMaterial`'s
+  stacking shape) + `PartyInventory.items`/`give_item()`/`find_item()`/`consume_item()`.
+- `MainPhasePlan.staged_item_type`/`toggle_item()` — a 5th member of the existing mutual-exclusion
+  family alongside `ability_staged`/`staged_extra_ability_id`/`fire_ultimate_staged` (staging an item
+  clears all three; staging any of the FIVE entry points that can set those three — including the
+  Seer's `stage_select_fate()`/`stage_big_bang()` modal paths, found during build, not just the 3 the
+  spec named — clears the item). The weapon reel-spin still happens; only the "one special action"
+  slot is shared. `commit()` sets `Combatant.healing_potion_pending`/`pending_heal_amount` and
+  consumes the item — mirrors the `foresight_pending`/`regrowth_pending` pending-flag pattern
+  (`MainPhasePlan` doesn't know the party's HP spread, so it defers targeting to the orchestrator).
+- New `ItemMenuPanel` (mirrors `AbilityMenuPanel`) + a new "Items" button in `combat.gd` — its own
+  3rd action-button row (rows 1-2 were already full at 4 columns each), with the combat log pushed
+  down to make room.
+- `combat.gd`'s `_commit_main1()` orchestrator applies the heal to the party's lowest-HP%-living
+  ally (reusing `_lowest_hp_pct_ally()`, Foresight/Regrowth's existing helper) — placed AFTER the
+  generic hp-diff heal-announcement check so a self-targeted heal doesn't double-log.
+- `InventoryDemoSetup` seeds 3 Healing Potions into the demo party.
+- **Post-review polish (2 Minor findings, both fixed same session):** the Abilities/Items menus
+  floated at the same screen position with no reciprocal hide — now each hides the other on open;
+  a spec doc-drift fix (`ItemMenuPanel.open_for` is 2-param, `plan`/`inventory`, no unused
+  `Combatant`).
+- **Human playtest confirmed:** staging/un-staging, the ability↔item mutual exclusion (both
+  directions), the weapon spin still resolving normally alongside a staged potion, the potion count
+  decrementing, the button correctly disabled outside Main Phase 1, and — critically — that the heal
+  lands on whichever ally is genuinely lowest-HP%, not always the user.
+- **One open, unresolved, cosmetic finding:** in one specific sequence (bench a starting companion →
+  re-add them → recruit a second companion → fight), the combat log named the WRONG ally in a
+  Healing-Potion log line (said "Basil" when the potion — correctly, per the HP bar — healed a
+  different companion). Direct code tracing proved `ally.heal(...)` and the log line
+  read the identical object in two consecutive synchronous lines (structurally can't diverge), and a
+  synthetic reproduction using the exact reported HP values (302/302 vs 282/302) through the real
+  `ClassLibrary`/selection-logic path came back correct. **Root cause NOT found** — this is
+  low-severity (the actual game effect was correct, only log text was in question) and was NOT
+  fixed blind. If it recurs, get a screenshot of the log at that exact moment; that's the missing
+  evidence to resolve it for good.
+- **Major follow-on request, NOT started:** the player wants items to expand well beyond combat —
+  shared bag space with Gear/Weapons (not their own separate uncapped array), a usable-outside-
+  combat flow, and a target-picker UI (auto-switch `InventoryMenuPanel` to the Stats tab, click
+  anywhere in a character's column to target them, Confirm/Cancel buttons, live effect description),
+  plus a Discard-to-world-and-pickup mechanic. Decomposed into 3 sequential sub-projects (agreed with
+  the player, brainstorm started but NOT finished — no spec written yet for any of the three):
+  1. **Shared bag space** — `ConsumableItem`s share the same capped Bag/capacity model as
+     `Gear`/`Weapon`, not their own separate uncapped `items` array.
+  2. **Item-use targeting flow** — the Stats-tab click-to-target + Confirm/Cancel UI described above;
+     depends on (1) (items need to be IN the bag grid to be clickable there). The biggest, most novel
+     piece.
+  3. **Discard-to-world + pickup** — independent of (1)/(2); a "Discard" action that drops the item
+     as a real, re-collectible world object (no such mechanism exists anywhere yet — `RewardPickup`
+     is for scripted rewards, not player-discarded items).
+  **Resume here next session**: continue the brainstorm for sub-project 1 (shared bag space) — the
+  player asked to decompose but hadn't answered detailed questions on it yet before ending the
+  session to save tokens. See memory `combat-items-out-of-combat-expansion-2026-07-14` for the full
+  handoff.
+
+**Other candidates for whenever the overworld-playtest arc wraps or work resumes elsewhere:**
+building out real settlement content (docs/design-bible/ roster drafts are still sitting as
+proposals, see status below); picking the tilted/dimetric overworld visual style back up; or picking
+up any of the "not decided this pass" notes left in 27-crafting.md/companion recruitment (full
+KOTOR-style system), post-combat recovery, or PC/companion level parity for deeper design work. The
+remaining combat-side items below (Seer/Ranger Ultimate tuning, deferred UI polish,
 `Bunnies_Playtest_Tracker.xlsx` follow-ups) are parked, not abandoned — resume alongside town/overworld work
 whenever it's convenient.
 
