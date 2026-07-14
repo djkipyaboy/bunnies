@@ -130,7 +130,23 @@ meter (15) arms the **Sticky-Wild Ultimate**.
 
 ## 6. WHERE WE LEFT OFF / NEXT PHASE
 
-> ### ▶ START HERE NEXT SESSION (set 2026-07-10 — supersedes the 2026-07-01 block below)
+> ### ▶ START HERE NEXT SESSION (set 2026-07-14 — supersedes the 2026-07-10 block below)
+> **This file (HANDOFF.md) is stale below this point (last fully rewritten 2026-06-27) — read
+> `CLAUDE.md`'s status log (§8, read from the bottom up) for everything shipped since, and memory
+> `combat-items-out-of-combat-expansion-2026-07-14` for exactly where the brainstorm stopped.**
+>
+> One-paragraph state: out-of-combat systems (town/overworld/inventory/event-log/party-selection/
+> combat handoff) and the combat Items menu (Healing Potion) are all shipped and human-playtest-
+> confirmed. **Next action:** resume the brainstorm for a 3-part items expansion the player wants
+> (in order — (1) items share bag space with Gear/Weapons instead of their own separate array, (2) a
+> Stats-tab click-to-target Confirm/Cancel flow for using items OUTSIDE combat too, (3) discard an
+> item to the world + pick it back up) — the split was agreed with the player but no detailed
+> questions were asked yet on sub-project 1. Don't skip straight to a spec; ask the first clarifying
+> question (bag-capacity model) per the memory file. Separately, there's one open/unresolved cosmetic
+> bug (a combat-log line once named the wrong ally after a Healing Potion heal) — thoroughly
+> investigated, root cause NOT found, low severity; see the memory file before touching it again.
+
+> ### ▶ (historical) START HERE NEXT SESSION (set 2026-07-10 — supersedes the 2026-07-01 block below)
 > **Human-playtest the new EQUIPMENT / INVENTORY / BANKING UI before any further equipment-system
 > work.** Open `world/town_demo.tscn`, press **`I`** in the plaza, and click through:
 > equip/unequip and deposit/withdraw across all **3 paperdoll columns** (Companion 1 | PC |
