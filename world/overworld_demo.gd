@@ -385,6 +385,8 @@ func _spawn_ground_drops() -> void:
 		pickup.item = drops[i]
 		pickup.party_inventory = _party_inventory
 		pickup.global_position = pos
+		pickup.item_picked_up.connect(_on_item_picked_up)
+		pickup.pickup_rejected.connect(_on_pickup_rejected)
 		_world.add_child(pickup)
 	handoff.clear_ground_drops()
 
@@ -397,6 +399,8 @@ func _on_item_discarded(item: Resource, _quantity: int) -> void:
 	pickup.item = item
 	pickup.party_inventory = _party_inventory
 	pickup.global_position = _pc.global_position + Vector2(0, 16)
+	pickup.item_picked_up.connect(_on_item_picked_up)
+	pickup.pickup_rejected.connect(_on_pickup_rejected)
 	_pc.get_parent().add_child(pickup)
 
 func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> DialogueSet:
@@ -427,10 +431,18 @@ func _on_dialogue_closed() -> void:
 		_talking_to = null
 	_pc.set_movement_paused(false)
 
-## Shown top-left (like the encounter message, but yellow) whenever a RewardPickup is collected.
+## Shown top-left (like the encounter message, but yellow) whenever a RewardPickup or
+## GroundItemPickup is collected.
 func _on_item_picked_up(item_name: String) -> void:
 	_pickup_debug_label.text = "Picked up: %s" % item_name
 	_handoff().log_event("Picked up: %s" % item_name, &"loot")
+
+## Final-review fix (2026-07-14-ground-item-pickups final review): a full Bag used to reject a
+## ground pickup with ZERO player feedback — the same "silent rejection reads as broken" bug class
+## this project has already been bitten by (see the equipment UI's "Requires level N" fix). Reuses
+## the same top-left label GroundItemPickup.item_picked_up already writes to.
+func _on_pickup_rejected(item_name: String) -> void:
+	_pickup_debug_label.text = "Bag full — can't pick up: %s" % item_name
 
 ## Reuses the same top-left pickup label for gathering nodes (GatheringNode) — conceptually the
 ## same "you got something" feedback as _on_item_picked_up, just materials instead of gear.

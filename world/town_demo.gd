@@ -29,6 +29,7 @@ var _highlighted_target: Interactable
 var _talking_to: Villager
 var _ui_layer: CanvasLayer
 var _inventory_panel: InventoryMenuPanel
+var _pickup_debug_label: Label
 var _pc_combatant: Combatant
 var _companions: Array[Combatant] = []
 var _bench: Array[Combatant] = []
@@ -192,6 +193,16 @@ func _build_ui() -> void:
 	_interact_prompt.position = Vector2(16, 16)
 	_ui_layer.add_child(_interact_prompt)
 
+	# Top-left pickup confirmation/rejection (final-review fix, 2026-07-14-ground-item-pickups
+	# design) — mirrors overworld_demo.gd's identical label exactly, so a manually-discarded item
+	# picked back up in town gets the same "Picked up: X" / "Bag full" feedback the overworld's
+	# RewardPickup already has.
+	_pickup_debug_label = Label.new()
+	_pickup_debug_label.name = "PickupDebugLabel"
+	_pickup_debug_label.position = Vector2(16, 70)
+	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
+	_ui_layer.add_child(_pickup_debug_label)
+
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
 	_dialogue_box.custom_minimum_size = Vector2(600, 100)
@@ -259,7 +270,19 @@ func _on_item_discarded(item: Resource, _quantity: int) -> void:
 	pickup.item = item
 	pickup.party_inventory = _party_inventory
 	pickup.global_position = _pc.global_position + Vector2(0, 16)
+	pickup.item_picked_up.connect(_on_item_picked_up)
+	pickup.pickup_rejected.connect(_on_pickup_rejected)
 	_pc.get_parent().add_child(pickup)
+
+## Shown top-left whenever a GroundItemPickup is collected — mirrors overworld_demo.gd's
+## _on_item_picked_up (town has no RewardPickup, so this is the first user of the label here).
+func _on_item_picked_up(item_name: String) -> void:
+	_pickup_debug_label.text = "Picked up: %s" % item_name
+
+## Final-review fix (2026-07-14-ground-item-pickups final review): a full Bag used to reject a
+## ground pickup with ZERO player feedback. Mirrors overworld_demo.gd's identical handler.
+func _on_pickup_rejected(item_name: String) -> void:
+	_pickup_debug_label.text = "Bag full — can't pick up: %s" % item_name
 
 func _wire_doors() -> void:
 	# (525, 200) is the drawn door rectangle's center, which sits inside SHOP_BODY_RECT's

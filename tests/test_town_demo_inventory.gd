@@ -53,10 +53,29 @@ func _process(_delta: float) -> bool:
 		town._inventory_panel.press_discard_for_test()
 		town._inventory_panel.confirm_discard_for_test()
 		var found_pickup: bool = false
+		var discard_pickup: GroundItemPickup = null
 		for child in town._pc.get_parent().get_children():
 			if child is GroundItemPickup and (child.item as Gear).display_name == "Discard Test Item":
 				found_pickup = true
+				discard_pickup = child
 		_check(found_pickup, "manually discarding an item spawns a GroundItemPickup in the world")
+
+		# Final-review fix (2026-07-14-ground-item-pickups final review): GroundItemPickup's
+		# item_picked_up/pickup_rejected signals must be wired to real player feedback, not
+		# silently connected to nothing. Drive both cases through the SAME pickup the real
+		# _on_item_discarded() production wiring just spawned above.
+		while town._party_inventory.can_add_to_bag():
+			var filler: Gear = Gear.new()
+			filler.display_name = "Filler"
+			town._party_inventory.gear.append(filler)
+		discard_pickup.interact()
+		_check(town._pickup_debug_label.text.contains("Bag full") and town._pickup_debug_label.text.contains("Discard Test Item"), "a full Bag rejects a ground pickup with a Bag full message")
+		_check(is_instance_valid(discard_pickup) and not discard_pickup.is_queued_for_deletion(), "a rejected pickup stays on the ground")
+
+		town._party_inventory.gear.pop_back()   # free exactly one slot
+		discard_pickup.interact()
+		_check(town._pickup_debug_label.text.contains("Picked up:") and town._pickup_debug_label.text.contains("Discard Test Item"), "collecting a ground item (once there's room) shows a Picked up message")
+		_check(discard_pickup.is_queued_for_deletion(), "a successful pickup removes itself from the ground")
 
 		town._toggle_inventory()
 		_check(not town._inventory_panel.visible, "toggle again closes the panel")
