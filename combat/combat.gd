@@ -42,6 +42,7 @@ var _log_box: RichTextLabel
 var _spin_button: Button
 var _end_turn_button: Button
 var _abilities_button: Button
+var _items_button: Button
 var _ultimate_button: Button
 var _paylines_button: Button
 var _payline_cycle_index: int = -1   # which payline the toggle is currently previewing (-1 = none)
@@ -112,6 +113,7 @@ var _type_chart_button: Button
 var _event_log_panel: EventLogPanel      # cross-scene event log (2026-07-13); hidden until toggled on
 var _event_log_button: Button
 var _ability_menu: AbilityMenuPanel
+var _item_menu: ItemMenuPanel
 var _awaiting_player_spin: bool = false
 var _awaiting_end_turn: bool = false
 var _awaiting_stun_check: bool = false
@@ -330,12 +332,13 @@ func _build_ui() -> void:
 	_phase_label.position = Vector2(CENTER_X, 314)
 	add_child(_phase_label)
 
-	# Action-button bar (spec §2.3): centred, just above the combat log. Two rows so all 7 controls fit
-	# inside the center band without crowding the log. (Positions in _relayout_action_block / here.)
+	# Action-button bar (spec §2.3): centred, just above the combat log. Three rows so all 9 controls
+	# fit inside the center band without crowding the log. (Positions in _relayout_action_block / here.)
 	const BTN_W: float = 215.0
 	const BTN_GAP: float = 9.0
 	const ROW1_Y: float = 352.0
 	const ROW2_Y: float = 410.0
+	const ROW3_Y: float = 468.0
 	var col_x: Callable = func(i: int) -> float: return CENTER_X + float(i) * (BTN_W + BTN_GAP)
 
 	_ultimate_button = Button.new()
@@ -402,6 +405,16 @@ func _build_ui() -> void:
 	_event_log_button.tooltip_text = "Show/hide the cross-scene event log (pickups, XP, loot, encounters)."
 	add_child(_event_log_button)
 
+	# Items button (2026-07-14 combat items menu) — its own 3rd row; rows 1-2 are already full at
+	# 4 columns each.
+	_items_button = Button.new()
+	_items_button.text = "Items"
+	_items_button.position = Vector2(col_x.call(0), ROW3_Y)
+	_items_button.custom_minimum_size = Vector2(BTN_W, 44)
+	_items_button.disabled = true
+	_items_button.tooltip_text = "Open your item list — stage one consumable for this turn."
+	add_child(_items_button)
+
 	# Scrollable combat log — keeps the full history; fills the center band below the button bar (its bottom
 	# close to but not touching the buttons above). Positioned/sized in _relayout_action_block.
 	_log_bg = Panel.new()
@@ -436,6 +449,13 @@ func _build_ui() -> void:
 	_ability_menu.position = Vector2(CENTER_X + 30.0, 96.0)
 	_ability_menu.visible = false
 	add_child(_ability_menu)
+
+	# Item menu — floats over the reel area while open (2026-07-14 combat items menu); rebuilt on
+	# every open, same convention as the ability menu above.
+	_item_menu = ItemMenuPanel.new()
+	_item_menu.position = Vector2(CENTER_X + 30.0, 96.0)
+	_item_menu.visible = false
+	add_child(_item_menu)
 
 	_build_overlay()
 	_build_fate_picker()
@@ -834,7 +854,7 @@ func _relayout_action_block() -> void:
 	const CENTER_X: float = 350.0
 	const RIGHT_COL_X: float = 1276.0
 	var view: Vector2 = get_viewport_rect().size
-	var log_top: float = 470.0   # below the button bar (row 2 at y=410, height 44 → bottom 454)
+	var log_top: float = 528.0   # below the button bar (row 3 at y=468, height 44 → bottom 512)
 	var log_w: float = (RIGHT_COL_X - 16.0) - CENTER_X
 	var log_h: float = maxf(120.0, (view.y - 14.0) - log_top)
 	_log_bg.position = Vector2(CENTER_X, log_top)
@@ -858,6 +878,8 @@ func _bind_signals() -> void:
 	_end_turn_button.pressed.connect(_on_end_turn_pressed)
 	_abilities_button.pressed.connect(_on_abilities_pressed)
 	_ability_menu.ability_pressed.connect(_on_ability_menu_ability_pressed)
+	_items_button.pressed.connect(_on_items_pressed)
+	_item_menu.item_pressed.connect(_on_item_menu_item_pressed)
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 	_paylines_button.pressed.connect(_on_paylines_pressed)
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
@@ -939,7 +961,7 @@ func _on_turn_started(c: Combatant) -> void:
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
-	_plan = MainPhasePlan.new(c, c.ability_cost, 5, 2)  # ability cost from class; reel cap 5; wild 2 spins
+	_plan = MainPhasePlan.new(c, c.ability_cost, 5, 2, _party_inventory)  # ability cost from class; reel cap 5; wild 2 spins; shared party inventory (2026-07-14 items)
 	# The ability/Ultimate buttons follow the ACTIVE PC (the controller this turn); on an enemy turn they're
 	# disabled, so label them from the active party member (the current PC, else the first party member).
 	var ctrl: Combatant = c if c.is_player else _pc
@@ -967,6 +989,7 @@ func _on_turn_started(c: Combatant) -> void:
 		_awaiting_player_spin = false
 		_abilities_button.disabled = true
 		_ultimate_button.disabled = true
+		_items_button.disabled = true
 		_prepare_strips(c.turn_reels)  # show the reels (idle) behind the gate
 		_log("  %s is STUNNED — %s a shake-off roll." % [c.display_name, "press SPIN for" if c.is_player else "rolling"])
 		if c.is_player:
@@ -991,6 +1014,7 @@ func _take_dummy_turn(c: Combatant) -> void:
 	_spin_button.disabled = true
 	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
+	_items_button.disabled = true
 	var none: Array[ActionReel] = []
 	_prepare_strips(none)  # no reels — the dummy doesn't spin
 	var missing: int = c.max_hp - c.hp
@@ -1079,9 +1103,12 @@ func _on_spin_pressed() -> void:
 	_spin_button.disabled = true
 	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
+	_items_button.disabled = true
 	_ability_menu.hide()
+	_item_menu.hide()
 	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
+	_items_button.modulate = Color(1, 1, 1)
 	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
 	# Re-prepare strips from the COMMITTED reels. The preview's spliced reel is a separate
 	# make_default() instance with a DIFFERENT shuffle than the committed one, so the strip must be
@@ -1146,10 +1173,35 @@ func _on_ability_menu_ability_pressed(id: StringName) -> void:
 		_ability_menu.open_for(_attacker, _plan)  # re-render states in place (e.g. press was a no-op)
 	_refresh_main1_preview()
 
-## Fingerprint of the plan's staged-ability state — compared around a toggle to detect "something
-## actually changed" (drives the close-on-successful-toggle rule).
+## Opens/closes the item menu (2026-07-14 combat items menu) — same door/toggle shape as
+## _on_abilities_pressed(). All staging happens inside the menu.
+func _on_items_pressed() -> void:
+	if _item_menu.visible:
+		_item_menu.hide()
+		return
+	if not _awaiting_player_spin or _plan == null:
+		return
+	_item_menu.open_for(_plan, _party_inventory)
+	move_child(_item_menu, get_child_count() - 1)  # draw over the reel strips while up
+
+## One item-menu row pressed: dispatch to MainPhasePlan.toggle_item() — mutual exclusion with
+## ability/extra/Ultimate is model-enforced there, never policed here (mirrors
+## _on_ability_menu_ability_pressed()'s own division of labor).
+func _on_item_menu_item_pressed(item_type: StringName) -> void:
+	if not _awaiting_player_spin or _plan == null:
+		return
+	var before: String = _staged_state_key()
+	_plan.toggle_item(item_type)
+	if _staged_state_key() != before:
+		_item_menu.hide()
+	else:
+		_item_menu.open_for(_plan, _party_inventory)  # re-render states in place (e.g. press was a no-op)
+	_refresh_main1_preview()
+
+## Fingerprint of the plan's staged-ability/item state — compared around a toggle to detect
+## "something actually changed" (drives the close-on-successful-toggle rule for both menus).
 func _staged_state_key() -> String:
-	return "%s|%s" % [str(_plan.ability_staged), String(_plan.staged_extra_ability_id)]
+	return "%s|%s|%s" % [str(_plan.ability_staged), String(_plan.staged_extra_ability_id), String(_plan.staged_item_type)]
 
 ## Stages/un-stages the Sticky-Wild Ultimate (toggle). Consumes nothing — commit happens on SPIN.
 func _on_ultimate_pressed() -> void:
@@ -1210,6 +1262,21 @@ func _refresh_main1_preview() -> void:
 		_ultimate_button.text = _ultimate_label(_attacker.ultimate_id)
 	_ultimate_button.disabled = not (is_player_main1 and (_plan.fire_ultimate_staged or _plan.can_stage_ultimate()))
 	_ultimate_button.modulate = Color(0.6, 1.0, 0.6) if _plan.fire_ultimate_staged else Color(1, 1, 1)
+	# Items button (2026-07-14 combat items menu): same staged-name/staged-green convention as
+	# Abilities — legible with the menu closed.
+	var staged_item_name: String = ""
+	if _plan.staged_item_type != &"":
+		var item: ConsumableItem = _party_inventory.find_item(_plan.staged_item_type) if _party_inventory != null else null
+		staged_item_name = item.display_name if item != null else ""
+	if staged_item_name != "":
+		_items_button.text = "Items: %s ✓" % staged_item_name
+		_items_button.modulate = Color(0.6, 1.0, 0.6)
+	else:
+		_items_button.text = "Items"
+		_items_button.modulate = Color(1, 1, 1)
+	_items_button.disabled = not (is_player_main1 and _party_inventory != null and not _party_inventory.items.is_empty())
+	if _item_menu.visible:
+		_item_menu.open_for(_plan, _party_inventory)  # keep an open menu's row states live
 
 ## Glows the strips that WOULD be wild at spin (staged fire ∪ carryover), per the plan's preview.
 func _highlight_preview_wild() -> void:
@@ -1311,6 +1378,15 @@ func _commit_main1() -> void:
 		_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
 	if _attacker.hp > hp_before:
 		_log("  ✚ %s heals %d HP (%d/%d)." % [_attacker.display_name, _attacker.hp - hp_before, _attacker.hp, _attacker.max_hp])
+	# Healing Potion (2026-07-14 combat items menu): the orchestrator (which knows the whole party)
+	# picks the lowest-HP% living ally, same precedent as Foresight/Regrowth. Placed AFTER the
+	# generic hp-diff check above so a potion that heals the user themselves doesn't double-log.
+	if _attacker.healing_potion_pending:
+		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
+		if ally != null:
+			ally.heal(_attacker.pending_heal_amount)
+			_log("  ✚ %s drinks a Healing Potion — %s heals %d HP (%d/%d)." % [_attacker.display_name, ally.display_name, _attacker.pending_heal_amount, ally.hp, ally.max_hp])
+		_attacker.healing_potion_pending = false
 	# Immediate status/resource refresh (playtest 2026-07-04): self-cast buffs with no pending-flag
 	# block below (Heroic Guard, Second Wind, Bloodwrath, Mountain Stance, Feint & Riposte, Quickstep,
 	# Bastion, Riposte Storm, Loaded Dice) previously only became visible on the panel at this
@@ -1770,8 +1846,10 @@ func _finish_spin() -> void:
 	_highlight_wild_strips()
 	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
+	_items_button.disabled = true
 	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
+	_items_button.modulate = Color(1, 1, 1)
 	(_panels[_attacker] as CombatantPanel).set_meter_flash(false)
 	# If the spin ended the fight, go straight to the result — no End Turn needed.
 	if _turn_manager.is_combat_over():
