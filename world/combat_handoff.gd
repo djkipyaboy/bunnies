@@ -136,7 +136,7 @@ func clear_return_position() -> void:
 func clear_ground_drops() -> void:
 	pending_ground_drops = [] as Array[Resource]
 
-## Clears everything the three narrower methods above clear, combined — for callers (and tests)
+## Clears everything the four narrower methods above clear, combined — for callers (and tests)
 ## that want a full reset in one call. Does NOT clear defeated_encounter_ids or event_log_entries —
 ## both must persist for the life of the session.
 func clear_pending() -> void:
