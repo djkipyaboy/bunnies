@@ -64,23 +64,28 @@ Open `tests/test_party_inventory.gd`. Replace the existing `gear_capacity()`/`ca
 
 	# bag_count() sums gear + weapons + items (each stack counts once), NOT materials/quest_items.
 	_check(inv.bag_count() == 0, "a fresh inventory has bag_count() 0")
-	for i: int in range(38):
+	for i: int in range(37):
 		inv.gear.append(Gear.new())
 	inv.weapons.append(Weapon.new())
 	var potion: ConsumableItem = ConsumableItem.new()
 	potion.item_type = &"healing_potion"
 	potion.quantity = 5
 	inv.items.append(potion)
-	_check(inv.bag_count() == 40, "gear(38) + weapons(1) + items(1 stack, qty 5) = 40 slots (got %d)" % inv.bag_count())
+	_check(inv.bag_count() == 39, "gear(37) + weapons(1) + items(1 stack, qty 5) = 39 slots (got %d)" % inv.bag_count())
 	_check(inv.can_add_to_bag(), "39 < 40 capacity -> room for one more")
 
 	inv.gear.append(Gear.new())
-	_check(inv.bag_count() == 41, "one more gear entry -> 41 (got %d)" % inv.bag_count())
-	_check(not inv.can_add_to_bag(), "at capacity (41 >= 40) -> no room")
+	_check(inv.bag_count() == 40, "one more gear entry -> 40 (got %d)" % inv.bag_count())
+	_check(not inv.can_add_to_bag(), "at capacity (40 >= 40) -> no room")
 
+	# A separate inventory (not `inv`, which the pre-existing "Materials tab uncapped" check below
+	# still needs empty) proves materials never count toward bag_count().
+	var mat_check_inv: PartyInventory = PartyInventory.new()
+	for i: int in range(38):
+		mat_check_inv.gear.append(Gear.new())
 	for i: int in range(500):
-		inv.materials.append(Resource.new())
-	_check(inv.bag_count() == 41, "materials never count toward bag_count() (still 41, got %d)" % inv.bag_count())
+		mat_check_inv.materials.append(Resource.new())
+	_check(mat_check_inv.bag_count() == 38, "materials never count toward bag_count() (got %d)" % mat_check_inv.bag_count())
 
 	# try_give_gear()/try_give_weapon(): fail at capacity, leave the bag unchanged.
 	var full_inv: PartyInventory = PartyInventory.new()

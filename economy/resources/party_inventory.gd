@@ -1,8 +1,9 @@
 class_name PartyInventory
 extends Resource
 
-## One shared inventory per PC (not per-companion) — spec 2026-07-10 §4.1. Weightless; only the
-## Gear tab is slot-capped (a soft friction lever toward banking/selling, not a hard wall).
+## One shared inventory per PC (not per-companion) — spec 2026-07-10 §4.1. Weightless; the Bag
+## (Gear + Weapons + Consumables together, 2026-07-14 ground-item-pickups design §2/§3.1) is
+## slot-capped (a soft friction lever toward banking/selling/discarding, not a hard wall).
 ## Materials/Reel-Mods/Quest stay uncapped. `unlocked_companion_slots` increments PERMANENTLY at
 ## story beats regardless of whether a companion currently occupies the slot.
 
