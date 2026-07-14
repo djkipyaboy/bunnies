@@ -366,11 +366,13 @@ func _initialize() -> void:
 	get_root().add_child(pickup)
 	await process_frame
 
-	var picked_up_name: String = ""
-	pickup.item_picked_up.connect(func(n: String): picked_up_name = n)
+	# GDScript lambdas capture outer locals BY VALUE — reassigning a plain captured String inside
+	# the lambda would not propagate back out, so use a 1-element Array (a reference type) instead.
+	var picked_up_name: Array = [""]
+	pickup.item_picked_up.connect(func(n: String): picked_up_name[0] = n)
 	pickup.interact()
 	_check(inv.gear.has(sword), "interact() grants the Gear item into the PartyInventory")
-	_check(picked_up_name == "Test Sword", "item_picked_up carries the display name")
+	_check(picked_up_name[0] == "Test Sword", "item_picked_up carries the display name")
 	await process_frame
 	_check(not is_instance_valid(pickup), "a successful pickup frees itself")
 
@@ -415,11 +417,11 @@ func _initialize() -> void:
 	get_root().add_child(pickup4)
 	await process_frame
 
-	var rejected_name: String = ""
-	pickup4.pickup_rejected.connect(func(n: String): rejected_name = n)
+	var rejected_name: Array = [""]
+	pickup4.pickup_rejected.connect(func(n: String): rejected_name[0] = n)
 	pickup4.interact()
 	_check(not full_inv.gear.has(shield), "a rejected pickup does not grant the item")
-	_check(rejected_name == "Rejected Shield", "pickup_rejected fires with the item's name")
+	_check(rejected_name[0] == "Rejected Shield", "pickup_rejected fires with the item's name")
 	await process_frame
 	_check(is_instance_valid(pickup4), "a rejected pickup does NOT free itself — it stays on the ground")
 
@@ -429,9 +431,8 @@ func _initialize() -> void:
 	pickup4.set_highlighted(false)
 	_check(not pickup4._proximity_label.visible, "set_highlighted(false) hides the floating label")
 
-	pickup.free()
-	pickup2.free()
-	pickup3.free()
+	# pickup/pickup2/pickup3 already freed themselves via queue_free() inside interact() (their
+	# grants succeeded) — only the rejected pickup4 is still alive and needs freeing here.
 	pickup4.free()
 
 	print(("GROUND ITEM PICKUP TEST PASSED" if _failures == 0 else "GROUND ITEM PICKUP TEST FAILED: %d" % _failures))
