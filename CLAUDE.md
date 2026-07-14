@@ -1077,6 +1077,85 @@ implementer + reviewer, 2 fix rounds for test-coverage gaps, plus an Opus final 
   session to save tokens. See memory `combat-items-out-of-combat-expansion-2026-07-14` for the full
   handoff.
 
+**SHIPPED 2026-07-14 — GROUND ITEM PICKUPS (bag overflow + manual Discard), all headless-test-green,
+human playtest still pending.** Sub-project 1 of the items-out-of-combat expansion — the brainstorm
+resequenced it ahead of "shared bag space" (which it absorbed) once it became clear capacity
+enforcement needs somewhere for overflow to go. Spec:
+`docs/superpowers/specs/2026-07-14-ground-item-pickups-design.md`. Plan:
+`docs/superpowers/plans/2026-07-14-ground-item-pickups.md`. Built via subagent-driven-development, 8
+tasks + a final Opus whole-branch review + 1 fix round, all task-reviewed clean (170/170 headless test
+files green except one confirmed pre-existing, unrelated failure — see below):
+- **Unified Bag capacity** — Gear + Weapons + Consumables now share one pool
+  (`PartyInventory.bag_capacity()`/`bag_count()`, renamed from the old Gear-only `gear_capacity()`/
+  `can_add_gear()`); Materials/Quest Items stay uncapped, unchanged. New `try_give_gear`/
+  `try_give_weapon`/`try_give_item` are the capacity-gated grant surface for anything coming from
+  OUTSIDE the bag (loot, ground pickups) — the existing unconditional `give_*`/`take_*` stay
+  unchanged for internal moves (equip/unequip, Vault transfers, demo seeding) that must never fail.
+- **`GroundItemPickup` (new, `world/ground_item_pickup.gd`)** — an `Interactable` subclass holding
+  exactly one Gear/Weapon/ConsumableItem/CraftingMaterial. Requires a deliberate interact keypress
+  (no auto-trigger); tinted via `RarityVisuals` for Gear/Weapon, a placeholder tint otherwise; a new
+  **floating label** above the pickup (not the existing fixed-corner `InteractPrompt`) shows/hides
+  via `set_highlighted()`, reusing the existing per-frame nearest-interactable poll — built narrow for
+  this one class, generalizing to every `Interactable` is an explicit deferred follow-up. Re-collecting
+  is capacity-gated exactly like any other pickup (`pickup_rejected` signal) — a rejected pickup stays
+  on the ground, not lost.
+- **Automatic overflow (combat loot only this pass)** — `combat.gd._on_enemy_defeated()` now calls
+  `try_give_gear()`; a failed grant accumulates into `_fight_overflow_items`, shown on the result card
+  ("Bag was full — left behind: ..."), and copied into a new `CombatHandoff.pending_ground_drops`
+  field before the scene change (same "who clears what and when" convention as `return_position`).
+  `overworld_demo.gd` spawns one `GroundItemPickup` per overflowed item, scattered in a small ring
+  around the return position, then clears the field. `RewardPickup`/`GatheringNode` keep their
+  existing unconditional grants — explicitly out of scope this pass.
+- **Manual Discard** — a new "Discard" action in `InventoryMenuPanel`, available on the Bag tab (any
+  Gear/Weapon/Consumable) and the newly-**selectable** Materials tab (`_selected_material`,
+  mutually exclusive with the Bag/Vault grid's `_selected`) — Quest Items excluded per the player's
+  own rule. Stackable items (Consumable/Material) get a quantity stepper + "All" toggle; non-stackable
+  Gear/Weapon skip straight to Confirm/Cancel. Confirming removes the item from the Bag (a genuine
+  duplicate for partial-stack discards, matching the `LootTable.roll()` aliasing-avoidance precedent)
+  and emits a new `item_discarded(item, quantity)` signal — both `town_demo.gd` and
+  `overworld_demo.gd` listen and spawn a `GroundItemPickup` at the PC's current position via
+  `_pc.get_parent()` (not a hardcoded container, since town's PC reparents between
+  `Exterior`/`ShopInterior` on shop entry/exit).
+- **Two GDScript gotchas hit repeatedly this pass** (both now in memory
+  `gdscript-typed-array-node-set-gotcha`): lambdas connected to a signal capture outer locals BY
+  VALUE, so reassigning a plain `var` inside the lambda never propagates (fix: wrap in a 1-element
+  `Array`) — hit twice, independently, in two different tasks' test code. And `.duplicate() as
+  Array[Resource]` does NOT retype an already-typed `Array[Subclass]` when assigned through a
+  `Node`-typed handle (throws a loud `Invalid assignment` error, unlike the previously-documented
+  silent bare-`[]` variant) — fix: rebuild a genuinely fresh typed array via a loop.
+- **Final whole-branch review caught 1 real cross-task gap no single task owned**: `GroundItemPickup`
+  emits `item_picked_up`/`pickup_rejected`, but nothing anywhere connected to either signal — a full-
+  bag re-collect attempt was completely silent, contradicting the spec's explicit "Bag full" message
+  requirement (same bug class as the earlier silent-equip-rejection fix). Fixed same session: both
+  signals wired at all 3 spawn sites to a player-visible label (overworld reuses its existing
+  `RewardPickup`-era label; town gained one from scratch, having had none). Re-reviewed clean.
+- **A pre-existing, unrelated bug was independently confirmed OUT OF SCOPE for this plan**:
+  `tests/test_adventuring_board_panel.gd`'s "pressing Party Selection emits party_selection_pressed"
+  fails identically on the commit before this plan started — not touched by any of the 8 tasks, not
+  fixed here, needs its own separate look.
+- **Environment note for future sessions**: the Godot executable
+  (`Godot_v4.6.3-stable_win64_console.exe`) lives ONE DIRECTORY ABOVE this repo
+  (`C:\bunnies\bunnies-main\`, not inside `C:\bunnies\bunnies-main\bunnies\`) — a subagent that can't
+  find it will "logically verify" instead of actually running tests, which hid several real bugs this
+  session until the controller ran things directly. Also: never delete `.godot/` to troubleshoot a
+  test failure — it's gitignored (no data loss) but wipes the class_name registry project-wide;
+  recover with `Godot...exe --headless --path <repo> --editor --quit`.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: all of the above is headless-test-green
+  (170/170 files, the one exception confirmed pre-existing/unrelated). A human has not yet playtested
+  this live — try discarding an item from the Bag/Materials tab in `town_demo.tscn`/
+  `overworld_demo.tscn`, confirm the quantity/All prompt and the ground pickup + floating label read
+  right, then trigger a combat encounter with a full Bag and confirm the overflow drop appears back at
+  the return spot.
+
+**Still open, NOT started: sub-projects 2 and 3 of the items-out-of-combat expansion** (item-use
+targeting UI via the Stats tab; the discard-to-world half of sub-project 3 is now DONE, folded into
+the work above — only the shared-bag-space half of the original sub-project 1 remains conceptually
+merged into what shipped). Next up per the original decomposition: **item-use targeting flow** —
+clicking a consumable in the Bag should auto-switch `InventoryMenuPanel` to its Stats tab, click
+anywhere in a character's column to target them, Confirm/Cancel, live effect description. See memory
+`combat-items-out-of-combat-expansion-2026-07-14` for the original requirements; the decomposition/
+sequencing described there is now superseded by this entry (ground pickups shipped first, not third).
+
 **Other candidates for whenever the overworld-playtest arc wraps or work resumes elsewhere:**
 building out real settlement content (docs/design-bible/ roster drafts are still sitting as
 proposals, see status below); picking the tilted/dimetric overworld visual style back up; or picking
