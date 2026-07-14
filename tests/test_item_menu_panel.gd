@@ -38,6 +38,9 @@ func _init() -> void:
 	plan.toggle_item(&"healing_potion")
 	panel.open_for(plan, inv)
 	_check(panel.row_types() == ([&"healing_potion"] as Array[StringName]), "row list unaffected by staging")
+	var staged_btn: Button = panel._row_buttons[&"healing_potion"]
+	_check(staged_btn.text.contains("✓"), "staged row's button text shows the checkmark")
+	_check(staged_btn.modulate == ItemMenuPanel.COLOR_STAGED, "staged row's button is tinted COLOR_STAGED")
 
 	panel.open_for(plan, inv)
 	_check(panel.visible, "re-opened for the close-button check")
