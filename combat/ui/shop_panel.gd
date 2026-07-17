@@ -57,13 +57,6 @@ func _rebuild() -> void:
 	_amber_label.add_theme_font_size_override("font_size", 14)
 	add_child(_amber_label)
 
-	var close_btn := Button.new()
-	close_btn.text = "✕"
-	close_btn.position = Vector2(PANEL_W - PAD - 28.0, PAD - 4.0)
-	close_btn.custom_minimum_size = Vector2(28.0, 28.0)
-	close_btn.pressed.connect(close)
-	add_child(close_btn)
-
 	var tabs_top: float = PAD + TITLE_H
 	for i in range(TAB_ROW.size()):
 		var tab_id: StringName = TAB_ROW[i][0]
@@ -85,6 +78,8 @@ func _rebuild() -> void:
 
 	var bottom: float = rows_top + float(maxi(visible_entries.size(), 1)) * ROW_H + PAD
 	if _reject_label != null:
+		_reject_label.position = Vector2(PAD, rows_top + float(visible_entries.size()) * ROW_H)
+		add_child(_reject_label)
 		bottom += ROW_H
 	custom_minimum_size = Vector2(PANEL_W, bottom)
 	size = custom_minimum_size

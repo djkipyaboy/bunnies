@@ -85,7 +85,7 @@ func stash_party(p: Combatant, comps: Array, inv: PartyInventory, v: Vault, b: A
 
 func begin_encounter(p: Combatant, comps: Array, inv: PartyInventory, v: Vault,
 		ids: Array[StringName], encounter_id: StringName, scene_path: String, position: Vector2,
-		b: Array = []) -> void:
+		b: Array = [], shop: Array = []) -> void:
 	pc = p
 	companions = comps
 	bench = b
@@ -96,6 +96,7 @@ func begin_encounter(p: Combatant, comps: Array, inv: PartyInventory, v: Vault,
 	return_scene_path = scene_path
 	return_position = position
 	has_return_position = true
+	shop_stock = shop
 
 func mark_defeated(encounter_id: StringName) -> void:
 	if not defeated_encounter_ids.has(encounter_id):

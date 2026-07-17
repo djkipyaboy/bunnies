@@ -28,6 +28,12 @@ var companions: Array = []
 ## Party Selection work) — carried through so a combat round-trip doesn't silently wipe it (see
 ## CombatHandoff.bench's own playtest-found-bug note).
 var bench: Array = []
+## The town's live shop-stock array (2026-07-17 general store design) — carried through this
+## encounter's handoff exactly like bench/party_inventory/vault, even though combat itself never
+## reads it (mirrors bench's own "carried through without inspection" precedent, and closes the
+## exact gap CombatHandoff.bench's playtest-found-bug note warns about: a new field only tested via
+## stash_party()/SceneExit missing the real bug in begin_encounter()/OverworldEnemy).
+var shop_stock: Array = []
 var party_inventory: PartyInventory
 var vault: Vault
 var return_scene_path: String = ""
@@ -102,7 +108,7 @@ func _begin_handoff() -> void:
 		enemy_names.append(EnemyLibrary.label(id))
 	_handoff().log_event("Encounter started: %s" % ", ".join(enemy_names), &"combat")
 	_handoff().begin_encounter(pc_combatant, companions, party_inventory, vault, enemy_ids,
-		StringName(name), return_scene_path, pc_node.global_position, bench)
+		StringName(name), return_scene_path, pc_node.global_position, bench, shop_stock)
 
 ## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global
 ## identifier. Referencing the bare `CombatHandoff` identifier compiles fine when the editor/

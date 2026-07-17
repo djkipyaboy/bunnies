@@ -368,6 +368,7 @@ func _place_overworld_enemy(node_name: StringName, enemy_ids: Array[StringName],
 	enemy.pc_combatant = _pc_combatant
 	enemy.companions = _companions
 	enemy.bench = _bench
+	enemy.shop_stock = _shop_stock
 	enemy.party_inventory = _party_inventory
 	enemy.vault = _vault
 	enemy.return_scene_path = "res://world/overworld_demo.tscn"
