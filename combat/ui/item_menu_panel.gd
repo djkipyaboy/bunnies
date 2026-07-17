@@ -27,7 +27,7 @@ var _close_button: Button
 ## Rebuilds the menu for [param inventory]'s currently-owned item types + [param plan]'s staged
 ## state, then shows it. Rows are never cached — rebuilt on every open, same convention as
 ## AbilityMenuPanel.open_for().
-func open_for(plan: MainPhasePlan, inventory: PartyInventory) -> void:
+func open_for(plan: MainPhasePlan, inventory: PartyInventory, ally_target: Combatant) -> void:
 	for child in get_children():
 		child.queue_free()
 	_row_types.clear()
@@ -55,14 +55,14 @@ func open_for(plan: MainPhasePlan, inventory: PartyInventory) -> void:
 
 	var top: float = PAD + TITLE_H
 	for i: int in range(_row_types.size()):
-		_build_row(_row_types[i], inventory, plan, top + float(i) * ROW_H)
+		_build_row(_row_types[i], inventory, plan, top + float(i) * ROW_H, ally_target)
 
 	custom_minimum_size = Vector2(PANEL_W, top + float(_row_types.size()) * ROW_H + PAD)
 	size = custom_minimum_size
 	show()
 
 ## One row: a toggle Button (name + owned quantity) and an info Label (what it does).
-func _build_row(item_type: StringName, inventory: PartyInventory, plan: MainPhasePlan, y: float) -> void:
+func _build_row(item_type: StringName, inventory: PartyInventory, plan: MainPhasePlan, y: float, ally_target: Combatant) -> void:
 	var item: ConsumableItem = inventory.find_item(item_type)
 	var staged: bool = plan.staged_item_type == item_type
 
@@ -78,7 +78,7 @@ func _build_row(item_type: StringName, inventory: PartyInventory, plan: MainPhas
 	_row_buttons[item_type] = btn
 
 	var info := Label.new()
-	info.text = "Heals the party's lowest-HP%% ally for %d HP." % item.heal_amount
+	info.text = "Heals %s for %d HP (90%% success / 10%% critical success ×1.5)." % [ally_target.display_name if ally_target != null else "your target", item.heal_amount]
 	info.position = Vector2(PAD + BTN_W + 12.0, y)
 	info.custom_minimum_size = Vector2(INFO_W, ROW_H - 10.0)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

@@ -844,6 +844,8 @@ func _select_ally_target(ally: Combatant) -> void:
 		return
 	_ally_target = ally
 	_refresh_ally_target_highlight()
+	if _item_menu.visible:
+		_item_menu.open_for(_plan, _party_inventory, _ally_target)
 
 ## Outlines the current ally-target panel (green) and clears the others. No-op (all clear) when
 ## _ally_target is null — the state during an enemy's turn.
@@ -1230,7 +1232,7 @@ func _on_items_pressed() -> void:
 	if not _awaiting_player_spin or _plan == null:
 		return
 	_ability_menu.hide()  # the two menus float at the same spot (2026-07-14 final review) — only one at a time
-	_item_menu.open_for(_plan, _party_inventory)
+	_item_menu.open_for(_plan, _party_inventory, _ally_target)
 	move_child(_item_menu, get_child_count() - 1)  # draw over the reel strips while up
 
 ## One item-menu row pressed: dispatch to MainPhasePlan.toggle_item() — mutual exclusion with
@@ -1244,7 +1246,7 @@ func _on_item_menu_item_pressed(item_type: StringName) -> void:
 	if _staged_state_key() != before:
 		_item_menu.hide()
 	else:
-		_item_menu.open_for(_plan, _party_inventory)  # re-render states in place (e.g. press was a no-op)
+		_item_menu.open_for(_plan, _party_inventory, _ally_target)  # re-render states in place (e.g. press was a no-op)
 	_refresh_main1_preview()
 
 ## Fingerprint of the plan's staged-ability/item state — compared around a toggle to detect
@@ -1325,7 +1327,7 @@ func _refresh_main1_preview() -> void:
 		_items_button.modulate = Color(1, 1, 1)
 	_items_button.disabled = not (is_player_main1 and _party_inventory != null and not _party_inventory.items.is_empty())
 	if _item_menu.visible:
-		_item_menu.open_for(_plan, _party_inventory)  # keep an open menu's row states live
+		_item_menu.open_for(_plan, _party_inventory, _ally_target)  # keep an open menu's row states live
 
 ## Glows the strips that WOULD be wild at spin (staged fire ∪ carryover), per the plan's preview.
 func _highlight_preview_wild() -> void:
