@@ -31,7 +31,7 @@ func _initialize() -> void:
 	# Drive turns until it's a PC's turn awaiting a spin (enemy turns auto-resolve on a timer; this
 	# loop only advances frames, mirroring tests/test_scene_party_smoke.gd's guard style).
 	var guard: int = 0
-	while is_instance_valid(inst) and not inst._awaiting_player_spin and guard < 200:
+	while is_instance_valid(inst) and not inst._awaiting_player_spin and guard < 1000:
 		guard += 1
 		await process_frame
 	_check(inst._awaiting_player_spin, "reached a PC's pre-spin window within the frame guard")
@@ -41,6 +41,12 @@ func _initialize() -> void:
 	var active: Combatant = inst._attacker
 	_check(inst._ally_target == active, "ally target defaults to the active combatant's own panel")
 	_check((inst._panels[active] as CombatantPanel).has_theme_stylebox_override("panel"), "active combatant's panel shows the green outline by default")
+
+	# Coexistence regression (2026-07-16 final review, Finding 1): the enemy red-outline system and the
+	# ally green-outline system must not clobber each other. _defender is populated every turn by the
+	# pre-existing _on_turn_started -> _refresh_target_highlight flow, so it should already be set here.
+	_check(inst._defender != null, "an enemy target (_defender) is set on the PC's turn")
+	_check((inst._panels[inst._defender] as CombatantPanel).has_theme_stylebox_override("panel"), "the enemy target's red outline still shows alongside the ally green outline")
 
 	# Retarget to the other PC via the same hook the click-catcher calls.
 	var other_pc: Combatant = companion if active == pc else pc

@@ -815,8 +815,9 @@ func _select_target(enemy: Combatant) -> void:
 ## Outlines the current primary-target enemy panel (and clears the others).
 func _refresh_target_highlight() -> void:
 	for c: Combatant in _turn_manager.combatants:
-		if _panels.has(c):
-			(_panels[c] as CombatantPanel).set_targeted(c == _defender and not c.is_player)
+		if c.is_player or not _panels.has(c):
+			continue
+		(_panels[c] as CombatantPanel).set_targeted(c == _defender)
 
 ## Mirrors _build_target_click_catchers() for the party side: clicking a living ally panel sets it as
 ## the acting combatant's item-use target (2026-07-16 design §2/§3.4).
@@ -851,8 +852,9 @@ func _select_ally_target(ally: Combatant) -> void:
 ## _ally_target is null — the state during an enemy's turn.
 func _refresh_ally_target_highlight() -> void:
 	for c: Combatant in _turn_manager.combatants:
-		if _panels.has(c):
-			(_panels[c] as CombatantPanel).set_ally_targeted(c == _ally_target)
+		if not c.is_player or not _panels.has(c):
+			continue
+		(_panels[c] as CombatantPanel).set_ally_targeted(c == _ally_target)
 
 ## Picks which living PC an enemy attacks this turn (spec 2026-06-28 §3.1): EnemyAI prefers a
 ## super-effective matchup, then neutral, then lowest-HP. Isolated so a future policy swaps only this.
