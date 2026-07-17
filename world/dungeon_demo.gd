@@ -110,3 +110,207 @@ func _apply_floor_change(target_index: int, target_local_entry: Vector2) -> void
 	_camera.limit_bottom = int(bounds.end.y)
 	_camera.reset_smoothing()
 	_current_floor = target_index
+
+func _ready() -> void:
+	_fade_overlay = FadeOverlay.new()
+	add_child(_fade_overlay)
+	var start: Dictionary = _determine_start()
+	_current_floor = start["floor"]
+	_build_floors()
+	_build_pc(start["position"])
+	_build_camera()
+	_build_ui()
+	_build_inventory_demo()
+	_place_dungeon_enemies()
+	_dungeon_exit.pc_combatant = _pc_combatant
+	_dungeon_exit.companions = _companions
+	_dungeon_exit.bench = _bench
+	_dungeon_exit.party_inventory = _party_inventory
+	_dungeon_exit.vault = _vault
+	_dungeon_exit.shop_stock = _shop_stock
+
+func _determine_start() -> Dictionary:
+	var handoff: Node = _handoff()
+	if handoff.has_return_position:
+		var result: Dictionary = {"floor": handoff.dungeon_floor, "position": handoff.return_position}
+		handoff.clear_return_position()
+		return result
+	return {"floor": 0, "position": floor_bounds(0).position + ENTRANCE_LOCAL}
+
+func _build_pc(start_position: Vector2) -> void:
+	_pc = PCController.new()
+	_pc.name = "PC"
+	_pc.global_position = start_position
+
+	var shape := CollisionShape2D.new()
+	var capsule := CapsuleShape2D.new()
+	capsule.radius = 8.0
+	capsule.height = 20.0
+	shape.shape = capsule
+	_pc.add_child(shape)
+
+	var visual := ColorRect.new()
+	visual.color = Color(0.85, 0.55, 0.25)
+	visual.position = Vector2(-8, -12)
+	visual.size = Vector2(16, 24)
+	_pc.add_child(visual)
+
+	_floors[_current_floor].add_child(_pc)
+
+func _build_camera() -> void:
+	_camera = Camera2D.new()
+	_camera.name = "Camera2D"
+	_camera.position_smoothing_enabled = true
+	var bounds: Rect2 = floor_bounds(_current_floor)
+	_camera.limit_left = int(bounds.position.x)
+	_camera.limit_top = int(bounds.position.y)
+	_camera.limit_right = int(bounds.end.x)
+	_camera.limit_bottom = int(bounds.end.y)
+	_pc.add_child(_camera)
+
+func _build_ui() -> void:
+	var ui := CanvasLayer.new()
+	ui.name = "UI"
+	add_child(ui)
+
+	_interact_prompt = InteractPrompt.new()
+	_interact_prompt.position = Vector2(16, 16)
+	ui.add_child(_interact_prompt)
+
+	_inventory_panel = InventoryMenuPanel.new()
+	_inventory_panel.position = Vector2(140, 60)
+	_inventory_panel.hide()
+	ui.add_child(_inventory_panel)
+	_inventory_panel.item_discarded.connect(_on_item_discarded)
+
+	_pickup_debug_label = Label.new()
+	_pickup_debug_label.name = "PickupDebugLabel"
+	_pickup_debug_label.position = Vector2(16, 70)
+	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
+	ui.add_child(_pickup_debug_label)
+
+	_event_log_panel = EventLogPanel.new()
+	_event_log_panel.position = Vector2(880, 500)
+	_event_log_panel.visible = false
+	ui.add_child(_event_log_panel)
+	_event_log_panel.build()
+	_event_log_panel.refresh(_handoff().event_log_entries)
+	_handoff().event_logged.connect(_event_log_panel.append_line)
+
+func _build_inventory_demo() -> void:
+	var handoff: Node = _handoff()
+	if handoff.pc != null:
+		_pc_combatant = handoff.pc
+		_companions.assign(handoff.companions)
+		_bench.assign(handoff.bench)
+		_shop_stock = handoff.shop_stock
+		_party_inventory = handoff.party_inventory
+		_vault = handoff.vault
+		handoff.clear_party()
+	else:
+		var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
+		_pc_combatant = party_seed["pc"]
+		_companions.assign(party_seed["companions"])
+		_bench.assign(party_seed["bench"])
+		_party_inventory = party_seed["party_inventory"]
+		_vault = party_seed["vault"]
+
+func _place_dungeon_enemies() -> void:
+	for i in range(FLOOR_ENEMY_IDS.size()):
+		var bounds: Rect2 = floor_bounds(i)
+		_place_dungeon_enemy("DungeonFloor%dEnemy" % (i + 1), [FLOOR_ENEMY_IDS[i]], bounds.position + ENEMY_LOCAL, i)
+
+func _place_dungeon_enemy(node_name: StringName, enemy_ids: Array[StringName], position: Vector2, floor_index: int) -> void:
+	if _handoff().is_defeated(node_name):
+		return
+	var enemy := OverworldEnemy.new()
+	enemy.name = node_name
+	enemy.enemy_ids = enemy_ids
+	enemy.global_position = position
+	enemy.fade_overlay = _fade_overlay
+	enemy.pc_combatant = _pc_combatant
+	enemy.companions = _companions
+	enemy.bench = _bench
+	enemy.shop_stock = _shop_stock
+	enemy.party_inventory = _party_inventory
+	enemy.vault = _vault
+	enemy.return_scene_path = "res://world/dungeon_demo.tscn"
+	enemy.pc_node = _pc
+	enemy.dungeon_floor = floor_index
+	_floors[floor_index].add_child(enemy)
+
+func _on_item_discarded(item: Resource, _quantity: int) -> void:
+	var pickup := GroundItemPickup.new()
+	pickup.item = item
+	pickup.party_inventory = _party_inventory
+	pickup.global_position = _pc.global_position + Vector2(0, 16)
+	pickup.item_picked_up.connect(_on_item_picked_up)
+	pickup.pickup_rejected.connect(_on_pickup_rejected)
+	_pc.get_parent().add_child(pickup)
+
+func _on_item_picked_up(item_name: String) -> void:
+	_pickup_debug_label.text = "Picked up: %s" % item_name
+	_handoff().log_event("Picked up: %s" % item_name, &"loot")
+
+func _on_pickup_rejected(item_name: String) -> void:
+	_pickup_debug_label.text = "Bag full — can't pick up: %s" % item_name
+
+func _process(_delta: float) -> void:
+	if _inventory_panel.visible:
+		_interact_prompt.hide_prompt()
+		_set_highlighted_target(null)
+		return
+	var target: Interactable = _pc.nearest_interactable()
+	if target != null and target.auto_trigger:
+		target.interact()
+		_interact_prompt.hide_prompt()
+		_set_highlighted_target(null)
+		return
+	if target != null:
+		_interact_prompt.show_prompt(target.prompt_text)
+	else:
+		_interact_prompt.hide_prompt()
+	_set_highlighted_target(target)
+
+func _set_highlighted_target(target: Interactable) -> void:
+	if target == _highlighted_target:
+		return
+	if _highlighted_target != null:
+		_highlighted_target.set_highlighted(false)
+	if target != null:
+		target.set_highlighted(true)
+	_highlighted_target = target
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_event_log"):
+		_event_log_panel.visible = not _event_log_panel.visible
+		return
+	if event.is_action_pressed("toggle_inventory"):
+		_toggle_inventory()
+		return
+	if event.is_action_pressed("toggle_stats"):
+		_toggle_stats()
+		return
+	if _inventory_panel.visible:
+		return
+	if not event.is_action_pressed("interact"):
+		return
+	var target: Interactable = _pc.nearest_interactable()
+	if target != null and not target.auto_trigger:
+		target.interact()
+
+func _toggle_inventory() -> void:
+	if _inventory_panel.visible:
+		_inventory_panel.hide()
+		_pc.set_movement_paused(false)
+	else:
+		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false)
+		_pc.set_movement_paused(true)
+
+func _toggle_stats() -> void:
+	if _inventory_panel.visible:
+		_inventory_panel.hide()
+		_pc.set_movement_paused(false)
+	else:
+		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false, &"stats")
+		_pc.set_movement_paused(true)
