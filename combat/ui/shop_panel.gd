@@ -106,6 +106,8 @@ func _tab_for_entry(entry: ShopStockEntry) -> StringName:
 
 func _on_tab_pressed(tab_id: StringName) -> void:
 	_active_tab = tab_id
+	_reject_label = null   # clear any stale reject message from a previous tab — avoids re-adding an
+	                        # already-parented Label instance, which Godot rejects (found by final review)
 	_rebuild()
 
 func _build_row(entry: ShopStockEntry, y: float) -> void:

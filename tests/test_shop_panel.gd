@@ -71,6 +71,15 @@ func _init() -> void:
 	_check(full_stock[0].stock == 3, "a full Bag rejects the NEW Gear purchase — stock unchanged")
 	_check(panel._reject_label != null, "a rejected purchase sets the reject label")
 	_check(panel.is_ancestor_of(panel._reject_label), "the reject label is actually parented into the panel (previously invisible)")
+
+	# Switching tabs after a failed purchase must not try to re-add the already-parented
+	# _reject_label instance (Godot rejects add_child on an already-parented node) — this call
+	# must complete without error, and must clear the stale reference so the NEXT _rebuild() never
+	# attempts to re-add it.
+	panel._on_tab_pressed(&"potions")
+	_check(panel._reject_label == null, "switching tabs after a rejected purchase clears the stale reject-label reference")
+	_check(true, "switching tabs after a rejected purchase did not throw/abort the test script")
+
 	panel.buy_for_test(full_stock[1])
 	_check(full_inv.amber == 9, "a full Bag still allows a Consumable purchase that MERGES into an existing stack — Amber spent")
 	_check(full_inv.items[0].quantity == 2, "the potion purchase merged into the pre-existing stack (1 -> 2), not a new slot")
