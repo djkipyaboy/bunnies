@@ -78,6 +78,7 @@ static var _endgame_enabled: bool = false
 
 var _attacker: Combatant
 var _defender: Combatant
+var _ally_target: Combatant = null   # 2026-07-16 combat item-use targeting design §2
 ## Per-PC primary target (N-vs-M targeting, spec §3): each PC remembers its own chosen enemy across
 ## turns. Clicking an enemy panel during that PC's pre-spin window updates ITS entry. Drives _defender on
 ## that PC's turn (so attacks/Hunter's Mark/Collateral aim there); defaults to the first living enemy.
@@ -258,6 +259,7 @@ func _build_party_columns() -> void:
 	_pc_panel = _panels[_pc]
 	_enemy_panel = _panels[_enemy]
 	_build_target_click_catchers()
+	_build_ally_target_click_catchers()
 
 ## Builds a target dummy: 30 HP, no weapon (never attacks), is_target_dummy + min_hp 1 (never dies).
 func _make_dummy(dummy_name: String, defense: DamageType) -> Combatant:
@@ -815,6 +817,40 @@ func _refresh_target_highlight() -> void:
 		if _panels.has(c):
 			(_panels[c] as CombatantPanel).set_targeted(c == _defender and not c.is_player)
 
+## Mirrors _build_target_click_catchers() for the party side: clicking a living ally panel sets it as
+## the acting combatant's item-use target (2026-07-16 design §2/§3.4).
+func _build_ally_target_click_catchers() -> void:
+	for c: Combatant in _turn_manager.combatants:
+		if not c.is_player or not _panels.has(c):
+			continue
+		var panel: CombatantPanel = _panels[c]
+		var hit := Button.new()
+		hit.flat = true
+		hit.modulate = Color(1, 1, 1, 0)
+		hit.position = panel.position
+		hit.custom_minimum_size = Vector2(300, 278)
+		hit.size = Vector2(300, 278)
+		hit.tooltip_text = "Click to make %s the active ally's item-use target." % c.display_name
+		hit.pressed.connect(_select_ally_target.bind(c))
+		add_child(hit)
+
+## Selects [param ally] as the ACTIVE combatant's item-use target — only during that combatant's own
+## pre-spin window (mirrors _select_target). Independent of whether an item is currently staged.
+func _select_ally_target(ally: Combatant) -> void:
+	if ally == null or not ally.is_alive():
+		return
+	if not (_awaiting_player_spin and _attacker != null and _attacker.is_player):
+		return
+	_ally_target = ally
+	_refresh_ally_target_highlight()
+
+## Outlines the current ally-target panel (green) and clears the others. No-op (all clear) when
+## _ally_target is null — the state during an enemy's turn.
+func _refresh_ally_target_highlight() -> void:
+	for c: Combatant in _turn_manager.combatants:
+		if _panels.has(c):
+			(_panels[c] as CombatantPanel).set_ally_targeted(c == _ally_target)
+
 ## Picks which living PC an enemy attacks this turn (spec 2026-06-28 §3.1): EnemyAI prefers a
 ## super-effective matchup, then neutral, then lowest-HP. Isolated so a future policy swaps only this.
 func _enemy_pick_target(c: Combatant) -> Combatant:
@@ -963,6 +999,11 @@ func _on_turn_started(c: Combatant) -> void:
 	else:
 		_defender = _enemy_pick_target(c)
 	_refresh_target_highlight()
+	if c.is_player:
+		_ally_target = c
+	else:
+		_ally_target = null
+	_refresh_ally_target_highlight()
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
