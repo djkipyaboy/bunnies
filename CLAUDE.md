@@ -1147,14 +1147,68 @@ files green except one confirmed pre-existing, unrelated failure — see below):
   right, then trigger a combat encounter with a full Bag and confirm the overflow drop appears back at
   the return spot.
 
-**Still open, NOT started: sub-projects 2 and 3 of the items-out-of-combat expansion** (item-use
-targeting UI via the Stats tab; the discard-to-world half of sub-project 3 is now DONE, folded into
-the work above — only the shared-bag-space half of the original sub-project 1 remains conceptually
-merged into what shipped). Next up per the original decomposition: **item-use targeting flow** —
-clicking a consumable in the Bag should auto-switch `InventoryMenuPanel` to its Stats tab, click
-anywhere in a character's column to target them, Confirm/Cancel, live effect description. See memory
-`combat-items-out-of-combat-expansion-2026-07-14` for the original requirements; the decomposition/
-sequencing described there is now superseded by this entry (ground pickups shipped first, not third).
+**SHIPPED 2026-07-16 — COMBAT ITEM-USE TARGETING + ITEM REEL, all headless-test-green (176/176 full
+suite), human playtest still pending.** Sub-project 1 of the item-use-targeting follow-on (the
+in-combat half; sub-project 2, the out-of-combat `InventoryMenuPanel` Stats-tab targeting flow, is
+still not started — see below). Brainstormed → spec'd
+(`docs/superpowers/specs/2026-07-16-combat-item-use-targeting-design.md`) → planned
+(`docs/superpowers/plans/2026-07-16-combat-item-use-targeting.md`) → built subagent-driven (7 tasks,
+each implementer + reviewer, plus an Opus final whole-branch review that caught 1 Important cross-task
+bug, fixed + re-reviewed clean same session):
+- **Replaces the auto-lowest-HP%-ally instant heal with manual targeting + a real reel spin.** Staging
+  a Healing Potion no longer heals the party's lowest-HP% ally instantly at commit time — it now
+  resolves through a dedicated **Item Reel** (`ActionReel.make_item_use()`: 9 SUCCESS + 1 CRIT_SUCCESS,
+  90/10, **zero failure tiers at all** — a potion should never simply fail), spun as a real visible
+  `ReelStrip` alongside the weapon reels, `is_weapon_attack = false`/`charges_meter = false` (out of
+  paylines, doesn't feed the Bonus Meter — same convention as the Warden's Rallying Cry reel), and NOT
+  subject to the 5-reel loadout cap (staging an item always adds its reel regardless of loadout size).
+- **Manual ally targeting** — a new green panel outline (`CombatantPanel.set_ally_targeted()`, mirrors
+  the existing red enemy-target outline) defaults to the active combatant's own panel every turn (no
+  cross-turn persistence, unlike enemy targeting's per-PC memory), is click-adjustable only during that
+  combatant's own Main Phase 1 (`Combat._select_ally_target`/`_ally_target`, mirrors
+  `_select_target`/`_defender`), and is independent of item-staging state — clicking a different ally
+  never requires an item staged first, and un-staging/re-staging never resets the chosen target.
+- **`Combatant.item_use_reel: ActionReel = null` / `pending_item_base_heal: int`** replace the old
+  `healing_potion_pending: bool` / `pending_heal_amount: int` — the reel reference's presence IS the
+  "pending" signal (mirrors `rallying_cry_reel`). `MainPhasePlan.commit()` builds the reel and records
+  both fields (no heal here); `combat.gd`'s `_do_spin()` captures the reel's landed tier into
+  `_item_use_tier` (mirrors `_rallying_cry_tier`); `_finish_spin()` applies the heal post-spin against
+  `_ally_target` — SUCCESS = base amount, **CRIT_SUCCESS = `ceili(base × 1.5)`** (round-up convention).
+- **`ItemMenuPanel.open_for()`** gained a third `ally_target: Combatant` param — the item description
+  now reads live as **"Heals `<target>` for `N` HP (90% success / 10% critical success ×1.5)"**,
+  re-rendering whenever the ally target changes while the menu is open.
+- **Final review caught 1 Important bug, fixed same session**: the new green ally-outline refresh and
+  the pre-existing red enemy-outline refresh both wrote to/cleared the SAME `CombatantPanel` theme
+  stylebox override slot — since the ally refresh always ran second in `_on_turn_started`, its
+  unconditional `set_ally_targeted(false)` calls on every enemy panel silently wiped the red
+  enemy-target outline every PC turn (a legibility regression to a shipped, previously-playtested
+  N-vs-M feature; combat math was unaffected, purely cosmetic). Fixed: each refresh function now
+  `continue`/skips the side it doesn't own (red only ever applies to enemies, green only to players,
+  so the two panel sets are disjoint by construction) — `combat.gd:_refresh_target_highlight`/
+  `_refresh_ally_target_highlight`. New regression test proves both outlines coexist simultaneously
+  (proven RED with the fix reverted, GREEN restored).
+- **10 new/extended test files** across the 7 tasks, including a genuine end-to-end proof
+  (`tests/test_item_use_targeting_e2e.gd`) that rigs the item reel's `.faces` to a single known tier
+  (the established technique in this codebase for forcing a deterministic outcome from a probabilistic
+  reel — `Reel.spin()` picks a random index into `.faces`, so a 1-element array always resolves to that
+  face) and drives a REAL spin through `combat.tscn`'s actual async Tween-driven pipeline (not a
+  shortcut past `_do_spin`/`_finish_spin`), for both SUCCESS and CRIT_SUCCESS tiers.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: all of the above is headless-test-green — the
+  7-task diff's own regression sweep plus a full re-run of the ENTIRE 176-file suite (174 clean first
+  pass, 2 hit the same class of intermittent teardown-only SIGSEGV already documented for
+  `test_shared_party_state.gd`, both clean on retry — not a regression). **A human has not yet
+  playtested this live** — stage a Healing Potion, retarget to a companion mid-turn, watch the item
+  reel land, and confirm both the red enemy outline and green ally outline are visible together during
+  your own turn, before this is marked fully shipped.
+
+**Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
+via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
+is sub-project 1 of this same follow-on, now shipped). Next up: clicking a consumable in the Bag should
+auto-switch `InventoryMenuPanel` to its Stats tab, click anywhere in a character's column to target
+them, Confirm/Cancel, live effect description. A third piece, a Thrown-Item success/fail reel, was
+raised during the 2026-07-16 brainstorm and explicitly deferred — not designed, not stubbed. See memory
+`combat-items-out-of-combat-expansion-2026-07-14` for the original requirements (superseded by the
+above: ground pickups and in-combat targeting both shipped first, not third/never).
 
 **Other candidates for whenever the overworld-playtest arc wraps or work resumes elsewhere:**
 building out real settlement content (docs/design-bible/ roster drafts are still sitting as
