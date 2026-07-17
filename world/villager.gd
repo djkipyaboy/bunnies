@@ -7,6 +7,10 @@ extends CharacterBody2D
 ## doc comment for why.
 
 signal dialogue_requested(dialogue_set: DialogueSet)
+## True for vendor NPCs (2026-07-17 general store design) — interact() emits vendor_interacted
+## instead of dialogue_requested. False for every other Villager, unaffected.
+@export var is_vendor: bool = false
+signal vendor_interacted(dialogue_set: DialogueSet)
 
 @export var dialogue: DialogueSet
 @export var can_wander: bool = true
@@ -62,4 +66,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 func _on_interacted() -> void:
-	dialogue_requested.emit(dialogue)
+	if is_vendor:
+		vendor_interacted.emit(dialogue)
+	else:
+		dialogue_requested.emit(dialogue)

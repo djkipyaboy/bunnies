@@ -29,6 +29,8 @@ var _highlighted_target: Interactable
 var _talking_to: Villager
 var _ui_layer: CanvasLayer
 var _inventory_panel: InventoryMenuPanel
+var _vendor_prompt_panel: VendorPromptPanel
+var _shop_panel: ShopPanel
 var _pickup_debug_label: Label
 var _pc_combatant: Combatant
 var _companions: Array[Combatant] = []
@@ -140,8 +142,9 @@ func _build_interior() -> void:
 	shopkeeper.name = "Shopkeeper"
 	shopkeeper.can_wander = false
 	shopkeeper.global_position = Vector2(960, 100)
-	shopkeeper.dialogue = _make_dialogue("Welcome! Nothing's actually for sale yet — just testing the shop layout.", "Shopkeeper")
-	shopkeeper.dialogue_requested.connect(_on_dialogue_requested.bind(shopkeeper))
+	shopkeeper.is_vendor = true
+	shopkeeper.dialogue = _make_dialogue("Welcome to the general store! Take a look at what I've got.", "Shopkeeper")
+	shopkeeper.vendor_interacted.connect(_on_vendor_interacted.bind(shopkeeper))
 	_interior.add_child(shopkeeper)
 
 	_shop_entry_marker = Marker2D.new()
@@ -260,6 +263,17 @@ func _build_inventory_demo() -> void:
 	_inventory_panel.hide()
 	_ui_layer.add_child(_inventory_panel)
 	_inventory_panel.item_discarded.connect(_on_item_discarded)
+
+	_vendor_prompt_panel = VendorPromptPanel.new()
+	_vendor_prompt_panel.hide()
+	_ui_layer.add_child(_vendor_prompt_panel)
+	_vendor_prompt_panel.talk_pressed.connect(_on_vendor_talk_pressed)
+	_vendor_prompt_panel.shop_pressed.connect(_on_vendor_shop_pressed)
+	_vendor_prompt_panel.leave_pressed.connect(_on_vendor_leave_pressed)
+
+	_shop_panel = ShopPanel.new()
+	_shop_panel.hide()
+	_ui_layer.add_child(_shop_panel)
 
 ## Manual Discard (2026-07-14-ground-item-pickups-design.md §3.7): drop the item at the PC's
 ## current position. _quantity isn't needed here — [param item] already carries its own
@@ -388,6 +402,31 @@ func _on_dialogue_closed() -> void:
 		_talking_to = null
 	_pc.set_movement_paused(false)
 
+## WoW-style vendor front door (2026-07-17 general store design §3.6): the Shopkeeper's interact
+## opens a Talk/Shop/Leave prompt instead of jumping straight into dialogue.
+func _on_vendor_interacted(dialogue_set: DialogueSet, villager: Villager) -> void:
+	_talking_to = villager
+	villager.set_wander_paused(true)
+	_pc.set_movement_paused(true)
+	_vendor_prompt_panel.open_for(dialogue_set)
+
+func _on_vendor_talk_pressed() -> void:
+	# Talk hands off to the existing linear DialogueBox flow unchanged — _on_dialogue_closed()
+	# (already wired to DialogueBox.closed) resumes movement/wander when it finishes.
+	_dialogue_box.open(_talking_to.dialogue)
+
+func _on_vendor_shop_pressed() -> void:
+	if _talking_to != null:
+		_talking_to.set_wander_paused(false)
+		_talking_to = null
+	_shop_panel.open_for(_party_inventory, ShopLibrary.general_store())
+
+func _on_vendor_leave_pressed() -> void:
+	if _talking_to != null:
+		_talking_to.set_wander_paused(false)
+		_talking_to = null
+	_pc.set_movement_paused(false)
+
 func _on_board_opened(entries: Array[QuestBoardEntry]) -> void:
 	_board_panel.open_for(entries)
 	_pc.set_movement_paused(true)
@@ -414,7 +453,7 @@ func _on_remove_companion_requested(companion: Combatant) -> void:
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
 
 func _process(_delta: float) -> void:
-	if _dialogue_box.is_open():
+	if _dialogue_box.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
@@ -435,7 +474,7 @@ func _set_highlighted_target(target: Interactable) -> void:
 	_highlighted_target = target
 
 func _toggle_inventory() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -448,7 +487,7 @@ func _toggle_inventory() -> void:
 ## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
 ## different starting tab.
 func _toggle_stats() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -480,6 +519,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _party_selection_panel.is_open():
 		_party_selection_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _vendor_prompt_panel.is_open():
+		_vendor_prompt_panel.close()
+		if _talking_to != null:
+			_talking_to.set_wander_paused(false)
+			_talking_to = null
+		_pc.set_movement_paused(false)
+		return
+	if _shop_panel.is_open():
+		_shop_panel.close()
 		_pc.set_movement_paused(false)
 		return
 	var target: Interactable = _pc.nearest_interactable()
