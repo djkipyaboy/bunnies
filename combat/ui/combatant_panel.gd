@@ -214,6 +214,20 @@ func set_targeted(on: bool) -> void:
 	else:
 		remove_theme_stylebox_override("panel")
 
+## Outlines this panel when it's the active combatant's item-use target (2026-07-16 combat item-use
+## targeting design) — a green border, distinct from set_targeted()'s red enemy-target border. Also
+## serves as a whose-turn-is-it indicator, since it defaults to (and is visible for the whole turn of)
+## the active combatant.
+func set_ally_targeted(on: bool) -> void:
+	if on:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.12, 0.17, 0.12)
+		sb.border_color = Color(0.4, 0.85, 0.4)
+		sb.set_border_width_all(3)
+		add_theme_stylebox_override("panel", sb)
+	else:
+		remove_theme_stylebox_override("panel")
+
 ## Pulses the Bonus Meter bar while an Ultimate is staged (signals "will be consumed on SPIN").
 ## Steady (default colour) when off. Cosmetic only.
 func set_meter_flash(on: bool) -> void:
