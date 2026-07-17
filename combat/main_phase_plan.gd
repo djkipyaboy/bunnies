@@ -319,6 +319,10 @@ func preview_reels() -> Array[ActionReel]:
 	if fire_ultimate_staged and ultimate_id == &"big_bang":
 		while reels.size() < mini(BIG_BANG_REELS, reel_cap):
 			reels.append(ActionReel.make_default(combatant.weapon_type()))
+	# Item-use reel: appended whenever an item is staged, UNCONDITIONAL on reel_cap (player's call,
+	# 2026-07-16 design §2) — staging an item always adds its reel regardless of loadout size.
+	if staged_item_type != &"":
+		reels.append(ActionReel.make_item_use(combatant.weapon_type()))
 	return reels
 
 ## The combatant's value on the ABILITY's rail after committing (current minus a staged cost).
@@ -460,6 +464,8 @@ func commit() -> void:
 	if staged_item_type != &"" and party_inventory != null:
 		var item: ConsumableItem = party_inventory.find_item(staged_item_type)
 		if item != null:
-			combatant.pending_heal_amount = item.heal_amount
-			combatant.healing_potion_pending = true
+			var reel: ActionReel = ActionReel.make_item_use(combatant.weapon_type())
+			combatant.turn_reels.append(reel)
+			combatant.item_use_reel = reel
+			combatant.pending_item_base_heal = item.heal_amount
 			party_inventory.consume_item(staged_item_type)

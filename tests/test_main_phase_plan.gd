@@ -130,6 +130,27 @@ func _initialize() -> void:
 	_check(pci.can_stage_item(&"healing_potion"), "can_stage_item() true when the party owns one")
 	_check(not pci.can_stage_item(&"mana_potion"), "can_stage_item() false for an unowned item_type")
 
+	# preview_reels() appends the item-use reel when an item is staged — UNCONDITIONAL on reel_cap,
+	# the one case exempt from the cap check every other reel-adding branch in preview_reels() enforces.
+	pci.toggle_item(&"healing_potion")
+	_check(pci.preview_reels().size() == 4, "staging an item previews 4 reels (3 weapon + 1 item-use, got %d)" % pci.preview_reels().size())
+	pci.toggle_item(&"healing_potion")  # un-stage: preview reverts
+	_check(pci.preview_reels().size() == 3, "un-staging the item reverts the preview to 3 (got %d)" % pci.preview_reels().size())
+
+	var capped_item: Combatant = _mk_pc(3, 0)
+	capped_item.try_splice_reel(slashing, 10.0, 0, 5)  # 3 -> 4
+	capped_item.try_splice_reel(slashing, 10.0, 0, 5)  # 4 -> 5 (at cap)
+	var item_inv_capped: PartyInventory = PartyInventory.new()
+	var potion_capped: ConsumableItem = ConsumableItem.new()
+	potion_capped.item_type = &"healing_potion"
+	potion_capped.display_name = "Healing Potion"
+	potion_capped.heal_amount = 25
+	potion_capped.quantity = 1
+	item_inv_capped.items = [potion_capped]
+	var plan_capped: MainPhasePlan = MainPhasePlan.new(capped_item, 2, 5, 2, item_inv_capped)
+	plan_capped.toggle_item(&"healing_potion")
+	_check(plan_capped.preview_reels().size() == 6, "item-use reel previews EVEN AT the 5-reel cap (got %d)" % plan_capped.preview_reels().size())
+
 	pci.toggle_item(&"healing_potion")
 	_check(pci.staged_item_type == &"healing_potion", "toggle_item() stages the item")
 
@@ -141,9 +162,18 @@ func _initialize() -> void:
 	_check(not pci.ability_staged, "re-staging the item un-stages the base ability (mutual exclusion, both directions)")
 
 	pci.commit()
-	_check(ci.healing_potion_pending, "commit() sets healing_potion_pending")
-	_check(ci.pending_heal_amount == 25, "commit() sets pending_heal_amount from the item (got %d)" % ci.pending_heal_amount)
+	_check(ci.turn_reels.size() == 4, "commit() appends the item-use reel to turn_reels (3 -> 4, got %d)" % ci.turn_reels.size())
+	_check(ci.item_use_reel != null, "commit() sets item_use_reel")
+	_check(ci.item_use_reel == ci.turn_reels[3], "item_use_reel records the appended reel")
+	_check(not ci.item_use_reel.is_weapon_attack, "the item-use reel is a non-weapon-attack reel (out of paylines)")
+	_check(ci.pending_item_base_heal == 25, "commit() sets pending_item_base_heal from the item (got %d)" % ci.pending_item_base_heal)
 	_check(item_inv.items[0].quantity == 1, "commit() consumes exactly one potion (got %d)" % item_inv.items[0].quantity)
+
+	# begin_turn resets both item-use fields.
+	ci.begin_turn()
+	_check(ci.item_use_reel == null, "begin_turn resets item_use_reel")
+	_check(ci.pending_item_base_heal == 0, "begin_turn resets pending_item_base_heal")
+	_check(ci.turn_reels.size() == 3, "begin_turn resets to the 3 weapon reels (item-use reel not part of the weapon)")
 
 	# --- items: no party_inventory (standalone launch) never allows staging ---
 	var cj: Combatant = _mk_pc(3, 0)
