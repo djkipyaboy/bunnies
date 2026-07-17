@@ -67,6 +67,7 @@ func _process(_delta: float) -> bool:
 	enemy.fade_overlay = fade_overlay
 	enemy.return_scene_path = "res://world/overworld_demo.tscn"
 	enemy.pc_node = _pc_node
+	enemy.dungeon_floor = 3
 
 	combat_handoff.event_log_entries = [] as Array[Dictionary]
 	enemy._begin_handoff()
@@ -85,6 +86,7 @@ func _process(_delta: float) -> bool:
 	_check(combat_handoff.return_scene_path == "res://world/overworld_demo.tscn", "CombatHandoff.return_scene_path is set")
 	_check(combat_handoff.return_position == Vector2(321.0, 654.0), "CombatHandoff.return_position matches the PC node's global_position")
 	_check(combat_handoff.has_return_position == true, "CombatHandoff.has_return_position is true")
+	_check(combat_handoff.dungeon_floor == 3, "CombatHandoff.dungeon_floor carries the enemy's dungeon_floor field (2026-07-17 dungeon-scene-structure design)")
 
 	# --- Playtest-found bug (2026-07-13): OverworldEnemy doesn't queue_free() itself like
 	# RewardPickup/GatheringNode/RandomEncounterNode do, so it stays the nearest in-range

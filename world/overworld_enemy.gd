@@ -36,6 +36,10 @@ var bench: Array = []
 var shop_stock: Array = []
 var party_inventory: PartyInventory
 var vault: Vault
+## Which dungeon floor this placement lives on (2026-07-17 dungeon-scene-structure design).
+## Irrelevant (stays 0) for overworld placements — only dungeon_demo.gd's _place_dungeon_enemy() sets
+## this to a non-zero value.
+var dungeon_floor: int = 0
 var return_scene_path: String = ""
 ## The actual PC scene node (not this enemy's own position) — read at trigger time so
 ## CombatHandoff.return_position reflects where the PC was standing, not where the enemy was.
@@ -108,7 +112,7 @@ func _begin_handoff() -> void:
 		enemy_names.append(EnemyLibrary.label(id))
 	_handoff().log_event("Encounter started: %s" % ", ".join(enemy_names), &"combat")
 	_handoff().begin_encounter(pc_combatant, companions, party_inventory, vault, enemy_ids,
-		StringName(name), return_scene_path, pc_node.global_position, bench, shop_stock)
+		StringName(name), return_scene_path, pc_node.global_position, bench, shop_stock, dungeon_floor)
 
 ## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global
 ## identifier. Referencing the bare `CombatHandoff` identifier compiles fine when the editor/
