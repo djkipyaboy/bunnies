@@ -42,6 +42,13 @@ func _process(_delta: float) -> bool:
 		_distinctive_gear.stat_bonuses = Stats.new()
 		town._pc_combatant.gear = [_distinctive_gear]
 
+		# IMPORTANT: open the panel against town._shop_stock (the field Task 6 wires to _town_exit.shop_stock
+		# and persists via CombatHandoff) — NOT a fresh ShopLibrary.general_store() call, which would
+		# decrement an unrelated, throwaway catalog and prove nothing about persistence.
+		town._shop_panel.open_for(town._party_inventory, town._shop_stock)
+		town._shop_panel.buy_for_test(town._shop_stock[0])
+		_check(town._shop_stock[0].stock == 2, "buying one unit decrements the town's own shop stock (3 -> 2, got %d)" % town._shop_stock[0].stock)
+
 		_check(town._town_exit.pc_combatant == town._pc_combatant, "TownExit is wired to the town's live PC")
 		_check(town._town_exit.party_inventory == town._party_inventory, "TownExit is wired to the town's live PartyInventory")
 		_check(town._town_exit.bench == town._bench, "TownExit is wired to the town's live bench (same array reference)")
@@ -59,14 +66,24 @@ func _process(_delta: float) -> bool:
 		town._town_exit._stash_party()
 		_check(_combat_handoff.pc == town._pc_combatant, "leaving town stashes the exact PC into CombatHandoff")
 		_check(_combat_handoff.companions.has(_recruited), "leaving town stashes the recruited companion into CombatHandoff.companions")
+		_check(_combat_handoff.shop_stock == town._shop_stock, "leaving town stashes the exact same shop-stock array into CombatHandoff")
 
 	if _frames == 2:
+		# Captured BEFORE instantiate()/add_child() below, which synchronously runs
+		# _build_inventory_demo() -> handoff.clear_party() -- clear_party() resets
+		# CombatHandoff.shop_stock to a fresh [], so reading it live AFTER add_child() would
+		# always compare against an already-cleared field rather than what the overworld actually
+		# consumed. Capturing the reference first is what actually tests "overworld reused the
+		# exact array town stashed", which is the assertion's real intent.
+		var stashed_shop_stock: Array = _combat_handoff.shop_stock
+
 		var overworld_scene: PackedScene = load("res://world/overworld_demo.tscn")
 		_overworld_instance = overworld_scene.instantiate()
 		root.add_child(_overworld_instance)
 
 		var overworld: OverworldDemo = _overworld_instance
 		_check(overworld._pc_combatant.gear.has(_distinctive_gear), "overworld reuses the town's exact PC (gear survives the transition)")
+		_check(overworld._shop_stock == stashed_shop_stock, "overworld reuses the exact same shop-stock array (before it re-stashes it onward)")
 		_check(_combat_handoff.pc == null, "overworld_demo consumed and cleared CombatHandoff.pc")
 		_check(overworld._village_entrance.pc_combatant == overworld._pc_combatant, "VillageEntrance is wired to the overworld's (reused) live PC")
 		_check(overworld._companions.has(_recruited), "the overworld reuses the recruited companion (not just the original party)")
@@ -75,6 +92,7 @@ func _process(_delta: float) -> bool:
 		# Simulate leaving the overworld back to town via VillageEntrance.
 		overworld._village_entrance._stash_party()
 		_check(_combat_handoff.pc == overworld._pc_combatant, "leaving the overworld stashes the same PC back into CombatHandoff")
+		_check(_combat_handoff.shop_stock == overworld._shop_stock, "leaving the overworld re-stashes the SAME shop-stock array back into CombatHandoff")
 
 	if _frames == 3:
 		var town_scene_2: PackedScene = load("res://world/town_demo.tscn")
@@ -85,6 +103,12 @@ func _process(_delta: float) -> bool:
 		_check(town_2._pc_combatant.gear.has(_distinctive_gear), "returning to town reuses the exact same PC (gear survives the full round trip)")
 		_check(_combat_handoff.pc == null, "town_demo consumed and cleared CombatHandoff.pc")
 		_check(town_2._companions.has(_recruited), "the recruited companion survives the full round trip (town -> overworld -> town)")
+		_check(town_2._shop_panel != null, "the returned-to town instance built its own ShopPanel")
+		var stock_entry: ShopStockEntry = null
+		for e: ShopStockEntry in town_2._shop_stock:
+			if e.item is Gear and (e.item as Gear).display_name == "Cloth Cap":
+				stock_entry = e
+		_check(stock_entry != null and stock_entry.stock == 2, "the decremented shop stock survives the FULL round trip (still 2, not reset to 3)")
 
 		_town_instance.free()
 		_overworld_instance.free()

@@ -23,6 +23,11 @@ var companions: Array = []
 ## playtest caught this (companions vanished from Party Selection's Add list after one fight); no
 ## automated test had exercised a REAL combat round-trip's effect on bench, only SceneExit's.
 var bench: Array = []
+## The town general store's live stock array (2026-07-17 general store design §3.7) — only
+## town_demo.gd ever reads/decrements this; overworld_demo.gd carries it through both directions
+## (SceneExit's shop_stock field) without inspecting it, the same asymmetric-ownership shape
+## bench/party_inventory/vault already use.
+var shop_stock: Array = []
 var party_inventory: PartyInventory
 var vault: Vault
 var enemy_ids: Array[StringName] = []
@@ -70,12 +75,13 @@ func log_event(line: String, category: StringName) -> void:
 ## no combat/return-position fields involved, unlike begin_encounter(). The destination scene reads
 ## pc/companions/party_inventory/vault the same way it already does for a combat return trip
 ## (checks pc != null, reuses, then calls clear_party()).
-func stash_party(p: Combatant, comps: Array, inv: PartyInventory, v: Vault, b: Array = []) -> void:
+func stash_party(p: Combatant, comps: Array, inv: PartyInventory, v: Vault, b: Array = [], shop: Array = []) -> void:
 	pc = p
 	companions = comps
 	bench = b
 	party_inventory = inv
 	vault = v
+	shop_stock = shop
 
 func begin_encounter(p: Combatant, comps: Array, inv: PartyInventory, v: Vault,
 		ids: Array[StringName], encounter_id: StringName, scene_path: String, position: Vector2,
@@ -123,6 +129,7 @@ func clear_party() -> void:
 	bench = []
 	party_inventory = null
 	vault = null
+	shop_stock = []
 
 ## Clears return_position/has_return_position — called by the destination scene (e.g.
 ## overworld_demo.gd's _build_pc()) once it has read them, so a later return trip doesn't reuse a

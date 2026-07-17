@@ -34,6 +34,7 @@ var _event_log_panel: EventLogPanel
 var _pc_combatant: Combatant
 var _companions: Array = []
 var _bench: Array = []
+var _shop_stock: Array = []
 var _party_inventory: PartyInventory
 var _vault: Vault
 var _inventory_panel: InventoryMenuPanel
@@ -65,6 +66,7 @@ func _ready() -> void:
 	_village_entrance.bench = _bench
 	_village_entrance.party_inventory = _party_inventory
 	_village_entrance.vault = _vault
+	_village_entrance.shop_stock = _shop_stock
 	_build_npcs()
 	_spawn_ground_drops()
 
@@ -269,6 +271,7 @@ func _build_inventory_demo() -> void:
 		_pc_combatant = handoff.pc
 		_companions.assign(handoff.companions)
 		_bench.assign(handoff.bench)
+		_shop_stock = handoff.shop_stock
 		_party_inventory = handoff.party_inventory
 		_vault = handoff.vault
 		handoff.clear_party()

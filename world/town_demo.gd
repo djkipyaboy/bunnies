@@ -37,6 +37,7 @@ var _companions: Array[Combatant] = []
 var _bench: Array[Combatant] = []
 var _party_inventory: PartyInventory
 var _vault: Vault
+var _shop_stock: Array = []
 var _town_exit: SceneExit
 var _party_selection_panel: PartySelectionPanel
 var _event_log_panel: EventLogPanel
@@ -62,6 +63,7 @@ func _ready() -> void:
 	_town_exit.bench = _bench
 	_town_exit.party_inventory = _party_inventory
 	_town_exit.vault = _vault
+	_town_exit.shop_stock = _shop_stock
 	_interior.visible = false
 	_interior.process_mode = Node.PROCESS_MODE_DISABLED
 
@@ -249,6 +251,7 @@ func _build_inventory_demo() -> void:
 		_bench.assign(handoff.bench)
 		_party_inventory = handoff.party_inventory
 		_vault = handoff.vault
+		_shop_stock = handoff.shop_stock if not handoff.shop_stock.is_empty() else ShopLibrary.general_store()
 		handoff.clear_party()
 	else:
 		var party_seed: Dictionary = InventoryDemoSetup.seed_demo_party()
@@ -257,6 +260,7 @@ func _build_inventory_demo() -> void:
 		_bench.assign(party_seed["bench"])
 		_party_inventory = party_seed["party_inventory"]
 		_vault = party_seed["vault"]
+		_shop_stock = ShopLibrary.general_store()
 
 	_inventory_panel = InventoryMenuPanel.new()
 	_inventory_panel.position = Vector2(140, 60)
@@ -419,7 +423,7 @@ func _on_vendor_shop_pressed() -> void:
 	if _talking_to != null:
 		_talking_to.set_wander_paused(false)
 		_talking_to = null
-	_shop_panel.open_for(_party_inventory, ShopLibrary.general_store())
+	_shop_panel.open_for(_party_inventory, _shop_stock)
 
 func _on_vendor_leave_pressed() -> void:
 	if _talking_to != null:

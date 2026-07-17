@@ -29,6 +29,9 @@ var companions: Array = []
 ## Precreated companions available to recruit but not currently in the active party (2026-07-12
 ## Party Selection work) — carried alongside companions so the bench survives a scene transition.
 var bench: Array = []
+## Only meaningful for the town's TownExit instance (only town has a shop) — VillageEntrance
+## carries whatever CombatHandoff last gave it through without ever needing to inspect it.
+var shop_stock: Array = []
 var party_inventory: PartyInventory
 var vault: Vault
 
@@ -40,7 +43,7 @@ func interact() -> void:
 ## Split out from interact() so tests can drive the CombatHandoff-population effect without
 ## triggering the fade + change_scene_to_file (same reasoning as OverworldEnemy._begin_handoff()).
 func _stash_party() -> void:
-	_handoff().stash_party(pc_combatant, companions, party_inventory, vault, bench)
+	_handoff().stash_party(pc_combatant, companions, party_inventory, vault, bench, shop_stock)
 
 ## Fetches the CombatHandoff autoload by path — see OverworldEnemy._handoff()'s identical
 ## rationale (bare `CombatHandoff` identifier fails under headless --script test runs).
