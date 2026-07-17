@@ -1196,10 +1196,28 @@ bug, fixed + re-reviewed clean same session):
 - **Verified-by-machine vs your call (§5 hard ceiling)**: all of the above is headless-test-green — the
   7-task diff's own regression sweep plus a full re-run of the ENTIRE 176-file suite (174 clean first
   pass, 2 hit the same class of intermittent teardown-only SIGSEGV already documented for
-  `test_shared_party_state.gd`, both clean on retry — not a regression). **A human has not yet
-  playtested this live** — stage a Healing Potion, retarget to a companion mid-turn, watch the item
-  reel land, and confirm both the red enemy outline and green ally outline are visible together during
-  your own turn, before this is marked fully shipped.
+  `test_shared_party_state.gd`, both clean on retry — not a regression).
+
+**FIRST HUMAN PLAYTEST, same day — 1 fix, 1 non-bug clarified.** Ally/enemy outlines together, ally
+retargeting, the item reel spin, heal-lands-on-the-right-target, crit math (×1.5 ceil), and potion
+consumption rate all worked correctly on the first try. Two things flagged:
+- **Fixed**: the item reel logged through the same generic `"<name> reel → <tier> (no damage) vs
+  <enemy>"` line every other no-damage utility reel uses (Rallying Cry included) — reads as an attack
+  on the enemy and never identifies which reel was the potion's own spin. `combat.gd`'s `_apply_attack`
+  now special-cases `attack.source_reel == _attacker.item_use_reel` with its own line (`"<name>'s Item
+  Reel → <tier>."`), leaving every other reel's logging (including Rallying Cry's identical-shaped
+  line) untouched. Regression-tested in `test_item_use_targeting_e2e.gd`.
+- **Investigated, NOT a bug**: the player saw the overworld's `InventoryMenuPanel` Bag tab show 0
+  Healing Potions after using 1 of 3 in a real handoff fight (expected 2). Root-caused via a throwaway
+  headless repro driving the exact real round-trip (real `combat.tscn` spin/commit → real Continue
+  handler → fresh `overworld_demo.tscn`) — confirmed `PartyInventory.items`' quantity genuinely and
+  correctly survives the whole trip (2, not 0) at the DATA level. The actual cause:
+  `InventoryMenuPanel._active_gear_list()`/`_build_grid()` only ever render `Gear`+`Weapon` in the Bag
+  tab (`combat/ui/inventory_menu_panel.gd:407-421`) — `ConsumableItem`s (`PartyInventory.items`) have
+  **no display path anywhere in `InventoryMenuPanel`** (not the Bag grid, not a dedicated tab). This is
+  the exact, already-known gap sub-project 2 below exists to fill — not a regression from today's work.
+- **A human has not yet playtested** the item-log fix itself, or anything beyond the checklist above
+  (Foresight/Regrowth still auto-target, per spec — not exercised this pass).
 
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
