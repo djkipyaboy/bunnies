@@ -39,6 +39,7 @@ var _party_inventory: PartyInventory
 var _vault: Vault
 var _inventory_panel: InventoryMenuPanel
 var _village_entrance: SceneExit
+var _dungeon_entrance: SceneExit
 
 ## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global
 ## identifier. Referencing the bare `CombatHandoff` identifier compiles fine when the editor/
@@ -67,6 +68,15 @@ func _ready() -> void:
 	_village_entrance.party_inventory = _party_inventory
 	_village_entrance.vault = _vault
 	_village_entrance.shop_stock = _shop_stock
+	# DungeonEntranceDebug was built in _build_world() (via _build_mountain()), before the party
+	# existed — wire its party fields now too, mirroring VillageEntrance immediately above, so
+	# walking into the dungeon carries the SAME live party.
+	_dungeon_entrance.pc_combatant = _pc_combatant
+	_dungeon_entrance.companions = _companions
+	_dungeon_entrance.bench = _bench
+	_dungeon_entrance.party_inventory = _party_inventory
+	_dungeon_entrance.vault = _vault
+	_dungeon_entrance.shop_stock = _shop_stock
 	_build_npcs()
 	_spawn_ground_drops()
 
@@ -115,6 +125,15 @@ func _build_mountain() -> void:
 	visual.size = MOUNTAIN_RECT.size
 	_world.add_child(visual)
 	WorldGeometry.add_solid_collider(_world, MOUNTAIN_RECT)
+
+	var dungeon_entrance := SceneExit.new()
+	dungeon_entrance.name = "DungeonEntranceDebug"
+	dungeon_entrance.prompt_text = "Enter Dungeon (temporary)"
+	dungeon_entrance.target_scene_path = "res://world/dungeon_demo.tscn"
+	dungeon_entrance.global_position = MOUNTAIN_RECT.position + Vector2(MOUNTAIN_RECT.size.x / 2.0, MOUNTAIN_RECT.size.y + 20.0)
+	dungeon_entrance.fade_overlay = _fade_overlay
+	_world.add_child(dungeon_entrance)
+	_dungeon_entrance = dungeon_entrance
 
 func _build_trees() -> void:
 	var tree_positions: Array[Vector2] = [
