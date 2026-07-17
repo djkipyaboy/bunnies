@@ -334,9 +334,24 @@ New `var shop_stock: Array = []` field on `CombatHandoff`, cleared by `clear_par
 `party_inventory`/`vault`/`bench`. `town_demo.gd` checks `CombatHandoff.pc != null` (the same existing
 reuse-vs-reseed branch that already handles `pc`/`companions`/`bench`/`party_inventory`/`vault`) and, when
 reusing, also reuses `CombatHandoff.shop_stock` instead of calling `ShopLibrary.general_store()` fresh —
-only a genuinely first-ever town visit builds a brand-new catalog. `overworld_demo.gd` never reads
-`shop_stock` at all (a harmless passthrough field it doesn't own, same asymmetric-ownership pattern
-`pending_ground_drops` already established the other direction).
+only a genuinely first-ever town visit builds a brand-new catalog.
+
+**`overworld_demo.gd` never USES `shop_stock` (only town has a shop), but it must still carry the field
+through both directions, or a purchase resets the moment the player leaves town** — this is the exact
+"party silently reseeded on return" bug class this project already hit and fixed for gear/HP (2026-07-12)
+and for the companion bench (2026-07-12, a second time, because the first fix didn't generalize to a field
+nobody had added a test for). `bench` is the precedent to mirror exactly, not `pending_ground_drops`
+(that one really is one-directional — combat.gd writes it, only the overworld destination reads it; shop
+stock needs to survive a trip AWAY from and BACK TO the same scene). Concretely: `overworld_demo.gd` gets
+a new `var _shop_stock: Array = []` field, set from `handoff.shop_stock` in `_build_inventory_demo()`
+BEFORE `handoff.clear_party()` runs (same line/order as the existing `_bench.assign(handoff.bench)` /
+`handoff.clear_party()` pair), and `_village_entrance.shop_stock = _shop_stock` alongside the existing
+`_village_entrance.bench = _bench` wiring. `SceneExit` (used by both `TownExit` and `VillageEntrance`)
+gets a matching `var shop_stock: Array = []` field, passed as `stash_party()`'s new trailing argument in
+`_stash_party()`. Net effect: `TownExit` carries the real, decremented stock out to
+`CombatHandoff`; `overworld_demo.gd` immediately re-stashes that same array onto its own
+`VillageEntrance` without ever inspecting it; walking back through `VillageEntrance` carries it right
+back into `CombatHandoff` for `town_demo.gd` to reuse on the way in.
 
 ### 3.8 Amber balance visibility
 
