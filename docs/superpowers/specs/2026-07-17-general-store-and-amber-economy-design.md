@@ -45,6 +45,10 @@ real economy yet.
   re-gear multiple party members in different combinations. Healing Potions stock **99** units (also 1
   Amber each — cheap enough to buy in bulk and stress-test Bag behavior; not explicitly priced by the
   player, flagged as an assumption below).
+- **The demo party starts with 30 Amber** (seeded, not earned) — this pass is specifically about
+  exercising the shop and stat-value balancing, so the player shouldn't have to grind combat encounters
+  first just to unlock the ability to test buying. Combat drops (§3.2) still work normally on top of this
+  starting stockpile.
 - **Purchase-only this pass** — no selling. The player's own framing separated "for the first playtest"
   (this spec) from "in the full game" (§7, researched below) — selling needs a sell-value system for
   arbitrary items that doesn't exist yet and isn't needed to unblock playtesting.
@@ -75,6 +79,17 @@ real economy yet.
   currency is now named (was previously an open item).
 - `docs/design-bible/10-storyline.md` §8 "Hooks into systems": append the lore paragraph from §2 above as
   a new ✅-tagged bullet, so the direction survives for whoever picks up the real storyline pass later.
+
+### 3.1a Starting Amber
+
+`world/inventory_demo_setup.gd`'s `seed_demo_party()` builds the `PartyInventory` returned in its
+dictionary — add one line right after `var inv: PartyInventory = PartyInventory.new()`:
+```gdscript
+inv.amber = 30   # 2026-07-17 general store design: lets the player buy gear immediately, no combat grind required
+```
+This only affects a genuinely fresh seed (the very first town/overworld visit of a session) — a party
+already carrying real, spent-and-earned Amber via `CombatHandoff.pc != null` reuse is never touched or
+topped back up.
 
 ### 3.2 Combat Amber drops (mirrors the existing flat XP-per-kill pattern)
 
@@ -370,6 +385,8 @@ this pass — keeps the player from being blind to their balance while wandering
 - **`tests/test_shared_party_state.gd` (extend)** — `stash_party()`'s new `shop` param round-trips through
   a town→overworld→town cycle unchanged (a purchase's decremented stock is still decremented after the
   round trip), mirroring the existing bench-survival assertion in that same file.
+- **`tests/test_inventory_demo_setup.gd` (extend)** — `seed_demo_party()`'s returned `party_inventory.amber
+  == 30` on a fresh seed.
 - **Existing test migration** — `tests/test_random_encounter_panel.gd`'s `inv.gold` references become
   `inv.amber`; no other file references the removed field names anywhere (grep-clean, matching the
   established convention from the 2026-07-16 field-rename work).
