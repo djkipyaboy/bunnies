@@ -91,6 +91,7 @@ var _action_label: Label
 var _tab_buttons: Dictionary = {}    # StringName -> Button
 var _compare_check: CheckBox
 var _stat_labels: Dictionary = {}    # "%d_%d" % [col, row] -> Label; "%d_dmg" % col -> Label
+var _amber_label: Label
 var _list_labels: Array[Control] = []  # Materials (selectable Buttons)/Quest (read-only Labels) tab rows
 
 ## The 3 paperdoll columns in display order [Companion1, PC, Companion2] (null = no companion
@@ -333,8 +334,8 @@ func _rebuild() -> void:
 
 	var bottom: float
 	if _active_tab == &"stats":
-		# title row + HP/Resource/Bonus-Meter rows + 6 stat rows + weapon-damage row + xp row.
-		bottom = GRID_TOP + float(STAT_ROWS.size() + 6) * (SLOT_H + SLOT_GAP) + PAD
+		# Amber header row + title row + HP/Resource/Bonus-Meter rows + 6 stat rows + weapon-damage row + xp row.
+		bottom = GRID_TOP + float(STAT_ROWS.size() + 7) * (SLOT_H + SLOT_GAP) + PAD
 	elif _active_tab == &"materials" or _active_tab == &"quest":
 		var list: Array = _party_inventory.materials if _active_tab == &"materials" else _party_inventory.quest_items
 		bottom = GRID_TOP + float(maxi(list.size(), 1)) * (SLOT_H + SLOT_GAP) + PAD
@@ -440,23 +441,30 @@ func _build_grid() -> void:
 ## paperdoll's Companion1/PC/Companion2 layout, each showing the live 6-stat spread (gear bonuses
 ## included, via Combatant.effective_stats()) with hover descriptions, plus weapon base damage.
 func _build_stats_panel() -> void:
+	_amber_label = Label.new()
+	_amber_label.text = "Amber: %d" % _party_inventory.amber
+	_amber_label.position = Vector2(PAD, GRID_TOP)
+	_amber_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
+	add_child(_amber_label)
+
 	var columns: Array = paperdoll_columns(_pc, _companions)
 	for col in range(3):
 		_build_stats_column(col, columns[col])
 
 func _build_stats_column(col: int, c: Combatant) -> void:
 	var x: float = PAD + float(col) * (COLUMN_W + COLUMN_GAP)
+	var top: float = GRID_TOP + (SLOT_H + SLOT_GAP)   # +1 row: the Amber header now occupies GRID_TOP itself
 
 	var title := Label.new()
 	title.text = COLUMN_LABELS[col]
-	title.position = Vector2(x, GRID_TOP)
+	title.position = Vector2(x, top)
 	title.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
 	title.add_theme_font_size_override("font_size", 14)
 	if c == null:
 		title.modulate = Color(0.5, 0.5, 0.5)
 	add_child(title)
 
-	var hp_y: float = GRID_TOP + float(1) * (SLOT_H + SLOT_GAP)
+	var hp_y: float = top + float(1) * (SLOT_H + SLOT_GAP)
 	var hp_label := Label.new()
 	hp_label.position = Vector2(x, hp_y)
 	hp_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -468,7 +476,7 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 	add_child(hp_label)
 	_stat_labels["%d_hp" % col] = hp_label
 
-	var resource_y: float = GRID_TOP + float(2) * (SLOT_H + SLOT_GAP)
+	var resource_y: float = top + float(2) * (SLOT_H + SLOT_GAP)
 	var resource_label := Label.new()
 	resource_label.position = Vector2(x, resource_y)
 	resource_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -480,7 +488,7 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 	add_child(resource_label)
 	_stat_labels["%d_resource" % col] = resource_label
 
-	var meter_y: float = GRID_TOP + float(3) * (SLOT_H + SLOT_GAP)
+	var meter_y: float = top + float(3) * (SLOT_H + SLOT_GAP)
 	var meter_label := Label.new()
 	meter_label.position = Vector2(x, meter_y)
 	meter_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -495,7 +503,7 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 
 	var s: Stats = c.effective_stats() if c != null else null
 	for row in range(STAT_ROWS.size()):
-		var y: float = GRID_TOP + float(row + 4) * (SLOT_H + SLOT_GAP)
+		var y: float = top + float(row + 4) * (SLOT_H + SLOT_GAP)
 		var label := Label.new()
 		label.position = Vector2(x, y)
 		label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -511,7 +519,7 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 		add_child(label)
 		_stat_labels["%d_%d" % [col, row]] = label
 
-	var dmg_y: float = GRID_TOP + float(STAT_ROWS.size() + 4) * (SLOT_H + SLOT_GAP)
+	var dmg_y: float = top + float(STAT_ROWS.size() + 4) * (SLOT_H + SLOT_GAP)
 	var dmg_label := Label.new()
 	dmg_label.position = Vector2(x, dmg_y)
 	dmg_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -527,7 +535,7 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 	# count, not a progress-toward-next-level bar — no XP curve/level-up thresholds exist yet
 	# (docs/design-bible/22-leveling-and-progression.md is still undesigned), so a bar implying a
 	# real threshold would misrepresent a number that doesn't exist yet.
-	var xp_y: float = GRID_TOP + float(STAT_ROWS.size() + 5) * (SLOT_H + SLOT_GAP)
+	var xp_y: float = top + float(STAT_ROWS.size() + 5) * (SLOT_H + SLOT_GAP)
 	var xp_label := Label.new()
 	xp_label.position = Vector2(x, xp_y)
 	xp_label.custom_minimum_size = Vector2(COLUMN_W, SLOT_H)
@@ -1040,6 +1048,10 @@ func equip_reject_message_for_test() -> String:
 ## The currently active tab (test hook).
 func active_tab_for_test() -> StringName:
 	return _active_tab
+
+## The rendered text of the Stats tab's party-shared Amber balance row (test hook).
+func amber_text_for_test() -> String:
+	return _amber_label.text if _amber_label != null else ""
 
 ## The rendered text of the Stats tab's [param row]-th stat row (0..5) in column [param col]
 ## (test hook).

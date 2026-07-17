@@ -44,6 +44,7 @@ func _init() -> void:
 	comp1.base_stats = Stats.new()
 
 	var inv: PartyInventory = PartyInventory.new()
+	inv.amber = 42
 	var vault: Vault = Vault.new()
 
 	_check(InventoryMenuPanel.stat_value_at(pc.effective_stats(), 0) == 5, "stat_value_at(0) reads Might (base 3 + gear +2 = 5)")
@@ -70,6 +71,7 @@ func _init() -> void:
 
 	_check(panel.visible, "open_for shows the panel")
 	_check(panel.active_tab_for_test() == &"stats", "initial_tab opens directly to the Stats tab")
+	_check(panel.amber_text_for_test() == "Amber: 42", "the Stats tab shows the party's current Amber balance")
 
 	# PC is always the center column (paperdoll_columns convention) -> column 1.
 	_check(panel.stat_hp_text_for_test(1) == "HP: 45 / 50", "PC column shows HP current/max")
