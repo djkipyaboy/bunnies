@@ -1219,6 +1219,80 @@ consumption rate all worked correctly on the first try. Two things flagged:
 - **A human has not yet playtested** the item-log fix itself, or anything beyond the checklist above
   (Foresight/Regrowth still auto-target, per spec — not exercised this pass).
 
+**SHIPPED 2026-07-17 — GENERAL STORE + AMBER ECONOMY, all headless-test-green (183/183 full suite),
+human playtest still pending.** Step 3 of the standing overworld-playtest arc (loot drops → items menu
+→ **shopkeepers** → 4-floor dungeon; memory `overworld-playtest-arc-2026-07-13`). Built in an isolated
+worktree (player-requested this time, a deviation from this project's usual direct-to-main convention)
+— brainstormed → spec'd (`docs/superpowers/specs/2026-07-17-general-store-and-amber-economy-design.md`)
+→ planned (`docs/superpowers/plans/2026-07-17-general-store-and-amber-economy.md`) → built subagent-
+driven (8 tasks, each implementer + reviewer, plus a whole-branch review that caught 1 Critical + 2
+Important cross-task bugs — 2 fix rounds, both re-reviewed clean):
+- **Amber replaces the placeholder `gold` field** — it was already live in the Random Encounter ("?"
+  node) system's outcome deltas, not a dead field, so the rename touched that system too, including its
+  flavor text ("dropping a pouch of amber," etc.). **Lore locked** (recorded in
+  `docs/design-bible/10-storyline.md` §8): Amber is the world's actual working currency — raiding
+  warbands loot it from villages/travelers to fund themselves, so a defeated grunt is carrying their cut
+  of the spoils the same way a real bandit carries stolen coin, not personally "using" it. Underneath
+  that ordinary-greed explanation: Amber is fossilized sap from the world's ancient Great Trees, carrying
+  a trace of old magic — rare and potent enough to have become the medium of trade in the first place,
+  with room to matter again later in the story. The demo party starts with 30 Amber (playtest
+  convenience, not earned).
+- **Flat per-enemy Amber reward on kill** (rat=5/ferret=8/stoat=12, `[ASSUMPTION]` scaled by kit
+  strength), mirroring the existing flat XP-per-kill mechanism exactly — `Combatant.amber_reward`,
+  `EnemyLibrary._build()`'s new param, `combat.gd`'s `_on_enemy_defeated()`/`_on_combat_ended()`.
+- **A 33-entry catalog** (`ShopStockEntry`/`ShopLibrary.general_store()`, mirrors `EnemyLibrary`/
+  `LootTableLibrary`'s static-registry convention) — Headwear/Cloak/Chest/Hands at all 5 rarities (1
+  item each), **2 stat-flavored Charm variants** at all 5 rarities (Luck/Focus-leaning vs. Grit/Vigor-
+  leaning, so the two Charm boxes can hold genuinely different builds), Weapons capped at Common/
+  Uncommon only (player direction), and a Healing Potion line (stock 99). Everything costs 1 Amber,
+  stocks 3 (99 for potions) — deliberately cheap/plentiful since this store exists as a playtesting
+  tool for stat-value balancing and Bag-capacity testing, not a tuned economy.
+- **`ShopPanel`** (new) — tabbed by item-slot group (33 entries don't fit one list), buy-only, dispatches
+  through the existing `try_give_gear`/`try_give_weapon`/`try_give_item` grant surface so a full Bag
+  legitimately blocks a Gear/Weapon purchase exactly like combat loot already does (resolves a lever the
+  2026-07-13 loot-drops memory had left open) — but a Consumable purchase that merges into an
+  **already-existing** stack still succeeds regardless of Bag fullness; only a stack's very first unit
+  is capacity-gated. (This exact distinction was originally mis-stated in the spec's first draft and
+  caught mid-implementation, not before — see the spec's own corrections trail.)
+- **A WoW-style vendor interaction** — interacting with the Shopkeeper now opens a **Talk / Shop /
+  Leave** prompt (`VendorPromptPanel`, new) instead of jumping straight into dialogue.
+  `Villager.is_vendor` + a new `vendor_interacted` signal drive this; every other Villager's existing
+  linear-dialogue behavior is untouched. Talk still opens the same `DialogueBox` unchanged.
+- **Shop stock persists across a town↔overworld round trip** — threaded through
+  `CombatHandoff`/`SceneExit` exactly the way the companion bench already survives that same round trip.
+- **An Amber balance readout** on `InventoryMenuPanel`'s Stats tab (party-shared, shown once above the
+  3 character columns, not per-column).
+- **Final review caught 1 Critical + 2 Important bugs, both fix rounds re-reviewed clean:**
+  1. **CRITICAL**: `shop_stock` was only threaded through the plain `SceneExit` town↔overworld path
+     (`stash_party()`) — `CombatHandoff.begin_encounter()` (fired by every real `OverworldEnemy`
+     combat trigger) never touched it at all, so ANY real fight silently reset the shop's stock to a
+     fresh, un-decremented catalog on the next town visit. This is the exact bug class this project
+     already hit twice before with the companion `bench` field (memory `test-both-handoff-paths.md`:
+     a new `CombatHandoff` field needs coverage through BOTH paths, not just one) — the plan only
+     covered half the precedent. Fixed by mirroring `bench`'s exact shape into `begin_encounter()`
+     and a new `OverworldEnemy.shop_stock` field, with a new regression test
+     (`tests/test_shop_stock_survives_combat.gd`) driving the REAL `OverworldEnemy._begin_handoff()`
+     path, not a synthetic call.
+  2. **Important**: `ShopPanel`'s "Bag full" rejection message was constructed but never actually
+     rendered (no `add_child()`, no position) — completely invisible to the player. Fixed by
+     positioning/parenting the existing label instance in `_rebuild()`. A **second-order bug this fix
+     itself introduced** was caught by the re-review: switching tabs after a failed purchase tried to
+     re-add the same already-parented Label, which Godot rejects — fixed with a one-line reset in
+     `_on_tab_pressed()` (deliberately NOT inside `_rebuild()` itself, which would have erased the
+     message before ever rendering it).
+  3. **Important**: `ShopPanel`'s own in-panel "✕" close button bypassed `town_demo.gd`'s movement-
+     pause convention entirely (every other modal panel in this codebase has no self-close button —
+     closing is driven solely by the parent scene's interact-key handler), soft-locking PC movement
+     until the player stumbled onto an unrelated workaround. Fixed by removing the button; `close()`
+     itself is still called correctly via the interact-key path.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: all of the above is headless-test-green — the
+  8-task diff's own regression sweep plus a full re-run of the ENTIRE 183-file suite (182 clean, 1
+  intermittent teardown-only SIGSEGV on a DIFFERENT file than previously documented, confirmed benign
+  on retry — the same known flake class, just not always the same file). **A human has not yet
+  playtested this live** — talk to the Shopkeeper, browse all 7 tabs, buy gear across different rarity
+  tiers onto different party members, buy enough potions to see the stack grow, and confirm a real
+  combat encounter along the way doesn't reset your stock, before this is marked fully shipped.
+
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
 is sub-project 1 of this same follow-on, now shipped). Next up: clicking a consumable in the Bag should
