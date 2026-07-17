@@ -751,11 +751,21 @@ func _init() -> void:
 	_check(inv.amber == 0, "buying with 0 Amber against a 1-Amber line is a no-op")
 	_check(inv.gear.size() == 1, "insufficient-Amber buying grants nothing")
 
-	# A full Bag rejects a Gear purchase (Amber/stock unchanged) but a Consumable still succeeds via
-	# stack-merge.
+	# A full Bag rejects a NEW Gear purchase (Amber/stock unchanged). A Consumable purchase that MERGES
+	# into an ALREADY-EXISTING stack still succeeds via stack-merge — try_give_item() only bypasses the
+	# Bag cap for a merge into an existing entry; the very FIRST unit of a brand-new stack is capacity-
+	# gated exactly like Gear/Weapon (verified against the real party_inventory.gd doc comment: "only a
+	# genuinely new stack entry is capacity-gated"). So this fixture pre-seeds ONE existing potion
+	# before filling the rest of the Bag to capacity, to test a genuine merge, not a fresh stack.
 	var full_inv: PartyInventory = PartyInventory.new()
 	full_inv.amber = 10
-	for i in range(full_inv.bag_capacity()):
+	var existing_potion: ConsumableItem = ConsumableItem.new()
+	existing_potion.item_type = &"healing_potion"
+	existing_potion.display_name = "Healing Potion"
+	existing_potion.heal_amount = 30
+	existing_potion.quantity = 1
+	full_inv.items = [existing_potion]
+	for i in range(full_inv.bag_capacity() - 1):   # -1: the pre-existing potion stack already occupies one slot
 		var filler: Gear = Gear.new()
 		filler.display_name = "Filler %d" % i
 		full_inv.gear.append(filler)
@@ -765,13 +775,13 @@ func _init() -> void:
 	]
 	panel.open_for(full_inv, full_stock)
 	panel.buy_for_test(full_stock[0])
-	_check(full_inv.amber == 10, "a full Bag rejects the Gear purchase — Amber unchanged")
-	_check(full_stock[0].stock == 3, "a full Bag rejects the Gear purchase — stock unchanged")
+	_check(full_inv.amber == 10, "a full Bag rejects the NEW Gear purchase — Amber unchanged")
+	_check(full_stock[0].stock == 3, "a full Bag rejects the NEW Gear purchase — stock unchanged")
 	panel.buy_for_test(full_stock[1])
-	_check(full_inv.amber == 9, "a full Bag still allows a Consumable purchase — Amber spent")
-	_check(full_inv.items.size() == 1, "the potion stack was created despite the full Bag (stack-merge, not a new slot)")
+	_check(full_inv.amber == 9, "a full Bag still allows a Consumable purchase that MERGES into an existing stack — Amber spent")
+	_check(full_inv.items[0].quantity == 2, "the potion purchase merged into the pre-existing stack (1 -> 2), not a new slot")
 	panel.buy_for_test(full_stock[1])
-	_check(full_inv.items[0].quantity == 2, "a second potion purchase merges into the same stack")
+	_check(full_inv.items[0].quantity == 3, "a further potion purchase also merges into the same stack")
 
 	panel.free()
 	quit()

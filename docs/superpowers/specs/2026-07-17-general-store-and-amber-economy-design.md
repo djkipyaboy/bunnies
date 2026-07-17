@@ -283,11 +283,15 @@ else:
 ```
 A full Bag legitimately blocks a Gear/Weapon purchase (this resolves the deferred lever the loot-drops
 memory flagged: yes, a full Bag blocks acquiring more, same rule for a shop purchase as for combat loot).
-Consumable stacks (Healing Potion) merge into the existing stack and never hit this rejection once the
-first unit exists in the Bag, per `try_give_item()`'s existing behavior — buying up to 99 potions is always
-possible regardless of Bag fullness; **Bag-full testing comes from the 32 individually-slotted Gear/Weapon
-lines, not the potions** (worth knowing going in — the potions test unlimited-stack-quantity handling, the
-gear tests Bag-capacity pressure; both were asked for, they just each stress a different mechanism).
+**Correction from the first drafting pass (caught during Task 4's implementation, not before):**
+`try_give_item()`'s existing behavior only bypasses the Bag cap when merging into an ALREADY-EXISTING
+stack of that `item_type` — the very FIRST Healing Potion purchase creates a brand-new stack entry and IS
+capacity-gated exactly like Gear/Weapon, consuming one Bag slot same as anything else. Only the
+2nd-through-99th purchases (merging into that now-existing stack) bypass the cap and always succeed
+regardless of Bag fullness. **Bag-full testing comes from the 32 individually-slotted Gear/Weapon lines
+plus the potion's OWN first purchase** — once one potion is owned, further potion purchases test
+unlimited-stack-quantity handling instead (both were asked for; they stress different mechanisms at
+different points in the sequence, not simultaneously from a cold Bag).
 
 ### 3.6 Vendor interaction: `VendorPromptPanel` + `Villager.is_vendor`
 
