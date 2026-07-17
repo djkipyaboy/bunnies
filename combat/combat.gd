@@ -93,6 +93,7 @@ var _last_result_won: bool = false
 ## Total XP awarded to the party THIS fight (player direction 2026-07-12: XP gain wasn't visible
 ## enough) — reset per _build_combatants() call, surfaced on the result card in _on_combat_ended().
 var _fight_xp_gained: int = 0
+var _fight_amber_gained: int = 0
 ## The real overworld party's shared inventory (2026-07-12 combat loot drops) — set ONLY in the
 ## handoff launch path (_build_combatants()); stays null for a standalone "Choose your Party"
 ## launch, since there's no real PartyInventory (or any UI to view one) behind that flow. Every
@@ -177,6 +178,7 @@ func _build_combatants() -> void:
 	_pcs.clear()
 	_enemies.clear()
 	_fight_xp_gained = 0
+	_fight_amber_gained = 0
 	_fight_loot_names = []
 	_fight_overflow_items = []
 	if _arrived_via_handoff:
@@ -1953,6 +1955,13 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 			pc.xp += ENEMY_XP_REWARD
 	_fight_xp_gained += ENEMY_XP_REWARD
 	_log("%s defeated — party gains %d XP! (total this fight: %d)" % [enemy.display_name, ENEMY_XP_REWARD, _fight_xp_gained])
+	# Amber (2026-07-17 general store design): standalone launches (_party_inventory == null) skip
+	# this entirely, same guard already used for loot below.
+	if _party_inventory != null and enemy.amber_reward > 0:
+		_party_inventory.amber += enemy.amber_reward
+		_fight_amber_gained += enemy.amber_reward
+		_log("%s defeated — party gains %d Amber! (total this fight: %d)" % [enemy.display_name, enemy.amber_reward, _fight_amber_gained])
+		_handoff().log_event("%s defeated — party gains %d Amber." % [enemy.display_name, enemy.amber_reward], &"combat")
 	# Loot (2026-07-12): standalone launches (_party_inventory == null) skip this entirely — see
 	# _build_combatants()'s comment for why.
 	if _party_inventory != null and enemy.loot_table != null:
@@ -1979,6 +1988,8 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	# card is guaranteed on-screen and uncrowded, so it's the reliable place to show the total.
 	if _fight_xp_gained > 0:
 		label.text += "\n+%d XP" % _fight_xp_gained
+	if _fight_amber_gained > 0:
+		label.text += "\n+%d Amber" % _fight_amber_gained
 	if not _fight_loot_names.is_empty():
 		label.text += "\nLoot: %s" % ", ".join(_fight_loot_names)
 	if not _fight_overflow_items.is_empty():

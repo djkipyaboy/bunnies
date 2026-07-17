@@ -115,6 +115,11 @@ var resource_pool: ResourcePool
 ## enemy EnemyLibrary doesn't wire one for).
 var loot_table: LootTable = null
 
+## Flat Amber reward this enemy grants the party on defeat (2026-07-17 general store design), scaled
+## by the enemy's size/power. 0 for player-side combatants (never read for them). [ASSUMPTION] tuned
+## by playtest, same convention as ENEMY_XP_REWARD.
+var amber_reward: int = 0
+
 ## Base (innate) stats from race/class. Gear adds on top — see [method effective_stats].
 var base_stats: Stats
 

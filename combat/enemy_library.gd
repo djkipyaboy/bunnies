@@ -30,19 +30,20 @@ static func make(id: StringName) -> Combatant:
 	var piercing: DamageType = load("res://combat/resources/types/piercing.tres")
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 	match id:
-		&"rat":    return _build(label(id), crushing, 8.0, 2, earth, 300, &"", 0, &"overworld_trash")       # plain melee baseline
-		&"ferret": return _build(label(id), slashing, 7.0, 3, slashing, 260, &"flurry", 2, &"overworld_trash")
-		&"stoat":  return _build(label(id), piercing, 6.0, 4, piercing, 220, &"hunters_mark", 3, &"overworld_trash")
+		&"rat":    return _build(label(id), crushing, 8.0, 2, earth, 300, &"", 0, &"overworld_trash", 5)       # plain melee baseline
+		&"ferret": return _build(label(id), slashing, 7.0, 3, slashing, 260, &"flurry", 2, &"overworld_trash", 8)
+		&"stoat":  return _build(label(id), piercing, 6.0, 4, piercing, 220, &"hunters_mark", 3, &"overworld_trash", 12)
 		_:         return null
 
 ## Stamps a fresh enemy Combatant. Enemies have NO Ultimate (ultimate_id cleared). An enemy with a
 ## base ability ([param ability_id] != &"") gets a small Stamina pool sized for it so the greedy AI
 ## can fire it through the same MainPhasePlan.commit() path PCs use (spec 2026-06-28 §2/§3.2).
-static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: float, reels: int, defense: DamageType, hp: int, ability_id: StringName = &"", ability_cost: int = 0, loot_table_id: StringName = &"") -> Combatant:
+static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: float, reels: int, defense: DamageType, hp: int, ability_id: StringName = &"", ability_cost: int = 0, loot_table_id: StringName = &"", amber_reward: int = 0) -> Combatant:
 	var c: Combatant = Combatant.new()
 	if loot_table_id != &"":
 		c.loot_table = LootTableLibrary.make(loot_table_id)
 	c.display_name = enemy_name
+	c.amber_reward = amber_reward
 	c.is_player = false
 	c.defense_type = defense
 	c.ultimate_id = &""   # enemies never fire an Ultimate (override Combatant's default)
