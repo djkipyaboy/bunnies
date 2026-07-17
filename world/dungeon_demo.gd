@@ -17,7 +17,7 @@ const FLOOR_ENEMY_IDS: Array[StringName] = [&"rat", &"ferret", &"stoat"]
 
 var _floors: Array[Node2D] = []
 var _current_floor: int = 0
-var _pc: Node2D
+var _pc: PCController
 var _camera: Camera2D
 var _fade_overlay: FadeOverlay
 var _dungeon_exit: SceneExit

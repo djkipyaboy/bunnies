@@ -55,7 +55,7 @@ func _init() -> void:
 	_check(dungeon._floors[1].get_node_or_null("DungeonExit") == null, "floor 2 has no DungeonExit")
 
 	# --- _apply_floor_change() (pure logic, no fade await) ---
-	var pc := Node2D.new()
+	var pc := PCController.new()
 	dungeon._floors[0].add_child(pc)
 	dungeon._pc = pc
 	var camera := Camera2D.new()
