@@ -110,6 +110,7 @@ var _collateral_total: int = 0           # this spin's primary-target total, for
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
 var _earthquake_total: int = 0           # this spin's primary-target total, for the Warden Earthquake splash (half to other enemies) + stun
 var _rallying_cry_tier: int = -1         # the Warden Rallying Cry reel's landed tier this spin (-1 = none)
+var _item_use_tier: int = -1             # the item-use reel's landed tier this spin (-1 = none)
 var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
 var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds: &"ability" (Select your Fate) | &"ultimate" (The Big Bang)
 var _fate_picker_title: Label            # picker heading, re-captioned per mode
@@ -1426,15 +1427,6 @@ func _commit_main1() -> void:
 		_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
 	if _attacker.hp > hp_before:
 		_log("  ✚ %s heals %d HP (%d/%d)." % [_attacker.display_name, _attacker.hp - hp_before, _attacker.hp, _attacker.max_hp])
-	# Healing Potion (2026-07-14 combat items menu): the orchestrator (which knows the whole party)
-	# picks the lowest-HP% living ally, same precedent as Foresight/Regrowth. Placed AFTER the
-	# generic hp-diff check above so a potion that heals the user themselves doesn't double-log.
-	if _attacker.healing_potion_pending:
-		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
-		if ally != null:
-			ally.heal(_attacker.pending_heal_amount)
-			_log("  ✚ %s drinks a Healing Potion — %s heals %d HP (%d/%d)." % [_attacker.display_name, ally.display_name, _attacker.pending_heal_amount, ally.hp, ally.max_hp])
-		_attacker.healing_potion_pending = false
 	# Immediate status/resource refresh (playtest 2026-07-04): self-cast buffs with no pending-flag
 	# block below (Heroic Guard, Second Wind, Bloodwrath, Mountain Stance, Feint & Riposte, Quickstep,
 	# Bastion, Riposte Storm, Loaded Dice) previously only became visible on the panel at this
@@ -1569,6 +1561,14 @@ func _do_spin() -> void:
 		var rc_idx: int = reels.find(_attacker.rallying_cry_reel)
 		if rc_idx >= 0 and rc_idx < attacks.size():
 			_rallying_cry_tier = attacks[rc_idx].face.result_tier
+	# Item-use reel (2026-07-16 design): read the utility reel's resolved tier the same way, so
+	# _finish_spin can apply the heal against _ally_target. item_use_reel is null unless an item was
+	# staged this turn.
+	_item_use_tier = -1
+	if _attacker.item_use_reel != null:
+		var iu_idx: int = reels.find(_attacker.item_use_reel)
+		if iu_idx >= 0 and iu_idx < attacks.size():
+			_item_use_tier = attacks[iu_idx].face.result_tier
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
 	# deferred the emit above.) `extra_lines` (Loaded Dice's bonus line, built above) must be folded
@@ -1884,6 +1884,18 @@ func _finish_spin() -> void:
 				if _panels.has(ally):
 					(_panels[ally] as CombatantPanel).refresh_status()
 					(_panels[ally] as CombatantPanel).refresh_shield()
+	# Item-use reel (2026-07-16 design §2/§3.5): apply the heal against the manually-selected ally
+	# target, reading the tier captured in _do_spin. The is_alive() guard is defensive-only — nothing
+	# can kill an off-turn ally between selection and resolution in this synchronous single-actor-per-
+	# turn flow (matches the existing style of guard used for enemy-target validity).
+	if _attacker.item_use_reel != null and _item_use_tier != -1 and _ally_target != null and _ally_target.is_alive():
+		var crit: bool = _item_use_tier == ReelFace.ResultTier.CRIT_SUCCESS
+		var amount: int = ceili(_attacker.pending_item_base_heal * (1.5 if crit else 1.0))
+		_ally_target.heal(amount)
+		var tier_text: String = " — CRITICAL SUCCESS!" if crit else ""
+		_log("  ✚ %s uses an item%s — %s heals %d HP (%d/%d)." % [_attacker.display_name, tier_text, _ally_target.display_name, amount, _ally_target.hp, _ally_target.max_hp])
+		if _panels.has(_ally_target):
+			(_panels[_ally_target] as CombatantPanel).refresh_status()
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	_attacker.clear_reroll_state()  # Chancer reroll/gamble were applied in _do_spin's post-spin pass
