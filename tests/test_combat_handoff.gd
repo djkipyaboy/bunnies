@@ -43,6 +43,11 @@ func _initialize() -> void:
 	_check(CombatHandoff.return_position == position, "begin_encounter sets return_position")
 	_check(CombatHandoff.has_return_position == true, "begin_encounter sets has_return_position true")
 
+	_check(CombatHandoff.dungeon_floor == 0, "begin_encounter defaults dungeon_floor to 0 when not passed")
+
+	CombatHandoff.begin_encounter(pc, companions, inv, vault, enemy_ids, encounter_id, scene_path, position, bench, [], 2)
+	_check(CombatHandoff.dungeon_floor == 2, "begin_encounter sets dungeon_floor when passed (2026-07-17 dungeon-scene-structure design)")
+
 	# --- mark_defeated() / is_defeated() round-trip ---
 	_check(CombatHandoff.is_defeated(&"NeverMarked") == false, "an id never marked reads false")
 	CombatHandoff.mark_defeated(&"OverworldRat")
@@ -98,6 +103,7 @@ func _initialize() -> void:
 	CombatHandoff.clear_return_position()
 	_check(CombatHandoff.return_position == Vector2.ZERO, "clear_return_position resets return_position")
 	_check(CombatHandoff.has_return_position == false, "clear_return_position resets has_return_position")
+	_check(CombatHandoff.dungeon_floor == 0, "clear_return_position also resets dungeon_floor (2026-07-17 dungeon-scene-structure design — always consumed together)")
 
 	# --- stash_party() (2026-07-12 shared-party-state work) + its bench param (2026-07-12 Party
 	# Selection work) — the plain cross-scene transition path, distinct from begin_encounter(). ---

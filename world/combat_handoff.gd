@@ -28,6 +28,12 @@ var bench: Array = []
 ## (SceneExit's shop_stock field) without inspecting it, the same asymmetric-ownership shape
 ## bench/party_inventory/vault already use.
 var shop_stock: Array = []
+## Which dungeon floor to show on return from a mid-dungeon combat round-trip (2026-07-17
+## dungeon-scene-structure design). Only meaningful alongside return_position/has_return_position —
+## always read together by dungeon_demo.gd's _determine_start(), so it's cleared in the same place
+## return_position is, not via its own dedicated clear method. Irrelevant (stays 0) for any encounter
+## that isn't inside the dungeon.
+var dungeon_floor: int = 0
 var party_inventory: PartyInventory
 var vault: Vault
 var enemy_ids: Array[StringName] = []
@@ -85,7 +91,7 @@ func stash_party(p: Combatant, comps: Array, inv: PartyInventory, v: Vault, b: A
 
 func begin_encounter(p: Combatant, comps: Array, inv: PartyInventory, v: Vault,
 		ids: Array[StringName], encounter_id: StringName, scene_path: String, position: Vector2,
-		b: Array = [], shop: Array = []) -> void:
+		b: Array = [], shop: Array = [], floor: int = 0) -> void:
 	pc = p
 	companions = comps
 	bench = b
@@ -97,6 +103,7 @@ func begin_encounter(p: Combatant, comps: Array, inv: PartyInventory, v: Vault,
 	return_position = position
 	has_return_position = true
 	shop_stock = shop
+	dungeon_floor = floor
 
 func mark_defeated(encounter_id: StringName) -> void:
 	if not defeated_encounter_ids.has(encounter_id):
@@ -138,6 +145,7 @@ func clear_party() -> void:
 func clear_return_position() -> void:
 	return_position = Vector2.ZERO
 	has_return_position = false
+	dungeon_floor = 0
 
 ## Clears pending_ground_drops — called by the destination scene (overworld_demo.gd) once it has
 ## spawned GroundItemPickup nodes for them.
