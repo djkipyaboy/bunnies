@@ -1670,6 +1670,13 @@ func _apply_attack(attack) -> void:
 		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
 		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0
 		_log("  %s %s reel → %s for %d damage to %s%s  %s" % [_attacker.display_name, _type_name(attack.damage_type), tier_name, attack.final_damage, target_names, aoe_tag, TypeVisuals.effectiveness_tag(mult)])
+	elif attack.source_reel != null and attack.source_reel == _attacker.item_use_reel:
+		# Playtest-found gap (2026-07-16): the generic "no damage vs <enemy>" line below reads as an
+		# attack against the enemy and never identifies WHICH reel is the item — a player couldn't
+		# tell it apart from the weapon reels in the log. This reel's real payoff (the heal) is logged
+		# separately once the spin settles (_finish_spin's "✚ ... uses an item" line); this line only
+		# needs to name the reel itself.
+		_log("  %s's Item Reel → %s." % [_attacker.display_name, tier_name])
 	else:
 		_log("  %s reel → %s (no damage) vs %s." % [_attacker.display_name, tier_name, target_names])
 	# Bonus Meter charge (attacker only). Log BM gains for the player (enemy meter is hidden).

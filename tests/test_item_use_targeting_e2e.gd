@@ -109,6 +109,16 @@ func _run_scenario(rig_tier: ReelFace.ResultTier, expect_crit: bool) -> void:
 		await process_frame
 	_check(inst._pending_strips <= 0, "the spin's strips all settled within the frame guard")
 
+	# Playtest-found gap (2026-07-16): the item reel used to log through the same generic
+	# "<name> reel -> <tier> (no damage) vs <enemy>" line every other no-damage utility reel uses,
+	# which reads as an attack against the enemy and never identifies it as the item reel at all —
+	# a player couldn't tell which of the several reels shown was the potion's own spin.
+	# _log() appends via RichTextLabel.add_text(), which does NOT update the .text property (that only
+	# reflects content assigned directly to .text) — get_parsed_text() is what actually returns the
+	# accumulated rendered content regardless of how it was added.
+	var log_text: String = inst._log_box.get_parsed_text()
+	_check(log_text.find("Item Reel") != -1, "the combat log identifies the item reel's own line distinctly (log tail: '%s')" % log_text.substr(maxi(0, log_text.length() - 300)))
+
 	var expected_amount: int = ceili(20.0 * (1.5 if expect_crit else 1.0))
 	_check(companion.hp == 10 + expected_amount, "companion healed for the expected amount (%d, got hp=%d)" % [expected_amount, companion.hp])
 	_check(pc.hp == pc_hp_before, "the PC's own HP is unchanged — the heal landed on the companion, not the caster")
