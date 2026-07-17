@@ -15,16 +15,16 @@ func _init() -> void:
 
 	var o: EncounterOption = EncounterOption.new()
 	o.bad_text = "bad"; o.neutral_text = "neutral"; o.good_text = "good"
-	o.bad_gold_delta = -10; o.neutral_gold_delta = -1; o.good_gold_delta = 15
+	o.bad_amber_delta = -10; o.neutral_amber_delta = -1; o.good_amber_delta = 15
 	o.bad_hp_delta = -20; o.neutral_hp_delta = -5; o.good_hp_delta = 0
 
 	_check(o.text_for(EncounterOption.Outcome.BAD) == "bad", "text_for(BAD) reads bad_text")
 	_check(o.text_for(EncounterOption.Outcome.NEUTRAL) == "neutral", "text_for(NEUTRAL) reads neutral_text")
 	_check(o.text_for(EncounterOption.Outcome.GOOD) == "good", "text_for(GOOD) reads good_text")
 
-	_check(o.gold_delta_for(EncounterOption.Outcome.BAD) == -10, "gold_delta_for(BAD) reads bad_gold_delta")
-	_check(o.gold_delta_for(EncounterOption.Outcome.NEUTRAL) == -1, "gold_delta_for(NEUTRAL) reads neutral_gold_delta")
-	_check(o.gold_delta_for(EncounterOption.Outcome.GOOD) == 15, "gold_delta_for(GOOD) reads good_gold_delta")
+	_check(o.amber_delta_for(EncounterOption.Outcome.BAD) == -10, "amber_delta_for(BAD) reads bad_amber_delta")
+	_check(o.amber_delta_for(EncounterOption.Outcome.NEUTRAL) == -1, "amber_delta_for(NEUTRAL) reads neutral_amber_delta")
+	_check(o.amber_delta_for(EncounterOption.Outcome.GOOD) == 15, "amber_delta_for(GOOD) reads good_amber_delta")
 
 	_check(o.hp_delta_for(EncounterOption.Outcome.BAD) == -20, "hp_delta_for(BAD) reads bad_hp_delta")
 	_check(o.hp_delta_for(EncounterOption.Outcome.NEUTRAL) == -5, "hp_delta_for(NEUTRAL) reads neutral_hp_delta")

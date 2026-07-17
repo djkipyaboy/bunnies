@@ -73,9 +73,11 @@ the 20+10N cap. Companion equipped gear lives on the `Companion`/`Combatant` ins
 accessible only at hub/rest points when benched.* Full data model:
 `docs/superpowers/specs/2026-07-10-equipment-inventory-banking-design.md` §3–4.
 
-### 8. Party gold
-💡 *Carried over from the original proposal, not re-litigated this session:* shared party gold (not
-per-character coin) — consistent with the shared-pool inventory model above.
+### 8. Party Amber
+✅ **Named 2026-07-17** (was an open item — this section used to say "party gold," never finalized):
+the currency is **Amber**, fossilized sap from the world's ancient Great Trees — the recognized medium
+of trade across every faction. Shared party pool (not per-character), consistent with the shared-pool
+inventory model above. Full mechanical spec: `docs/superpowers/specs/2026-07-17-general-store-and-amber-economy-design.md`.
 
 ### 9. In-combat item-use panel (new requirement, surfaced 2026-07-09 by [[28-encounter-design-framework]] §7)
 

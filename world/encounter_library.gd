@@ -23,10 +23,10 @@ static func _duel_option() -> EncounterOption:
 	var o: EncounterOption = EncounterOption.new()
 	o.label = "Challenge their leader to a duel"
 	o.reel = ActionReel.make_default()   # highest variance of the three — a real fight
-	o.good_text = "You best the bandit leader in single combat — the rest scatter, dropping their coin purse."
+	o.good_text = "You best the bandit leader in single combat — the rest scatter, dropping a pouch of amber."
 	o.neutral_text = "The duel ends in a draw. Both sides back away; nothing gained or lost."
 	o.bad_text = "You're overpowered and beaten badly before the bandits let you limp away."
-	o.good_gold_delta = 15
+	o.good_amber_delta = 15
 	o.bad_hp_delta = -20
 	return o
 
@@ -45,11 +45,11 @@ static func _negotiate_option() -> EncounterOption:
 	var o: EncounterOption = EncounterOption.new()
 	o.label = "Convince them to let you pass"
 	o.reel = _social_reel()
-	o.good_text = "Your words (and a little coin) buy safe passage."
-	o.neutral_text = "They let you pass, but not before emptying a few coins from your pockets."
+	o.good_text = "Your words (and a little amber) buy safe passage."
+	o.neutral_text = "They let you pass, but not before emptying a few amber shards from your pockets."
 	o.bad_text = "They see through the bluff and rough up the party before letting you go."
-	o.neutral_gold_delta = -5
-	o.bad_gold_delta = -10
+	o.neutral_amber_delta = -5
+	o.bad_amber_delta = -10
 	o.bad_hp_delta = -5
 	return o
 

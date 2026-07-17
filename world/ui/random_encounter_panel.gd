@@ -7,7 +7,7 @@ extends Panel
 ## and _for_test() hooks drive it without a live mouse/renderer.
 ##
 ## Flow: open_for() shows the description + one button per option -> pressing an option spins its
-## reel, buckets the result (EncounterOption.bucket_for), applies the flat gold/HP deltas, and
+## reel, buckets the result (EncounterOption.bucket_for), applies the flat amber/HP deltas, and
 ## swaps the view to the result text + a Continue button -> pressing Continue hides the panel and
 ## emits [signal resolved] so the driving scene can resume PC movement (mirrors DialogueBox.closed).
 
@@ -73,9 +73,9 @@ func _on_option_pressed(option: EncounterOption) -> void:
 	_show_result(option.text_for(outcome))
 
 func _apply_outcome(option: EncounterOption, outcome: EncounterOption.Outcome) -> void:
-	var gold_delta: int = option.gold_delta_for(outcome)
-	if gold_delta != 0 and _party_inventory != null:
-		_party_inventory.gold = maxi(0, _party_inventory.gold + gold_delta)
+	var amber_delta: int = option.amber_delta_for(outcome)
+	if amber_delta != 0 and _party_inventory != null:
+		_party_inventory.amber = maxi(0, _party_inventory.amber + amber_delta)
 	var hp_delta: int = option.hp_delta_for(outcome)
 	if hp_delta > 0:
 		_pc.heal(hp_delta)
@@ -83,8 +83,8 @@ func _apply_outcome(option: EncounterOption, outcome: EncounterOption.Outcome) -
 		_pc.take_damage(-hp_delta)
 
 	var deltas: Array[String] = []
-	if gold_delta != 0:
-		deltas.append("gold %+d" % gold_delta)
+	if amber_delta != 0:
+		deltas.append("amber %+d" % amber_delta)
 	if hp_delta != 0:
 		deltas.append("HP %+d" % hp_delta)
 	var suffix: String = " (%s)" % ", ".join(deltas) if not deltas.is_empty() else ""

@@ -20,6 +20,7 @@ func _initialize() -> void:
 	_check(pc != null, "seeds a PC Combatant")
 	_check(companions.size() == 1 and companions[0] != null, "seeds exactly one companion")
 	_check(inv != null and vault != null, "seeds a PartyInventory and a Vault")
+	_check(party_seed["party_inventory"].amber == 30, "seed_demo_party() seeds the party with 30 starting Amber")
 
 	# Pre-equipped items so unequip is immediately testable (spec §4), not just equip-into-empty.
 	_check(pc.gear.size() > 0, "PC starts with at least one item pre-equipped")

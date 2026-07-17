@@ -229,6 +229,14 @@ meta-progression spine. → [[23-talents-and-reel-points]] · [[22-leveling]].
 ✅ **A relic piece enables free talent-point reallocation (out of combat only).** The story's reward for
 recovering this piece is build flexibility *at the talent layer* — explicitly NOT a class re-spec (§4). →
 [[23-talents-and-reel-points]].
+✅ **Amber is the world's working currency, not personally "used" by whoever carries it** (locked
+2026-07-17, recorded here for whenever the real storyline pass on this begins): raiding warbands loot
+it from villages and travelers specifically to fund themselves — buying weapons, bribing scouts, paying
+raiders — so a given defeated grunt is carrying their cut of the spoils, the same way a real bandit
+carries stolen coin without personally "using" it. Underneath that ordinary-greed explanation sits a
+deeper hook: Amber is fossilized sap from the world's ancient Great Trees, carrying a trace of old
+magic — rare and potent enough that it became the recognized medium of trade in the first place, with
+room to matter again later (a certain golden Game Cartridge responding to it, etc.). → [[13-world-atlas-and-regions]].
 
 ### 9. Open questions
 *(Resolved 2026-06-30 — now locked above: portal = video game · relics = 6 disguised console pieces ·

@@ -28,6 +28,7 @@ static func seed_demo_party() -> Dictionary:
 		bench.append(recruit)
 
 	var inv: PartyInventory = PartyInventory.new()
+	inv.amber = 30   # 2026-07-17 general store design: lets the player buy gear immediately, no combat grind required
 	var vault: Vault = Vault.new()
 	vault.tab_capacity[&"gear"] = 10
 	vault.tab_capacity[&"weapons"] = 5

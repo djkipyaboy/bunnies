@@ -16,7 +16,7 @@ const BAG_CAPACITY_PER_SLOT: int = 10
 @export var materials: Array[Resource] = []    # uncapped, stacking
 @export var quest_items: Array[Resource] = []  # uncapped; never banked (per-playthrough only)
 @export var items: Array[ConsumableItem] = []  # uncapped array, but stacks count toward bag capacity
-@export var gold: int = 0
+@export var amber: int = 0   # 2026-07-17 general store design: the world's actual currency
 @export var unlocked_companion_slots: int = 0  # 0-2, story-gated
 
 func bag_capacity() -> int:

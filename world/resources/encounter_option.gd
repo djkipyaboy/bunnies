@@ -19,13 +19,13 @@ enum Outcome { BAD, NEUTRAL, GOOD }
 @export var good_text: String = ""
 
 ## Flat deltas applied to the PC on resolution — positive hp_delta heals, negative damages
-## (Combatant.heal()/take_damage()). Kept minimal (gold + PC HP only) for this playtest; not a
+## (Combatant.heal()/take_damage()). Kept minimal (Amber + PC HP only) for this playtest; not a
 ## general effect system.
-@export var bad_gold_delta: int = 0
+@export var bad_amber_delta: int = 0
 @export var bad_hp_delta: int = 0
-@export var neutral_gold_delta: int = 0
+@export var neutral_amber_delta: int = 0
 @export var neutral_hp_delta: int = 0
-@export var good_gold_delta: int = 0
+@export var good_amber_delta: int = 0
 @export var good_hp_delta: int = 0
 
 static func bucket_for(tier: ReelFace.ResultTier) -> Outcome:
@@ -43,11 +43,11 @@ func text_for(outcome: Outcome) -> String:
 		Outcome.GOOD: return good_text
 		_: return neutral_text
 
-func gold_delta_for(outcome: Outcome) -> int:
+func amber_delta_for(outcome: Outcome) -> int:
 	match outcome:
-		Outcome.BAD: return bad_gold_delta
-		Outcome.GOOD: return good_gold_delta
-		_: return neutral_gold_delta
+		Outcome.BAD: return bad_amber_delta
+		Outcome.GOOD: return good_amber_delta
+		_: return neutral_amber_delta
 
 func hp_delta_for(outcome: Outcome) -> int:
 	match outcome:
