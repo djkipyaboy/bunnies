@@ -1293,8 +1293,9 @@ Important cross-task bugs — 2 fix rounds, both re-reviewed clean):
   tiers onto different party members, buy enough potions to see the stack grow, and confirm a real
   combat encounter along the way doesn't reset your stock, before this is marked fully shipped.
 
-**SHIPPED 2026-07-17 — DUNGEON SCENE STRUCTURE, all headless-test-green (186/186 full suite), human
-playtest still pending.** Step 2 of the standing overworld-playtest arc (loot drops → items menu →
+**SHIPPED 2026-07-17 — DUNGEON SCENE STRUCTURE, all headless-test-green (186/186 full suite),
+human-playtested 2026-07-17/18 with 3 fixes (see the follow-up entry immediately below).** Step 2 of
+the standing overworld-playtest arc (loot drops → items menu →
 shopkeepers → **dungeon scene structure** → lock-and-key → boss design → Treasure Trove → mountain
 entrance wiring; memory `dungeon-milestone-roadmap-2026-07-17`). Brainstormed → spec'd
 (`docs/superpowers/specs/2026-07-17-dungeon-scene-structure-design.md`) → planned
@@ -1347,10 +1348,58 @@ logic bugs, see below):
   full 186-file suite re-run came back clean (4 files hit the documented intermittent teardown-only
   SIGSEGV flake class, all confirmed clean on retry — not regressions; the one pre-existing, unrelated,
   out-of-scope `test_adventuring_board_panel.gd` failure documented since 2026-07-14 is still present,
-  confirmed identical, not touched by this plan). **A human has not yet playtested this live** — walk
-  into the temporary mountain entrance, descend to floor 3, fight the placeholder stoat, confirm the
-  round trip returns to floor 3 (not floor 1), continue to floor 4, walk back up to floor 1, and exit
-  to the overworld, before this is marked fully shipped.
+  confirmed identical, not touched by this plan).
+
+**FIRST HUMAN PLAYTEST of the dungeon, SHIPPED 2026-07-17/18 — 3 real bugs found and fixed same
+session, 190/190 headless suites green.** Player walked the full loop (mountain entrance → descend
+through floor 3 → fight the placeholder stoat → continue → try Leave Dungeon → lose a fight on
+purpose) and reported all 3 combat encounters "worked out extremely well" with appropriate Amber
+drops. Found, root-caused (systematic-debugging), and fixed directly by the controller (not via the
+subagent-driven plan — these are post-ship playtest fixes):
+- **Critical: a real softlock on losing a dungeon fight.** Root cause traced through the actual
+  code, not guessed: `combat.gd`'s `_resolve_handoff_continue()` only calls `mark_defeated()` on a
+  WIN, so a lost fight leaves the enemy alive; it respawns at its fixed home position while
+  `return_position` places the PC right back where the fight triggered — almost certainly still
+  inside the enemy's tiny auto-trigger radius. The very next processed frame re-fired the SAME
+  encounter before the player could react, reading as "Continue snaps back to the defeat screen."
+  This is exactly the risk the dungeon feature's own final whole-branch review had flagged as a
+  Minor "check during playtest" item — confirmed real. Fixed with a new
+  `AUTO_TRIGGER_ARM_DISTANCE` (40px) gate in both `world/dungeon_demo.gd` and
+  `world/overworld_demo.gd` (the identical latent bug existed there too, just never triggered
+  before this playtest): the PC must move that far from its spawn point before ANY `auto_trigger`
+  interactable is allowed to fire. A fresh scene load already spawns far from every placed enemy, so
+  this is a no-op there — only the loss-return case (spawn point overlapping a live enemy) is
+  actually gated. Regression: `tests/test_dungeon_auto_trigger_arm_gate.gd` +
+  `tests/test_overworld_auto_trigger_arm_gate.gd` (RED/GREEN proven by rigging the exact
+  lost-fight-return state directly via `CombatHandoff`, no full combat.gd simulation needed).
+- **Important: "Leave Dungeon" dropped the player at the village, not the mountain.**
+  `overworld_demo.gd`'s `_build_pc()` only ever special-cased `CombatHandoff.return_position` (the
+  combat-round-trip path) — any plain `SceneExit` transition fell back to the single fixed
+  `PC_SPAWN` constant near the village, regardless of which entrance/exit was actually used. This
+  happened to look correct for the pre-existing town↔overworld pair (`PC_SPAWN` sits right next to
+  the village) but was clearly wrong for the dungeon, on the far side of the map. Fixed with new
+  `CombatHandoff.entry_spawn_position`/`has_entry_spawn_position` fields (mirroring
+  `return_position`'s shape, threaded through `stash_party()`'s two new trailing params, default
+  unset so every pre-existing call site is unaffected) and a matching
+  `SceneExit.target_spawn_position`/`has_target_spawn_position` pair, settable per-instance. Only
+  the dungeon's own `DungeonExit` sets one this pass — the pre-existing `VillageEntrance`/`TownExit`
+  pair is untouched, since `PC_SPAWN` already reads correctly there. Regression:
+  `tests/test_dungeon_exit_spawn_position.gd`.
+- **Minor: stairs and the dungeon entrance/exit had zero visual indicator** — flat, featureless
+  ground with nothing drawn beyond an invisible `Area2D`, exactly the class of gap `town_demo.gd`'s
+  `TownExit`/`ExitDoor` arrows already solved elsewhere in this codebase. Fixed by reusing that same
+  yellow-arrow-as-`highlight_visual` convention for the dungeon entrance/exit, and a distinct
+  stone-gray up/down arrow for stairs. Regression: `tests/test_dungeon_visual_indicators.gd`.
+- **Non-blocking feedback, NOT acted on this pass** (see memory `dungeon-playtest-2026-07-17-
+  followups`): a report that Amber/potions don't show in the inventory UI (the potion half is a
+  previously-documented, already-tracked gap — see the items-out-of-combat sub-project 2 note below;
+  the Amber half needs independent re-verification, not yet done); the general store's weapon
+  catalog only offering one generic weapon shape instead of each class's own weapon type; and the
+  player's own suggestion to scale dungeon floors to 1/2/3 enemies instead of one placeholder each
+  (explicitly fine for this playtest, a natural fit for the lock-and-key/boss-design roadmap steps
+  instead). Also captured, entirely separately and NOT brainstormed/spec'd/built: a bigger design
+  pitch for a UTIL-reel-triggered jackpot meter + region-varying free-spin "team-up attack" minigame
+  (memory `util-reel-jackpot-freespin-idea-2026-07-17`) — needs its own dedicated session.
 
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
