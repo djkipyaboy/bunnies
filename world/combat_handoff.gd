@@ -186,8 +186,8 @@ func clear_entry_spawn_position() -> void:
 	has_entry_spawn_position = false
 
 ## Clears everything the five narrower methods above clear, combined — for callers (and tests)
-## that want a full reset in one call. Does NOT clear defeated_encounter_ids or event_log_entries —
-## both must persist for the life of the session.
+## that want a full reset in one call. Does NOT clear defeated_encounter_ids, unlocked_gate_ids, or
+## event_log_entries — all three must persist for the life of the session.
 func clear_pending() -> void:
 	clear_combat_data()
 	clear_party()
