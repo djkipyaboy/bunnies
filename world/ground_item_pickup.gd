@@ -62,6 +62,9 @@ func _try_grant() -> bool:
 	if item is CraftingMaterial:
 		party_inventory.give_material(item as CraftingMaterial)   # materials are uncapped
 		return true
+	if item is QuestItem:
+		party_inventory.give_quest_item(item as QuestItem)   # quest items are uncapped
+		return true
 	return false
 
 func _display_name() -> String:

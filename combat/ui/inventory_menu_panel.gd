@@ -615,7 +615,9 @@ func _build_quest_panel() -> void:
 		_build_list_empty_message("No quest items yet.")
 		return
 	for i in range(_party_inventory.quest_items.size()):
-		_build_list_row(i, "Quest item %d" % (i + 1))   # [ASSUMPTION] placeholder — no quest-item display shape designed yet
+		var entry: Resource = _party_inventory.quest_items[i]
+		var label_text: String = entry.display_name if entry is QuestItem else "Quest item %d" % (i + 1)
+		_build_list_row(i, label_text)
 
 func _build_list_empty_message(text: String) -> void:
 	var label := Label.new()

@@ -41,6 +41,14 @@ func _init() -> void:
 	_check(panel.list_row_count_for_test() == 1, "an empty Quest tab shows exactly one row (the placeholder)")
 	_check(panel.list_row_text_for_test(0) == "No quest items yet.", "the empty Quest tab shows its placeholder message")
 
+	var key: QuestItem = QuestItem.new()
+	key.display_name = "Rusty Key"
+	key.item_id = &"dungeon_key"
+	inv.quest_items = [key]
+	panel.switch_tab_for_test(&"quest")
+	_check(panel.list_row_count_for_test() == 1, "a populated Quest tab shows one row per quest item")
+	_check(panel.list_row_text_for_test(0) == "Rusty Key", "the Quest tab shows the item's real display_name, not a placeholder")
+
 	# Switching back to Bag still works — neither new tab wedges the panel.
 	panel.switch_tab_for_test(&"bag")
 	_check(panel.active_tab_for_test() == &"bag", "switching back to Bag works normally")

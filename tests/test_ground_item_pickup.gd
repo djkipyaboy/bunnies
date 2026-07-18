@@ -62,6 +62,19 @@ func _initialize() -> void:
 	pickup3.interact()
 	_check(inv3.materials.size() == 1 and inv3.materials[0].quantity == 2, "interact() grants a CraftingMaterial via give_material()")
 
+	# --- QuestItem: always succeeds (uncapped, 2026-07-18 lock-and-key design) ---
+	var inv4: PartyInventory = PartyInventory.new()
+	var key: QuestItem = QuestItem.new()
+	key.item_id = &"dungeon_key"
+	key.display_name = "Rusty Key"
+	var pickup_key: GroundItemPickup = GroundItemPickup.new()
+	pickup_key.item = key
+	pickup_key.party_inventory = inv4
+	get_root().add_child(pickup_key)
+	await process_frame
+	pickup_key.interact()
+	_check(inv4.has_quest_item(&"dungeon_key"), "interact() grants a QuestItem via give_quest_item()")
+
 	# --- Bag full: rejection leaves the item on the ground, does NOT free the node ---
 	var full_inv: PartyInventory = PartyInventory.new()
 	for i: int in range(20):
