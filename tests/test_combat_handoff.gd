@@ -59,6 +59,17 @@ func _initialize() -> void:
 			count += 1
 	_check(count == 1, "marking the same id twice does not duplicate the array")
 
+	# --- mark_gate_unlocked() / is_gate_unlocked() round-trip (2026-07-18 lock-and-key design) ---
+	_check(CombatHandoff.is_gate_unlocked(&"never_unlocked") == false, "a gate never marked reads false")
+	CombatHandoff.mark_gate_unlocked(&"dungeon_floor3_to_4_gate")
+	_check(CombatHandoff.is_gate_unlocked(&"dungeon_floor3_to_4_gate") == true, "a marked gate reads true")
+	CombatHandoff.mark_gate_unlocked(&"dungeon_floor3_to_4_gate")
+	var gate_count: int = 0
+	for id: StringName in CombatHandoff.unlocked_gate_ids:
+		if id == &"dungeon_floor3_to_4_gate":
+			gate_count += 1
+	_check(gate_count == 1, "marking the same gate twice does not duplicate the array")
+
 	# --- clear_pending() resets pending fields but NOT defeated_encounter_ids ---
 	CombatHandoff.clear_pending()
 	_check(CombatHandoff.pc == null, "clear_pending resets pc")
@@ -72,6 +83,7 @@ func _initialize() -> void:
 	_check(CombatHandoff.return_position == Vector2.ZERO, "clear_pending resets return_position")
 	_check(CombatHandoff.has_return_position == false, "clear_pending resets has_return_position")
 	_check(CombatHandoff.is_defeated(&"OverworldRat") == true, "clear_pending does NOT clear defeated_encounter_ids")
+	_check(CombatHandoff.is_gate_unlocked(&"dungeon_floor3_to_4_gate") == true, "clear_pending does NOT clear unlocked_gate_ids")
 
 	# --- clear_combat_data() / clear_party() / clear_return_position() are the three split halves
 	# clear_pending() composes. combat.gd's Continue handler calls ONLY clear_combat_data() before

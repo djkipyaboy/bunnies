@@ -52,6 +52,12 @@ var return_scene_path: String = ""
 var return_position: Vector2 = Vector2.ZERO
 var has_return_position: bool = false   # ZERO could be a legitimate spawn point; don't sentinel-compare
 var defeated_encounter_ids: Array[StringName] = []
+## Which locked gates (e.g. the dungeon's floor-3->4 stairs) have been permanently unlocked this
+## session (2026-07-18 lock-and-key design) — separate from whether the party still holds the key
+## that unlocked it (the key is consumed on use, but the unlock itself must outlive that, surviving
+## any number of scene rebuilds from mid-dungeon combat round-trips). Same session-lifetime
+## persistence convention as defeated_encounter_ids — never cleared by clear_pending().
+var unlocked_gate_ids: Array[StringName] = []
 
 ## Combat-loot items that overflowed the Bag's capacity when a fight ended — carried across the
 ## combat.tscn -> overworld scene change so the destination scene can drop them as real
@@ -124,6 +130,13 @@ func mark_defeated(encounter_id: StringName) -> void:
 
 func is_defeated(encounter_id: StringName) -> bool:
 	return defeated_encounter_ids.has(encounter_id)
+
+func mark_gate_unlocked(gate_id: StringName) -> void:
+	if not unlocked_gate_ids.has(gate_id):
+		unlocked_gate_ids.append(gate_id)
+
+func is_gate_unlocked(gate_id: StringName) -> bool:
+	return unlocked_gate_ids.has(gate_id)
 
 ## Clears the combat-specific data (enemy_ids/pending_encounter_id/return_scene_path) once
 ## combat.gd has read them, so a later standalone combat.tscn launch doesn't see stale handoff
