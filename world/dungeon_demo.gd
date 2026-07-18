@@ -13,6 +13,7 @@ const STAIRS_DOWN_LOCAL := Vector2(700, 100)
 const STAIRS_UP_LOCAL := Vector2(100, 500)
 const ENEMY_LOCAL := Vector2(400, 300)
 const ENTRANCE_LOCAL := Vector2(100, 500)
+const KEY_LOCAL := Vector2(600, 150)   # floor 2 (index 1); clear of its stairs (700,100)/(100,500) and enemy (400,300)
 const FLOOR_ENEMY_IDS: Array[StringName] = [&"rat", &"ferret", &"stoat"]
 
 ## Playtest-found bug (2026-07-17): "Leave Dungeon" used to drop the player at the overworld's
@@ -58,6 +59,18 @@ var _vault: Vault
 func _handoff() -> Node:
 	return get_node("/root/CombatHandoff")
 
+func is_gate_unlocked(gate_id: StringName) -> bool:
+	return _handoff().is_gate_unlocked(gate_id)
+
+func try_consume_quest_item(item_id: StringName) -> bool:
+	return _party_inventory.consume_quest_item(item_id)
+
+func mark_gate_unlocked(gate_id: StringName) -> void:
+	_handoff().mark_gate_unlocked(gate_id)
+
+func show_locked_message() -> void:
+	_pickup_debug_label.text = "The way down is locked — you need a key."
+
 static func floor_bounds(index: int) -> Rect2:
 	var col: int = index % 2
 	var row: int = index / 2
@@ -82,14 +95,18 @@ func _build_floors() -> void:
 		if i > 0:
 			_place_stairs(container, bounds, i, false)
 		if i < FLOOR_COUNT - 1:
-			_place_stairs(container, bounds, i, true)
+			if i == 2:
+				_place_stairs(container, bounds, i, true, &"dungeon_key", &"dungeon_floor3_to_4_gate")
+			else:
+				_place_stairs(container, bounds, i, true)
 		if i == 0:
 			_dungeon_exit = _build_dungeon_exit(container, bounds)
 
 		container.visible = (i == _current_floor)
 		container.process_mode = Node.PROCESS_MODE_INHERIT if i == _current_floor else Node.PROCESS_MODE_DISABLED
 
-func _place_stairs(container: Node2D, bounds: Rect2, floor_index: int, going_down: bool) -> void:
+func _place_stairs(container: Node2D, bounds: Rect2, floor_index: int, going_down: bool,
+		required_quest_item_id: StringName = &"", gate_id: StringName = &"") -> void:
 	var stairs := Stairs.new()
 	stairs.name = "StairsDown" if going_down else "StairsUp"
 	stairs.prompt_text = "Descend" if going_down else "Ascend"
@@ -97,6 +114,8 @@ func _place_stairs(container: Node2D, bounds: Rect2, floor_index: int, going_dow
 	stairs.target_local_entry = STAIRS_UP_LOCAL if going_down else STAIRS_DOWN_LOCAL
 	stairs.global_position = bounds.position + (STAIRS_DOWN_LOCAL if going_down else STAIRS_UP_LOCAL)
 	stairs.dungeon = self
+	stairs.required_quest_item_id = required_quest_item_id
+	stairs.gate_id = gate_id
 	container.add_child(stairs)
 
 	# Playtest-found UX gap (2026-07-17): stairs sat on flat, featureless ground with zero visual
@@ -173,6 +192,7 @@ func _ready() -> void:
 	_build_ui()
 	_build_inventory_demo()
 	_place_dungeon_enemies()
+	_place_dungeon_key()
 	_dungeon_exit.pc_combatant = _pc_combatant
 	_dungeon_exit.companions = _companions
 	_dungeon_exit.bench = _bench
@@ -290,6 +310,28 @@ func _place_dungeon_enemy(node_name: StringName, enemy_ids: Array[StringName], p
 	enemy.pc_node = _pc
 	enemy.dungeon_floor = floor_index
 	_floors[floor_index].add_child(enemy)
+
+func _place_dungeon_key() -> void:
+	if _handoff().is_defeated(&"DungeonKeyPickup"):
+		return
+	var pickup := GroundItemPickup.new()
+	pickup.name = "DungeonKeyPickup"
+	var key := QuestItem.new()
+	key.item_id = &"dungeon_key"
+	key.display_name = "Rusty Key"
+	pickup.item = key
+	pickup.party_inventory = _party_inventory
+	pickup.global_position = floor_bounds(1).position + KEY_LOCAL
+	pickup.item_picked_up.connect(_on_key_picked_up)
+	_floors[1].add_child(pickup)
+
+## Separate from _on_item_picked_up() (which handles transient discard/loot-drop pickups that never
+## need "already collected" tracking) — the key is a fixed, deterministic placement, so it needs the
+## same mark_defeated()-based persistence RewardPickup/GatheringNode already use.
+func _on_key_picked_up(item_name: String) -> void:
+	_handoff().mark_defeated(&"DungeonKeyPickup")
+	_pickup_debug_label.text = "Picked up: %s" % item_name
+	_handoff().log_event("Picked up: %s" % item_name, &"loot")
 
 func _on_item_discarded(item: Resource, _quantity: int) -> void:
 	var pickup := GroundItemPickup.new()
