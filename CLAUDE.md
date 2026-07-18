@@ -1401,6 +1401,47 @@ subagent-driven plan — these are post-ship playtest fixes):
   pitch for a UTIL-reel-triggered jackpot meter + region-varying free-spin "team-up attack" minigame
   (memory `util-reel-jackpot-freespin-idea-2026-07-17`) — needs its own dedicated session.
 
+**SHIPPED 2026-07-18 — DUNGEON LOCK-AND-KEY, all headless-test-green (192/192 full suite), human
+playtest still pending.** Step 3 of the dungeon milestone roadmap (memory
+`dungeon-milestone-roadmap-2026-07-17`) — the dungeon's first progression gate. Brainstormed →
+spec'd (`docs/superpowers/specs/2026-07-18-dungeon-lock-and-key-design.md`) → planned
+(`docs/superpowers/plans/2026-07-18-dungeon-lock-and-key.md`) → built subagent-driven (5
+implementation tasks, each implementer + reviewer, all clean on first review):
+- **`QuestItem`** (new, `world/resources/quest_item.gd`) — the first thing to ever populate
+  `PartyInventory.quest_items` (existed since 2026-07-10, never used). `display_name`/`item_id`
+  fields; `PartyInventory` gains `give_quest_item()`/`has_quest_item()`/`consume_quest_item()`,
+  mirroring the existing `materials`/`items` method shapes exactly.
+- **`CombatHandoff.unlocked_gate_ids`** (new) — a `defeated_encounter_ids`-style persistent tracker,
+  session-lifetime, never cleared by `clear_pending()`. This is the key design point: "does the gate
+  read as unlocked" is tracked SEPARATELY from "does the party currently hold the key" (which is
+  consumed on use) — a mid-dungeon combat round-trip fully rebuilds the scene, so only a
+  session-lifetime flag (not the consumable item) can survive that and keep the gate open, matching
+  the player's own explicit requirement to backtrack freely once unlocked.
+- **`Stairs`** gains `required_quest_item_id`/`gate_id` fields and a new synchronous `_try_unlock()`,
+  split out from `interact()` — checks `is_gate_unlocked()` FIRST (before ever touching the key), only
+  consumes the key and marks the gate unlocked on a genuinely first-time success. Only floor 3's
+  descent (to floor 4) is gated; floor 4's ascent and every other stairs instance is untouched.
+- **A "Rusty Key" ground pickup** on floor 2 (reusing `GroundItemPickup`, now `QuestItem`-aware),
+  with the same already-collected/no-respawn-on-rebuild tracking `RewardPickup`/`GatheringNode`
+  already use. `InventoryMenuPanel`'s Quest Items tab (previously a placeholder shell rendering
+  `"Quest item %d"` for anything present) now shows the item's real `display_name`.
+- **One real bug found and fixed mid-build, in the PLAN's own literal test text, not production
+  code**: Task 4's test asserted `dungeon._current_floor == 2` (floor 3) immediately after a fresh
+  scene instantiation without ever navigating there — but a fresh launch always starts on floor 1
+  (index 0). Fixed by the implementer adding the same two-step `_apply_floor_change()` navigation
+  `tests/test_dungeon_floor_survives_combat.gd` already established; no production code needed any
+  change. Task 5's implementer proactively verified its own test didn't share this same class of bug
+  before writing it (confirmed correct — `_try_unlock()`/`_apply_floor_change()` don't depend on
+  prior floor navigation).
+- **Verified-by-machine vs your call (§5 hard ceiling)**: all of the above is headless-test-green — a
+  full 192-file suite re-run came back clean (3 files hit the documented intermittent teardown-only
+  SIGSEGV flake class, all confirmed clean on retry — not regressions; the pre-existing, unrelated,
+  out-of-scope `test_adventuring_board_panel.gd` failure documented since 2026-07-14 is still present,
+  confirmed identical). **A human has not yet playtested this live** — pick up the Rusty Key on floor
+  2, confirm it shows in the Quest Items tab by name, try floor 3's locked stairs before getting the
+  key to see the locked message, get the key, unlock, confirm it's consumed from Quest Items, and
+  confirm backtracking freely between all 4 floors afterward never re-locks anything.
+
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
 is sub-project 1 of this same follow-on, now shipped). Next up: clicking a consumable in the Bag should
