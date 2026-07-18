@@ -1448,12 +1448,34 @@ broken" bug class this project has hit before (e.g. the 2026-07-11 silent-equip-
 Fixed: `DungeonDemo.show_unlocked_message()` (mirrors the existing `show_locked_message()`), called
 from `Stairs._try_unlock()` right after `mark_gate_unlocked()`. Regression coverage added directly to
 `tests/test_dungeon_lock_and_key.gd` (both the locked-message and the new unlocked-message paths are
-now explicitly asserted, closing a gap in the original task's own test coverage). Also surfaced,
-logged to memory `dungeon-playtest-2026-07-17-followups`, not acted on: Amber balance visibility
-wants a more prominent placement (confirmed present on the Stats tab, just easy to miss); the general
-store's weapon catalog confirmed NOT class-conditional (it's just 2 total entries, by original
-design); floors 2-3 are still single-enemy encounters (re-confirmed still open, a natural fit for the
-upcoming boss-design step, not a re-open of lock-and-key).
+now explicitly asserted, closing a gap in the original task's own test coverage). Also surfaced this
+round, logged to memory `dungeon-playtest-2026-07-17-followups` — all three SHIPPED same day, see the
+entry immediately below.
+
+**SHIPPED 2026-07-18 — 3 PLAYTEST-BACKLOG ITEMS: AMBER HUD, SHOP WEAPON VARIETY, ESCALATING DUNGEON
+FLOORS, all headless-test-green (193/193 full suite).** Closed out the remaining non-blocking feedback
+from the dungeon-scene-structure and lock-and-key playtests in one batch:
+- **Amber HUD** — a persistent "Amber: N" label (position `(16, 100)`, clear of every existing UI
+  element) now shows in `town_demo.gd`, `overworld_demo.gd`, and `dungeon_demo.gd`, refreshed every
+  `_process()` tick. The player's own Paper-Mario-coin-counter suggestion. Amber previously only
+  showed on `InventoryMenuPanel`'s Stats tab, which the player had missed. Regression:
+  `tests/test_amber_hud.gd`.
+- **Shop weapon variety per class** — `ShopLibrary.general_store()`'s weapon catalog grew from 2
+  generic Slashing-only entries to 14 (one Common + one Uncommon per class), each reusing that
+  class's own canonical weapon type/reel_count already established in `ClassLibrary` (Vanguard's War
+  Hammer/crushing/2 reels, Ranger's Hunting Bow/piercing/4 reels, etc.) — `_weapon_entry()` gained
+  `damage_type_path`/`reel_count` params (defaulted to the original Slashing/3-reel shape, so the 2
+  pre-existing entries are unchanged). The player's "maybe it's class-based" hypothesis turned out to
+  be the right INSTINCT even though the actual gap was simpler (the catalog just never had per-class
+  entries at all).
+- **Escalating dungeon floor encounters** — floor 1 stays a single rat; floor 2 is now rat+ferret;
+  floor 3 is now rat+ferret+stoat, escalating toward the boss on floor 4. Required ZERO `combat.gd`
+  changes: `_build_combatants()` already loops over an arbitrary-length `enemy_ids` array (the same
+  mechanism the pre-existing "Choose your Party" N-vs-M selection screen uses) — this was purely a
+  `dungeon_demo.gd._place_dungeon_enemies()` data change, reusing existing enemy content.
+- **Still open, not part of this batch**: potions have no display path anywhere in
+  `InventoryMenuPanel` — a bigger, separate UI feature (see the sub-project 2 note immediately below),
+  not a quick fix.
 
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
