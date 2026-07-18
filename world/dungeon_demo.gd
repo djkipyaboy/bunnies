@@ -71,6 +71,12 @@ func mark_gate_unlocked(gate_id: StringName) -> void:
 func show_locked_message() -> void:
 	_pickup_debug_label.text = "The way down is locked — you need a key."
 
+## Playtest-found gap (2026-07-18): using the key to unlock the gate had no on-screen confirmation
+## at all, unlike every other notable event in this scene (item pickups, Bag-full rejections, the
+## locked message itself) — the player couldn't tell the key had actually done anything.
+func show_unlocked_message() -> void:
+	_pickup_debug_label.text = "The Rusty Key unlocks the way down!"
+
 static func floor_bounds(index: int) -> Rect2:
 	var col: int = index % 2
 	var row: int = index / 2

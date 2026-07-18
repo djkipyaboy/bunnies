@@ -38,4 +38,5 @@ func _try_unlock() -> bool:
 		dungeon.show_locked_message()
 		return false
 	dungeon.mark_gate_unlocked(gate_id)
+	dungeon.show_unlocked_message()
 	return true

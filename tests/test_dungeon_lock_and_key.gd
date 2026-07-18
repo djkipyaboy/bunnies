@@ -50,6 +50,7 @@ func _process(_delta: float) -> bool:
 		_check(not stairs_down_floor3._try_unlock(), "_try_unlock() fails without the key")
 		_check(dungeon._current_floor == 2, "still on floor 3 (index 2) — a failed unlock never travels")
 		_check(not dungeon.is_gate_unlocked(&"dungeon_floor3_to_4_gate"), "the gate is still locked")
+		_check(dungeon._pickup_debug_label.text.contains("locked"), "a failed unlock shows a locked message on screen")
 
 		# Grant the key directly (mirrors picking it up) and unlock.
 		var key: QuestItem = QuestItem.new()
@@ -59,6 +60,7 @@ func _process(_delta: float) -> bool:
 		_check(stairs_down_floor3._try_unlock(), "_try_unlock() succeeds once the party holds the key")
 		_check(not dungeon._party_inventory.has_quest_item(&"dungeon_key"), "the key was consumed on successful unlock")
 		_check(_combat_handoff.is_gate_unlocked(&"dungeon_floor3_to_4_gate"), "the gate is now permanently marked unlocked")
+		_check(dungeon._pickup_debug_label.text.contains("unlock"), "a successful unlock shows an on-screen confirmation message (playtest-found gap, 2026-07-18)")
 
 		# _try_unlock() only decides whether to proceed — apply the actual floor change directly
 		# (the same synchronous method travel_to_floor() itself calls after its fade), proving the
