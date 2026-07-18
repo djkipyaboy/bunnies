@@ -146,6 +146,20 @@ func _build_mountain() -> void:
 	_world.add_child(dungeon_entrance)
 	_dungeon_entrance = dungeon_entrance
 
+	# Same yellow scene-exit arrow convention as town_demo.gd's TownExit/ExitDoor (playtest-found
+	# UX gap, 2026-07-17 — the entrance sat on flat ground next to the mountain with no visual
+	# indicator at all).
+	var arrow := Polygon2D.new()
+	arrow.name = "DungeonEntranceArrow"
+	arrow.color = Color(1.0, 0.95, 0.4)
+	arrow.modulate.a = Interactable.DIM_ALPHA
+	arrow.polygon = PackedVector2Array([
+		Vector2(-4, -15), Vector2(4, -15), Vector2(4, 5),
+		Vector2(10, 5), Vector2(0, 20), Vector2(-10, 5), Vector2(-4, 5),
+	])
+	dungeon_entrance.add_child(arrow)
+	dungeon_entrance.highlight_visual = arrow
+
 func _build_trees() -> void:
 	var tree_positions: Array[Vector2] = [
 		Vector2(80, 150), Vector2(350, 120), Vector2(450, 550), Vector2(120, 600),

@@ -99,6 +99,23 @@ func _place_stairs(container: Node2D, bounds: Rect2, floor_index: int, going_dow
 	stairs.dungeon = self
 	container.add_child(stairs)
 
+	# Playtest-found UX gap (2026-07-17): stairs sat on flat, featureless ground with zero visual
+	# indicator. A stone-gray arrow (distinct from the yellow scene-exit arrows below), pointing
+	# down for a descent, up for an ascent.
+	var arrow := Polygon2D.new()
+	arrow.name = "StairsArrow"
+	arrow.color = Color(0.55, 0.55, 0.6)
+	arrow.modulate.a = Interactable.DIM_ALPHA
+	arrow.polygon = PackedVector2Array([
+		Vector2(-4, -15), Vector2(4, -15), Vector2(4, 5),
+		Vector2(10, 5), Vector2(0, 20), Vector2(-10, 5), Vector2(-4, 5),
+	]) if going_down else PackedVector2Array([
+		Vector2(-4, 15), Vector2(4, 15), Vector2(4, -5),
+		Vector2(10, -5), Vector2(0, -20), Vector2(-10, -5), Vector2(-4, -5),
+	])
+	stairs.add_child(arrow)
+	stairs.highlight_visual = arrow
+
 func _build_dungeon_exit(container: Node2D, bounds: Rect2) -> SceneExit:
 	var exit := SceneExit.new()
 	exit.name = "DungeonExit"
@@ -109,6 +126,20 @@ func _build_dungeon_exit(container: Node2D, bounds: Rect2) -> SceneExit:
 	exit.target_spawn_position = OVERWORLD_EXIT_SPAWN
 	exit.has_target_spawn_position = true
 	container.add_child(exit)
+
+	# Same yellow scene-exit arrow convention as town_demo.gd's TownExit/ExitDoor (playtest-found
+	# UX gap, 2026-07-17 — the dungeon exit sat on flat ground with no visual indicator at all).
+	var arrow := Polygon2D.new()
+	arrow.name = "DungeonExitArrow"
+	arrow.color = Color(1.0, 0.95, 0.4)
+	arrow.modulate.a = Interactable.DIM_ALPHA
+	arrow.polygon = PackedVector2Array([
+		Vector2(-4, -15), Vector2(4, -15), Vector2(4, 5),
+		Vector2(10, 5), Vector2(0, 20), Vector2(-10, 5), Vector2(-4, 5),
+	])
+	exit.add_child(arrow)
+	exit.highlight_visual = arrow
+
 	return exit
 
 func travel_to_floor(target_index: int, target_local_entry: Vector2) -> void:
