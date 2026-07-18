@@ -1293,6 +1293,65 @@ Important cross-task bugs — 2 fix rounds, both re-reviewed clean):
   tiers onto different party members, buy enough potions to see the stack grow, and confirm a real
   combat encounter along the way doesn't reset your stock, before this is marked fully shipped.
 
+**SHIPPED 2026-07-17 — DUNGEON SCENE STRUCTURE, all headless-test-green (186/186 full suite), human
+playtest still pending.** Step 2 of the standing overworld-playtest arc (loot drops → items menu →
+shopkeepers → **dungeon scene structure** → lock-and-key → boss design → Treasure Trove → mountain
+entrance wiring; memory `dungeon-milestone-roadmap-2026-07-17`). Brainstormed → spec'd
+(`docs/superpowers/specs/2026-07-17-dungeon-scene-structure-design.md`) → planned
+(`docs/superpowers/plans/2026-07-17-dungeon-scene-structure.md`) → built subagent-driven (6
+implementation tasks, each implementer + reviewer, 2 fix rounds — both commit-hygiene splits, not
+logic bugs, see below):
+- **A third scene-transition pattern** — floor-to-floor traversal within one dungeon scene — sits
+  alongside `Door` (same-scene toggle, 2 areas) and `SceneExit` (cross-scene fade). One new scene,
+  `world/dungeon_demo.gd`/`.tscn`, holds **4 sibling floor containers in disjoint world-space
+  quadrants** (`DungeonDemo.floor_bounds()`, 800×600 each with a 200px gap) — disjoint bounds are
+  required, not just tidy, per this project's own documented Critical bug (hiding a region via
+  `visible = false`/`PROCESS_MODE_DISABLED` does NOT disable Godot physics collision); only the
+  current floor is `visible`/`PROCESS_MODE_INHERIT`, the other three `PROCESS_MODE_DISABLED`.
+- **`Stairs`** (new, `world/stairs.gd`) — a third `Interactable` subclass. Unlike `Door` (which
+  carries its own camera/PC/area references per instance), `Stairs` delegates to the owning
+  `DungeonDemo.travel_to_floor()`, centralizing the toggle/reparent/camera-bounds-swap logic in one
+  place instead of duplicating it across 6 stair instances. A brief `FadeOverlay` blink accompanies
+  every floor change, purely for feel. Floor 1 gets only a StairsDown (+ the floor-1-only
+  `DungeonExit` back to the overworld); floor 4 gets only a StairsUp (reserved for the boss, a later
+  step); floors 2-3 get both — **linear, backtrack-allowed**, per player direction.
+- **`CombatHandoff.dungeon_floor`** (new field) — a mid-dungeon combat round-trip (fighting one of
+  the 3 placeholder `OverworldEnemy` encounters, one per floor 1-3, reusing the existing rat/ferret/
+  stoat `EnemyLibrary` ids unchanged) now returns the player to the FLOOR they were on, not always
+  floor 1 — threaded through `begin_encounter()`'s new trailing param exactly like `bench`/
+  `shop_stock` before it, and through a matching new `OverworldEnemy.dungeon_floor` field. Deliberately
+  NOT threaded through `stash_party()`/`SceneExit` (documented as an intentional exception, not an
+  oversight — entering/leaving the dungeon via `SceneExit` always starts fresh at floor 1 by design).
+- **A temporary (but fully functional) overworld entrance** — a real `SceneExit` near the mountain,
+  prompt text "Enter Dungeon (temporary)" so it's an obvious, findable thing for the later "Mountain
+  entrance wiring" roadmap step to replace/polish, not a silent duplicate.
+- **Two fix rounds, both commit-hygiene, zero logic bugs found:** (1) the original implementer typed
+  `DungeonDemo._pc` as `Node2D` (their own test assigned a plain `Node2D`, and the originally-specified
+  `PCController` type rejected that as an invalid downcast, hanging the headless process past a
+  timeout instead of failing cleanly) — caught by the controller BEFORE the next task started, since
+  that next task needs `PCController`-specific methods (`set_movement_paused`, `nearest_interactable`)
+  directly on `_pc`; fixed by retyping `_pc` back to `PCController` and fixing the TEST to construct a
+  real `PCController.new()`. (2) That same fix commit swept in ~24 unrelated pre-existing untracked
+  files sitting in the working tree from other sessions' leftover work (a spreadsheet, an image, an
+  old plan doc, stray `.uid` files) via an overly broad `git add` — caught by the task reviewer, fixed
+  via `git reset` + re-commit of only the 2 intended files, re-reviewed clean. One implementer
+  subagent was also cut off mid-task by a session/API limit error after committing but before writing
+  its report (Task 5) — the controller independently ran its tests, confirmed clean, and wrote the
+  report itself before dispatching review.
+- **The whole chain worked correctly end-to-end on the FIRST run** of the capstone regression test
+  (`tests/test_dungeon_floor_survives_combat.gd`, mirrors `test_bench_survives_combat.gd`'s real
+  technique): walk to floor 3 → trigger its real placeholder encounter → simulate combat.gd's
+  win-and-Continue handler → a fresh scene instance rebuilds on floor 3 (not floor 1), the defeated
+  enemy is gone, floors 1-2 are untouched. No production bugs found by this test.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: all of the above is headless-test-green — a
+  full 186-file suite re-run came back clean (4 files hit the documented intermittent teardown-only
+  SIGSEGV flake class, all confirmed clean on retry — not regressions; the one pre-existing, unrelated,
+  out-of-scope `test_adventuring_board_panel.gd` failure documented since 2026-07-14 is still present,
+  confirmed identical, not touched by this plan). **A human has not yet playtested this live** — walk
+  into the temporary mountain entrance, descend to floor 3, fight the placeholder stoat, confirm the
+  round trip returns to floor 3 (not floor 1), continue to floor 4, walk back up to floor 1, and exit
+  to the overworld, before this is marked fully shipped.
+
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
 is sub-project 1 of this same follow-on, now shipped). Next up: clicking a consumable in the Bag should
