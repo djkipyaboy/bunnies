@@ -1437,10 +1437,23 @@ implementation tasks, each implementer + reviewer, all clean on first review):
   full 192-file suite re-run came back clean (3 files hit the documented intermittent teardown-only
   SIGSEGV flake class, all confirmed clean on retry — not regressions; the pre-existing, unrelated,
   out-of-scope `test_adventuring_board_panel.gd` failure documented since 2026-07-14 is still present,
-  confirmed identical). **A human has not yet playtested this live** — pick up the Rusty Key on floor
-  2, confirm it shows in the Quest Items tab by name, try floor 3's locked stairs before getting the
-  key to see the locked message, get the key, unlock, confirm it's consumed from Quest Items, and
-  confirm backtracking freely between all 4 floors afterward never re-locks anything.
+  confirmed identical).
+
+**FIRST HUMAN PLAYTEST of lock-and-key, SHIPPED 2026-07-18 — 1 real gap found and fixed same
+session.** Player confirmed the core mechanic works exactly as designed: the Rusty Key showed
+correctly in the Quest Items tab and was consumed on unlocking the floor 3→4 stairs. Found: **no
+on-screen confirmation when the key was actually used** — the locked-message path already showed
+feedback, but a SUCCESSFUL unlock was completely silent, matching the same "silent success reads as
+broken" bug class this project has hit before (e.g. the 2026-07-11 silent-equip-rejection fix).
+Fixed: `DungeonDemo.show_unlocked_message()` (mirrors the existing `show_locked_message()`), called
+from `Stairs._try_unlock()` right after `mark_gate_unlocked()`. Regression coverage added directly to
+`tests/test_dungeon_lock_and_key.gd` (both the locked-message and the new unlocked-message paths are
+now explicitly asserted, closing a gap in the original task's own test coverage). Also surfaced,
+logged to memory `dungeon-playtest-2026-07-17-followups`, not acted on: Amber balance visibility
+wants a more prominent placement (confirmed present on the Stats tab, just easy to miss); the general
+store's weapon catalog confirmed NOT class-conditional (it's just 2 total entries, by original
+design); floors 2-3 are still single-enemy encounters (re-confirmed still open, a natural fit for the
+upcoming boss-design step, not a re-open of lock-and-key).
 
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
