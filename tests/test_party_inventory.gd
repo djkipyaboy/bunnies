@@ -145,5 +145,21 @@ func _initialize() -> void:
 	potion_inv.consume_item(&"healing_potion")
 	_check(potion_inv.items.is_empty(), "consume_item() no-ops safely when the item_type isn't owned")
 
+	# --- quest_items (2026-07-18 lock-and-key design): give_quest_item()/has_quest_item()/
+	# consume_quest_item() ---
+	var quest_inv: PartyInventory = PartyInventory.new()
+	var key: QuestItem = QuestItem.new()
+	key.item_id = &"dungeon_key"
+	key.display_name = "Rusty Key"
+	quest_inv.give_quest_item(key)
+	_check(quest_inv.quest_items.size() == 1, "give_quest_item() appends a new entry")
+	_check(quest_inv.has_quest_item(&"dungeon_key") == true, "has_quest_item() finds the entry by item_id")
+	_check(quest_inv.has_quest_item(&"never_added") == false, "has_quest_item() returns false for an absent item_id")
+
+	_check(quest_inv.consume_quest_item(&"dungeon_key") == true, "consume_quest_item() returns true when it removes a matching entry")
+	_check(quest_inv.quest_items.is_empty(), "consume_quest_item() actually removed the entry")
+	_check(quest_inv.has_quest_item(&"dungeon_key") == false, "the consumed item no longer reads as owned")
+	_check(quest_inv.consume_quest_item(&"dungeon_key") == false, "consume_quest_item() returns false and no-ops when absent")
+
 	print(("PARTY INVENTORY TEST PASSED" if _failures == 0 else "PARTY INVENTORY TEST FAILED: %d" % _failures))
 	quit(_failures)

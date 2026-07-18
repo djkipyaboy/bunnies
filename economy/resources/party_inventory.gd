@@ -108,3 +108,21 @@ func consume_item(item_type: StringName) -> void:
 			if items[i].quantity <= 0:
 				items.remove_at(i)
 			return
+
+func give_quest_item(q: QuestItem) -> void:
+	quest_items.append(q)
+
+func has_quest_item(item_id: StringName) -> bool:
+	for q: Resource in quest_items:
+		if q is QuestItem and q.item_id == item_id:
+			return true
+	return false
+
+## Removes the FIRST matching entry. No-op (returns false) if the party doesn't own one.
+func consume_quest_item(item_id: StringName) -> bool:
+	for i in range(quest_items.size()):
+		var q: Resource = quest_items[i]
+		if q is QuestItem and q.item_id == item_id:
+			quest_items.remove_at(i)
+			return true
+	return false
