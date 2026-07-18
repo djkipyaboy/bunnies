@@ -19,6 +19,15 @@ const VILLAGE_POSITION := Vector2(200, 360)
 const PC_SPAWN := Vector2(200, 460)
 const GROUND_DROP_SCATTER_RADIUS: float = 24.0   # [ASSUMPTION] small fixed ring around the return spot
 
+## Playtest-found softlock (2026-07-17, dungeon-scene-structure-design.md work — the identical latent
+## bug also applies here): losing a fight returns the PC to return_position — right where the
+## still-alive enemy is, since a loss never marks it defeated — and the respawned enemy's auto_trigger
+## zone can overlap the PC's spawn point on the very first processed frame, immediately re-firing the
+## SAME encounter before the player can move. Requiring genuine movement away from the spawn point
+## before any auto_trigger interactable can fire closes this without needing to know win/loss at all —
+## a fresh scene load already spawns far from every placed enemy, so this is a no-op there.
+const AUTO_TRIGGER_ARM_DISTANCE: float = 40.0
+
 var _world: Node2D
 var _pc: PCController
 var _camera: Camera2D
@@ -40,6 +49,8 @@ var _vault: Vault
 var _inventory_panel: InventoryMenuPanel
 var _village_entrance: SceneExit
 var _dungeon_entrance: SceneExit
+var _spawn_position: Vector2 = Vector2.ZERO
+var _auto_trigger_armed: bool = false
 
 ## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global
 ## identifier. Referencing the bare `CombatHandoff` identifier compiles fine when the editor/
@@ -194,6 +205,7 @@ func _build_pc() -> void:
 	_pc.name = "PC"
 	var handoff: Node = _handoff()
 	_pc.global_position = handoff.return_position if handoff.has_return_position else PC_SPAWN
+	_spawn_position = _pc.global_position
 	# Consumed — clear it so a LATER return trip (e.g. leaving to town and back) doesn't reuse this
 	# stale position (final-review Critical finding, 2026-07-11: combat.gd no longer clears this
 	# half of the handoff, so it's this scene's job once it's actually read the value).
@@ -512,8 +524,14 @@ func _process(_delta: float) -> void:
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
+	if not _auto_trigger_armed and _pc.global_position.distance_to(_spawn_position) > AUTO_TRIGGER_ARM_DISTANCE:
+		_auto_trigger_armed = true
 	var target: Interactable = _pc.nearest_interactable()
 	if target != null and target.auto_trigger:
+		if not _auto_trigger_armed:
+			_interact_prompt.hide_prompt()
+			_set_highlighted_target(null)
+			return
 		# Fire immediately on contact instead of showing a prompt for something that's about
 		# to disappear this frame (OverworldEnemy/RewardPickup) — the simplest of the two
 		# spec-approved options (2026-07-11-overworld-npc-encounters-design.md §3.1/§3.6).

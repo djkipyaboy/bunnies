@@ -15,6 +15,15 @@ const ENEMY_LOCAL := Vector2(400, 300)
 const ENTRANCE_LOCAL := Vector2(100, 500)
 const FLOOR_ENEMY_IDS: Array[StringName] = [&"rat", &"ferret", &"stoat"]
 
+## Playtest-found softlock (2026-07-17): losing a fight returns the PC to return_position — right
+## where the still-alive enemy is, since a loss never marks it defeated — and the respawned enemy's
+## auto_trigger zone overlaps the PC's spawn point on the very first processed frame, immediately
+## re-firing the SAME encounter before the player can move. Requiring genuine movement away from the
+## spawn point before any auto_trigger interactable can fire closes this without needing to know
+## win/loss at all — a fresh scene load already spawns far from every placed enemy, so this is a
+## no-op there.
+const AUTO_TRIGGER_ARM_DISTANCE: float = 40.0
+
 var _floors: Array[Node2D] = []
 var _current_floor: int = 0
 var _pc: PCController
@@ -26,6 +35,8 @@ var _inventory_panel: InventoryMenuPanel
 var _event_log_panel: EventLogPanel
 var _pickup_debug_label: Label
 var _highlighted_target: Interactable
+var _spawn_position: Vector2 = Vector2.ZERO
+var _auto_trigger_armed: bool = false
 
 var _pc_combatant: Combatant
 var _companions: Array = []
@@ -141,6 +152,7 @@ func _build_pc(start_position: Vector2) -> void:
 	_pc = PCController.new()
 	_pc.name = "PC"
 	_pc.global_position = start_position
+	_spawn_position = start_position
 
 	var shape := CollisionShape2D.new()
 	var capsule := CapsuleShape2D.new()
@@ -260,8 +272,14 @@ func _process(_delta: float) -> void:
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
+	if not _auto_trigger_armed and _pc.global_position.distance_to(_spawn_position) > AUTO_TRIGGER_ARM_DISTANCE:
+		_auto_trigger_armed = true
 	var target: Interactable = _pc.nearest_interactable()
 	if target != null and target.auto_trigger:
+		if not _auto_trigger_armed:
+			_interact_prompt.hide_prompt()
+			_set_highlighted_target(null)
+			return
 		target.interact()
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
