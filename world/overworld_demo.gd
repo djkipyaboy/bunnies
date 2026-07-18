@@ -37,6 +37,7 @@ var _highlighted_target: Interactable
 var _dialogue_box: DialogueBox
 var _talking_to: Villager
 var _pickup_debug_label: Label
+var _amber_label: Label
 var _random_encounter_panel: RandomEncounterPanel
 var _event_log_panel: EventLogPanel
 
@@ -295,6 +296,15 @@ func _build_ui() -> void:
 	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
 	ui.add_child(_pickup_debug_label)
 
+	# Playtest-found gap (2026-07-18): Amber only ever showed on the InventoryMenuPanel's Stats
+	# tab, which the player didn't notice — a persistent, always-visible readout is more legible
+	# than a value hidden behind a panel toggle. Refreshed every _process() tick (below).
+	_amber_label = Label.new()
+	_amber_label.name = "AmberLabel"
+	_amber_label.position = Vector2(16, 100)
+	_amber_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.4))
+	ui.add_child(_amber_label)
+
 	# Cross-scene event log (2026-07-13-overworld-event-log-design.md) — non-modal, toggled with
 	# toggle_event_log (L), translucent until hovered. Seeded from whatever history already exists
 	# (a prior town/combat visit this session) and kept live via CombatHandoff.event_logged.
@@ -543,6 +553,7 @@ func _toggle_stats() -> void:
 		_pc.set_movement_paused(true)
 
 func _process(_delta: float) -> void:
+	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)

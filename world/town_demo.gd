@@ -32,6 +32,7 @@ var _inventory_panel: InventoryMenuPanel
 var _vendor_prompt_panel: VendorPromptPanel
 var _shop_panel: ShopPanel
 var _pickup_debug_label: Label
+var _amber_label: Label
 var _pc_combatant: Combatant
 var _companions: Array[Combatant] = []
 var _bench: Array[Combatant] = []
@@ -207,6 +208,17 @@ func _build_ui() -> void:
 	_pickup_debug_label.position = Vector2(16, 70)
 	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
 	_ui_layer.add_child(_pickup_debug_label)
+
+	# Playtest-found gap (2026-07-18): Amber only ever showed on the InventoryMenuPanel's Stats
+	# tab, which the player didn't notice — a persistent, always-visible readout is more legible
+	# (CLAUDE.md §3 pillar) than a value hidden behind a panel toggle. Refreshed every _process()
+	# tick (below) rather than wired to every possible Amber-changing event (shop purchases,
+	# combat rewards, etc.) — simplest correct option for a value that changes rarely.
+	_amber_label = Label.new()
+	_amber_label.name = "AmberLabel"
+	_amber_label.position = Vector2(16, 100)
+	_amber_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.4))
+	_ui_layer.add_child(_amber_label)
 
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
@@ -457,6 +469,7 @@ func _on_remove_companion_requested(companion: Combatant) -> void:
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
 
 func _process(_delta: float) -> void:
+	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	if _dialogue_box.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)

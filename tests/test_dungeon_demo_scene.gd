@@ -1,9 +1,10 @@
 extends SceneTree
 
 ## Headless smoke test for the full dungeon_demo.tscn scene (2026-07-17-dungeon-scene-structure-
-## design.md) — a fresh launch (no CombatHandoff pending) starts on floor 1, seeds a fresh demo
-## party, places one placeholder OverworldEnemy per floor 1-3 (floor 4 reserved for the boss, a
-## later step), and wires the floor-1 DungeonExit to the live party.
+## design.md, encounter composition escalated 2026-07-18) — a fresh launch (no CombatHandoff pending)
+## starts on floor 1, seeds a fresh demo party, places one escalating OverworldEnemy encounter per
+## floor 1-3 (floor 4 reserved for the boss, a later step), and wires the floor-1 DungeonExit to the
+## live party.
 
 var _instance: Node
 var _frames: int = 0
@@ -29,9 +30,9 @@ func _process(_delta: float) -> bool:
 		var enemy_1: OverworldEnemy = dungeon._floors[0].get_node("DungeonFloor1Enemy")
 		var enemy_2: OverworldEnemy = dungeon._floors[1].get_node("DungeonFloor2Enemy")
 		var enemy_3: OverworldEnemy = dungeon._floors[2].get_node("DungeonFloor3Enemy")
-		_check(enemy_1 != null and enemy_1.enemy_ids == [&"rat"], "floor 1 has the rat placeholder encounter")
-		_check(enemy_2 != null and enemy_2.enemy_ids == [&"ferret"], "floor 2 has the ferret placeholder encounter")
-		_check(enemy_3 != null and enemy_3.enemy_ids == [&"stoat"], "floor 3 has the stoat placeholder encounter")
+		_check(enemy_1 != null and enemy_1.enemy_ids == [&"rat"], "floor 1 has a single-enemy encounter (rat)")
+		_check(enemy_2 != null and enemy_2.enemy_ids == [&"rat", &"ferret"], "floor 2 has a 2-enemy encounter (rat + ferret)")
+		_check(enemy_3 != null and enemy_3.enemy_ids == [&"rat", &"ferret", &"stoat"], "floor 3 has a 3-enemy encounter (rat + ferret + stoat)")
 		_check(dungeon._floors[3].get_node_or_null("DungeonFloor4Enemy") == null, "floor 4 has no placeholder encounter (reserved for the boss, a later step)")
 		_check(enemy_1.dungeon_floor == 0, "floor 1's enemy carries dungeon_floor == 0")
 		_check(enemy_3.dungeon_floor == 2, "floor 3's enemy carries dungeon_floor == 2")

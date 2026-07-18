@@ -1,7 +1,7 @@
 extends SceneTree
 
-# Headless test: ShopLibrary.general_store() (2026-07-17 general store design §3.3/§3.4) — the
-# authored 33-entry catalog. Mirrors tests/test_loot_table_library.gd's shape.
+# Headless test: ShopLibrary.general_store() (2026-07-17 general store design §3.3/§3.4, weapon
+# variety extended 2026-07-18) — the authored 45-entry catalog. Mirrors tests/test_loot_table_library.gd's shape.
 # Run: "/c/bunnies/bunnies-main/Godot_v4.6.3-stable_win64_console.exe" --headless --path . --script res://tests/test_shop_library.gd
 
 var _failures: int = 0
@@ -11,7 +11,7 @@ func _check(c: bool, l: String) -> void:
 
 func _initialize() -> void:
 	var stock: Array[ShopStockEntry] = ShopLibrary.general_store()
-	_check(stock.size() == 33, "general_store() returns exactly 33 entries (got %d)" % stock.size())
+	_check(stock.size() == 45, "general_store() returns exactly 45 entries (got %d)" % stock.size())
 
 	var gear_count: int = 0
 	var weapon_count: int = 0
@@ -43,7 +43,7 @@ func _initialize() -> void:
 			_check(entry.stock == 99, "%s stocks 99 units (got %d)" % [p.display_name, entry.stock])
 
 	_check(gear_count == 30, "30 Gear entries: 4 slots x 5 rarities + Charm x2 variants x 5 rarities (got %d)" % gear_count)
-	_check(weapon_count == 2, "2 Weapon entries: Common + Uncommon (got %d)" % weapon_count)
+	_check(weapon_count == 14, "14 Weapon entries: one Common + one Uncommon per class, 7 classes (got %d)" % weapon_count)
 	_check(potion_count == 1, "1 Healing Potion catalog line (got %d)" % potion_count)
 
 	# Two independent calls must never alias the same Resource instances (mirrors LootTable.roll()'s

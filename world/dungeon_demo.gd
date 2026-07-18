@@ -14,7 +14,6 @@ const STAIRS_UP_LOCAL := Vector2(100, 500)
 const ENEMY_LOCAL := Vector2(400, 300)
 const ENTRANCE_LOCAL := Vector2(100, 500)
 const KEY_LOCAL := Vector2(600, 150)   # floor 2 (index 1); clear of its stairs (700,100)/(100,500) and enemy (400,300)
-const FLOOR_ENEMY_IDS: Array[StringName] = [&"rat", &"ferret", &"stoat"]
 
 ## Playtest-found bug (2026-07-17): "Leave Dungeon" used to drop the player at the overworld's
 ## generic PC_SPAWN (near the village) instead of near the mountain they actually used. Must match
@@ -42,6 +41,7 @@ var _interact_prompt: InteractPrompt
 var _inventory_panel: InventoryMenuPanel
 var _event_log_panel: EventLogPanel
 var _pickup_debug_label: Label
+var _amber_label: Label
 var _highlighted_target: Interactable
 var _spawn_position: Vector2 = Vector2.ZERO
 var _auto_trigger_armed: bool = false
@@ -267,6 +267,15 @@ func _build_ui() -> void:
 	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
 	ui.add_child(_pickup_debug_label)
 
+	# Playtest-found gap (2026-07-18): Amber only ever showed on the InventoryMenuPanel's Stats
+	# tab, which the player didn't notice — a persistent, always-visible readout is more legible
+	# than a value hidden behind a panel toggle. Refreshed every _process() tick (below).
+	_amber_label = Label.new()
+	_amber_label.name = "AmberLabel"
+	_amber_label.position = Vector2(16, 100)
+	_amber_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.4))
+	ui.add_child(_amber_label)
+
 	_event_log_panel = EventLogPanel.new()
 	_event_log_panel.position = Vector2(880, 500)
 	_event_log_panel.visible = false
@@ -293,10 +302,19 @@ func _build_inventory_demo() -> void:
 		_party_inventory = party_seed["party_inventory"]
 		_vault = party_seed["vault"]
 
+## Escalating encounter composition per floor (2026-07-18 playtest-found gap: floors 2-3 were each a
+## single enemy, same as floor 1 — no escalation toward the boss). One OverworldEnemy per floor still
+## triggers ALL of that floor's enemies at once as a single fight — combat.gd's _build_combatants()
+## already loops over an arbitrary-length enemy_ids array (the same mechanism the "Choose your Party"
+## N-vs-M selection screen uses), so no combat-side changes were needed. Floor 4 (index 3) is
+## reserved for the boss, a later step — no placeholder enemy there.
 func _place_dungeon_enemies() -> void:
-	for i in range(FLOOR_ENEMY_IDS.size()):
-		var bounds: Rect2 = floor_bounds(i)
-		_place_dungeon_enemy("DungeonFloor%dEnemy" % (i + 1), [FLOOR_ENEMY_IDS[i]], bounds.position + ENEMY_LOCAL, i)
+	var floor1_ids: Array[StringName] = [&"rat"]
+	var floor2_ids: Array[StringName] = [&"rat", &"ferret"]
+	var floor3_ids: Array[StringName] = [&"rat", &"ferret", &"stoat"]
+	_place_dungeon_enemy("DungeonFloor1Enemy", floor1_ids, floor_bounds(0).position + ENEMY_LOCAL, 0)
+	_place_dungeon_enemy("DungeonFloor2Enemy", floor2_ids, floor_bounds(1).position + ENEMY_LOCAL, 1)
+	_place_dungeon_enemy("DungeonFloor3Enemy", floor3_ids, floor_bounds(2).position + ENEMY_LOCAL, 2)
 
 func _place_dungeon_enemy(node_name: StringName, enemy_ids: Array[StringName], position: Vector2, floor_index: int) -> void:
 	if _handoff().is_defeated(node_name):
@@ -356,6 +374,7 @@ func _on_pickup_rejected(item_name: String) -> void:
 	_pickup_debug_label.text = "Bag full — can't pick up: %s" % item_name
 
 func _process(_delta: float) -> void:
+	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	if _inventory_panel.visible:
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)

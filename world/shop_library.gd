@@ -43,9 +43,25 @@ static func general_store() -> Array[ShopStockEntry]:
 	entries.append(_gear_entry("Bulwark Charm", Gear.Slot.CHARM, RarityVisuals.Rarity.RARE, _stats(0,0,0,0,3,0)))
 	entries.append(_gear_entry("Charm of Unshakable Resolve", Gear.Slot.CHARM, RarityVisuals.Rarity.EPIC, _stats(0,0,3,0,3,0)))
 	entries.append(_gear_entry("Heart of the Mountain", Gear.Slot.CHARM, RarityVisuals.Rarity.LEGENDARY, _stats(0,0,4,0,4,0)))
-	# Weapons (Common/Uncommon only, per player direction — no stat_bonuses field on Weapon)
-	entries.append(_weapon_entry("Journeyman's Blade", RarityVisuals.Rarity.COMMON, 6.0))
+	# Weapons (Common/Uncommon only, per player direction — no stat_bonuses field on Weapon).
+	# One Common + one Uncommon entry per class (2026-07-18 playtest-found gap: the shop only ever
+	# stocked 2 generic Slashing weapons regardless of who was shopping), each reusing that class's
+	# own canonical weapon type/reel_count (ClassLibrary), Common tier at -2.0 base_damage from the
+	# class's Uncommon (canonical) value.
+	entries.append(_weapon_entry("Journeyman's Blade", RarityVisuals.Rarity.COMMON, 6.0))   # Warrior-flavored (slashing/3 reels)
 	entries.append(_weapon_entry("Honed Shortsword", RarityVisuals.Rarity.UNCOMMON, 8.0))
+	entries.append(_weapon_entry("Sturdy War Hammer", RarityVisuals.Rarity.COMMON, 13.0, "res://combat/resources/types/crushing.tres", 2))
+	entries.append(_weapon_entry("War Hammer", RarityVisuals.Rarity.UNCOMMON, 15.0, "res://combat/resources/types/crushing.tres", 2))
+	entries.append(_weapon_entry("Worn Daggers", RarityVisuals.Rarity.COMMON, 4.0, "res://combat/resources/types/slashing.tres", 4))
+	entries.append(_weapon_entry("Twin Daggers", RarityVisuals.Rarity.UNCOMMON, 6.0, "res://combat/resources/types/slashing.tres", 4))
+	entries.append(_weapon_entry("Rusty Sling", RarityVisuals.Rarity.COMMON, 4.0, "res://combat/resources/types/storm.tres", 4))
+	entries.append(_weapon_entry("Storm Sling", RarityVisuals.Rarity.UNCOMMON, 6.0, "res://combat/resources/types/storm.tres", 4))
+	entries.append(_weapon_entry("Simple Bow", RarityVisuals.Rarity.COMMON, 5.0, "res://combat/resources/types/piercing.tres", 4))
+	entries.append(_weapon_entry("Hunting Bow", RarityVisuals.Rarity.UNCOMMON, 7.0, "res://combat/resources/types/piercing.tres", 4))
+	entries.append(_weapon_entry("Apprentice Staff", RarityVisuals.Rarity.COMMON, 11.0, "res://combat/resources/types/mystic.tres", 2))
+	entries.append(_weapon_entry("Mystic War Staff", RarityVisuals.Rarity.UNCOMMON, 13.0, "res://combat/resources/types/mystic.tres", 2))
+	entries.append(_weapon_entry("Worn Earthstave", RarityVisuals.Rarity.COMMON, 7.0, "res://combat/resources/types/earth.tres", 3))
+	entries.append(_weapon_entry("Earthstave", RarityVisuals.Rarity.UNCOMMON, 9.0, "res://combat/resources/types/earth.tres", 3))
 	# Healing Potions
 	entries.append(_potion_entry())
 	return entries
@@ -67,14 +83,15 @@ static func _gear_entry(display_name: String, slot: int, rarity: int, stats: Sta
 	e.stock = 3
 	return e
 
-static func _weapon_entry(display_name: String, rarity: int, base_damage: float) -> ShopStockEntry:
-	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
+static func _weapon_entry(display_name: String, rarity: int, base_damage: float,
+		damage_type_path: String = "res://combat/resources/types/slashing.tres", reel_count: int = 3) -> ShopStockEntry:
+	var damage_type: DamageType = load(damage_type_path)
 	var w: Weapon = Weapon.new()
 	w.display_name = display_name
 	w.rarity = rarity
 	w.base_damage = base_damage
-	for i in range(3):
-		w.reels.append(ActionReel.make_default(slashing))
+	for i in range(reel_count):
+		w.reels.append(ActionReel.make_default(damage_type))
 	var e: ShopStockEntry = ShopStockEntry.new()
 	e.item = w
 	e.price = 1
