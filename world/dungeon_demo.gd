@@ -15,6 +15,13 @@ const ENEMY_LOCAL := Vector2(400, 300)
 const ENTRANCE_LOCAL := Vector2(100, 500)
 const FLOOR_ENEMY_IDS: Array[StringName] = [&"rat", &"ferret", &"stoat"]
 
+## Playtest-found bug (2026-07-17): "Leave Dungeon" used to drop the player at the overworld's
+## generic PC_SPAWN (near the village) instead of near the mountain they actually used. Must match
+## overworld_demo.gd's DungeonEntranceDebug placement — MOUNTAIN_RECT.position +
+## Vector2(MOUNTAIN_RECT.size.x/2.0, MOUNTAIN_RECT.size.y+20.0) = (1160, 220) — offset further south
+## so the returning PC doesn't stand exactly on the entrance's own interactable.
+const OVERWORLD_EXIT_SPAWN := Vector2(1160, 260)
+
 ## Playtest-found softlock (2026-07-17): losing a fight returns the PC to return_position — right
 ## where the still-alive enemy is, since a loss never marks it defeated — and the respawned enemy's
 ## auto_trigger zone overlaps the PC's spawn point on the very first processed frame, immediately
@@ -99,6 +106,8 @@ func _build_dungeon_exit(container: Node2D, bounds: Rect2) -> SceneExit:
 	exit.target_scene_path = "res://world/overworld_demo.tscn"
 	exit.global_position = bounds.position + ENTRANCE_LOCAL + Vector2(0, -40)
 	exit.fade_overlay = _fade_overlay
+	exit.target_spawn_position = OVERWORLD_EXIT_SPAWN
+	exit.has_target_spawn_position = true
 	container.add_child(exit)
 	return exit
 

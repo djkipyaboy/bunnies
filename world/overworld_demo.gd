@@ -204,12 +204,21 @@ func _build_pc() -> void:
 	_pc = PCController.new()
 	_pc.name = "PC"
 	var handoff: Node = _handoff()
-	_pc.global_position = handoff.return_position if handoff.has_return_position else PC_SPAWN
+	# Priority: a real combat round-trip's exact pre-fight spot, then a plain SceneExit's own
+	# specified spawn (2026-07-17 playtest-found fix — the dungeon's exit points back at the
+	# mountain instead of this generic default), then the generic default.
+	if handoff.has_return_position:
+		_pc.global_position = handoff.return_position
+	elif handoff.has_entry_spawn_position:
+		_pc.global_position = handoff.entry_spawn_position
+	else:
+		_pc.global_position = PC_SPAWN
 	_spawn_position = _pc.global_position
 	# Consumed — clear it so a LATER return trip (e.g. leaving to town and back) doesn't reuse this
 	# stale position (final-review Critical finding, 2026-07-11: combat.gd no longer clears this
 	# half of the handoff, so it's this scene's job once it's actually read the value).
 	handoff.clear_return_position()
+	handoff.clear_entry_spawn_position()
 
 	var shape := CollisionShape2D.new()
 	var capsule := CapsuleShape2D.new()

@@ -35,6 +35,14 @@ var shop_stock: Array = []
 var party_inventory: PartyInventory
 var vault: Vault
 
+## Where the destination scene should spawn the PC (2026-07-17 playtest-found fix) — settable
+## per-instance by whoever places this SceneExit, e.g. the dungeon's DungeonExit points back at the
+## mountain entrance instead of the destination scene's generic default spawn. Left unset (false) by
+## every pre-existing placement (VillageEntrance/TownExit), which keeps relying on the destination
+## scene's own default spawn exactly as before.
+@export var target_spawn_position: Vector2 = Vector2.ZERO
+@export var has_target_spawn_position: bool = false
+
 func interact() -> void:
 	_stash_party()
 	await fade_overlay.fade_out()
@@ -43,7 +51,8 @@ func interact() -> void:
 ## Split out from interact() so tests can drive the CombatHandoff-population effect without
 ## triggering the fade + change_scene_to_file (same reasoning as OverworldEnemy._begin_handoff()).
 func _stash_party() -> void:
-	_handoff().stash_party(pc_combatant, companions, party_inventory, vault, bench, shop_stock)
+	_handoff().stash_party(pc_combatant, companions, party_inventory, vault, bench, shop_stock,
+		target_spawn_position, has_target_spawn_position)
 
 ## Fetches the CombatHandoff autoload by path — see OverworldEnemy._handoff()'s identical
 ## rationale (bare `CombatHandoff` identifier fails under headless --script test runs).

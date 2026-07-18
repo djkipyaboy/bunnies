@@ -34,6 +34,16 @@ var shop_stock: Array = []
 ## return_position is, not via its own dedicated clear method. Irrelevant (stays 0) for any encounter
 ## that isn't inside the dungeon.
 var dungeon_floor: int = 0
+
+## Where to spawn the PC after a PLAIN scene transition (SceneExit, e.g. the dungeon's own exit) —
+## the counterpart to return_position/has_return_position, but for the non-combat path. Playtest-
+## found bug (2026-07-17): overworld_demo.gd's _build_pc() only ever special-cased return_position,
+## so leaving the dungeon always fell back to the single fixed PC_SPAWN constant near the village,
+## regardless of which SceneExit was actually used. Set by SceneExit._stash_party() (mirrors
+## return_position's ZERO-could-be-legitimate caveat, hence the separate has_ bool), cleared by the
+## destination scene once it's read (see clear_entry_spawn_position()).
+var entry_spawn_position: Vector2 = Vector2.ZERO
+var has_entry_spawn_position: bool = false
 var party_inventory: PartyInventory
 var vault: Vault
 var enemy_ids: Array[StringName] = []
@@ -81,13 +91,16 @@ func log_event(line: String, category: StringName) -> void:
 ## no combat/return-position fields involved, unlike begin_encounter(). The destination scene reads
 ## pc/companions/party_inventory/vault the same way it already does for a combat return trip
 ## (checks pc != null, reuses, then calls clear_party()).
-func stash_party(p: Combatant, comps: Array, inv: PartyInventory, v: Vault, b: Array = [], shop: Array = []) -> void:
+func stash_party(p: Combatant, comps: Array, inv: PartyInventory, v: Vault, b: Array = [], shop: Array = [],
+		spawn: Vector2 = Vector2.ZERO, has_spawn: bool = false) -> void:
 	pc = p
 	companions = comps
 	bench = b
 	party_inventory = inv
 	vault = v
 	shop_stock = shop
+	entry_spawn_position = spawn
+	has_entry_spawn_position = has_spawn
 
 func begin_encounter(p: Combatant, comps: Array, inv: PartyInventory, v: Vault,
 		ids: Array[StringName], encounter_id: StringName, scene_path: String, position: Vector2,
@@ -152,7 +165,14 @@ func clear_return_position() -> void:
 func clear_ground_drops() -> void:
 	pending_ground_drops = [] as Array[Resource]
 
-## Clears everything the four narrower methods above clear, combined — for callers (and tests)
+## Clears entry_spawn_position/has_entry_spawn_position — called by the destination scene (e.g.
+## overworld_demo.gd's _build_pc()) once it has read them, so a later plain-transition entry doesn't
+## reuse a stale spawn point from a different SceneExit.
+func clear_entry_spawn_position() -> void:
+	entry_spawn_position = Vector2.ZERO
+	has_entry_spawn_position = false
+
+## Clears everything the five narrower methods above clear, combined — for callers (and tests)
 ## that want a full reset in one call. Does NOT clear defeated_encounter_ids or event_log_entries —
 ## both must persist for the life of the session.
 func clear_pending() -> void:
@@ -160,3 +180,4 @@ func clear_pending() -> void:
 	clear_party()
 	clear_return_position()
 	clear_ground_drops()
+	clear_entry_spawn_position()
