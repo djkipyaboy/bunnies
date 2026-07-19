@@ -1120,9 +1120,11 @@ extends SceneTree
 
 var _instance: Node
 var _frames: int = 0
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
-	print(("ok " if cond else "FAIL ") + label)
+	if cond: print("  ok: ", label)
+	else: _failures += 1; push_error("FAIL: " + label); print("  FAIL: ", label)
 
 func _init() -> void:
 	var scene: PackedScene = load("res://combat/combat.tscn")
@@ -1198,7 +1200,8 @@ func _process(_delta: float) -> bool:
 
 		_instance.free()
 	if _frames >= 3:
-		quit()
+		print(("BOSS PHASE TRANSITION TEST PASSED" if _failures == 0 else "BOSS PHASE TRANSITION TEST FAILED: %d" % _failures))
+		quit(_failures)
 		return true
 	return false
 ```
@@ -1330,9 +1333,11 @@ extends SceneTree
 
 var _instance: Node
 var _frames: int = 0
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
-	print(("ok " if cond else "FAIL ") + label)
+	if cond: print("  ok: ", label)
+	else: _failures += 1; push_error("FAIL: " + label); print("  FAIL: ", label)
 
 func _init() -> void:
 	var scene: PackedScene = load("res://combat/combat.tscn")
@@ -1379,7 +1384,8 @@ func _process(_delta: float) -> bool:
 
 		_instance.free()
 	if _frames >= 3:
-		quit()
+		print(("ENEMY ULTIMATE FIRING TEST PASSED" if _failures == 0 else "ENEMY ULTIMATE FIRING TEST FAILED: %d" % _failures))
+		quit(_failures)
 		return true
 	return false
 ```
@@ -1510,9 +1516,11 @@ extends SceneTree
 
 var _instance: Node
 var _frames: int = 0
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
-	print(("ok " if cond else "FAIL ") + label)
+	if cond: print("  ok: ", label)
+	else: _failures += 1; push_error("FAIL: " + label); print("  FAIL: ", label)
 
 func _init() -> void:
 	var scene: PackedScene = load("res://combat/combat.tscn")
@@ -1579,7 +1587,8 @@ func _process(_delta: float) -> bool:
 
 		_instance.free()
 	if _frames >= 3:
-		quit()
+		print(("DARKNESS RAMPAGE TEST PASSED" if _failures == 0 else "DARKNESS RAMPAGE TEST FAILED: %d" % _failures))
+		quit(_failures)
 		return true
 	return false
 ```
@@ -1797,9 +1806,11 @@ extends SceneTree
 
 var _instance: Node
 var _frames: int = 0
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
-	print(("ok " if cond else "FAIL ") + label)
+	if cond: print("  ok: ", label)
+	else: _failures += 1; push_error("FAIL: " + label); print("  FAIL: ", label)
 
 func _init() -> void:
 	var scene: PackedScene = load("res://combat/combat.tscn")
@@ -1881,7 +1892,8 @@ func _process(_delta: float) -> bool:
 
 		_instance.free()
 	if _frames >= 3:
-		quit()
+		print(("HOLLOW WARDEN FULL SEQUENCE TEST PASSED" if _failures == 0 else "HOLLOW WARDEN FULL SEQUENCE TEST FAILED: %d" % _failures))
+		quit(_failures)
 		return true
 	return false
 ```
