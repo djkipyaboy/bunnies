@@ -1553,6 +1553,44 @@ front of the player on dungeon floor 4:
   has not yet playtested this live** — that's the next step before Plan 3 (the Lost Cat quest
   system itself, which the boss kill is meant to unlock).
 
+**SAME-DAY FOLLOW-UP 2026-07-19 — FINAL WHOLE-BRANCH REVIEW FIXES for the Hollow Warden, all
+headless-test-green.** The plan's final review (Opus) found 1 Critical + 1 Important + 3 Minor
+issues before this shipped as playable-complete; two fix rounds closed them all:
+- **Critical, part 1 — mid-spawned enemies were unclickable.** `_spawn_enemy_mid_combat()` built a
+  `CombatantPanel` for a phase-2/Ultimate-summoned minion but never built the invisible click-catcher
+  `Button` every player-targetable enemy needs — a spawned minion could only ever be attacked via AoE
+  or the default `first_living()` fallback (usually the boss itself), never manually targeted. Fixed
+  by adding the same click-catcher construction inline, mirroring `_build_target_click_catchers()`'s
+  per-enemy shape without re-invoking that function (which would have duplicated every existing
+  enemy's catcher).
+- **Important — Darkness Rampage's `weapon.base_damage` mutation could leak.** The 18.0-during-
+  phase-2/12.0-restored-after-spin swap only restored in `_finish_spin()`, which never runs if the
+  boss's turn is interrupted before resolving (e.g. stunned mid-phase-2, reachable via the Warden
+  PC's Earthquake). Fixed with a new `_sync_boss_darkness_rampage_state()`, called every boss turn,
+  whose `else` branch (phase 2 NOT active) explicitly resets both `weapon.base_damage` and
+  `darkness_rampage_spins_remaining` — closing the gap for any turn that never reaches
+  `_finish_spin()`, on top of the existing normal-path restore.
+- **Critical, part 2 — mid-spawned enemies could render fully OFF-SCREEN.** The enemy column's
+  fixed ~292px-per-row layout only fits ~2-3 members in the 1600×900 window; a 4th/5th
+  phase-transition/Ultimate-summoned minion could land below the visible viewport entirely. Player
+  direction: **dynamically shrink panels** (over a scroll container / second column / ship-as-is).
+  New `Combat._click_catchers: Dictionary` (previously fire-and-forget, untracked) +
+  `_relayout_enemy_column()` uses `Control.scale` (inherited via `Panel`→`CanvasItem`) to uniformly
+  shrink and reposition every enemy-column panel AND its click-catcher together — no rework of
+  `CombatantPanel`'s fixed-size internal `VBoxContainer` layout needed, and Godot's UI hit-testing
+  correctly respects a scaled `Control`'s transform, so shrunk panels stay accurately clickable.
+  Called at fight-start (`_build_party_columns()`) and every mid-fight spawn. **Notable finding from
+  review, not a regression**: shrinking already kicks in at exactly 3 members (~91.3% scale on the
+  real 1600×900 window) — independently proven to be a *correction*, not new breakage: a 3rd enemy's
+  panel already extended ~42px past the window's bottom edge before this whole plan (and before this
+  fix) ever existed, an unnoticed pre-existing clip in any 3-enemy fight (e.g. dungeon floor 3's
+  rat+ferret+stoat). 1-2-member fights are provably pixel-identical (scale stays exactly `1.0`).
+- Both fix rounds' falsifiability checks confirmed genuine (each broken-on-purpose regression
+  reproduced a real nonzero exit, cleanly reverted afterward) — not just trusted from the reports.
+- **Verified-by-machine vs your call**: all of the above is headless-test-green. **A human still has
+  not playtested this live** — in particular, the ~91.3% enemy-panel scale on a 3-enemy fight is
+  machine-proven correct but visually unconfirmed; eyeball it alongside the rest of the boss fight.
+
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
 is sub-project 1 of this same follow-on, now shipped). Next up: clicking a consumable in the Bag should
