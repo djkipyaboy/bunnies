@@ -110,6 +110,7 @@ var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer 
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
 var _earthquake_total: int = 0           # this spin's primary-target total, for the Warden Earthquake splash (half to other enemies) + stun
+var _darkness_rampage_total: int = 0      # this spin's total damage, for the Hollow Warden's Darkness Rampage self-heal (half of total)
 var _rallying_cry_tier: int = -1         # the Warden Rallying Cry reel's landed tier this spin (-1 = none)
 var _item_use_tier: int = -1             # the item-use reel's landed tier this spin (-1 = none)
 var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
@@ -1046,6 +1047,16 @@ func _on_turn_started(c: Combatant) -> void:
 	c.begin_turn()
 	if c.is_boss:
 		_check_boss_phase_transition(c)
+	if c.is_boss and c.boss_phase_two_active:
+		var dark: DamageType = load("res://combat/resources/types/dark.tres")
+		c.turn_reels.clear()
+		for i in range(4):
+			c.turn_reels.append(ActionReel.make_default(dark))
+		c.sticky_wild_count = 4
+		c.sticky_wild_spins_remaining = 1
+		c.aoe_spins_remaining = 1
+		c.darkness_rampage_spins_remaining = 1
+		c.weapon.base_damage = 18.0
 	_plan = MainPhasePlan.new(c, c.ability_cost, 5, 2, _party_inventory)  # ability cost from class; reel cap 5; wild 2 spins; shared party inventory (2026-07-14 items)
 	# The ability/Ultimate buttons follow the ACTIVE PC (the controller this turn); on an enemy turn they're
 	# disabled, so label them from the active party member (the current PC, else the first party member).
@@ -1617,6 +1628,12 @@ func _do_spin() -> void:
 	if _attacker.is_earthquake_active():
 		for a in attacks:
 			_earthquake_total += a.final_damage
+	# Darkness Rampage (Hollow Warden phase-locked attack): remember the spin's total damage so
+	# _finish_spin can self-heal the boss ceil(total/2) (spec 2026-07-19 §3.5).
+	_darkness_rampage_total = 0
+	if _attacker.is_darkness_rampage_active():
+		for a in attacks:
+			_darkness_rampage_total += a.final_damage
 	# Warden Rallying Cry: read the utility reel's resolved tier (reels and attacks are index-aligned)
 	# so _finish_spin can shield the party. rallying_cry_reel is null unless Rallying Cry was committed.
 	_rallying_cry_tier = -1
@@ -2003,6 +2020,15 @@ func _finish_spin() -> void:
 				other.force_stun_next_turn = true
 				_log("  ☷ EARTHQUAKE → %s is STUNNED next turn (initiative unchanged)." % other.display_name)
 		_attacker.consume_earthquake_spin()
+	# Darkness Rampage (Hollow Warden phase-locked attack, spec 2026-07-19 §3.5): the spin already hit
+	# every living PC (AoE). Now self-heal the boss ceil(total/2).
+	if _attacker.is_darkness_rampage_active():
+		var heal_amt: int = ceili(_darkness_rampage_total / 2.0)
+		_attacker.heal(heal_amt)
+		_log("  ☾ Darkness Rampage: %d total damage → The Hollow Warden heals %d HP." % [_darkness_rampage_total, heal_amt])
+		if _panels.has(_attacker):
+			(_panels[_attacker] as CombatantPanel).refresh_status()
+		_attacker.consume_darkness_rampage_spin()
 	# Warden Rallying Cry (spec 2026-06-29 §3): read the utility reel's tier and shield every ally.
 	# SUCCESS → half-weapon shield, CRIT_SUCCESS → full-weapon shield, RALLYING_CRY_SHIELD_TURNS
 	# turns, higher-total-overrides.
@@ -2034,6 +2060,8 @@ func _finish_spin() -> void:
 			(_panels[_ally_target] as CombatantPanel).refresh_status()
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
+	if _attacker.is_boss and _attacker.weapon.base_damage == 18.0:
+		_attacker.weapon.base_damage = 12.0  # restore the Hollow Warden's normal attack damage after Darkness Rampage
 	_attacker.clear_reroll_state()  # Chancer reroll/gamble were applied in _do_spin's post-spin pass
 	# Clarify the Sticky-Wild's multi-spin nature in the log (the meter is spent up front; the WILD
 	# then rides for N spins — so it can look "active but uncharged" on the next turn).
