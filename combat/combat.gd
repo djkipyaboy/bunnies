@@ -483,6 +483,25 @@ func _place_party_column(members: Array[Combatant], x: float) -> void:
 		p.bind(c)
 		y += 278.0 + 14.0
 
+## Spawns a NEW enemy Combatant mid-fight, after _build_combatants() has already run once (spec
+## 2026-07-19 §3.6 — the boss's phase-transition/Ultimate summons). Fully playable the SAME round it
+## appears: appended to _enemies/_turn_manager.combatants (so _enemies_of()/_allies_of()/win-check
+## pick it up immediately, since those already compute fresh every call) AND to the current round's
+## already-fixed _order via TurnManager.insert_acting_this_round(). Deliberately does NOT connect
+## `defeated` to _on_enemy_defeated — a boss's summoned/sacrificed minions grant no XP/Amber whether
+## they die in battle or are sacrificed (spec §2's "no reward" rule) — do not add that connection.
+func _spawn_enemy_mid_combat(id: StringName) -> Combatant:
+	var c: Combatant = EnemyLibrary.make(id)
+	_enemies.append(c)
+	_turn_manager.insert_acting_this_round(c)
+	var column_index: int = _enemies.size() + _dummies.size() - 1
+	var p := CombatantPanel.new()
+	p.position = Vector2(1276.0, 80.0 + column_index * (278.0 + 14.0))
+	add_child(p)
+	_panels[c] = p
+	p.bind(c)
+	return c
+
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
 ## membership in [param selected] (ordered, max [param max_n]) via [RosterSelection]; each button
