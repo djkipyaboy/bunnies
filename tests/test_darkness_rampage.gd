@@ -61,6 +61,7 @@ func _initialize() -> void:
 		boss.sticky_wild_spins_remaining = 1
 		boss.aoe_spins_remaining = 1
 		boss.darkness_rampage_spins_remaining = 1
+		boss.weapon.base_damage = 18.0
 	_check(boss.turn_reels.size() == 4, "a Darkness Rampage turn builds 4 reels (got %d)" % boss.turn_reels.size())
 	_check(boss.is_aoe_active(), "a Darkness Rampage turn is AoE-active")
 	_check(boss.is_darkness_rampage_active(), "a Darkness Rampage turn is Darkness-Rampage-active")
