@@ -13,7 +13,7 @@ static func type_name(dt: DamageType) -> String:
 
 ## Short name for the chart's tight grid headers, indexed by [enum DamageType.Type].
 static func short_name(t: int) -> String:
-	var names: Array[String] = ["Slsh", "Prc", "Crsh", "Strm", "Myst", "Erth"]
+	var names: Array[String] = ["Slsh", "Prc", "Crsh", "Strm", "Myst", "Erth", "Lght", "Drk"]
 	return names[t] if t >= 0 and t < names.size() else "?"
 
 ## Fixed IDENTITY color per type (recognition cue; placeholder for the future icon). [ASSUMPTION] palette.
@@ -25,6 +25,8 @@ static func type_color(t: int) -> Color:
 		DamageType.Type.STORM:    return Color(0.45, 0.78, 0.97)  # sky
 		DamageType.Type.MYSTIC:   return Color(0.82, 0.48, 0.92)  # violet
 		DamageType.Type.EARTH:    return Color(0.55, 0.78, 0.42)  # leaf
+		DamageType.Type.LIGHT:    return Color(0.98, 0.96, 0.80)  # pale gold-white
+		DamageType.Type.DARK:     return Color(0.30, 0.20, 0.35)  # deep violet-black
 		_: return Color.WHITE
 
 ## Type identity color as a "#rrggbb" string for RichTextLabel bbcode [color=…] tags.
