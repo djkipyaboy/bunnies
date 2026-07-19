@@ -13,6 +13,8 @@ func _initialize() -> void:
 	_check(TypeVisuals.type_name(mystic) == "Mystic", "type_name(mystic) = Mystic")
 	_check(TypeVisuals.type_name(null) == "?", "type_name(null) = ?")
 	_check(TypeVisuals.short_name(DamageType.Type.CRUSHING) == "Crsh", "short_name(crushing) = Crsh")
+	_check(TypeVisuals.short_name(DamageType.Type.LIGHT) == "Lght", "short_name(light) = Lght")
+	_check(TypeVisuals.short_name(DamageType.Type.DARK) == "Drk", "short_name(dark) = Drk")
 	_check(TypeVisuals.short_name(99) == "?", "short_name(out-of-range) = ?")
 
 	# Tier buckets: strong vs neutral vs weak vs resisted map to DISTINCT colors, in the right direction.
@@ -27,7 +29,7 @@ func _initialize() -> void:
 
 	# Identity colors differ per type (recognition cue).
 	var seen: Array[Color] = []
-	for t: int in range(6):
+	for t: int in range(8):
 		var col: Color = TypeVisuals.type_color(t)
 		_check(not (col in seen), "type %d has a distinct identity color" % t)
 		seen.append(col)
