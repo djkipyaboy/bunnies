@@ -32,6 +32,7 @@ var _enemies: Array[Combatant] = []
 var _pc: Combatant
 var _enemy: Combatant
 var _panels: Dictionary = {}     # Combatant -> CombatantPanel
+var _click_catchers: Dictionary = {}  # Combatant -> Button (enemy-side target click-catcher)
 var _pc_panel: CombatantPanel    # = _panels[_pcs[0]] (first party panel; relayout/anchor convenience)
 var _enemy_panel: CombatantPanel # = _panels[_enemies[0]]
 var _log_bg: Panel
@@ -264,6 +265,7 @@ func _build_party_columns() -> void:
 	_enemy_panel = _panels[_enemy]
 	_build_target_click_catchers()
 	_build_ally_target_click_catchers()
+	_relayout_enemy_column()
 
 ## Builds a target dummy: 30 HP, no weapon (never attacks), is_target_dummy + min_hp 1 (never dies).
 func _make_dummy(dummy_name: String, defense: DamageType) -> Combatant:
@@ -514,7 +516,48 @@ func _spawn_enemy_mid_combat(id: StringName) -> Combatant:
 	hit.tooltip_text = "Click to make %s the active PC's primary target." % c.display_name
 	hit.pressed.connect(_select_target.bind(c))
 	add_child(hit)
+	_click_catchers[c] = hit
+	_relayout_enemy_column()
 	return c
+
+## Fixes the "enemy column renders off-screen" bug (boss phase-transition/Ultimate summons can push
+## the enemy+dummy column past 3 members, which no fight before this boss ever had): recomputes a
+## single shared scale factor for the WHOLE enemy-side column so it always fits within the current
+## viewport height, and repositions every member's panel + click-catcher accordingly. Player
+## direction: shrink panels rather than scroll or add a second column. Uses Control.scale (inherited
+## from CanvasItem) rather than reworking CombatantPanel's internal fixed-size _ready() layout — scale
+## visually shrinks the whole panel uniformly and Godot's UI input correctly hit-tests through it, so
+## the invisible click-catcher buttons just need the same position/scale applied, no size change.
+## Called after every _build_party_columns() (initial layout) and _spawn_enemy_mid_combat() (a new
+## member joins) so the full column is always re-fit together.
+func _relayout_enemy_column() -> void:
+	var members: Array[Combatant] = _enemies.duplicate()
+	members.append_array(_dummies)
+	var view: Vector2 = get_viewport_rect().size
+	const TOP_Y: float = 80.0
+	const PANEL_H: float = 278.0
+	const GAP: float = 14.0
+	const ROW_H: float = PANEL_H + GAP
+	const BOTTOM_MARGIN: float = 20.0
+	var available: float = view.y - TOP_Y - BOTTOM_MARGIN
+	var scale_factor: float = 1.0
+	if members.size() * ROW_H > available:
+		# 0.4 is a HARD FLOOR (not a soft guess) so panels never shrink into illegibility even in an
+		# extreme edge case (many simultaneous summons) — below this, legibility matters more than
+		# fitting everything on screen.
+		scale_factor = clampf(available / (members.size() * ROW_H), 0.4, 1.0)
+	for i: int in range(members.size()):
+		var member: Combatant = members[i]
+		if not _panels.has(member):
+			continue
+		var y: float = TOP_Y + i * (ROW_H * scale_factor)
+		var panel: CombatantPanel = _panels[member]
+		panel.position = Vector2(1276.0, y)
+		panel.scale = Vector2(scale_factor, scale_factor)
+		if _click_catchers.has(member):
+			var hit: Button = _click_catchers[member]
+			hit.position = Vector2(1276.0, y)
+			hit.scale = Vector2(scale_factor, scale_factor)
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
@@ -834,6 +877,7 @@ func _build_target_click_catchers() -> void:
 		hit.tooltip_text = "Click to make %s the active PC's primary target." % c.display_name
 		hit.pressed.connect(_select_target.bind(c))
 		add_child(hit)
+		_click_catchers[c] = hit
 
 ## Selects [param enemy] as the ACTIVE PC's primary target — only during that PC's own pre-spin window.
 ## Each PC remembers its own target (spec §3).
