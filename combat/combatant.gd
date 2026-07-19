@@ -70,6 +70,49 @@ var acts_last: bool = false
 ## combat.gd (spec 2026-07-19 §3.3) — every other Combatant leaves this at the default.
 var is_boss: bool = false
 
+## True while the Hollow Warden's Indestructible phase is active (spec 2026-07-19 §3.3). Boss-only.
+var boss_phase_two_active: bool = false
+
+## The boss's own turn counter (incremented once per boss turn), used for the 10-turn re-trigger
+## cooldown — NOT a global round counter. No other Combatant has a use for this (YAGNI: not added
+## to the universal begin_turn() path). Boss-only.
+var boss_turns_taken: int = 0
+
+## boss_turns_taken's value the last time the phase transition triggered, or -1 before the first
+## trigger. Boss-only.
+var boss_last_phase_trigger_turn: int = -1
+
+## The CURRENT phase's 2 spawned minions, so the orchestrator knows when both are dead and can clear
+## Indestructible. Boss-only.
+var boss_phase_minion_ids: Array[Combatant] = []
+
+## Minions summoned by the boss's own Ultimate (Dark Reinforcements), tracked separately from
+## boss_phase_minion_ids so they can be sacrificed (no reward) if still alive at the next phase
+## transition. Boss-only.
+var boss_reinforcement_ids: Array[Combatant] = []
+
+## Set when a Warden Acolyte's healer-role ability is staged; consumed by the orchestrator
+## (combat.gd's _commit_main1) to heal the boss + attach Guarded. Spec 2026-07-19 §3.2.
+var heal_boss_pending: bool = false
+
+## Set when a Warden Acolyte's curser-role ability is staged; consumed by the orchestrator to attach
+## a freshly-seeded warden_curse to every living PC. Spec 2026-07-19 §3.2.
+var curse_party_pending: bool = false
+
+## Spins remaining of the Hollow Warden's phase-locked Darkness Rampage AoE attack (spec 2026-07-19
+## §3.5) — set directly by the phase-transition orchestrator (NOT a meter-gated fire_X(), since
+## Darkness Rampage auto-replaces the boss's normal attack rather than being player/AI-staged).
+var darkness_rampage_spins_remaining: int = 0
+
+## True while a Darkness Rampage spin is pending (drives the orchestrator's post-spin self-heal).
+func is_darkness_rampage_active() -> bool:
+	return darkness_rampage_spins_remaining > 0
+
+## Consumes one Darkness Rampage spin. Call once per resolved spin (after the self-heal is applied).
+func consume_darkness_rampage_spin() -> void:
+	if darkness_rampage_spins_remaining > 0:
+		darkness_rampage_spins_remaining -= 1
+
 ## The class's Main-1 base ability id (spec 2026-06-21 §4A): &"rend" / &"heft" / &"flurry".
 ## Drives MainPhasePlan dispatch. Empty = no base ability.
 var ability_id: StringName = &""
