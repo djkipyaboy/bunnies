@@ -12,6 +12,8 @@ const TYPE_PATHS: Array[String] = [
 	"res://combat/resources/types/storm.tres",
 	"res://combat/resources/types/mystic.tres",
 	"res://combat/resources/types/earth.tres",
+	"res://combat/resources/types/light.tres",
+	"res://combat/resources/types/dark.tres",
 ]
 
 const PAD: float = 10.0
@@ -35,8 +37,8 @@ func build() -> void:
 	for p: String in TYPE_PATHS:
 		_types.append(load(p))
 
-	var width: float = PAD * 2 + ROWHDR_W + CELL_W * 6.0
-	var height: float = PAD * 2 + TITLE_H + LEGEND_H + HEADER_H + ROW_H * 6.0
+	var width: float = PAD * 2 + ROWHDR_W + CELL_W * _types.size()
+	var height: float = PAD * 2 + TITLE_H + LEGEND_H + HEADER_H + ROW_H * _types.size()
 	custom_minimum_size = Vector2(width, height)
 	size = custom_minimum_size
 
@@ -56,15 +58,15 @@ func build() -> void:
 	def_hint.add_theme_font_size_override("font_size", 10)
 	def_hint.add_theme_color_override("font_color", Color(0.6, 0.62, 0.68))
 	add_child(def_hint)
-	for d: int in range(6):
+	for d: int in range(_types.size()):
 		_add_header(_types[d].type, Vector2(grid_left + d * CELL_W, PAD + TITLE_H), CELL_W, HEADER_H)
 
-	# Rows: attacker header + 6 cells.
-	for a: int in range(6):
+	# Rows: attacker header + one cell per type.
+	for a: int in range(_types.size()):
 		var y: float = grid_top + a * ROW_H
 		var rh: Panel = _add_header(_types[a].type, Vector2(PAD, y), ROWHDR_W, ROW_H)
 		_row_headers.append(rh)
-		for d: int in range(6):
+		for d: int in range(_types.size()):
 			var mult: float = _types[a].multiplier_against(_types[d])
 			_add_cell(mult, Vector2(grid_left + d * CELL_W, y))
 
