@@ -36,19 +36,32 @@ func _initialize() -> void:
 	_check(order.find(fast_acts_last) < order.find(slow_acts_last), "between two acts_last combatants, higher initiative (95 vs 5) still wins the tie")
 
 	# insert_acting_this_round: a combatant joining mid-round must act THIS round.
+	# Needs a real PC-vs-enemy fight in progress (is_combat_over() checks living players AND living
+	# enemies) — fast is the PC, slow and the newcomer are enemy-side (a boss's acolyte minion
+	# joining an ongoing fight), so begin() actually starts a round instead of ending combat
+	# immediately for lack of a living player.
+	fast.is_player = true
+	slow.is_player = false
 	tm.combatants = [fast, slow]
 	tm.begin()
 	var newcomer: Combatant = _make("Newcomer", 999, true)
+	newcomer.is_player = false
 	tm.insert_acting_this_round(newcomer)
 	_check(tm.combatants.has(newcomer), "insert_acting_this_round adds the combatant to .combatants")
 	# Drain the round: fast, slow, newcomer should each get a turn before a new round starts.
-	var seen: Array[Combatant] = []
+	# begin() already made fast (index 0) the active combatant, so it's captured before the loop;
+	# 3 combatants means only 2 more advance_turn() calls are needed to reach the last one (index 2)
+	# — a 3rd call would be the one that wraps past the end and rolls a new round (see
+	# tests/test_turn_manager.gd scenario D, where N=2 combatants take exactly 1 advance_turn() call
+	# to reach the last member and a 2nd to roll into round 2).
 	var round_before: int = tm.round_number
-	for i in range(3):
-		seen.append(tm._order[tm._turn_index])
+	var seen: Array[Combatant] = [tm._order[tm._turn_index]]
+	for i in range(2):
 		tm.advance_turn()
+		seen.append(tm._order[tm._turn_index])
+	_check(seen.size() == 3 and seen[0] == fast and seen[1] == slow and seen[2] == newcomer, "fast, slow, then newcomer each acted in order: %s" % str(seen.map(func(c: Combatant) -> String: return c.display_name)))
 	_check(newcomer in seen, "the newly-inserted combatant took a turn in the SAME round it joined")
-	_check(tm.round_number == round_before, "no new round started while draining the 3 acting members")
+	_check(tm.round_number == round_before, "no new round started while draining the round's 3 acting members")
 
 	print(("ACTS_LAST TURN ORDER TEST PASSED" if _failures == 0 else "ACTS_LAST TURN ORDER TEST FAILED: %d" % _failures))
 	quit(_failures)
