@@ -1477,6 +1477,35 @@ from the dungeon-scene-structure and lock-and-key playtests in one batch:
   `InventoryMenuPanel` — a bigger, separate UI feature (see the sub-project 2 note immediately below),
   not a quick fix.
 
+**SHIPPED 2026-07-18 — LIGHT/DARK DAMAGE TYPE EXPANSION, all headless-test-green (193/193 full
+suite).** Plan 1 of 3 for the dungeon boss + Lost Cat quest feature (spec
+`docs/superpowers/specs/2026-07-18-dungeon-boss-and-lost-cat-quest-design.md`, plan
+`docs/superpowers/plans/2026-07-18-light-dark-damage-types.md`) — a pure data/UI foundation
+pass, no boss content yet:
+- **`DamageType`'s type enum grows from 6 to 8** (`combat/resources/damage_type.gd`) — Light and Dark
+  join Slashing/Piercing/Crushing/Storm/Mystic/Earth. Two new authored `.tres` (`combat/resources/
+  types/light.tres`, `combat/resources/types/dark.tres`), and the player's authored source-of-truth
+  `type_chart_6x6_labeled.html` extended with the new row/column so `gen_damage_types.gd` (which
+  regenerates all `.tres` from it) stays the single source for the live matrix.
+- **`TypeVisuals`** (`combat/ui/type_visuals.gd`) gained short names + identity colors for both new
+  types, and **`TypeChartPanel`** (`combat/ui/type_chart_panel.gd`) had its hardcoded 6/6.0 grid
+  sizing/loop bounds replaced with dynamic `_types.size()` calculations — the panel now renders
+  whatever number of types exist rather than assuming 6, so the on-screen chart automatically shows
+  all 8 without further UI work.
+- **`tests/test_type_chart.gd`** extended into a locked 8×8 matrix (was 6×6) — this is now the
+  authoritative regression proof of the full type-effectiveness table, Light/Dark included.
+- **Deliberately NOT done this pass**: no enemy, weapon, ability, or reel anywhere actually deals or
+  resists Light/Dark yet — the two types exist only in the chart/UI layer. **Plan 2 (the boss fight
+  itself) is next** and is what will actually put Dark damage in front of a player for the first time;
+  Plan 3 covers the Lost Cat quest reward.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 193-file headless sweep came back
+  clean — 2 files (`test_combat_handoff_ground_drops.gd`, `test_loot_table.gd`) hit the documented
+  intermittent teardown-only SIGSEGV flake class on the sweep pass, both confirmed clean (exit 0) on
+  individual retry, not regressions; the pre-existing, unrelated, out-of-scope
+  `test_adventuring_board_panel.gd` failure documented since 2026-07-14 is still present, confirmed
+  identical. No human playtest applies to this pass — there's no new player-visible content yet, only
+  a data/UI foundation for Plan 2.
+
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
 is sub-project 1 of this same follow-on, now shipped). Next up: clicking a consumable in the Bag should
