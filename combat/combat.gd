@@ -501,6 +501,19 @@ func _spawn_enemy_mid_combat(id: StringName) -> Combatant:
 	add_child(p)
 	_panels[c] = p
 	p.bind(c)
+	# Mirror _build_target_click_catchers()'s per-enemy block for this ONE newly spawned enemy —
+	# do NOT call _build_target_click_catchers() again here, since it iterates ALL combatants
+	# unconditionally and would stack a duplicate, overlapping click-catcher on every enemy that
+	# already has one.
+	var hit := Button.new()
+	hit.flat = true
+	hit.modulate = Color(1, 1, 1, 0)  # invisible; input is gated by mouse_filter, not alpha
+	hit.position = p.position
+	hit.custom_minimum_size = Vector2(300, 278)   # full panel height (spec §3 targeting)
+	hit.size = Vector2(300, 278)
+	hit.tooltip_text = "Click to make %s the active PC's primary target." % c.display_name
+	hit.pressed.connect(_select_target.bind(c))
+	add_child(hit)
 	return c
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
@@ -1022,6 +1035,31 @@ func _ultimate_name(id: StringName) -> String:
 		&"dark_reinforcements": return "DARK REINFORCEMENTS (summon 2 acolytes)"
 		_: return "Ultimate"
 
+## Called from _on_turn_started() for [param c].is_boss turns only. Sets up the Darkness Rampage
+## turn (4 Dark WILD AoE reels @ 18.0 base damage) while boss_phase_two_active, OR — symmetric
+## defensive reset, finding 2 of the 2026-07-19 review — restores the boss's weapon.base_damage/
+## darkness_rampage_spins_remaining to their normal-turn baseline (12.0 / 0) whenever phase two is
+## NOT active. Covers both "never entered phase 2" and "phase 2 ended before this turn": without
+## this, a boss turn that gets interrupted before _finish_spin() runs (e.g. the boss is STUNNED
+## that same turn) can leave the phase-two values stuck, since _finish_spin()'s own restore never
+## fires if the turn never reaches _finish_spin(). This is a second, independent layer of defense —
+## it does not replace that restore, extracted to its own method so a test can invoke it directly
+## without also triggering _on_turn_started()'s full turn-start side effects (phase manager, UI, etc).
+func _sync_boss_darkness_rampage_state(c: Combatant) -> void:
+	if c.boss_phase_two_active:
+		var dark: DamageType = load("res://combat/resources/types/dark.tres")
+		c.turn_reels.clear()
+		for i: int in range(4):
+			c.turn_reels.append(ActionReel.make_default(dark))
+		c.sticky_wild_count = 4
+		c.sticky_wild_spins_remaining = 1
+		c.aoe_spins_remaining = 1
+		c.darkness_rampage_spins_remaining = 1
+		c.weapon.base_damage = 18.0
+	else:
+		c.weapon.base_damage = 12.0
+		c.darkness_rampage_spins_remaining = 0
+
 func _on_turn_started(c: Combatant) -> void:
 	_attacker = c
 	_ability_menu.hide()  # never carry an open menu across a turn boundary
@@ -1047,16 +1085,8 @@ func _on_turn_started(c: Combatant) -> void:
 	c.begin_turn()
 	if c.is_boss:
 		_check_boss_phase_transition(c)
-	if c.is_boss and c.boss_phase_two_active:
-		var dark: DamageType = load("res://combat/resources/types/dark.tres")
-		c.turn_reels.clear()
-		for i in range(4):
-			c.turn_reels.append(ActionReel.make_default(dark))
-		c.sticky_wild_count = 4
-		c.sticky_wild_spins_remaining = 1
-		c.aoe_spins_remaining = 1
-		c.darkness_rampage_spins_remaining = 1
-		c.weapon.base_damage = 18.0
+	if c.is_boss:
+		_sync_boss_darkness_rampage_state(c)
 	_plan = MainPhasePlan.new(c, c.ability_cost, 5, 2, _party_inventory)  # ability cost from class; reel cap 5; wild 2 spins; shared party inventory (2026-07-14 items)
 	# The ability/Ultimate buttons follow the ACTIVE PC (the controller this turn); on an enemy turn they're
 	# disabled, so label them from the active party member (the current PC, else the first party member).
