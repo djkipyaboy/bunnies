@@ -877,6 +877,12 @@ func _enemy_stage_ability() -> void:
 		&"hunters_mark":
 			if _plan.can_stage_ability() and _defender != null and not _defender.has_effect(&"hunters_mark"):
 				_plan.ability_staged = true
+		&"warden_support_heal", &"warden_support_curse":
+			# Warden Acolytes always fire their signature ability (spec 2026-07-19 §3.2) — same
+			# always-fire greedy pattern as Flurry. Both roles have 0 ability_cost (EnemyLibrary),
+			# so can_stage_ability() is always affordable; the real logic lives in _commit_main1().
+			if _plan.can_stage_ability():
+				_plan.ability_staged = true
 
 ## The PC whose controls are active: the current attacker if it's a player, else the first party member.
 func _active_pc() -> Combatant:
@@ -1483,6 +1489,29 @@ func _commit_main1() -> void:
 			ally.attach_effect(regen)
 			_log("  🌿 %s grants Regrowth to %s." % [_attacker.display_name, ally.display_name])
 		_attacker.regrowth_pending = false
+	# Warden Acolyte "heal+guard the boss" (spec 2026-07-19 §3.2): the orchestrator finds the living
+	# boss ally (there is exactly one Hollow Warden per fight) and heals it + attaches Guarded.
+	if _attacker.heal_boss_pending:
+		var boss: Combatant = _find_boss_ally(_attacker)
+		if boss != null:
+			boss.heal(30)
+			boss.attach_effect(EffectLibrary.make(&"guarded"))
+			_log("  ☾ %s heals The Hollow Warden 30 HP and shields it." % _attacker.display_name)
+			if _panels.has(boss):
+				(_panels[boss] as CombatantPanel).refresh_status()
+		_attacker.heal_boss_pending = false
+	# Warden Acolyte "curse the party" (spec 2026-07-19 §3.2): a flat (not weapon-derived) stacking
+	# DoT on every living PC. dot_base_damage = 1.0 is the flat baseline so dot_damage() produces
+	# exactly 4/7/10 (Effect.dot_damage()'s formula multiplies dot_base_damage by dot_fractions).
+	if _attacker.curse_party_pending:
+		for target: Combatant in _enemies_of(_attacker):
+			var curse: Effect = EffectLibrary.make(&"warden_curse")
+			curse.dot_base_damage = 1.0
+			target.attach_effect(curse)
+			if _panels.has(target):
+				(_panels[target] as CombatantPanel).refresh_status()
+		_log("  ☾ %s afflicts the party with a curse." % _attacker.display_name)
+		_attacker.curse_party_pending = false
 
 func _do_spin() -> void:
 	# Enemy turns commit Main 1 here (PCs committed in _on_spin_pressed). Decide ability use, then
@@ -1750,6 +1779,14 @@ func _lowest_hp_pct_ally(caster: Combatant) -> Combatant:
 				best_pct = pct
 				best = c
 	return best
+
+## The living boss ally of [param caster] (there is exactly one Hollow Warden per fight). Used by
+## the Warden Acolyte's heal-role ability (spec 2026-07-19 §3.2).
+func _find_boss_ally(caster: Combatant) -> Combatant:
+	for c: Combatant in _turn_manager.combatants:
+		if c.is_player == caster.is_player and c.is_boss and c.is_alive():
+			return c
+	return null
 
 ## Splashes ceil([param total] / 2) damage to every OTHER living enemy of [param attacker] (every enemy
 ## except the primary [member _defender]) and logs each with [param type_label]. Off the type chart (flat

@@ -393,6 +393,10 @@ func commit() -> void:
 				combatant.apply_select_fate(selected_fate_type, ability_cost)  # +1 reel, retype loadout (Seer)
 			&"rallying_cry":
 				combatant.apply_rallying_cry(ability_cost, reel_cap)  # +1 utility reel; orchestrator shields the party
+			&"warden_support_heal":
+				combatant.stage_warden_support_heal(ability_cost)
+			&"warden_support_curse":
+				combatant.stage_warden_support_curse(ability_cost)
 	if staged_extra_ability_id != &"":
 		var def: AbilityDef = combatant.find_extra_ability(staged_extra_ability_id)
 		match staged_extra_ability_id:

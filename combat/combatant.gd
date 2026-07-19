@@ -1346,6 +1346,25 @@ func stage_regrowth(cost: int) -> bool:
 	regrowth_pending = true
 	return true
 
+## Stages the Warden Acolyte's healer-role ability: spends [param cost] Stamina (0 for this
+## enemy-only ability) and flags a pending boss heal+Guard. The orchestrator finds the living boss
+## ally and applies both at commit (spec 2026-07-19 §3.2). Returns false if unaffordable.
+func stage_warden_support_heal(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	heal_boss_pending = true
+	return true
+
+## Stages the Warden Acolyte's curser-role ability: spends [param cost] Stamina (0 for this
+## enemy-only ability) and flags a pending party-wide curse. The orchestrator attaches a
+## freshly-seeded warden_curse to every living PC at commit (spec 2026-07-19 §3.2). Returns false if
+## unaffordable.
+func stage_warden_support_curse(cost: int) -> bool:
+	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
+		return false
+	curse_party_pending = true
+	return true
+
 # ---------------------------------------------------------------------------
 # Chancer reroll / Wildcard Gamble (spec §3.1) — reroll costs its ability_resource rail (Mana as of
 # 2026-07-04); gamble costs the meter
