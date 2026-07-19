@@ -1506,6 +1506,53 @@ pass, no boss content yet:
   identical. No human playtest applies to this pass — there's no new player-visible content yet, only
   a data/UI foundation for Plan 2.
 
+**SHIPPED 2026-07-19 — THE HOLLOW WARDEN BOSS FIGHT, all headless-test-green (203/203 full suite),
+human playtest still pending.** Plan 2 of 3 for the dungeon boss + Lost Cat quest feature (spec
+`docs/superpowers/specs/2026-07-18-dungeon-boss-and-lost-cat-quest-design.md`, plan
+`docs/superpowers/plans/2026-07-19-hollow-warden-boss-fight.md`) — builds on Plan 1's Light/Dark
+type expansion to put the first Dark-typed enemy, and this project's first multi-phase boss, in
+front of the player on dungeon floor 4:
+- **The Hollow Warden** — 550 HP, Dark-typed. **Phase 1** spawns with two lesser acolytes with
+  scripted actions: a healer (heals the boss + applies Guarded) and a curser (applies the new
+  `warden_curse` DoT to the PC). **At 40% HP**, `_check_boss_phase_transition()` fires a real phase
+  transition: the boss gains `indestructible` (blocks direct hits but not DoT ticks — the resolver
+  distinguishes the two damage paths) and Darkness Rampage (a phase-locked self-heal attack: this
+  spin's total damage is tracked via `_darkness_rampage_total`, and the boss heals half of it),
+  while two GREATER acolytes spawn mid-combat as the phase-2 minions. Killing both phase-2 minions
+  clears Indestructible and applies `empowered` to the boss. The transition is **re-triggerable**
+  with a 10-of-the-boss's-own-turns cooldown, guarding against a re-trigger loop if the boss is ever
+  topped back up above 40%.
+- **`Combatant._spawn_enemy_mid_combat()`/`TurnManager.insert_acting_this_round()`** — new,
+  reusable plumbing for spawning a fresh enemy into an already-running fight with correct turn-order
+  insertion (used for both the phase-2 minions and the boss's Ultimate reinforcements). Worth
+  reusing for any future mid-fight-spawn content, not just this boss.
+- **Dark Reinforcements** — the Hollow Warden's Ultimate, and this project's **first enemy
+  Ultimate**: once the boss's Bonus Meter fills, it spawns two more acolytes
+  (`boss_reinforcement_ids`) via the same mid-combat-spawn plumbing, consuming the meter in full.
+- **Floor 4 placement** — the Hollow Warden replaces the floor-4 placeholder `StairsUp`-only dead
+  end in `dungeon_demo.gd`, behind the existing lock-and-key gate.
+- **`tests/test_hollow_warden_full_sequence.gd`** (new) — a single integration test proving every
+  piece above works TOGETHER in one real fight, not just in isolation (each piece already had its
+  own unit test from Tasks 1-9 of the plan): the phase-1 minions' scripted actions via the real
+  ability path, the 40% transition firing for real, Indestructible blocking a direct hit but not a
+  `warden_curse` DoT tick, Empowered applying once the phase-2 minions die, and Dark Reinforcements
+  firing once the meter is full. **Found and fixed one bug in the test itself while writing it**:
+  the plan's own literal test code typed the combat scene instance as `Node`, which — per the
+  documented `gdscript-typed-array-node-set-gotcha` — silently aborts a typed-array property
+  assignment (`_pcs`/`_enemies`/`_turn_manager.combatants`) made through a base-typed handle,
+  producing a false-positive PASS with zero of its 10 checks actually executed. Fixed by typing the
+  local as `Combat` (the scene's real `class_name`) instead of `Node`, which lets the compiler
+  resolve the properties' true typed-array types; re-run confirmed all 10 checks now execute and
+  print `ok` for real.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 203-file headless sweep came back
+  completely clean on the first pass — zero nonzero exits, no flakes encountered this run (the
+  documented intermittent teardown-only SIGSEGV class didn't recur; the pre-existing, unrelated,
+  out-of-scope `test_adventuring_board_panel.gd` failure documented since 2026-07-14 is still
+  present — it still prints one `FAIL` line internally but its own pass/fail tracking doesn't
+  propagate to a nonzero exit code, so it doesn't show up in an exit-code sweep either). **A human
+  has not yet playtested this live** — that's the next step before Plan 3 (the Lost Cat quest
+  system itself, which the boss kill is meant to unlock).
+
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
 is sub-project 1 of this same follow-on, now shipped). Next up: clicking a consumable in the Bag should
