@@ -889,6 +889,9 @@ func _enemy_pick_target(c: Combatant) -> Combatant:
 func _enemy_stage_ability() -> void:
 	if _plan == null or _attacker == null or _attacker.is_player:
 		return
+	if _attacker.ultimate_id != &"" and _attacker.bonus_meter != null and _attacker.bonus_meter.is_armed():
+		_plan.toggle_ultimate()   # mirrors the player-facing _on_ultimate_pressed() path exactly
+		return   # fire the Ultimate this turn instead of the base ability (spec 2026-07-19 §3.3)
 	match _attacker.ability_id:
 		&"flurry":
 			if _plan.can_stage_ability():
@@ -1003,6 +1006,7 @@ func _ultimate_label(id: StringName) -> String:
 		&"collateral": return "ULTIMATE: Collateral Damage"
 		&"big_bang": return "ULTIMATE: The Big Bang"
 		&"earthquake": return "ULTIMATE: Earthquake"
+		&"dark_reinforcements": return "ULTIMATE: Dark Reinforcements"
 		_: return "Fire Ultimate"
 
 func _ultimate_name(id: StringName) -> String:
@@ -1014,6 +1018,7 @@ func _ultimate_name(id: StringName) -> String:
 		&"collateral": return "COLLATERAL DAMAGE (+1 reel, splash all enemies)"
 		&"big_bang": return "THE BIG BANG (4 wild reels, AoE, party heal)"
 		&"earthquake": return "EARTHQUAKE (+1 wild reel, splash, stun all hit)"
+		&"dark_reinforcements": return "DARK REINFORCEMENTS (summon 2 acolytes)"
 		_: return "Ultimate"
 
 func _on_turn_started(c: Combatant) -> void:
@@ -1458,6 +1463,12 @@ func _commit_main1() -> void:
 		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(did_extra)])
 	if did_ultimate:
 		_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
+		if _attacker.ultimate_id == &"dark_reinforcements":
+			_attacker.bonus_meter.consume()  # no fire_X() method exists for this Ultimate (no reel/damage component), so consume it directly here — every other Ultimate's own fire_X() does this internally
+			var r1: Combatant = _spawn_enemy_mid_combat(&"warden_acolyte_lesser_healer")
+			var r2: Combatant = _spawn_enemy_mid_combat(&"warden_acolyte_lesser_curser")
+			_attacker.boss_reinforcement_ids.append_array([r1, r2])
+			_log("  ☾ Dark Reinforcements — 2 acolytes join the fight!")
 	if _attacker.hp > hp_before:
 		_log("  ✚ %s heals %d HP (%d/%d)." % [_attacker.display_name, _attacker.hp - hp_before, _attacker.hp, _attacker.max_hp])
 	# Immediate status/resource refresh (playtest 2026-07-04): self-cast buffs with no pending-flag
