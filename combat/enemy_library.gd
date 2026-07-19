@@ -29,16 +29,25 @@ static func make(id: StringName) -> Combatant:
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
 	var piercing: DamageType = load("res://combat/resources/types/piercing.tres")
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
+	var dark: DamageType = load("res://combat/resources/types/dark.tres")
 	match id:
 		&"rat":    return _build(label(id), crushing, 8.0, 2, earth, 300, &"", 0, &"overworld_trash", 5)       # plain melee baseline
 		&"ferret": return _build(label(id), slashing, 7.0, 3, slashing, 260, &"flurry", 2, &"overworld_trash", 8)
 		&"stoat":  return _build(label(id), piercing, 6.0, 4, piercing, 220, &"hunters_mark", 3, &"overworld_trash", 12)
+		&"hollow_warden":
+			var boss: Combatant = _build("The Hollow Warden", dark, 12.0, 3, dark, 550, &"", 0, &"", 50, &"dark_reinforcements", true)
+			boss.is_boss = true
+			return boss
+		&"warden_acolyte_lesser_healer": return _build_acolyte(30, &"warden_support_heal")
+		&"warden_acolyte_lesser_curser": return _build_acolyte(30, &"warden_support_curse")
+		&"warden_acolyte_greater_healer": return _build_acolyte(90, &"warden_support_heal")
+		&"warden_acolyte_greater_curser": return _build_acolyte(90, &"warden_support_curse")
 		_:         return null
 
 ## Stamps a fresh enemy Combatant. Enemies have NO Ultimate (ultimate_id cleared). An enemy with a
 ## base ability ([param ability_id] != &"") gets a small Stamina pool sized for it so the greedy AI
 ## can fire it through the same MainPhasePlan.commit() path PCs use (spec 2026-06-28 §2/§3.2).
-static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: float, reels: int, defense: DamageType, hp: int, ability_id: StringName = &"", ability_cost: int = 0, loot_table_id: StringName = &"", amber_reward: int = 0) -> Combatant:
+static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: float, reels: int, defense: DamageType, hp: int, ability_id: StringName = &"", ability_cost: int = 0, loot_table_id: StringName = &"", amber_reward: int = 0, ultimate_id: StringName = &"", meter_visible: bool = false) -> Combatant:
 	var c: Combatant = Combatant.new()
 	if loot_table_id != &"":
 		c.loot_table = LootTableLibrary.make(loot_table_id)
@@ -46,7 +55,7 @@ static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: flo
 	c.amber_reward = amber_reward
 	c.is_player = false
 	c.defense_type = defense
-	c.ultimate_id = &""   # enemies never fire an Ultimate (override Combatant's default)
+	c.ultimate_id = ultimate_id   # &"" for every enemy except the Hollow Warden (spec 2026-07-19 §3.2)
 	var w: Weapon = Weapon.new()
 	w.base_damage = weapon_base
 	for i: int in range(reels):
@@ -56,7 +65,7 @@ static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: flo
 	c.base_meter_floor = 3
 	var meter: BonusMeter = BonusMeter.new()
 	meter.cap = 15
-	meter.is_visible = false   # enemy meters hidden by default (CLAUDE.md §4)
+	meter.is_visible = meter_visible   # true only for the Hollow Warden (spec 2026-07-19 §3.2)
 	c.bonus_meter = meter
 	c.base_stats = Stats.new()
 	# Borrowed base ability + a small Stamina pool to pay for it (rat: none). [ASSUMPTION] costs/pool.
@@ -72,4 +81,21 @@ static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: flo
 	c.apply_stats()   # derive max_hp (and max_stamina if a pool exists) BEFORE seeding hp
 	c.apply_luck()    # luck 0 → no-op, kept for parity with ClassLibrary
 	c.start_combat()
+	return c
+
+## Builds one of the Hollow Warden's 4 acolyte variants (2 HP tiers × 2 ability roles — spec
+## 2026-07-19 §3.2/§3.3). Always acts last and is permanently immune to stun (a MULTIPLIER_EDIT
+## effect with an inert 1.0 magnitude, whose only real purpose is carrying grants_stun_immunity).
+static func _build_acolyte(hp: int, ability_id: StringName) -> Combatant:
+	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
+	var c: Combatant = _build("Warden Acolyte", crushing, 3.0, 1, crushing, hp, ability_id, 0)
+	c.acts_last = true
+	var immune: Effect = Effect.new()
+	immune.id = &"warden_acolyte_immunity"
+	immune.kind = Effect.Kind.MULTIPLIER_EDIT
+	immune.magnitude = 1.0
+	immune.duration = 999
+	immune.beneficial = true
+	immune.grants_stun_immunity = true
+	c.attach_effect(immune)
 	return c

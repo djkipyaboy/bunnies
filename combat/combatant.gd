@@ -66,6 +66,10 @@ var is_target_dummy: bool = false
 ## Hollow Warden's minions, spec 2026-07-19 §3.1). Checked FIRST in TurnManager's sort comparator.
 var acts_last: bool = false
 
+## True for a boss-tier enemy (The Hollow Warden). Drives the phase-transition orchestration in
+## combat.gd (spec 2026-07-19 §3.3) — every other Combatant leaves this at the default.
+var is_boss: bool = false
+
 ## The class's Main-1 base ability id (spec 2026-06-21 §4A): &"rend" / &"heft" / &"flurry".
 ## Drives MainPhasePlan dispatch. Empty = no base ability.
 var ability_id: StringName = &""
