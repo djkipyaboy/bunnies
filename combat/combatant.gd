@@ -551,6 +551,13 @@ func cleanse() -> int:
 	recompute_initiative()
 	return before - active_effects.size()
 
+## Removes the active effect with [param id], if any, then refreshes the derived sort key. Used by
+## the boss phase-transition orchestrator to clear Indestructible the instant both its minions die —
+## not a turn-counted expiry, so tick_effects()/cleanse() can't do this (spec 2026-07-19 §3.1).
+func remove_effect(id: StringName) -> void:
+	active_effects = active_effects.filter(func(e: Effect) -> bool: return e.id != id)
+	recompute_initiative()
+
 # ---------------------------------------------------------------------------
 # Extra abilities (spec 2026-07-01) — level-gated L5/L7/L9 kit
 # ---------------------------------------------------------------------------

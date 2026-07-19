@@ -111,5 +111,23 @@ static func make(id: StringName) -> Effect:
 			e.id = &"haste"; e.kind = Effect.Kind.INITIATIVE_MOD; e.magnitude = 20.0
 			e.duration = 2; e.beneficial = true
 			return e
+		&"warden_curse":
+			# The Hollow Warden's Minion B ability (spec 2026-07-19 §3.1) — a FLAT stacking party-wide
+			# DoT, unlike every other DoT in this codebase (bleed/cursed/regen all scale off a weapon).
+			# The orchestrator seeds dot_base_damage = 1.0 at apply time so dot_damage() produces exactly
+			# 4/7/10 rather than a weapon-scaled number.
+			var e: Effect = Effect.new()
+			e.id = &"warden_curse"; e.kind = Effect.Kind.DAMAGE_OVER_TIME; e.duration = 3
+			e.max_stacks = 3; e.dot_fractions = [4.0, 7.0, 10.0]; e.beneficial = false
+			return e
+		&"indestructible":
+			# The Hollow Warden's phase-2 buff (spec 2026-07-19 §3.1) — blocks ALL direct damage via the
+			# existing MULTIPLIER_EDIT mechanism (magnitude 0.0). DoT ticks read a separate multiplier
+			# hook (dot_damage_multiplier) and are unaffected — no extra plumbing needed. duration is a
+			# long placeholder; the orchestrator clears this explicitly via remove_effect(), not expiry.
+			var e: Effect = Effect.new()
+			e.id = &"indestructible"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 0.0
+			e.affects_incoming = true; e.duration = 99; e.beneficial = true
+			return e
 		_:
 			return null
