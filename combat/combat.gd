@@ -1039,6 +1039,8 @@ func _on_turn_started(c: Combatant) -> void:
 	_turn_order_bar.set_current(c)
 	_log("%s's turn." % c.display_name)
 	c.begin_turn()
+	if c.is_boss:
+		_check_boss_phase_transition(c)
 	_plan = MainPhasePlan.new(c, c.ability_cost, 5, 2, _party_inventory)  # ability cost from class; reel cap 5; wild 2 spins; shared party inventory (2026-07-14 items)
 	# The ability/Ultimate buttons follow the ACTIVE PC (the controller this turn); on an enemy turn they're
 	# disabled, so label them from the active party member (the current PC, else the first party member).
@@ -1806,6 +1808,60 @@ func _find_boss_ally(caster: Combatant) -> Combatant:
 		if c.is_player == caster.is_player and c.is_boss and c.is_alive():
 			return c
 	return null
+
+## The boss phase-transition state machine (spec 2026-07-19 §3.3), called once per turn from
+## _on_turn_started() for boss combatants only. If phase 2 is active, checks whether both its
+## minions are dead (clears Indestructible, applies Empowered). Otherwise, checks the 40%-HP
+## threshold + the 10-of-the-boss's-own-turns cooldown, and if both hold, sacrifices any surviving
+## Ultimate-summoned reinforcements, attaches Indestructible (removing Empowered first — they never
+## both apply), and spawns 2 new 90-HP minions.
+func _check_boss_phase_transition(c: Combatant) -> void:
+	c.boss_turns_taken += 1
+	if c.boss_phase_two_active:
+		var both_dead: bool = true
+		for m: Combatant in c.boss_phase_minion_ids:
+			if m.is_alive():
+				both_dead = false
+				break
+		if both_dead:
+			c.remove_effect(&"indestructible")
+			c.boss_phase_two_active = false
+			var emp: Effect = EffectLibrary.make(&"empowered")
+			emp.duration = 999   # "until end of combat" — this boss-only grant, not the 2-turn player-facing version
+			c.attach_effect(emp)
+			_log("  ☾ The Hollow Warden's minions have fallen — it is EMPOWERED!")
+			if _panels.has(c):
+				(_panels[c] as CombatantPanel).refresh_status()
+		return   # a transition can't re-trigger the same turn it just resolved
+	var hp_below_threshold: bool = c.hp < int(c.max_hp * 0.4)
+	var cooldown_elapsed: bool = c.boss_last_phase_trigger_turn == -1 or (c.boss_turns_taken - c.boss_last_phase_trigger_turn) >= 10
+	if hp_below_threshold and cooldown_elapsed:
+		_sacrifice_reinforcements(c)
+		c.remove_effect(&"empowered")   # Indestructible always supersedes Empowered (spec §2) — never both active
+		c.attach_effect(EffectLibrary.make(&"indestructible"))
+		var minion_a: Combatant = _spawn_enemy_mid_combat(&"warden_acolyte_greater_healer")
+		var minion_b: Combatant = _spawn_enemy_mid_combat(&"warden_acolyte_greater_curser")
+		c.boss_phase_minion_ids = [minion_a, minion_b]
+		c.boss_phase_two_active = true
+		c.boss_last_phase_trigger_turn = c.boss_turns_taken
+		_log("  ☾ The Hollow Warden becomes INDESTRUCTIBLE and summons reinforcements!")
+		if _panels.has(c):
+			(_panels[c] as CombatantPanel).refresh_status()
+
+## Instantly removes any surviving Ultimate-summoned reinforcements (no reward, since they're removed
+## by the boss's own script rather than defeated in battle — spec 2026-07-19 §2) and heals the boss
+## for half their combined remaining HP.
+func _sacrifice_reinforcements(c: Combatant) -> void:
+	var total_hp: int = 0
+	for m: Combatant in c.boss_reinforcement_ids:
+		if m.is_alive():
+			total_hp += m.hp
+			m.take_damage(m.hp)
+	if total_hp > 0:
+		var heal_amt: int = ceili(total_hp / 2.0)
+		c.heal(heal_amt)
+		_log("  ☾ The Hollow Warden sacrifices its reinforcements, healing %d HP." % heal_amt)
+	c.boss_reinforcement_ids.clear()
 
 ## Splashes ceil([param total] / 2) damage to every OTHER living enemy of [param attacker] (every enemy
 ## except the primary [member _defender]) and logs each with [param type_label]. Off the type chart (flat
