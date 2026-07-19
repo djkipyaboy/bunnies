@@ -30,5 +30,7 @@ func _initialize() -> void:
 	_save(_make(T.STORM, { T.MYSTIC: 0.75, T.EARTH: 1.25 }), "storm.tres")
 	_save(_make(T.MYSTIC, { T.SLASHING: 1.25, T.PIERCING: 1.25, T.CRUSHING: 0.5, T.STORM: 1.25, T.EARTH: 0.75 }), "mystic.tres")
 	_save(_make(T.EARTH, { T.CRUSHING: 1.25, T.STORM: 0.75, T.MYSTIC: 1.25 }), "earth.tres")
+	_save(_make(T.LIGHT, { T.DARK: 1.5 }), "light.tres")
+	_save(_make(T.DARK, { T.LIGHT: 1.5 }), "dark.tres")
 	print("DAMAGE TYPES GENERATED")
 	quit()

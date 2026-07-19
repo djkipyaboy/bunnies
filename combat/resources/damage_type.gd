@@ -10,7 +10,7 @@ extends Resource
 ## values are a next-session deliverable (DESIGN.md §12); this resource just stores a row.
 
 ## Canonical type ids. Stored as the chart keys so a [DamageType] is fully data-driven.
-enum Type { SLASHING, PIERCING, CRUSHING, STORM, MYSTIC, EARTH }
+enum Type { SLASHING, PIERCING, CRUSHING, STORM, MYSTIC, EARTH, LIGHT, DARK }
 
 ## This type's identity.
 @export var type: Type = Type.SLASHING
