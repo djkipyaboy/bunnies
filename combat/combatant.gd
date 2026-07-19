@@ -62,6 +62,10 @@ var is_player: bool = false
 ## check (TurnManager._living) so immortal dummies can't stall a win. Not used in normal play.
 var is_target_dummy: bool = false
 
+## True for a combatant that always acts LAST in turn order regardless of its initiative roll (the
+## Hollow Warden's minions, spec 2026-07-19 §3.1). Checked FIRST in TurnManager's sort comparator.
+var acts_last: bool = false
+
 ## The class's Main-1 base ability id (spec 2026-06-21 §4A): &"rend" / &"heft" / &"flurry".
 ## Drives MainPhasePlan dispatch. Empty = no base ability.
 var ability_id: StringName = &""

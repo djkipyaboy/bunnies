@@ -54,11 +54,14 @@ func roll_initiative() -> void:
 func roll_d100() -> int:
 	return InitiativeReel.roll_percentile(_initiative_tens, _initiative_ones)
 
-## Returns combatants sorted for turn order: current_initiative desc, ties broken by Finesse desc,
+## Returns combatants sorted for turn order: acts_last combatants always sort after every non-acts_last
+## one (spec 2026-07-19 §3.1), then by current_initiative desc, ties broken by Finesse desc,
 ## then by the stored d10 tiebreak_roll desc (DESIGN.md §4.1; Finesse stat 2026-06-20).
 func get_turn_order() -> Array[Combatant]:
 	var ordered: Array[Combatant] = combatants.duplicate()
 	ordered.sort_custom(func(a: Combatant, b: Combatant) -> bool:
+		if a.acts_last != b.acts_last:
+			return b.acts_last   # false (normal) sorts before true (acts-last), regardless of initiative
 		if a.current_initiative != b.current_initiative:
 			return a.current_initiative > b.current_initiative
 		var fa: int = a.effective_stats().finesse
@@ -67,6 +70,16 @@ func get_turn_order() -> Array[Combatant]:
 			return fa > fb
 		return a.tiebreak_roll > b.tiebreak_roll)
 	return ordered
+
+## Adds [param c] to both .combatants (so future rounds' get_turn_order() include it) AND the
+## CURRENT round's already-fixed _order (so it acts THIS round too, not just from next round on).
+## Appending at the end of _order is correct without position-aware insertion because every caller
+## of this method passes an acts_last combatant (spec 2026-07-19 §3.6) — it belongs at the back of
+## the current round's remaining order regardless, the same place a fresh get_turn_order() call
+## would put it next round anyway.
+func insert_acting_this_round(c: Combatant) -> void:
+	combatants.append(c)
+	_order.append(c)
 
 # ---------------------------------------------------------------------------
 # Combat-end queries
