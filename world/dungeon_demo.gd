@@ -306,15 +306,17 @@ func _build_inventory_demo() -> void:
 ## single enemy, same as floor 1 — no escalation toward the boss). One OverworldEnemy per floor still
 ## triggers ALL of that floor's enemies at once as a single fight — combat.gd's _build_combatants()
 ## already loops over an arbitrary-length enemy_ids array (the same mechanism the "Choose your Party"
-## N-vs-M selection screen uses), so no combat-side changes were needed. Floor 4 (index 3) is
-## reserved for the boss, a later step — no placeholder enemy there.
+## N-vs-M selection screen uses), so no combat-side changes were needed. Floor 4 (index 3) now holds
+## the real Hollow Warden encounter (boss + 2 lesser acolytes).
 func _place_dungeon_enemies() -> void:
 	var floor1_ids: Array[StringName] = [&"rat"]
 	var floor2_ids: Array[StringName] = [&"rat", &"ferret"]
 	var floor3_ids: Array[StringName] = [&"rat", &"ferret", &"stoat"]
+	var floor4_ids: Array[StringName] = [&"hollow_warden", &"warden_acolyte_lesser_healer", &"warden_acolyte_lesser_curser"]
 	_place_dungeon_enemy("DungeonFloor1Enemy", floor1_ids, floor_bounds(0).position + ENEMY_LOCAL, 0)
 	_place_dungeon_enemy("DungeonFloor2Enemy", floor2_ids, floor_bounds(1).position + ENEMY_LOCAL, 1)
 	_place_dungeon_enemy("DungeonFloor3Enemy", floor3_ids, floor_bounds(2).position + ENEMY_LOCAL, 2)
+	_place_dungeon_enemy("DungeonFloor4Enemy", floor4_ids, floor_bounds(3).position + ENEMY_LOCAL, 3)
 
 func _place_dungeon_enemy(node_name: StringName, enemy_ids: Array[StringName], position: Vector2, floor_index: int) -> void:
 	if _handoff().is_defeated(node_name):
