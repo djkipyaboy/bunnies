@@ -285,6 +285,7 @@ func _build_inventory_demo() -> void:
 	_inventory_panel.hide()
 	_ui_layer.add_child(_inventory_panel)
 	_inventory_panel.item_discarded.connect(_on_item_discarded)
+	_inventory_panel.thank_you_note_requested.connect(_dialogue_box.open)
 
 	_vendor_prompt_panel = VendorPromptPanel.new()
 	_vendor_prompt_panel.hide()

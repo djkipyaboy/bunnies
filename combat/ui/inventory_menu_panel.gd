@@ -56,6 +56,11 @@ const HIGHLIGHT_BLEND: float = 0.6
 ## (2026-07-14-ground-item-pickups-design.md §3.6).
 signal item_discarded(item: Resource, quantity: int)
 
+## Emitted when the Thank You Note's Quest Items row is pressed (2026-07-19 Lost Cat quest, spec
+## §3.6) — carries a freshly-built DialogueSet naming the CURRENT live party (read at click time,
+## not baked in at grant time). The driving scene opens it via its own DialogueBox.
+signal thank_you_note_requested(dialogue_set: DialogueSet)
+
 var _pc: Combatant
 var _companions: Array = []
 var _party_inventory: PartyInventory
@@ -617,7 +622,34 @@ func _build_quest_panel() -> void:
 	for i in range(_party_inventory.quest_items.size()):
 		var entry: Resource = _party_inventory.quest_items[i]
 		var label_text: String = entry.display_name if entry is QuestItem else "Quest item %d" % (i + 1)
-		_build_list_row(i, label_text)
+		_build_quest_row(i, label_text, entry)
+
+## A clickable Button row for the Quest Items tab (2026-07-19: was a plain read-only Label — the
+## Thank You Note needs something to press). Only the Thank You Note's row is wired to anything;
+## every other quest item's row is a Button that simply does nothing when pressed.
+func _build_quest_row(index: int, text: String, entry: Resource) -> void:
+	var btn := Button.new()
+	btn.text = text
+	btn.position = Vector2(PAD, GRID_TOP + float(index) * (SLOT_H + SLOT_GAP))
+	btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
+	if entry is QuestItem and entry.item_id == &"thank_you_note":
+		btn.pressed.connect(_on_thank_you_note_pressed)
+	add_child(btn)
+	_list_labels.append(btn)
+
+## Pressed handler for the Thank You Note's Quest Items row (2026-07-19 Lost Cat quest, spec §3.6):
+## builds a DialogueSet naming the CURRENT live party (PC + companions, read fresh at click time)
+## and emits it for the driving scene to open via its own DialogueBox.
+func _on_thank_you_note_pressed() -> void:
+	var names: Array[String] = [_pc.display_name]
+	for c: Combatant in _companions:
+		names.append(c.display_name)
+	var line := DialogueLine.new()
+	line.speaker_name = "Whiskers' Owner"
+	line.text = "Thank you, %s! You saved my little Whiskers." % ", ".join(names)
+	var dialogue_set := DialogueSet.new()
+	dialogue_set.lines = [line]
+	thank_you_note_requested.emit(dialogue_set)
 
 func _build_list_empty_message(text: String) -> void:
 	var label := Label.new()
