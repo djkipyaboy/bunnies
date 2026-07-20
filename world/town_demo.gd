@@ -33,6 +33,7 @@ var _vendor_prompt_panel: VendorPromptPanel
 var _shop_panel: ShopPanel
 var _pickup_debug_label: Label
 var _amber_label: Label
+var _quest_tracker: QuestTrackerPanel
 var _pc_combatant: Combatant
 var _companions: Array[Combatant] = []
 var _bench: Array[Combatant] = []
@@ -219,6 +220,10 @@ func _build_ui() -> void:
 	_amber_label.position = Vector2(16, 100)
 	_amber_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.4))
 	_ui_layer.add_child(_amber_label)
+
+	_quest_tracker = QuestTrackerPanel.new()
+	_quest_tracker.position = Vector2(16, 140)
+	_ui_layer.add_child(_quest_tracker)
 
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
@@ -522,6 +527,7 @@ func _make_thank_you_note() -> QuestItem:
 
 func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
+	_quest_tracker.refresh(_party_inventory)
 	if _dialogue_box.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)

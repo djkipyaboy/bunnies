@@ -43,6 +43,7 @@ var _inventory_panel: InventoryMenuPanel
 var _event_log_panel: EventLogPanel
 var _pickup_debug_label: Label
 var _amber_label: Label
+var _quest_tracker: QuestTrackerPanel
 var _highlighted_target: Interactable
 var _spawn_position: Vector2 = Vector2.ZERO
 var _auto_trigger_armed: bool = false
@@ -284,6 +285,10 @@ func _build_ui() -> void:
 	_amber_label.add_theme_color_override("font_color", Color(1.0, 0.84, 0.4))
 	ui.add_child(_amber_label)
 
+	_quest_tracker = QuestTrackerPanel.new()
+	_quest_tracker.position = Vector2(16, 140)
+	ui.add_child(_quest_tracker)
+
 	_event_log_panel = EventLogPanel.new()
 	_event_log_panel.position = Vector2(880, 500)
 	_event_log_panel.visible = false
@@ -400,6 +405,7 @@ func _on_pickup_rejected(item_name: String) -> void:
 
 func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
+	_quest_tracker.refresh(_party_inventory)
 	if _inventory_panel.visible:
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
