@@ -18,6 +18,8 @@ const BAG_CAPACITY_PER_SLOT: int = 10
 @export var items: Array[ConsumableItem] = []  # uncapped array, but stacks count toward bag capacity
 @export var amber: int = 0   # 2026-07-17 general store design: the world's actual currency
 @export var unlocked_companion_slots: int = 0  # 0-2, story-gated
+@export var accepted_quest_ids: Array[StringName] = []
+@export var completed_quest_ids: Array[StringName] = []
 
 func bag_capacity() -> int:
 	return BASE_BAG_CAPACITY + BAG_CAPACITY_PER_SLOT * unlocked_companion_slots
@@ -126,3 +128,17 @@ func consume_quest_item(item_id: StringName) -> bool:
 			quest_items.remove_at(i)
 			return true
 	return false
+
+func accept_quest(quest_id: StringName) -> void:
+	if not accepted_quest_ids.has(quest_id):
+		accepted_quest_ids.append(quest_id)
+
+func has_accepted_quest(quest_id: StringName) -> bool:
+	return accepted_quest_ids.has(quest_id)
+
+func complete_quest(quest_id: StringName) -> void:
+	if not completed_quest_ids.has(quest_id):
+		completed_quest_ids.append(quest_id)
+
+func has_completed_quest(quest_id: StringName) -> bool:
+	return completed_quest_ids.has(quest_id)
