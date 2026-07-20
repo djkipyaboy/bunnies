@@ -12,4 +12,7 @@ func _init() -> void:
 	_check(entry.title == "Clear the Cellar", "title settable")
 	_check(entry.category == QuestBoardEntry.Category.SIDE, "category settable")
 	_check(entry.body_text == "Coming soon.", "body_text settable")
+	_check(entry.id == &"", "QuestBoardEntry.id defaults to empty StringName (got %s)" % entry.id)
+	entry.id = &"lost_cat"
+	_check(entry.id == &"lost_cat", "QuestBoardEntry.id can be set to a real quest id")
 	quit()

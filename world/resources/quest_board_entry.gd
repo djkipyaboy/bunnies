@@ -9,3 +9,4 @@ enum Category { CURRENT, SIDE, RECAP }
 @export var title: String = ""
 @export var category: Category = Category.CURRENT
 @export var body_text: String = ""
+@export var id: StringName = &""
