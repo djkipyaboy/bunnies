@@ -1591,6 +1591,49 @@ issues before this shipped as playable-complete; two fix rounds closed them all:
   not playtested this live** — in particular, the ~91.3% enemy-panel scale on a 3-enemy fight is
   machine-proven correct but visually unconfirmed; eyeball it alongside the rest of the boss fight.
 
+**SHIPPED 2026-07-19 — THE LOST CAT QUEST, all headless-test-green (213/213 full suite), human
+playtest still pending.** Plan 3 of 3 for the dungeon-boss + Lost Cat quest feature (spec
+`docs/superpowers/specs/2026-07-18-dungeon-boss-and-lost-cat-quest-design.md`, plan
+`docs/superpowers/plans/2026-07-19-lost-cat-quest-system.md`) — this closes out the whole 3-plan
+feature (Plan 1: Light/Dark type expansion; Plan 2: the Hollow Warden boss fight; Plan 3: this quest,
+which the boss kill unlocks) and gives the project its first real, working quest:
+- **`PartyInventory` quest-state tracking** — accepted/completed quest ids plus the existing
+  `quest_items` array now drive a real accept → in-progress → turn-in lifecycle, not just inert
+  storage.
+- **The Adventuring Board's Lost Cat entry is now a real accept/track/turn-in flow** — `QuestBoardEntry`
+  gained a stable `id`; selecting the board's Lost Cat entry accepts it (or turns it in, once its
+  objective is met), replacing the old placeholder flavor-text-only listing.
+- **The caged cat, "Whiskers," on dungeon floor 4** (`CagedCat`, mirrors `GroundItemPickup`'s
+  one-shot collect-then-vanish shape) — locked with a flavor message before the Hollow Warden is
+  defeated; once `boss_defeated` is true, interacting grants the `rescued_cat` `QuestItem` and frees
+  itself.
+- **An on-screen quest tracker** (`QuestTrackerPanel`, Amber-HUD-style persistent label) — hidden
+  before accepting, shows the current objective text ("rescue"/"bring it back") as the quest
+  progresses, hides again once turned in.
+- **The Thank You Note's live-party-naming dialogue** — turning the quest in at the board grants a
+  `thank_you_note` `QuestItem`; pressing its row on `InventoryMenuPanel`'s Quest Items tab builds a
+  `DialogueSet` naming the CURRENT live party (PC + companions, read fresh at click time), not a
+  hardcoded name.
+- **`tests/test_lost_cat_quest_full_sequence.gd`** (new) — a single integration test proving every
+  piece above works TOGETHER in one continuous scenario: accept at the board → the cat is locked
+  pre-boss-defeat → mark the boss defeated → the cat now grants the rescue item → the tracker
+  reflects each stage → turn in at the board → the Thank You Note's dialogue names the real live PC.
+  **Hit the documented lambda-capture-by-value gotcha twice while writing it** (a lambda connected to
+  a signal — `locked_message_requested`/`thank_you_note_requested` — captures an outer local BY
+  VALUE, so assigning to it from inside the lambda never propagates back): fixed both call sites by
+  wrapping the captured variable in a 1-element `Array`, the same established fix this gotcha has
+  needed elsewhere in this codebase.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 213-file headless sweep (including
+  this task's new test file) came back completely clean by exit code — zero nonzero exits, no
+  flakes encountered this run. The pre-existing, unrelated, out-of-scope
+  `test_adventuring_board_panel.gd` failure documented since 2026-07-14 is still present (confirmed
+  by reading its actual console output, not just its exit code) — it still prints one `FAIL` line
+  internally, but that script's own pass/fail tracking has never propagated to a nonzero exit code,
+  so it doesn't surface in an exit-code sweep either way. **A human has not yet playtested this
+  live** — that's the next step: walk the full loop (accept the quest, descend to floor 4, confirm
+  the cat is locked, beat the Hollow Warden, free the cat, watch the tracker update, turn in at the
+  board, read the Thank You Note dialogue) in the real running game.
+
 **Still open, NOT started: sub-project 2 of the items-out-of-combat expansion** (item-use targeting UI
 via the `InventoryMenuPanel` Stats tab, for using an item in town/overworld — the in-combat half above
 is sub-project 1 of this same follow-on, now shipped). Next up: clicking a consumable in the Bag should
