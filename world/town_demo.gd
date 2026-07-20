@@ -229,6 +229,7 @@ func _build_ui() -> void:
 	_board_panel = AdventuringBoardPanel.new()
 	_board_panel.position = Vector2(500, 150)
 	_board_panel.party_selection_pressed.connect(_on_party_selection_pressed)
+	_board_panel.entry_selected.connect(_on_board_entry_selected)
 	_ui_layer.add_child(_board_panel)
 	_board_panel.close()
 
@@ -390,10 +391,26 @@ func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> Dia
 	return dialogue_set
 
 func _make_quest_entries() -> Array[QuestBoardEntry]:
+	var lost_cat_body: String
+	var lost_cat_category: QuestBoardEntry.Category
+	# _party_inventory is still null the very first time this runs, from _build_exterior() during
+	# _ready() (before _build_inventory_demo() has set it) — guard so that first call falls through
+	# to the default not-yet-accepted state instead of erroring. Harmless: that initial result is
+	# never actually shown to the player (_on_board_opened() always recomputes fresh; see its own
+	# comment), it only seeds AdventuringBoard's own now-unused `entries` field.
+	if _party_inventory != null and _party_inventory.has_completed_quest(&"lost_cat"):
+		lost_cat_body = "Whiskers is home safe, thanks to you."
+		lost_cat_category = QuestBoardEntry.Category.RECAP
+	elif _party_inventory != null and _party_inventory.has_accepted_quest(&"lost_cat"):
+		lost_cat_body = "Bring the rescued cat back here to complete the quest."
+		lost_cat_category = QuestBoardEntry.Category.CURRENT
+	else:
+		lost_cat_body = "A cat's gone missing — last seen near the old dungeon entrance. Whoever finds it should bring it back here."
+		lost_cat_category = QuestBoardEntry.Category.SIDE
 	var raw: Array[Dictionary] = [
-		{"title": "Clear the Cellar", "category": QuestBoardEntry.Category.CURRENT, "body": "Coming soon."},
-		{"title": "Lost Cat", "category": QuestBoardEntry.Category.SIDE, "body": "Coming soon."},
-		{"title": "How We Got Here", "category": QuestBoardEntry.Category.RECAP, "body": "Coming soon."},
+		{"title": "Clear the Cellar", "category": QuestBoardEntry.Category.CURRENT, "body": "Coming soon.", "id": &""},
+		{"title": "Lost Cat", "category": lost_cat_category, "body": lost_cat_body, "id": &"lost_cat"},
+		{"title": "How We Got Here", "category": QuestBoardEntry.Category.RECAP, "body": "Coming soon.", "id": &""},
 	]
 	var entries: Array[QuestBoardEntry] = []
 	for data in raw:
@@ -401,6 +418,7 @@ func _make_quest_entries() -> Array[QuestBoardEntry]:
 		entry.title = data["title"]
 		entry.category = data["category"]
 		entry.body_text = data["body"]
+		entry.id = data["id"]
 		entries.append(entry)
 	return entries
 
@@ -443,8 +461,14 @@ func _on_vendor_leave_pressed() -> void:
 		_talking_to = null
 	_pc.set_movement_paused(false)
 
-func _on_board_opened(entries: Array[QuestBoardEntry]) -> void:
-	_board_panel.open_for(entries)
+## The [param entries] argument is AdventuringBoard's own frozen `entries` field (set once, at scene
+## construction, before _party_inventory exists) — it's ignored here and recomputed fresh instead.
+## Using it directly would re-show stale quest state on every reopen: _on_board_entry_selected()
+## already refreshes the currently-OPEN panel after accept/turn-in, but a subsequent close+reopen
+## would otherwise revert to whatever _make_quest_entries() returned back at _build_exterior() time
+## (2026-07-19-lost-cat-quest-system-design.md §3.3 board-interactivity work).
+func _on_board_opened(_entries: Array[QuestBoardEntry]) -> void:
+	_board_panel.open_for(_make_quest_entries())
 	_pc.set_movement_paused(true)
 
 ## Party Selection (2026-07-12, player-requested): the board hands off to a separate panel rather
@@ -467,6 +491,34 @@ func _on_remove_companion_requested(companion: Combatant) -> void:
 	_bench.append(companion)
 	_handoff().log_event("Benched %s" % companion.display_name, &"party")
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
+
+## Lost Cat quest board interactivity (2026-07-19-lost-cat-quest-system-design.md §3.3): a placeholder
+## row (empty id) always no-ops; an unaccepted row accepts on click and re-renders; an
+## accepted-but-not-ready row no-ops; a completed row no-ops; the Lost Cat row specifically turns in
+## (consumes rescued_cat, completes the quest, grants the Thank You Note) once the party holds the
+## rescued cat.
+func _on_board_entry_selected(entry: QuestBoardEntry) -> void:
+	if entry.id == &"":
+		return
+	if not _party_inventory.has_accepted_quest(entry.id):
+		_party_inventory.accept_quest(entry.id)
+		_board_panel.open_for(_make_quest_entries())
+		return
+	if _party_inventory.has_completed_quest(entry.id):
+		return
+	if entry.id == &"lost_cat" and _party_inventory.has_quest_item(&"rescued_cat"):
+		_party_inventory.consume_quest_item(&"rescued_cat")
+		_party_inventory.complete_quest(&"lost_cat")
+		_party_inventory.give_quest_item(_make_thank_you_note())
+		_board_panel.open_for(_make_quest_entries())
+
+## The Lost Cat quest's turn-in reward (2026-07-19-lost-cat-quest-system-design.md) — a QuestItem so
+## it shows in the Quest Items tab like the dungeon's Rusty Key.
+func _make_thank_you_note() -> QuestItem:
+	var note := QuestItem.new()
+	note.item_id = &"thank_you_note"
+	note.display_name = "A Thank You Note"
+	return note
 
 func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
