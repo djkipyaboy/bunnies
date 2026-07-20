@@ -1,7 +1,8 @@
 extends SceneTree
 
 ## Headless test for the boss phase-transition orchestrator (spec 2026-07-19 §3.3): the 40%-HP
-## trigger, Indestructible attach + 2 new 90-HP minions, Indestructible clearing once both die,
+## trigger, Indestructible attach + 2 new 60-HP minions (playtest 2026-07-19, down from 90),
+## Indestructible clearing once both die,
 ## Empowered applying afterward, the 10-turn-of-the-BOSS'S-OWN-turns cooldown gating a re-trigger,
 ## Indestructible always superseding Empowered (never both active), and reinforcements being
 ## sacrificed (boss heals half their HP, no reward) if still alive at a later trigger.
@@ -42,7 +43,7 @@ func _process(_delta: float) -> bool:
 		_check(boss.has_effect(&"indestructible"), "the boss gains Indestructible")
 		_check(boss.boss_phase_minion_ids.size() == 2, "2 new minions are tracked as this phase's minions")
 		for m: Combatant in boss.boss_phase_minion_ids:
-			_check(m.max_hp == 90, "each phase-2 minion has 90 max HP (got %d)" % m.max_hp)
+			_check(m.max_hp == 60, "each phase-2 minion has 60 max HP (playtest 2026-07-19, down from 90; got %d)" % m.max_hp)
 			_check(combat._enemies.has(m), "each phase-2 minion is a real, targetable enemy Combatant")
 
 		# Doesn't re-trigger the same turn it just resolved (both minions still alive).

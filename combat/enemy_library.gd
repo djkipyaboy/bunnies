@@ -40,8 +40,8 @@ static func make(id: StringName) -> Combatant:
 			return boss
 		&"warden_acolyte_lesser_healer": return _build_acolyte(30, &"warden_support_heal")
 		&"warden_acolyte_lesser_curser": return _build_acolyte(30, &"warden_support_curse")
-		&"warden_acolyte_greater_healer": return _build_acolyte(90, &"warden_support_heal")
-		&"warden_acolyte_greater_curser": return _build_acolyte(90, &"warden_support_curse")
+		&"warden_acolyte_greater_healer": return _build_acolyte(60, &"warden_support_heal")
+		&"warden_acolyte_greater_curser": return _build_acolyte(60, &"warden_support_curse")
 		_:         return null
 
 ## Stamps a fresh enemy Combatant. Enemies have NO Ultimate (ultimate_id cleared). An enemy with a
@@ -86,9 +86,10 @@ static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: flo
 ## Builds one of the Hollow Warden's 4 acolyte variants (2 HP tiers × 2 ability roles — spec
 ## 2026-07-19 §3.2/§3.3). Always acts last and is permanently immune to stun (a MULTIPLIER_EDIT
 ## effect with an inert 1.0 magnitude, whose only real purpose is carrying grants_stun_immunity).
+## Dark weapon/defense (playtest 2026-07-19 — Dark-attuned acolytes, matching their master).
 static func _build_acolyte(hp: int, ability_id: StringName) -> Combatant:
-	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
-	var c: Combatant = _build("Warden Acolyte", crushing, 3.0, 1, crushing, hp, ability_id, 0)
+	var dark: DamageType = load("res://combat/resources/types/dark.tres")
+	var c: Combatant = _build("Warden Acolyte", dark, 3.0, 1, dark, hp, ability_id, 0)
 	c.acts_last = true
 	var immune: Effect = Effect.new()
 	immune.id = &"warden_acolyte_immunity"

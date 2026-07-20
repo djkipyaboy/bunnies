@@ -26,6 +26,8 @@ func _initialize() -> void:
 	_check(lesser_healer.acts_last, "lesser_healer always acts last")
 	_check(lesser_healer.ability_id == &"warden_support_heal", "lesser_healer's ability is warden_support_heal")
 	_check(lesser_healer.has_effect(&"warden_acolyte_immunity"), "lesser_healer carries a permanent stun-immunity effect")
+	_check(lesser_healer.defense_type == dark, "lesser_healer's defense type is Dark (playtest 2026-07-19)")
+	_check(lesser_healer.weapon_type() == dark, "lesser_healer's weapon type is Dark (playtest 2026-07-19)")
 	var stun_check: bool = lesser_healer.evaluate_stun(999999)  # an impossibly high threshold would normally force a stun
 	_check(not stun_check, "lesser_healer is never stunned, even against an extreme threshold")
 
@@ -34,13 +36,15 @@ func _initialize() -> void:
 	_check(lesser_curser.ability_id == &"warden_support_curse", "lesser_curser's ability is warden_support_curse")
 
 	var greater_healer: Combatant = EnemyLibrary.make(&"warden_acolyte_greater_healer")
-	_check(greater_healer.max_hp == 90, "greater_healer has 90 max HP (got %d)" % greater_healer.max_hp)
+	_check(greater_healer.max_hp == 60, "greater_healer has 60 max HP (playtest 2026-07-19, down from 90; got %d)" % greater_healer.max_hp)
 	_check(greater_healer.ability_id == &"warden_support_heal", "greater_healer's ability is warden_support_heal")
 	_check(greater_healer.acts_last, "greater_healer always acts last")
+	_check(greater_healer.defense_type == dark, "greater_healer's defense type is Dark (playtest 2026-07-19)")
 
 	var greater_curser: Combatant = EnemyLibrary.make(&"warden_acolyte_greater_curser")
-	_check(greater_curser.max_hp == 90, "greater_curser has 90 max HP")
+	_check(greater_curser.max_hp == 60, "greater_curser has 60 max HP (playtest 2026-07-19, down from 90; got %d)" % greater_curser.max_hp)
 	_check(greater_curser.ability_id == &"warden_support_curse", "greater_curser's ability is warden_support_curse")
+	_check(greater_curser.weapon_type() == dark, "greater_curser's weapon type is Dark (playtest 2026-07-19)")
 
 	var boss_ids: Array[StringName] = [&"hollow_warden", &"warden_acolyte_lesser_healer", &"warden_acolyte_lesser_curser", &"warden_acolyte_greater_healer", &"warden_acolyte_greater_curser"]
 	for id: StringName in boss_ids:
