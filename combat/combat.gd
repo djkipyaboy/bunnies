@@ -223,6 +223,10 @@ func _build_combatants() -> void:
 	# dummies are never in _enemies (a separate array, see below) so they can't award XP.
 	for enemy_combatant: Combatant in _enemies:
 		enemy_combatant.defeated.connect(_on_enemy_defeated.bind(enemy_combatant))
+		# Playtest 2026-07-19: hide the panel/click-catcher of any enemy that dies mid-fight, and
+		# close the visual gap it leaves — independent of the XP/Amber connection above (both
+		# listeners fire off the same signal; see _on_enemy_panel_death's own doc comment).
+		enemy_combatant.defeated.connect(_on_enemy_panel_death.bind(enemy_combatant))
 
 	_turn_manager.combatants = []
 	_turn_manager.combatants.append_array(_pcs)
@@ -497,6 +501,12 @@ func _spawn_enemy_mid_combat(id: StringName) -> Combatant:
 	var c: Combatant = EnemyLibrary.make(id)
 	_enemies.append(c)
 	_turn_manager.insert_acting_this_round(c)
+	# Playtest 2026-07-19: a mid-spawned minion still needs its panel hidden + the column relaid-out
+	# when IT dies — this is exactly the case that motivated the fix (a long fight against a boss
+	# that spawns several acolytes was accumulating a growing list of dead-but-still-shown panels).
+	# Deliberately does NOT connect _on_enemy_defeated (see this function's own doc comment above —
+	# summoned minions grant no XP/Amber) but SHOULD connect this panel-hiding handler.
+	c.defeated.connect(_on_enemy_panel_death.bind(c))
 	var column_index: int = _enemies.size() + _dummies.size() - 1
 	var p := CombatantPanel.new()
 	p.position = Vector2(1276.0, 80.0 + column_index * (278.0 + 14.0))
@@ -528,11 +538,33 @@ func _spawn_enemy_mid_combat(id: StringName) -> Combatant:
 ## from CanvasItem) rather than reworking CombatantPanel's internal fixed-size _ready() layout — scale
 ## visually shrinks the whole panel uniformly and Godot's UI input correctly hit-tests through it, so
 ## the invisible click-catcher buttons just need the same position/scale applied, no size change.
-## Called after every _build_party_columns() (initial layout) and _spawn_enemy_mid_combat() (a new
-## member joins) so the full column is always re-fit together.
+## Called after every _build_party_columns() (initial layout), _spawn_enemy_mid_combat() (a new
+## member joins), and _on_enemy_panel_death() (a member dies) so the full column is always re-fit
+## together.
+##
+## Playtest 2026-07-19: a long fight against a boss that spawns several minions was accumulating a
+## growing list of dead-but-still-shown enemy panels in the column. Rather than remove a dead
+## combatant's _panels/_click_catchers dictionary entries (several OTHER places in this file
+## dereference _panels[c]/_click_catchers[c] without an existence check — removing the entries would
+## risk a runtime KeyError the next time one of those is reached for a now-dead combatant), the
+## layout is computed over only the LIVING subset of the column: a dead member's panel/click-catcher
+## is hidden (here defensively, and already by _on_enemy_panel_death) and excluded from the
+## scale-factor/position math entirely, so the remaining living members visually close the gap.
+## Target dummies are always alive (min_hp = 1, never actually reach 0 HP) so they're unaffected.
 func _relayout_enemy_column() -> void:
-	var members: Array[Combatant] = _enemies.duplicate()
-	members.append_array(_dummies)
+	var all_members: Array[Combatant] = _enemies.duplicate()
+	all_members.append_array(_dummies)
+	var members: Array[Combatant] = []
+	for m: Combatant in all_members:
+		if m.is_alive():
+			members.append(m)
+			continue
+		# Defensive hide — normally already done by _on_enemy_panel_death, but keep this function
+		# correct on its own in case a combatant is ever killed through some other path in the future.
+		if _panels.has(m):
+			(_panels[m] as CombatantPanel).visible = false
+		if _click_catchers.has(m):
+			(_click_catchers[m] as Button).visible = false
 	var view: Vector2 = get_viewport_rect().size
 	const TOP_Y: float = 80.0
 	const PANEL_H: float = 278.0
@@ -552,12 +584,30 @@ func _relayout_enemy_column() -> void:
 			continue
 		var y: float = TOP_Y + i * (ROW_H * scale_factor)
 		var panel: CombatantPanel = _panels[member]
+		panel.visible = true
 		panel.position = Vector2(1276.0, y)
 		panel.scale = Vector2(scale_factor, scale_factor)
 		if _click_catchers.has(member):
 			var hit: Button = _click_catchers[member]
+			hit.visible = true
 			hit.position = Vector2(1276.0, y)
 			hit.scale = Vector2(scale_factor, scale_factor)
+
+## Hides a defeated enemy's panel + click-catcher (playtest 2026-07-19: a long fight against a boss
+## that spawns several minions was accumulating a growing list of dead-but-still-shown enemy panels).
+## Does NOT remove the dictionary entries themselves — several other places in this file dereference
+## _panels[c]/_click_catchers[c] without an existence check, so removing the entries would risk a
+## runtime KeyError the next time one of those is reached for this now-dead combatant. Hiding is both
+## simpler and sufficient: a hidden Control doesn't process mouse input, so the click-catcher becomes
+## unclickable "for free," and _relayout_enemy_column() (above) already skips dead members when
+## computing the column's layout, so the remaining living members visually close the gap this leaves
+## behind.
+func _on_enemy_panel_death(c: Combatant) -> void:
+	if _panels.has(c):
+		(_panels[c] as CombatantPanel).visible = false
+	if _click_catchers.has(c):
+		(_click_catchers[c] as Button).visible = false
+	_relayout_enemy_column()
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
