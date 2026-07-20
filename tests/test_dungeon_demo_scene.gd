@@ -44,6 +44,13 @@ func _process(_delta: float) -> bool:
 		_check(dungeon._dungeon_exit.pc_combatant == dungeon._pc_combatant, "DungeonExit is wired to the live PC")
 		_check(dungeon._dungeon_exit.party_inventory == dungeon._party_inventory, "DungeonExit is wired to the live PartyInventory")
 
+		var cat: CagedCat = dungeon._floors[3].get_node("WhiskersPickup")
+		_check(cat != null, "floor 4 has a node named WhiskersPickup")
+		_check(cat is CagedCat, "WhiskersPickup is a CagedCat")
+		_check(cat.boss_defeated == combat_handoff.is_defeated(&"DungeonFloor4Enemy"), "the cat's boss_defeated matches the Hollow Warden's defeated state at build time")
+		_check(cat.boss_defeated == false, "on a fresh, undefeated-boss scenario, the cat starts locked")
+		_check(cat.party_inventory == dungeon._party_inventory, "the cat is wired to the scene's live PartyInventory")
+
 		_instance.free()
 		combat_handoff.clear_pending()
 	if _frames >= 2:

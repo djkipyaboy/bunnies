@@ -14,6 +14,7 @@ const STAIRS_UP_LOCAL := Vector2(100, 500)
 const ENEMY_LOCAL := Vector2(400, 300)
 const ENTRANCE_LOCAL := Vector2(100, 500)
 const KEY_LOCAL := Vector2(600, 150)   # floor 2 (index 1); clear of its stairs (700,100)/(100,500) and enemy (400,300)
+const CAT_LOCAL := Vector2(650, 200)   # floor 4 (index 3); clear of its StairsUp (100,500) and enemy (400,300)
 
 ## Playtest-found bug (2026-07-17): "Leave Dungeon" used to drop the player at the overworld's
 ## generic PC_SPAWN (near the village) instead of near the mountain they actually used. Must match
@@ -76,6 +77,12 @@ func show_locked_message() -> void:
 ## locked message itself) — the player couldn't tell the key had actually done anything.
 func show_unlocked_message() -> void:
 	_pickup_debug_label.text = "The Rusty Key unlocks the way down!"
+
+## A general-purpose notification, alongside the existing fixed-text show_locked_message()/
+## show_unlocked_message() (both about the dungeon-key gate specifically). Reuses the same
+## _pickup_debug_label the scene already shows one-off notifications in.
+func show_message(text: String) -> void:
+	_pickup_debug_label.text = text
 
 static func floor_bounds(index: int) -> Rect2:
 	var col: int = index % 2
@@ -199,6 +206,7 @@ func _ready() -> void:
 	_build_inventory_demo()
 	_place_dungeon_enemies()
 	_place_dungeon_key()
+	_place_caged_cat()
 	_dungeon_exit.pc_combatant = _pc_combatant
 	_dungeon_exit.companions = _companions
 	_dungeon_exit.bench = _bench
@@ -358,6 +366,21 @@ func _on_key_picked_up(item_name: String) -> void:
 	_handoff().mark_defeated(&"DungeonKeyPickup")
 	_pickup_debug_label.text = "Picked up: %s" % item_name
 	_handoff().log_event("Picked up: %s" % item_name, &"loot")
+
+## Floor 4's caged cat, "Whiskers" (spec 2026-07-19 §3.4). Locked/grants nothing until the Hollow
+## Warden encounter (DungeonFloor4Enemy) is marked defeated; once rescued, marks itself defeated too
+## so a later scene rebuild doesn't re-place it (same no-respawn convention as every other pickup).
+func _place_caged_cat() -> void:
+	if _handoff().is_defeated(&"WhiskersPickup"):
+		return
+	var cat := CagedCat.new()
+	cat.name = "WhiskersPickup"
+	cat.party_inventory = _party_inventory
+	cat.boss_defeated = _handoff().is_defeated(&"DungeonFloor4Enemy")
+	cat.global_position = floor_bounds(3).position + CAT_LOCAL
+	cat.locked_message_requested.connect(show_message)
+	cat.cat_rescued.connect(func() -> void: _handoff().mark_defeated(&"WhiskersPickup"))
+	_floors[3].add_child(cat)
 
 func _on_item_discarded(item: Resource, _quantity: int) -> void:
 	var pickup := GroundItemPickup.new()
