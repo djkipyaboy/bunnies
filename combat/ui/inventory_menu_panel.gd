@@ -97,7 +97,7 @@ var _tab_buttons: Dictionary = {}    # StringName -> Button
 var _compare_check: CheckBox
 var _stat_labels: Dictionary = {}    # "%d_%d" % [col, row] -> Label; "%d_dmg" % col -> Label
 var _amber_label: Label
-var _list_labels: Array[Control] = []  # Materials (selectable Buttons)/Quest (read-only Labels) tab rows
+var _list_labels: Array[Control] = []  # Materials/Quest tab rows (both selectable Buttons)
 
 ## The 3 paperdoll columns in display order [Companion1, PC, Companion2] (null = no companion
 ## assigned). [param companions] may have 0, 1, or 2 entries.
@@ -660,13 +660,6 @@ func _build_list_empty_message(text: String) -> void:
 	add_child(label)
 	_list_labels.append(label)
 
-func _build_list_row(index: int, text: String) -> void:
-	var label := Label.new()
-	label.text = text
-	label.position = Vector2(PAD, GRID_TOP + float(index) * (SLOT_H + SLOT_GAP))
-	label.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
-	add_child(label)
-	_list_labels.append(label)
 
 ## Shows the "Travel to the nearest settlement to access" message in the grid area when the Vault
 ## tab is active but out of reach (spec: overworld/non-safe-zone). The Vault tab itself stays
