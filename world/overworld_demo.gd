@@ -38,6 +38,7 @@ var _dialogue_box: DialogueBox
 var _talking_to: Villager
 var _pickup_debug_label: Label
 var _amber_label: Label
+var _location_label: Label
 var _quest_tracker: QuestTrackerPanel
 var _random_encounter_panel: RandomEncounterPanel
 var _event_log_panel: EventLogPanel
@@ -309,6 +310,15 @@ func _build_ui() -> void:
 	_quest_tracker = QuestTrackerPanel.new()
 	_quest_tracker.position = Vector2(16, 140)
 	ui.add_child(_quest_tracker)
+
+	# Location indicator (2026-07-23 playtest feedback): a persistent corner label naming where the
+	# PC currently is — top-right, clear of the left-side interact/pickup/Amber/quest stack.
+	_location_label = Label.new()
+	_location_label.name = "LocationLabel"
+	_location_label.text = "Overworld"
+	_location_label.position = Vector2(1360, 16)
+	_location_label.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
+	ui.add_child(_location_label)
 
 	# Cross-scene event log (2026-07-13-overworld-event-log-design.md) — non-modal, toggled with
 	# toggle_event_log (L), translucent until hovered. Seeded from whatever history already exists

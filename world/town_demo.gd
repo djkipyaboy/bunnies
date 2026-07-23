@@ -33,6 +33,7 @@ var _vendor_prompt_panel: VendorPromptPanel
 var _shop_panel: ShopPanel
 var _pickup_debug_label: Label
 var _amber_label: Label
+var _location_label: Label
 var _quest_tracker: QuestTrackerPanel
 var _pc_combatant: Combatant
 var _companions: Array[Combatant] = []
@@ -41,6 +42,7 @@ var _party_inventory: PartyInventory
 var _vault: Vault
 var _shop_stock: Array = []
 var _town_exit: SceneExit
+var _old_well: OldWell
 var _party_selection_panel: PartySelectionPanel
 var _event_log_panel: EventLogPanel
 
@@ -66,6 +68,11 @@ func _ready() -> void:
 	_town_exit.party_inventory = _party_inventory
 	_town_exit.vault = _vault
 	_town_exit.shop_stock = _shop_stock
+	# The Old Well (2026-07-23-old-well-rest-point-design.md) was also built in _build_exterior(),
+	# before the party existed — wire its party fields now, same as TownExit above.
+	_old_well.pc_combatant = _pc_combatant
+	_old_well.companions = _companions
+	_old_well.bench = _bench
 	_interior.visible = false
 	_interior.process_mode = Node.PROCESS_MODE_DISABLED
 
@@ -102,6 +109,15 @@ func _build_exterior() -> void:
 	board.entries = _make_quest_entries()
 	board.board_opened.connect(_on_board_opened)
 	_exterior.add_child(board)
+
+	# The Old Well (2026-07-23-old-well-rest-point-design.md) — near, but not exactly on top of,
+	# the Villager above whose line references it. Party fields are wired later in _ready(), once
+	# _pc_combatant/_companions/_bench actually exist (mirrors TownExit's identical two-step wiring).
+	_old_well = OldWell.new()
+	_old_well.name = "OldWell"
+	_old_well.global_position = Vector2(300, 260)
+	_old_well.rest_message_requested.connect(show_message)
+	_exterior.add_child(_old_well)
 
 	WorldGeometry.add_boundary_walls(_exterior, EXTERIOR_BOUNDS)
 	WorldGeometry.add_solid_collider(_exterior, SHOP_BODY_RECT)
@@ -225,6 +241,17 @@ func _build_ui() -> void:
 	_quest_tracker.position = Vector2(16, 140)
 	_ui_layer.add_child(_quest_tracker)
 
+	# Location indicator (2026-07-23 playtest feedback): a persistent corner label naming where the
+	# PC currently is (Town/Overworld/Dungeon (Floor N)) — top-right, clear of the left-side
+	# interact/pickup/Amber/quest stack. Static text (town has no sub-areas worth naming yet — the
+	# shop interior is still "Town").
+	_location_label = Label.new()
+	_location_label.name = "LocationLabel"
+	_location_label.text = "Town"
+	_location_label.position = Vector2(1360, 16)
+	_location_label.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
+	_ui_layer.add_child(_location_label)
+
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
 	_dialogue_box.custom_minimum_size = Vector2(600, 100)
@@ -315,6 +342,11 @@ func _on_item_discarded(item: Resource, _quantity: int) -> void:
 ## _on_item_picked_up (town has no RewardPickup, so this is the first user of the label here).
 func _on_item_picked_up(item_name: String) -> void:
 	_pickup_debug_label.text = "Picked up: %s" % item_name
+
+## A general-purpose notification (mirrors dungeon_demo.gd's identical show_message()) — first user
+## is the Old Well's rest_message_requested signal.
+func show_message(text: String) -> void:
+	_pickup_debug_label.text = text
 
 ## Final-review fix (2026-07-14-ground-item-pickups final review): a full Bag used to reject a
 ## ground pickup with ZERO player feedback. Mirrors overworld_demo.gd's identical handler.
@@ -524,6 +556,9 @@ func _make_thank_you_note() -> QuestItem:
 	var note := QuestItem.new()
 	note.item_id = &"thank_you_note"
 	note.display_name = "A Thank You Note"
+	note.discardable = true
+	note.sale_value = 0
+	note.discard_flavor_text = "Toss out a heartfelt thank-you note from Whiskers' owner? That seems awfully rude..."
 	return note
 
 func _process(_delta: float) -> void:

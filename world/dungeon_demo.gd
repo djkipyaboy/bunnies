@@ -43,6 +43,7 @@ var _inventory_panel: InventoryMenuPanel
 var _event_log_panel: EventLogPanel
 var _pickup_debug_label: Label
 var _amber_label: Label
+var _location_label: Label
 var _quest_tracker: QuestTrackerPanel
 var _highlighted_target: Interactable
 var _spawn_position: Vector2 = Vector2.ZERO
@@ -84,6 +85,9 @@ func show_unlocked_message() -> void:
 ## _pickup_debug_label the scene already shows one-off notifications in.
 func show_message(text: String) -> void:
 	_pickup_debug_label.text = text
+
+func _refresh_location_label() -> void:
+	_location_label.text = "Dungeon (Floor %d)" % (_current_floor + 1)
 
 static func floor_bounds(index: int) -> Rect2:
 	var col: int = index % 2
@@ -194,6 +198,7 @@ func _apply_floor_change(target_index: int, target_local_entry: Vector2) -> void
 	_camera.limit_bottom = int(bounds.end.y)
 	_camera.reset_smoothing()
 	_current_floor = target_index
+	_refresh_location_label()
 
 func _ready() -> void:
 	_fade_overlay = FadeOverlay.new()
@@ -288,6 +293,16 @@ func _build_ui() -> void:
 	_quest_tracker = QuestTrackerPanel.new()
 	_quest_tracker.position = Vector2(16, 140)
 	ui.add_child(_quest_tracker)
+
+	# Location indicator (2026-07-23 playtest feedback): a persistent corner label naming the
+	# current floor — top-right, clear of the left-side interact/pickup/Amber/quest stack. Updated
+	# on every floor change by _refresh_location_label() (called from _apply_floor_change).
+	_location_label = Label.new()
+	_location_label.name = "LocationLabel"
+	_location_label.position = Vector2(1360, 16)
+	_location_label.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
+	ui.add_child(_location_label)
+	_refresh_location_label()
 
 	_event_log_panel = EventLogPanel.new()
 	_event_log_panel.position = Vector2(880, 500)

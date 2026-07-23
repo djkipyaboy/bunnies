@@ -72,6 +72,7 @@ var _slot_buttons: Dictionary = {}   # "%d_%d" % [col, slot_idx] -> Button
 var _active_tab: StringName = &"bag"
 var _selected: Dictionary = {}       # {"item": Resource, "is_weapon": bool} or {} if none
 var _selected_material: CraftingMaterial = null   # mutually exclusive with _selected (Gear/Weapon)
+var _selected_quest_item: QuestItem = null   # mutually exclusive with _selected/_selected_material
 var _vault_full_message: bool = false
 var _equip_reject_message: String = ""
 
@@ -331,6 +332,7 @@ func _rebuild() -> void:
 		_build_materials_action_row()
 	elif _active_tab == &"quest":
 		_build_quest_panel()
+		_build_quest_action_row()
 	else:
 		_build_grid()
 		_build_vault_unavailable_message()
@@ -348,6 +350,10 @@ func _rebuild() -> void:
 			bottom += (SLOT_H + SLOT_GAP)
 			if _discard_prompt_open:
 				bottom += 3.0 * (SLOT_H + SLOT_GAP)
+		if _active_tab == &"quest" and _selected_quest_item != null and _selected_quest_item.discardable:
+			bottom += (SLOT_H + SLOT_GAP)
+			if _discard_prompt_open:
+				bottom += 2.0 * (SLOT_H + SLOT_GAP)
 	else:
 		var rows: int = (_grid_item_count() + GRID_COLS - 1) / GRID_COLS
 		bottom = GRID_TOP + float(maxi(rows, 1)) * (GRID_CELL_H + GRID_CELL_GAP) + ACTION_BTN_H + PAD
@@ -595,6 +601,7 @@ func _build_material_row(index: int, m: CraftingMaterial) -> void:
 func _on_material_pressed(m: CraftingMaterial) -> void:
 	_selected_material = m
 	_selected = {}
+	_selected_quest_item = null
 	_rebuild()
 
 func _build_materials_action_row() -> void:
@@ -625,21 +632,33 @@ func _build_quest_panel() -> void:
 		_build_quest_row(i, label_text, entry)
 
 ## A clickable Button row for the Quest Items tab (2026-07-19: was a plain read-only Label — the
-## Thank You Note needs something to press). Only the Thank You Note's row is wired to anything;
-## every other quest item's row is a Button that simply does nothing when pressed.
+## Thank You Note needs something to press). Every row now also SELECTS its entry (2026-07-23:
+## discardable quest items, e.g. the Thank You Note, need something to select for the Discard
+## action row) — a non-discardable entry (e.g. the Rusty Key) selects harmlessly with no further
+## action offered. The Thank You Note's row additionally opens its dialogue, unchanged.
 func _build_quest_row(index: int, text: String, entry: Resource) -> void:
 	var btn := Button.new()
 	btn.text = text
+	if _selected_quest_item == entry:
+		btn.text += "  ✓"
 	btn.position = Vector2(PAD, GRID_TOP + float(index) * (SLOT_H + SLOT_GAP))
 	btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
-	if entry is QuestItem and entry.item_id == &"thank_you_note":
-		btn.pressed.connect(_on_thank_you_note_pressed)
+	btn.pressed.connect(_on_quest_row_pressed.bind(entry))
 	add_child(btn)
 	_list_labels.append(btn)
 
-## Pressed handler for the Thank You Note's Quest Items row (2026-07-19 Lost Cat quest, spec §3.6):
-## builds a DialogueSet naming the CURRENT live party (PC + companions, read fresh at click time)
-## and emits it for the driving scene to open via its own DialogueBox.
+## Pressed handler for any Quest Items row: selects the entry (for a possible Discard below), and —
+## only for the Thank You Note — also fires its dialogue-open request (2026-07-19 Lost Cat quest,
+## spec §3.6): builds a DialogueSet naming the CURRENT live party (PC + companions, read fresh at
+## click time) and emits it for the driving scene to open via its own DialogueBox.
+func _on_quest_row_pressed(entry: Resource) -> void:
+	_selected_quest_item = entry as QuestItem
+	_selected = {}
+	_selected_material = null
+	if entry is QuestItem and entry.item_id == &"thank_you_note":
+		_on_thank_you_note_pressed()
+	_rebuild()
+
 func _on_thank_you_note_pressed() -> void:
 	var names: Array[String] = [_pc.display_name]
 	for c: Combatant in _companions:
@@ -650,6 +669,24 @@ func _on_thank_you_note_pressed() -> void:
 	var dialogue_set := DialogueSet.new()
 	dialogue_set.lines = [line]
 	thank_you_note_requested.emit(dialogue_set)
+
+## Discard action row for a selected, discardable Quest Items entry (2026-07-23 playtest feedback —
+## the Thank You Note is a keepsake, not progression-critical, and should be Discard-able like a
+## normal Bag item). Mirrors _build_materials_action_row's shape; non-discardable quest items (keys,
+## etc.) show no action row at all.
+func _build_quest_action_row() -> void:
+	if _selected_quest_item == null or not _selected_quest_item.discardable:
+		return
+	var y: float = GRID_TOP + float(maxi(_party_inventory.quest_items.size(), 1)) * (SLOT_H + SLOT_GAP) + 6.0
+	_discard_button = Button.new()
+	_discard_button.text = "Discard"
+	_discard_button.position = Vector2(PAD, y)
+	_discard_button.custom_minimum_size = Vector2(ACTION_BTN_W, ACTION_BTN_H)
+	_discard_button.modulate = Color(1.0, 0.5, 0.3)
+	_discard_button.pressed.connect(_on_discard_pressed)
+	add_child(_discard_button)
+	if _discard_prompt_open:
+		_build_discard_prompt(y + ACTION_BTN_H + 6.0, 1)
 
 func _build_list_empty_message(text: String) -> void:
 	var label := Label.new()
@@ -725,7 +762,10 @@ func _build_action_row() -> void:
 func _build_discard_prompt(y: float, max_quantity: int) -> void:
 	var stackable: bool = max_quantity > 1
 	var label := Label.new()
-	label.text = "Discard how many?" if stackable else "Discard this item?"
+	if _selected_quest_item != null and _selected_quest_item.discard_flavor_text != "":
+		label.text = _selected_quest_item.discard_flavor_text
+	else:
+		label.text = "Discard how many?" if stackable else "Discard this item?"
 	label.position = Vector2(PAD, y)
 	label.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
 	add_child(label)
@@ -785,10 +825,21 @@ func _on_discard_cancel_pressed() -> void:
 func _on_discard_confirm_pressed() -> void:
 	if _selected_material != null:
 		_confirm_discard_material()
+	elif _selected_quest_item != null:
+		_confirm_discard_quest_item()
 	elif not _selected.is_empty():
 		_confirm_discard_bag_item()
 	_discard_prompt_open = false
 	_rebuild()
+
+## Drops a discardable Quest Items entry (the Thank You Note) via a ground pickup, exactly like a
+## Bag/Materials discard — GroundItemPickup._try_grant() already handles QuestItem (give_quest_item),
+## so re-collecting it works with no further changes.
+func _confirm_discard_quest_item() -> void:
+	var q: QuestItem = _selected_quest_item
+	_party_inventory.consume_quest_item(q.item_id)
+	item_discarded.emit(q, 1)
+	_selected_quest_item = null
 
 func _confirm_discard_bag_item() -> void:
 	var item: Resource = _selected["item"]
@@ -841,6 +892,7 @@ func _on_tab_pressed(tab: StringName) -> void:
 	_active_tab = tab
 	_selected = {}
 	_selected_material = null
+	_selected_quest_item = null
 	_discard_prompt_open = false
 	_discard_all = false
 	_discard_quantity = 1
@@ -851,6 +903,7 @@ func _on_tab_pressed(tab: StringName) -> void:
 func _on_grid_item_pressed(item: Resource, is_weapon: bool) -> void:
 	_selected = {"item": item, "is_weapon": is_weapon}
 	_selected_material = null
+	_selected_quest_item = null
 	_vault_full_message = false
 	_equip_reject_message = ""
 	_rebuild()

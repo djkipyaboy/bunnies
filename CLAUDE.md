@@ -1670,3 +1670,95 @@ and now click-to-select targeting — but the prototype still *runs* 1v1 + dummi
 panels as **vertical columns — player party down the LEFT edge, enemy party down the RIGHT edge** (instead
 of the current top row), freeing the center for reels/log. Panels are now 300px wide (the target outline
 must contain the HP bar / 6-stat line / Bonus Meter) — keep that width in the column layout.
+
+**SHIPPED 2026-07-23 — SECOND HOLLOW WARDEN/LOST CAT PLAYTEST: 5 FIXES, all headless-test-green (218/218
+full suite, 5 new test files).** Player playtest of the boss + quest (post the 2026-07-19 balance fixes)
+came back positive on the fight itself but surfaced 5 concrete gaps, all fixed same session, ordered
+smallest-blast-radius first per the player's own sequencing:
+- **HP-on-gear-equip bug** — equipping/unequipping gear that changes Vigor (max HP) left current HP
+  UNCHANGED, so a 301/304 character stayed 301/304 instead of being healed for the delta (never topped
+  up, and symmetrically never proportionally reduced on a Vigor loss either). Root cause:
+  `Combatant.apply_stats()` (`combat/combatant.gd`) recomputed `max_hp` but never touched `hp`. Fixed by
+  capturing `previous_max_hp` before the recompute and, for an already-alive combatant (`hp > 0` — a
+  not-yet-`start_combat()`'d combatant mid-setup is deliberately unaffected), shifting `hp` by the exact
+  `max_hp` delta (clamped to `[max(min_hp,1), max_hp]`) — this PRESERVES THE MISSING-HP AMOUNT rather than
+  the raw HP number, so a full-health character stays full and a damaged one keeps the same gap. Applies
+  everywhere `apply_stats()` runs (equip/unequip, in combat or via `InventoryMenuPanel` in town/overworld),
+  per the player's own requirement. Test: `tests/test_gear_max_hp_heals_delta.gd`.
+- **Thank You Note made discardable** — it was permanently stuck in the Quest Items tab like a
+  progression-critical key. `QuestItem` gained `discardable`/`sale_value`/`discard_flavor_text` (all
+  default false/0/"" — every existing quest item, e.g. the Rusty Key, is unaffected); the Thank You Note
+  opts in with `sale_value = 0` and a joke flavor line shown in its discard-confirm prompt ("That seems
+  awfully rude..."). `InventoryMenuPanel`'s Quest Items tab rows are now all selectable (harmless no-op
+  for non-discardable items); a discardable selection gets the same Discard button + confirm-prompt
+  flow Bag/Materials already have, routing through the existing `consume_quest_item()`/`item_discarded`
+  signal — `GroundItemPickup._try_grant()` already handled `QuestItem` from an earlier pass, so
+  re-collecting a discarded note works with no further changes. Test:
+  `tests/test_thank_you_note_discard.gd`.
+- **Round counter surfaced in the UI** — "turn order is hard to track." `TurnManager.round_number`
+  already existed and was already logged ("— Round N —") but never shown persistently. Rather than add a
+  new UI element, `combat.gd`'s existing `_phase_label` (always on-screen) now reads
+  `"Round %d — Phase: %s"` — a new `_current_round` var is set by `_on_round_started` and read by
+  `_on_phase_changed`. Test: `tests/test_combat_round_counter.gd`.
+- **Location indicator label** — no on-screen indication of which map the player is on.
+  `town_demo.gd`/`overworld_demo.gd`/`dungeon_demo.gd` each gained a top-right `_location_label`
+  ("Town"/"Overworld"/"Dungeon (Floor N)"), clear of the existing top-LEFT interact/pickup/Amber/quest
+  stack; the dungeon's updates live via a new `_refresh_location_label()` called from
+  `_apply_floor_change()`. Test: `tests/test_location_label.gd`.
+- **Whiskers (CagedCat) had no visual indicator at all** — invisible on floor 4 until the player
+  stumbled into its interact radius. Fixed by giving `CagedCat` a `_ready()` override (previously had
+  none) that mirrors `GroundItemPickup`'s exact convention: a placeholder-tinted `ColorRect` glow + a
+  floating proximity label shown/hidden via `set_highlighted()`. Test:
+  `tests/test_caged_cat_visual_indicator.gd`.
+- **Also flagged, not acted on this pass**: dungeon floors CAN be raced past (skip every enemy to the
+  stairs) — player explicitly unsure if this is desired, left alone pending their call. Ability-level
+  redistribution (L1-4 abilities, talent points L5-10) and the "Healing Well" town rest-point are
+  separate, larger design conversations the player deliberately deferred to their own dedicated
+  sessions — NOT started this pass (see `docs/design-bible/22-leveling-and-progression.md` for where the
+  leveling redesign will eventually live).
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 218-file headless sweep came back
+  clean by exit code, no flakes hit this run. **A human has not yet playtested any of these 5 fixes
+  live** — that's the next step, alongside the still-pending "Healing Well" brainstorm.
+
+**SHIPPED 2026-07-23 — THE OLD WELL (town rest-point), all headless-test-green (221/221 full
+suite), human playtest still pending.** Immediately follows the 5-fix batch above — brainstormed →
+spec'd (`docs/superpowers/specs/2026-07-23-old-well-rest-point-design.md`) → implemented directly
+(small enough to skip the full subagent-driven-development cycle, per the player's own "spec and
+implement" instruction), TDD throughout:
+- **`Combatant.restore_to_full()`** (new, alongside `heal()`/`cleanse()`) — sets `hp = max_hp` and,
+  if `resource_pool != null`, tops off Stamina/Mana to their max (each only touched if that rail is
+  actually in use). Deliberately does NOT touch `active_effects`/`bonus_meter`/`shield_hp`/
+  `cooldowns`/`xp` — a free town amenity shouldn't undercut the per-class `meter_floor` carryover
+  rule or cleanse debuffs for free. No-op on a dead combatant. Confirmed during the brainstorm (not
+  fixed, just noted): `combat.gd`'s `_on_combat_ended()` never clears `active_effects`, so a
+  still-ticking debuff DOES currently survive a fight's end into town/overworld either way.
+- **`OldWell`** (new, `world/old_well.gd`, `extends Interactable`) — built the same way
+  `AdventuringBoard` is (placeholder visual in `_init()`, no `_ready()` override, no
+  `highlight_visual`). `interact()` calls `restore_to_full()` on the PC + every active companion +
+  every BENCHED companion (not just the active 2-slot party — avoids a benched, hurt companion
+  staying hurt forever with no way to heal outside combat), then emits
+  `rest_message_requested("The old well's waters wash away your fatigue.")`. Free, unlimited, no
+  cooldown, **town-only** (no overworld/dungeon equivalent — preserves carrying HP/resource state
+  into a dungeon run, same reasoning as the Vault's safe-zone gating).
+- **Naming/fiction**: pays off a previously-unplaced Villager flavor line already sitting in
+  `town_demo.gd` ("Careful near the old well, stranger.") — placed at `Vector2(300, 260)`, near but
+  not exactly on top of that Villager's own `Vector2(300, 300)` position (a real overlap bug caught
+  during the spec's own self-review, fixed before writing any code). The well's restorative
+  property is explained the same way Amber already is (`docs/design-bible/10-storyline.md` §8) — a
+  trace of the same old magic, no new lore document needed.
+- **`town_demo.gd`** gained a generic `show_message(text)` helper (mirrors `dungeon_demo.gd`'s
+  identical method, which town never had until now) and the same two-step build-then-wire pattern
+  `TownExit` already uses (`OldWell` is constructed in `_build_exterior()`, before the party exists;
+  its `pc_combatant`/`companions`/`bench` fields are wired later in `_ready()` once
+  `_build_inventory_demo()` has actually populated them).
+- **3 new test files**: `tests/test_combatant_restore_to_full.gd` (partial→full, rail-less
+  no-crash, already-full no spurious `hp_changed`, dead stays dead), `tests/test_old_well.gd`
+  (manually-constructed unit test mirroring `test_caged_cat.gd`'s pattern), and
+  `tests/test_town_demo_old_well.gd` (drives the REAL `town_demo.tscn` scene end-to-end — this
+  project has repeatedly found wiring-only bugs, e.g. the 2026-07-12 bench-wipe and 2026-07-17
+  shop-stock-reset bugs, that only a real-scene test catches).
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 221-file headless sweep came back
+  clean by exit code, zero flakes this run. **A human has not yet playtested this live** — walk up
+  to the well in `town_demo.tscn`, interact while damaged/resource-depleted, confirm the restore and
+  the on-screen message both read right, and confirm it doesn't visually collide with the nearby
+  Villager.

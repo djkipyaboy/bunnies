@@ -39,6 +39,11 @@ var _log_bg: Panel
 
 var _turn_order_bar: TurnOrderBar
 var _phase_label: Label
+
+## The current round, mirrored from TurnManager.round_number via _on_round_started (2026-07-23
+## playtest feedback: turn order was hard to track — surfaced here in the phase label rather than
+## adding a whole new UI element, since TurnManager already tracks this and just never displayed it).
+var _current_round: int = 1
 var _log_box: RichTextLabel
 var _spin_button: Button
 var _end_turn_button: Button
@@ -1096,6 +1101,7 @@ func _on_initiative_rolled(c: Combatant, value: int) -> void:
 	_log("%s rolled initiative %d." % [c.display_name, value])
 
 func _on_round_started(n: int) -> void:
+	_current_round = n
 	_log("— Round %d —" % n)
 	_turn_order_bar.set_order(_turn_manager.get_turn_order())
 
@@ -1272,7 +1278,7 @@ func _on_endgame_toggle_pressed() -> void:
 	get_tree().reload_current_scene()
 
 func _on_phase_changed(phase: PhaseManager.Phase) -> void:
-	_phase_label.text = "Phase: %s" % PhaseManager.Phase.keys()[phase]
+	_phase_label.text = "Round %d — Phase: %s" % [_current_round, PhaseManager.Phase.keys()[phase]]
 	if _attacker == null:
 		return
 	if phase == PhaseManager.Phase.UPKEEP:

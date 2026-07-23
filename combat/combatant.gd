@@ -359,6 +359,20 @@ func heal(amount: int) -> int:
 		hp_changed.emit(hp, max_hp)
 	return amount - (hp - before)
 
+## Restores HP to max and (if present) Stamina/Mana to their max — the Old Well's effect (spec
+## 2026-07-23). Does NOT touch active_effects, bonus_meter, shield_hp, cooldowns, or xp; those are
+## explicitly out of scope (a free town amenity shouldn't undercut e.g. the meter_floor carryover
+## rule). No-op on a dead combatant (hp == 0) — mirrors heal()'s own guard.
+func restore_to_full() -> void:
+	if hp != max_hp and hp > 0:
+		hp = max_hp
+		hp_changed.emit(hp, max_hp)
+	if resource_pool != null:
+		if resource_pool.max_stamina > 0:
+			resource_pool.stamina = resource_pool.max_stamina
+		if resource_pool.max_mana > 0:
+			resource_pool.mana = resource_pool.max_mana
+
 ## True while this combatant still has HP.
 func is_alive() -> bool:
 	return hp > 0
@@ -439,7 +453,19 @@ func unequip_weapon() -> Weapon:
 ## rounding damage).
 func apply_stats() -> void:
 	var s: Stats = effective_stats()
+	var previous_max_hp: int = max_hp
 	max_hp = base_max_hp + s.vigor
+	# A max-HP change (Vigor from gear equip/unequip) shifts current HP by the same delta, so a
+	# character's MISSING HP amount is preserved instead of silently gaining/losing a chunk of their
+	# HP bar as a side effect of a stat change (2026-07-23 playtest bug: 301/304 after equipping +3
+	# max HP gear, never healed to 304/304). Skipped for a combatant not yet alive (hp == 0, e.g.
+	# mid-setup before start_combat()) so initial gearing-up never resurrects/half-fills anyone; the
+	# floor of 1 (not 0) keeps a live combatant from being killed outright by an equipment swap.
+	if hp > 0:
+		var delta: int = max_hp - previous_max_hp
+		if delta != 0:
+			hp = clampi(hp + delta, maxi(min_hp, 1), max_hp)
+			hp_changed.emit(hp, max_hp)
 	if resource_pool != null:
 		# Focus boosts only the rail(s) the class actually USES (base > 0): a stamina class gets no phantom
 		# mana pool, and a mana-only caster (Seer, base_max_stamina = 0) gets no phantom stamina rail.
