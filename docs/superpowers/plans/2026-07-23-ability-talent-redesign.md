@@ -482,14 +482,20 @@ identity (per the spec §4 and the player's own example).
 | Chancer | **House Edge** | +1 flat Bonus Meter charge whenever any payline scores | `passive_on_payline_scored` (event hook) |
 | Ranger | **Steady Aim** | +10% outgoing damage vs. a Hunter's-Marked defender | `passive_outgoing_multiplier` (defender-conditional) |
 | Seer | **Arcane Reservoir** | +20% max Mana | `passive_max_mana_multiplier` (self, stat-recompute) |
-| Warden | **Deep Roots** | −15% incoming DAMAGE_OVER_TIME tick damage (stacks with Vigor's existing resist) | `passive_dot_damage_multiplier` (self) |
+| Warden | **Deep Roots** | −15% incoming DAMAGE_OVER_TIME tick damage (stacks with Vigor's existing resist) **+ passive HP regen: heal `ceil(max_hp / 16)` every Upkeep** | `passive_dot_damage_multiplier` (self) **+ new `passive_upkeep_heal_amount` hook (self)** |
 
 All magnitudes are `[ASSUMPTION]` per this project's convention (CLAUDE.md §4) — tune by playtest,
 do not treat these numbers as final. Warrior's design matches the player's own example from the
 brainstorm exactly. Skirmisher's debuff-check condition reuses the exact expression Crippling Shot
 already uses (`combat/combat.gd:1875`) for consistency.
 
-**Do not proceed to Task 5 until the player has confirmed this table (as-is or with changes).**
+**PLAYER-APPROVED 2026-07-23**, with one change to Warden's Deep Roots: added a passive HP regen
+component (`ceil(max_hp / 16)` healed every Upkeep, rounded up) alongside the existing −15% DoT
+resist. This needs a new hook not in Task 3's original scaffolding
+(`passive_upkeep_heal_amount()`, added directly in Task 11 rather than reopening the already-
+reviewed Task 3 — the same "extend combatant.gd with what the task needs" pattern every other
+passive task already follows for its own hook). Task 11 below reflects the updated design. All
+other 6 passives approved exactly as proposed — proceeding to Task 5.
 
 ---
 
@@ -1060,17 +1066,28 @@ git commit -m "feat(passives): Seer Arcane Reservoir — +20% max Mana"
 
 ---
 
-## Task 11: Warden passive — Deep Roots
+## Task 11: Warden passive — Deep Roots (revised 2026-07-23: adds passive HP regen)
 
 **Files:**
 - Modify: `combat/class_library.gd` (Warden's `c.passive_ability_id = &"deep_roots"`)
-- Modify: `combat/combatant.gd` (`passive_dot_damage_multiplier()`'s match arm)
-- Modify: `combat/ui/ability_catalog.gd` (description entry)
+- Modify: `combat/combatant.gd` (`passive_dot_damage_multiplier()`'s match arm; new
+  `passive_upkeep_heal_amount()` dispatch method, same neutral-below-L5/no-passive-id shape as the
+  other 4 dispatch stubs from Task 3)
+- Modify: `combat/combat.gd` (`_on_phase_changed()`'s UPKEEP branch calls the new hook and logs the
+  heal, mirroring `_apply_dot()`'s existing beneficial-tick log line)
+- Modify: `combat/ui/ability_catalog.gd` (description entry — mention both effects)
 - Test: `tests/test_passive_deep_roots.gd` (new)
 
 **Interfaces:**
 - Consumes: `Combatant.passive_dot_damage_multiplier()` scaffold from Task 3 (already wired into
   `dot_damage_multiplier()` by Task 3 Step 4).
+- Produces: `Combatant.passive_upkeep_heal_amount() -> int` — a NEW dispatch method, not part of
+  Task 3's original scaffolding (that checkpoint's 7 designs didn't need it yet). Follows the exact
+  same shape as Task 3's other 4 stubs: `if level < 5 or passive_ability_id == &"": return 0`, then
+  a `match passive_ability_id` with a `_:  return 0` default. Deep Roots' arm returns
+  `ceili(float(max_hp) / 16.0)`. `combat.gd` calls it once per Upkeep and applies it via the
+  combatant's existing `heal()` method — this is a flat passive tick, not an `Effect`/DoT-style
+  attached buff, so it does NOT go through `EffectLibrary`/`active_effects`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1095,6 +1112,18 @@ func _init() -> void:
 	c.level = 4
 	_check(is_equal_approx(c.dot_damage_multiplier(), 1.0), "Deep Roots: inactive below L5")
 
+	# Passive HP regen: ceil(max_hp / 16), only at L5+.
+	var r: Combatant = Combatant.new()
+	r.passive_ability_id = &"deep_roots"
+	r.level = 5
+	r.max_hp = 100
+	_check(r.passive_upkeep_heal_amount() == 7, "Deep Roots: ceil(100/16) = 7 HP regen")
+	r.max_hp = 96
+	_check(r.passive_upkeep_heal_amount() == 6, "Deep Roots: exact division still rounds via ceili (96/16 = 6)")
+	r.level = 4
+	_check(r.passive_upkeep_heal_amount() == 0, "Deep Roots: no regen below L5")
+	_check(neutral.passive_upkeep_heal_amount() == 0, "no passive: no regen")
+
 	var wc: CharacterClass = ClassLibrary.make(&"warden")
 	_check(wc.passive_ability_id == &"deep_roots", "Warden's CharacterClass carries the passive id")
 	quit()
@@ -1103,7 +1132,7 @@ func _init() -> void:
 - [ ] **Step 2: Run test to verify it fails**
 
 Run: `..\Godot_v4.6.3-stable_win64_console.exe --headless --path . --script res://tests/test_passive_deep_roots.gd`
-Expected: FAIL.
+Expected: FAIL / parse error (`passive_upkeep_heal_amount()` doesn't exist yet).
 
 - [ ] **Step 3: Implement**
 
@@ -1114,17 +1143,46 @@ In `combat/combatant.gd`'s `passive_dot_damage_multiplier()`, add the match arm:
 			return 0.85
 ```
 
+Directly below `passive_dot_damage_multiplier()`, add the new dispatch stub (same shape as the
+other 4 from Task 3):
+
+```gdscript
+## Flat HP healed at this combatant's own Upkeep from its L5 passive (spec 2026-07-23 §4, revised
+## same day to add Warden's regen). 0 below L5, with no passive, or for an id with no Upkeep-heal
+## hook. Applied directly via heal() in combat.gd's UPKEEP phase handling — NOT an attached Effect.
+func passive_upkeep_heal_amount() -> int:
+	if level < 5 or passive_ability_id == &"":
+		return 0
+	match passive_ability_id:
+		&"deep_roots":
+			return ceili(float(max_hp) / 16.0)
+		_:
+			return 0
+```
+
 In `combat/class_library.gd`'s `&"warden":` branch, add:
 
 ```gdscript
 			c.passive_ability_id = &"deep_roots"
 ```
 
+In `combat/combat.gd`'s `_on_phase_changed()`, in the `UPKEEP` branch, add the regen call right
+after `_apply_dot(_attacker)` (so a passive heal never masks whether a DoT tick was lethal — same
+ordering rationale already documented for `on_upkeep()` vs. `_apply_dot()` immediately above it):
+
+```gdscript
+		_apply_dot(_attacker)
+		var passive_heal: int = _attacker.passive_upkeep_heal_amount()
+		if passive_heal > 0 and _attacker.is_alive():
+			_attacker.heal(passive_heal)
+			_log("  %s regenerates %d HP from Deep Roots." % [_attacker.display_name, passive_heal])
+```
+
 In `AbilityCatalog`, add:
 
 ```gdscript
 &"deep_roots": return "Deep Roots"
-&"deep_roots": return "Passive: takes 15% less damage from damage-over-time effects."
+&"deep_roots": return "Passive: takes 15% less damage from damage-over-time effects, and regenerates 1/16 of max HP (rounded up) every turn."
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -1136,13 +1194,16 @@ Expected: all lines print `ok `.
 
 Run every test file under `tests/`. This is the first full-suite run since Task 4's checkpoint —
 confirm all 7 passives coexist cleanly (each dispatches only on its own id, so no cross-class
-interference is expected) and nothing from Tasks 1-2's ability-level migration regressed.
+interference is expected) and nothing from Tasks 1-2's ability-level migration regressed. Pay
+particular attention to any existing Warden combat-log/Upkeep test that asserts an exact log-line
+sequence or HP value at L5+ — the new regen tick is a behavior change for any such fixture, not just
+an addition.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add combat/combatant.gd combat/class_library.gd combat/ui/ability_catalog.gd tests/test_passive_deep_roots.gd
-git commit -m "feat(passives): Warden Deep Roots — -15% incoming DoT damage"
+git add combat/combatant.gd combat/combat.gd combat/class_library.gd combat/ui/ability_catalog.gd tests/test_passive_deep_roots.gd
+git commit -m "feat(passives): Warden Deep Roots — -15% incoming DoT damage + passive HP regen"
 ```
 
 ---
