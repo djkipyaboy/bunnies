@@ -132,6 +132,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.start_stamina = 3; c.stamina_regen = 1  # base 8 + Focus 2 = 10 total stamina (spec §3.4)
 			c.ability_id = &"hunters_mark"; c.ability_cost = 3; c.ability_resource = &"stamina"
 			c.ultimate_id = &"collateral"
+			c.passive_ability_id = &"steady_aim"
 			c.extra_abilities = [
 				_ability(&"aimed_shot", 2, 3, &"stamina", 0),
 				_ability(&"snare_trap", 3, 4, &"stamina", 0),

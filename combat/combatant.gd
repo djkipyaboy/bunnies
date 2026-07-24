@@ -586,6 +586,8 @@ func passive_outgoing_multiplier(defender: Combatant = null) -> float:
 			if defender == null:
 				return 1.0
 			return 1.15 if (defender.has_effect(&"slow") or defender.has_effect(&"rooted") or defender.stunned_last_turn) else 1.0
+		&"steady_aim":
+			return 1.10 if (defender != null and defender.has_effect(&"hunters_mark")) else 1.0
 		_:
 			return 1.0
 
