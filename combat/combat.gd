@@ -1897,6 +1897,13 @@ func _apply_attack(attack) -> void:
 					var talent_bonus: int = ceili(attack.final_damage * talent_bonus_pct)
 					t.take_damage(talent_bonus)
 					_log("  ✦ %s's talent adds %d bonus damage." % [_attacker.display_name, talent_bonus])
+			# Vanguard "Slowing Rampage" talent (Task 16): any hit landed while Rampage's AoE window
+			# is active also lashes the target with a stack of Slow — mirrors Task 15's Warrior
+			# "Bleeding Wild" block (is_aoe_active() is only true during Rampage's own spin(s)).
+			if _attacker.class_id == &"vanguard" and _attacker.has_ability_talent(&"rampage_slowing") and _attacker.is_aoe_active():
+				t.attach_effect(EffectLibrary.make(&"slow"))
+				_log("  🐌 %s's RAMPAGE lashes %s with a stack of SLOW." % [_attacker.display_name, t.display_name])
+				(_panels[t] as CombatantPanel).refresh_status()
 		# Surface the type matchup (vs the primary defender, which final_damage was computed against) so
 		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
 		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0
@@ -1928,6 +1935,12 @@ func _apply_attack(attack) -> void:
 					rider.dot_base_damage = _attacker.weapon_effective_base_damage()
 				_attacker.apply_rider_talent_adjustments(attack.rider_effect_id, rider, t)
 				t.attach_effect(rider)
+				if attack.source_reel != null and attack.source_reel.talent_extra_rider_stack:
+					# Vanguard "Heavier Slam" talent (Task 16): attach_effect() merges by id (the
+					# same stacking-debuff primitive every multi-stack debuff already uses), so
+					# calling it again with the same `rider` reference reads as "2 stacks landed at
+					# once" from Quake Slam's own single hit, not a duplicate/competing instance.
+					t.attach_effect(rider)
 				_log("  %s is afflicted with %s (%d turns)." % [t.display_name, String(rider.id).to_upper(), rider.duration])
 				(_panels[t] as CombatantPanel).refresh_status()
 				# Sync the panel name label's "(init N)" to the new current_initiative after the rider.

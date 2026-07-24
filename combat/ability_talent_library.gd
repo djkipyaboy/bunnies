@@ -97,6 +97,94 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [u1, u2, u3]
 				_:
 					return []
+		&"vanguard":
+			match row_id:
+				&"base_ability":
+					var h1: AbilityTalentOption = AbilityTalentOption.new()
+					h1.id = &"heft_reinforced"; h1.row_id = row_id
+					h1.display_name = "Reinforced Heft"
+					h1.description = "Heft also converts up to 1 NEUTRAL face per reel into SUCCESS."
+					var h2: AbilityTalentOption = AbilityTalentOption.new()
+					h2.id = &"heft_guarding"; h2.row_id = row_id
+					h2.display_name = "Guarding Heft"
+					h2.description = "Heft also grants self Guarded (x0.9 incoming damage) for 1 turn."
+					var h3: AbilityTalentOption = AbilityTalentOption.new()
+					h3.id = &"heft_efficient"; h3.row_id = row_id
+					h3.display_name = "Efficient Heft"
+					h3.description = "Heft's Stamina cost is reduced to 1 (was 2)."
+					return [h1, h2, h3]
+				&"ability_l2":
+					var b1: AbilityTalentOption = AbilityTalentOption.new()
+					b1.id = &"wrath_deeper"; b1.row_id = row_id
+					b1.display_name = "Deeper Wrath"
+					b1.description = "Bloodwrath's missing-HP scaling increases to +1.2%% per 1%% missing (was +1.0%%), cap raised to +60%% (was +50%%)."
+					var b2: AbilityTalentOption = AbilityTalentOption.new()
+					b2.id = &"wrath_lasting"; b2.row_id = row_id
+					b2.display_name = "Lasting Wrath"
+					b2.description = "Bloodwrath's Empowered lasts 3 turns (was 2)."
+					var b3: AbilityTalentOption = AbilityTalentOption.new()
+					b3.id = &"wrath_efficient"; b3.row_id = row_id
+					b3.display_name = "Efficient Wrath"
+					b3.description = "Bloodwrath's Stamina cost is reduced to 2 (was 3)."
+					return [b1, b2, b3]
+				&"ability_l3":
+					var q1: AbilityTalentOption = AbilityTalentOption.new()
+					q1.id = &"slam_deeper"; q1.row_id = row_id
+					q1.display_name = "Deeper Slam"
+					q1.description = "Quake Slam's own hit deals +15% bonus damage."
+					var q2: AbilityTalentOption = AbilityTalentOption.new()
+					q2.id = &"slam_heavier"; q2.row_id = row_id
+					q2.display_name = "Heavier Slam"
+					q2.description = "Quake Slam applies 2 stacks of Slow at once (was 1)."
+					var q3: AbilityTalentOption = AbilityTalentOption.new()
+					q3.id = &"slam_efficient"; q3.row_id = row_id
+					q3.display_name = "Efficient Slam"
+					q3.description = "Quake Slam's Stamina cost is reduced to 3 (was 4)."
+					return [q1, q2, q3]
+				&"ability_l4":
+					var m1: AbilityTalentOption = AbilityTalentOption.new()
+					m1.id = &"stance_deeper"; m1.row_id = row_id
+					m1.display_name = "Deeper Stance"
+					m1.description = "Mountain Stance's incoming-damage multiplier improves to x0.4 (was x0.5)."
+					var m2: AbilityTalentOption = AbilityTalentOption.new()
+					m2.id = &"stance_thorned"; m2.row_id = row_id
+					m2.display_name = "Thorned Stance"
+					m2.description = "Mountain Stance also grants 15% Thorns for its duration."
+					var m3: AbilityTalentOption = AbilityTalentOption.new()
+					m3.id = &"stance_swift"; m3.row_id = row_id
+					m3.display_name = "Swift Stance"
+					m3.description = "Mountain Stance's cooldown is reduced to 3 turns (was 4)."
+					return [m1, m2, m3]
+				&"passive":
+					var k1: AbilityTalentOption = AbilityTalentOption.new()
+					k1.id = &"bulwark_deeper"; k1.row_id = row_id
+					k1.display_name = "Reinforced Bulwark"
+					k1.description = "Bulwark's incoming-damage reduction improves to -25% (was -15%)."
+					var k2: AbilityTalentOption = AbilityTalentOption.new()
+					k2.id = &"bulwark_wider"; k2.row_id = row_id
+					k2.display_name = "Wider Bulwark"
+					k2.description = "Bulwark's HP threshold moves to 60% (was 50%)."
+					var k3: AbilityTalentOption = AbilityTalentOption.new()
+					k3.id = &"bulwark_thorned"; k3.row_id = row_id
+					k3.display_name = "Thorned Bulwark"
+					k3.description = "While Bulwark is active, attackers also take 10% Thorns."
+					return [k1, k2, k3]
+				&"ultimate":
+					var r1: AbilityTalentOption = AbilityTalentOption.new()
+					r1.id = &"rampage_deeper"; r1.row_id = row_id
+					r1.display_name = "Deeper Rampage"
+					r1.description = "Rampage's added reel deals +15% bonus damage."
+					var r2: AbilityTalentOption = AbilityTalentOption.new()
+					r2.id = &"rampage_slowing"; r2.row_id = row_id
+					r2.display_name = "Slowing Rampage"
+					r2.description = "Every enemy hit during Rampage is also Slowed 1 stack."
+					var r3: AbilityTalentOption = AbilityTalentOption.new()
+					r3.id = &"rampage_lasting"; r3.row_id = row_id
+					r3.display_name = "Lasting Rampage"
+					r3.description = "Rampage's AoE window lasts 2 spins instead of 1."
+					return [r1, r2, r3]
+				_:
+					return []
 		_:
 			return []
 

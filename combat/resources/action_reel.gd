@@ -29,6 +29,11 @@ extends Reel
 ## (playtest 2026-06-29). The resolver propagates this onto the AttackResult; the orchestrator honors it.
 @export var charges_meter: bool = true
 
+## True only for the Vanguard's Quake Slam reel when its "Heavier Slam" Ability Talent is picked
+## (Task 16): the orchestrator attaches a SECOND stack of this reel's rider effect immediately on a
+## hit, rather than the usual single stack. False for every other reel.
+@export var talent_extra_rider_stack: bool = false
+
 ## True only for the Ranger's Crippling Shot reel (Task 15): the orchestrator adds bonus damage
 ## when this reel's hit lands on a target that's Slowed/Rooted/Stunned. False for every other reel.
 @export var bonus_vs_cc: bool = false

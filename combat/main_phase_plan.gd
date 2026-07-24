@@ -457,7 +457,10 @@ func commit() -> void:
 			&"sticky_wild":
 				combatant.fire_sticky_wild(_weapon_reel_count(), STICKY_WILD_SPINS)  # two spins (Skirmisher)
 			&"rampage":
-				combatant.fire_rampage(combatant.weapon_type(), RAMPAGE_CONVERSIONS, RAMPAGE_SPINS)
+				# Vanguard "Lasting Rampage" talent (Task 16): the AoE window lasts 2 spins instead
+				# of 1 — same pattern as &"wild"'s wild_lasting just above.
+				var rampage_spins: int = (RAMPAGE_SPINS + 1) if combatant.has_ability_talent(&"rampage_lasting") else RAMPAGE_SPINS
+				combatant.fire_rampage(combatant.weapon_type(), RAMPAGE_CONVERSIONS, rampage_spins)
 			&"wildcard_gamble":
 				combatant.fire_wildcard_gamble()
 			&"collateral":

@@ -628,6 +628,16 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 					return -1 if has_ability_talent(&"sunder_efficient") else 0
 				_:
 					return 0
+		&"vanguard":
+			match ability_id:
+				&"heft":
+					return -1 if has_ability_talent(&"heft_efficient") else 0
+				&"bloodwrath":
+					return -1 if has_ability_talent(&"wrath_efficient") else 0
+				&"quake_slam":
+					return -1 if has_ability_talent(&"slam_efficient") else 0
+				_:
+					return 0
 		_:
 			return 0
 
@@ -641,6 +651,12 @@ func ability_talent_cooldown_delta(ability_id: StringName) -> int:
 			match ability_id:
 				&"second_wind":
 					return -1 if has_ability_talent(&"wind_swift") else 0
+				_:
+					return 0
+		&"vanguard":
+			match ability_id:
+				&"mountain_stance":
+					return -1 if has_ability_talent(&"stance_swift") else 0
 				_:
 					return 0
 		_:
@@ -804,7 +820,15 @@ func passive_incoming_multiplier() -> float:
 		return 1.0
 	match passive_ability_id:
 		&"bulwark":
-			return 0.85 if (float(hp) / float(maxi(max_hp, 1))) > 0.50 else 1.0
+			var threshold: float = 0.60 if has_ability_talent(&"bulwark_wider") else 0.50
+			var reduction: float = 0.75 if has_ability_talent(&"bulwark_deeper") else 0.85
+			# NOTE (flagged, not silently reworded — see this task's Implementation note): the
+			# approved design table reads "Bulwark's HP threshold 50%->60% (active more often)", but
+			# this arm's condition is `> threshold` (the reduction is active while HEALTHY), so
+			# raising the threshold to 60% actually NARROWS the active range — the opposite of "more
+			# often." Implemented literally to the approved number; flag to the player at the next
+			# playtest checkpoint.
+			return reduction if (float(hp) / float(maxi(max_hp, 1))) > threshold else 1.0
 		&"last_stand":
 			if not has_ability_talent(&"stand_guarded"):
 				return 1.0
@@ -868,6 +892,14 @@ func thorns_pct() -> float:
 	for e: Effect in active_effects:
 		if e != null and e.thorns_pct > best:
 			best = e.thorns_pct
+	# Vanguard "Thorned Bulwark" talent (Task 16): Bulwark itself is a live HP%-computed passive with
+	# no attached Effect to carry a thorns_pct field (unlike Mountain Stance/Bastion's Guarded
+	# instance), so this is checked here directly. Shares Bulwark's "passive" row with
+	# bulwark_wider/bulwark_deeper (cap 1 pick/row), so this always uses the base 50% threshold
+	# regardless of bulwark_wider's own threshold change.
+	if class_id == &"vanguard" and passive_ability_id == &"bulwark" and has_ability_talent(&"bulwark_thorned"):
+		if (float(hp) / float(maxi(max_hp, 1))) > 0.50 and 0.10 > best:
+			best = 0.10
 	return best
 
 ## Recomputes current_initiative as base + the sum of active INITIATIVE_MOD magnitudes (rounded).
@@ -1028,7 +1060,20 @@ func try_quake_slam(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	turn_reels.append(ActionReel.make_rider_attack(type, &"slow"))
+	var reel: ActionReel = ActionReel.make_rider_attack(type, &"slow")
+	if has_ability_talent(&"slam_deeper"):
+		# +15% bonus damage on Quake Slam's own hit — scaled directly on THIS reel's face
+		# multipliers, not the generic rider_talent_bonus_damage_pct hook: Vanguard's Crushing weapon
+		# ALSO carries an inherent &"slow" rider on an ordinary crit-success (DESIGN.md §4.6), so a
+		# hook keyed only by rider_id can't distinguish "Quake Slam's hit" from a plain weapon crit
+		# for this class (see this task's Implementation note).
+		for face: ReelFace in reel.faces:
+			face.multiplier *= 1.15
+	if has_ability_talent(&"slam_heavier"):
+		# Flags THIS reel (same collision reason as above) so combat.gd's rider-attach site attaches
+		# a 2nd stack of Slow immediately on a hit.
+		reel.talent_extra_rider_stack = true
+	turn_reels.append(reel)
 	return true
 
 ## Chancer "Jinx the Odds" (L7): splices a real-damage reel that curses the target with JINXED.
@@ -1133,8 +1178,8 @@ func apply_second_wind(cost: int) -> bool:
 ## cap 40%, to +1%/1%, cap 50%, so the scaling is felt well before near-death). Pure + static so
 ## apply_bloodwrath and the Abilities-menu live tooltip (AbilityMenuPanel) share one formula and can
 ## never drift apart.
-static func bloodwrath_bonus_pct(missing_pct: float) -> float:
-	return minf(missing_pct * 1.0, 0.50)
+static func bloodwrath_bonus_pct(missing_pct: float, scale: float = 1.0, cap: float = 0.50) -> float:
+	return minf(missing_pct * scale, cap)
 
 ## Vanguard "Bloodwrath" (L5): self-cast Empowered scaling with missing HP% — a high-risk
 ## juggernaut buff. [ASSUMPTION] scaling, see bloodwrath_bonus_pct().
@@ -1142,9 +1187,13 @@ func apply_bloodwrath(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	var missing_pct: float = 1.0 - (float(hp) / float(maxi(max_hp, 1)))
-	var bonus: float = bloodwrath_bonus_pct(missing_pct)
+	var scale: float = 1.2 if has_ability_talent(&"wrath_deeper") else 1.0
+	var cap: float = 0.60 if has_ability_talent(&"wrath_deeper") else 0.50
+	var bonus: float = bloodwrath_bonus_pct(missing_pct, scale, cap)
 	var e: Effect = EffectLibrary.make(&"empowered")
 	e.magnitude = 1.0 + bonus
+	if has_ability_talent(&"wrath_lasting"):
+		e.duration = 3
 	attach_effect(e)
 	return true
 
@@ -1157,10 +1206,12 @@ func apply_mountain_stance(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	var guard: Effect = EffectLibrary.make(&"guarded")
-	guard.magnitude = 0.5
+	guard.magnitude = 0.4 if has_ability_talent(&"stance_deeper") else 0.5
 	guard.duration = 4
 	guard.immune_effect_ids = [&"slow", &"rooted"]
 	guard.grants_stun_immunity = true
+	if has_ability_talent(&"stance_thorned"):
+		guard.thorns_pct = 0.15  # same single-instance pattern as apply_bastion()'s thorns_pct bake-on
 	attach_effect(guard)
 	var taunt: Effect = EffectLibrary.make(&"taunt")
 	taunt.duration = 4
@@ -1427,12 +1478,23 @@ func apply_heft(cost: int, conversions: int = 3) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
 	_heft_turn_reels(conversions)
+	if has_ability_talent(&"heft_guarding"):
+		var guard: Effect = EffectLibrary.make(&"guarded")
+		guard.magnitude = 0.9
+		guard.duration = 1
+		attach_effect(guard)
 	return true
 
 ## Converts up to [param conversions] "miss" faces (FAILURE first, then CRIT_FAILURE) into SUCCESS
 ## faces on each of THIS turn's reels. Edits a DEEP copy of each reel so the weapon is never mutated
 ## (begin_turn's duplicate is shallow). Shared by Heft and the Vanguard Ultimate; no Stamina cost.
 func _heft_turn_reels(conversions: int) -> void:
+	# Vanguard "Reinforced Heft" talent (Task 16): checked here, in the SHARED helper, not just
+	# apply_heft() — so it also applies when Heft is baked into Rampage (fire_rampage() calls this
+	# same method), consistent with the established "Rampage bakes in Heft" rule (2026-06-26). A
+	# deliberate, consistent bonus, not an oversight (same reasoning Task 15 used for
+	# rend_deeper_cut/rend_lasting_wound amplifying Wild-triggered Bleed stacks).
+	var convert_neutral: bool = has_ability_talent(&"heft_reinforced")
 	for i: int in range(turn_reels.size()):
 		var reel: ActionReel = turn_reels[i].duplicate(true)  # deep: its own faces
 		var done: int = 0
@@ -1446,6 +1508,15 @@ func _heft_turn_reels(conversions: int) -> void:
 					face.result_tier = ReelFace.ResultTier.SUCCESS
 					face.multiplier = 1.0
 					done += 1
+		if convert_neutral:
+			var neutral_done: int = 0
+			for face: ReelFace in reel.faces:
+				if neutral_done >= 1:
+					break
+				if face.result_tier == ReelFace.ResultTier.NEUTRAL:
+					face.result_tier = ReelFace.ResultTier.SUCCESS
+					face.multiplier = 1.0
+					neutral_done += 1
 		turn_reels[i] = reel
 
 # ---------------------------------------------------------------------------
@@ -1538,8 +1609,19 @@ func fire_rampage(extra_reel_type: DamageType, conversions: int, spins: int) -> 
 	if bonus_meter == null or not bonus_meter.is_armed():
 		return false
 	bonus_meter.consume()
-	turn_reels.append(ActionReel.make_default(extra_reel_type))  # +1 attack reel for the Rampage turn
-	_heft_turn_reels(conversions)                                # Heft bonus on every reel (incl. the new one)
+	var extra_reel: ActionReel = ActionReel.make_default(extra_reel_type)
+	turn_reels.append(extra_reel)  # +1 attack reel for the Rampage turn
+	_heft_turn_reels(conversions)  # Heft bonus on every reel (incl. the new one)
+	if has_ability_talent(&"rampage_deeper"):
+		# +15% bonus damage on Rampage's OWN added reel specifically — scaled directly on this
+		# reel's face multipliers (Rampage isn't a rider-carrying ability, so the generic
+		# rider_talent_bonus_damage_pct hook doesn't apply — see this task's Implementation note).
+		# Applied AFTER _heft_turn_reels(): that call duplicates+replaces turn_reels[i] and converts
+		# some miss faces to flat-1.0 SUCCESS, which would silently overwrite an earlier-applied
+		# bonus on those particular faces — so this must read the FINAL reel instance and run last.
+		var final_reel: ActionReel = turn_reels[turn_reels.size() - 1]
+		for face: ReelFace in final_reel.faces:
+			face.multiplier *= 1.15
 	aoe_spins_remaining = spins
 	return true
 
