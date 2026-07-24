@@ -86,6 +86,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.start_stamina = 3; c.stamina_regen = 1
 			c.ability_id = &"flurry"
 			c.ability_cost = 2
+			c.passive_ability_id = &"opportunist"
 			c.extra_abilities = [
 				_ability(&"feint_riposte", 2, 3, &"stamina", 0),
 				_ability(&"quickstep", 3, 3, &"stamina", 0),
