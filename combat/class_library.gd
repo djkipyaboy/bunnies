@@ -110,6 +110,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"reroll"; c.ability_cost = 4; c.ability_resource = &"mana"
 			c.ultimate_id = &"wildcard_gamble"
 			c.payline_profile_id = &"casino"
+			c.passive_ability_id = &"house_edge"
 			c.extra_abilities = [
 				_ability(&"loaded_dice", 2, 3, &"mana", 0),
 				_ability(&"jinx_the_odds", 3, 3, &"mana", 0),

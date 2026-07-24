@@ -2044,6 +2044,7 @@ func _splash_half_to_others(attacker: Combatant, total: int, type_label: String)
 ## [ASSUMPTION] reward values — tune by playtest (CLAUDE.md §4).
 func _on_paylines_resolved(hits: Array) -> void:
 	for hit in hits:
+		_attacker.passive_on_payline_scored(hit.tier)
 		match hit.tier:
 			ReelFace.ResultTier.CRIT_SUCCESS:
 				var weapon_type: DamageType = _attacker.weapon.reels[0].damage_type if not _attacker.weapon.reels.is_empty() else null

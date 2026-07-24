@@ -22,6 +22,7 @@ static func display_name(id: StringName) -> String:
 		&"last_stand": return "Last Stand"
 		&"bulwark": return "Bulwark"
 		&"opportunist": return "Opportunist"
+		&"house_edge": return "House Edge"
 		# --- Warrior ---
 		&"sundering_strike": return "Sundering Strike"
 		&"heroic_guard": return "Heroic Guard"
@@ -66,6 +67,7 @@ static func description(id: StringName) -> String:
 		&"last_stand": return "Passive: deals +20% damage while at or below 30% HP."
 		&"bulwark": return "Passive: takes 15% less damage while above 50% HP."
 		&"opportunist": return "Passive: deals +15% damage against a target that's Slowed, Rooted, or was Stunned last turn."
+		&"house_edge": return "Passive: gains +1 extra Bonus Meter charge whenever any payline scores."
 		# --- Warrior ---
 		&"sundering_strike": return "Slashing attack reel; on a hit, SUNDERS the target — it takes ×1.25 damage for 2 turns."
 		&"heroic_guard": return "Self: GUARDED (incoming damage ×0.75) and TAUNT (enemies are drawn to attack you), 3 turns."

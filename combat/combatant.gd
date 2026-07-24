@@ -626,6 +626,9 @@ func passive_on_payline_scored(_tier: ReelFace.ResultTier) -> void:
 	if level < 5 or passive_ability_id == &"":
 		return
 	match passive_ability_id:
+		&"house_edge":
+			if bonus_meter != null:
+				bonus_meter.add_flat(1)
 		_:
 			pass
 
