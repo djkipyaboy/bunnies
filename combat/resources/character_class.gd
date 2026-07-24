@@ -57,6 +57,11 @@ extends Resource
 ## The class's Ultimate archetype: &"sticky_wild" (default placeholder) or &"rampage" (Vanguard).
 @export var ultimate_id: StringName = &"sticky_wild"
 
+## This class's L5 always-on passive (spec 2026-07-23 §4). Empty until Task 4's content checkpoint
+## is approved and Tasks 5-11 assign real ids. Copied onto Combatant.passive_ability_id by
+## build_combatant() the same way ability_id already is.
+@export var passive_ability_id: StringName = &""
+
 ## The class's 3 NEW abilities (L5/L7/L9), parallel to ability_id (spec 2026-07-01). Authored per
 ## class in ClassLibrary.
 @export var extra_abilities: Array[AbilityDef] = []
@@ -81,6 +86,7 @@ func build_combatant(is_player: bool) -> Combatant:
 	c.ability_cost = ability_cost
 	c.ability_resource = ability_resource
 	c.ultimate_id = ultimate_id
+	c.passive_ability_id = passive_ability_id
 	c.extra_abilities = extra_abilities.duplicate()
 	c.payline_profile_id = payline_profile_id
 	c.base_stats = base_stats

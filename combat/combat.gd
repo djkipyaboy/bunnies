@@ -1729,7 +1729,7 @@ func _do_spin() -> void:
 	var weapon_count: int = _weapon_attack_count(reels)
 	# Defer paylines: a Chancer reroll/gamble can change a reel's result AFTER the spin resolves, so the
 	# strips must animate to the FINAL post-reroll indices and paylines must score the FINAL grid.
-	var dmg_mult: float = _attacker.outgoing_damage_multiplier() * _defender.incoming_damage_multiplier()
+	var dmg_mult: float = _attacker.outgoing_damage_multiplier(_defender) * _defender.incoming_damage_multiplier()
 	# Chancer "Loaded Dice" (L5, Task 20): lights one extra scored payline for this spin only.
 	var extra_lines: Array = []
 	if _attacker.loaded_dice_pending:

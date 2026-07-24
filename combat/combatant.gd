@@ -125,6 +125,12 @@ var ability_resource: StringName = &"stamina"
 ## (Vanguard: +1 reel, Heft-all, AoE). Drives MainPhasePlan's ultimate dispatch.
 var ultimate_id: StringName = &"sticky_wild"
 
+## This class's L5 always-on passive id (spec 2026-07-23 §4) — dispatches through
+## passive_outgoing_multiplier()/passive_incoming_multiplier()/passive_dot_damage_multiplier()/
+## passive_max_mana_multiplier()/passive_on_payline_scored(), each gated on level >= 5 internally.
+## Empty = no passive (enemies, or a class not yet wired).
+var passive_ability_id: StringName = &""
+
 ## Hard level cap (spec 2026-07-23 §2) — talent points stop generating here, and no code path
 ## currently has any reason to exceed it.
 const MAX_LEVEL: int = 10
@@ -542,11 +548,12 @@ func might_damage_bonus_per_reel(active_reel_count: int) -> int:
 
 ## Product of every active OUTGOING MULTIPLIER_EDIT effect's magnitude (Empowered, Bloodwrath).
 ## 1.0 (neutral) when none are active.
-func outgoing_damage_multiplier() -> float:
+func outgoing_damage_multiplier(defender: Combatant = null) -> float:
 	var total: float = 1.0
 	for e: Effect in active_effects:
 		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and not e.affects_incoming:
 			total *= e.effective_magnitude()
+	total *= passive_outgoing_multiplier(defender)
 	return total
 
 ## Product of every active INCOMING MULTIPLIER_EDIT effect's magnitude (Sundered raises it, Guarded
@@ -556,12 +563,63 @@ func incoming_damage_multiplier() -> float:
 	for e: Effect in active_effects:
 		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and e.affects_incoming:
 			total *= e.effective_magnitude()
+	total *= passive_incoming_multiplier()
 	return total
 
 ## Vigor's reel/spin hook (spec §5.2): reduces incoming DAMAGE_OVER_TIME tick damage. Floored so
 ## Vigor never grants full DoT immunity.
 func dot_damage_multiplier() -> float:
-	return clampf(1.0 - effective_stats().vigor * VIGOR_DOT_RESIST_PER_POINT, VIGOR_DOT_RESIST_FLOOR, 1.0)
+	var base: float = clampf(1.0 - effective_stats().vigor * VIGOR_DOT_RESIST_PER_POINT, VIGOR_DOT_RESIST_FLOOR, 1.0)
+	return base * passive_dot_damage_multiplier()
+
+## Multiplier contribution from this combatant's L5 passive (spec 2026-07-23 §4), applied to
+## OUTGOING damage. 1.0 (neutral) below L5, with no passive, or for an id with no outgoing hook.
+## [param defender] is the current target — some passives (e.g. a debuff-conditional bonus) need
+## to read the DEFENDER's state, not just the attacker's own.
+func passive_outgoing_multiplier(defender: Combatant = null) -> float:
+	if level < 5 or passive_ability_id == &"":
+		return 1.0
+	match passive_ability_id:
+		_:
+			return 1.0
+
+## Multiplier contribution from this combatant's L5 passive, applied to INCOMING damage. 1.0
+## (neutral) below L5, with no passive, or for an id with no incoming hook.
+func passive_incoming_multiplier() -> float:
+	if level < 5 or passive_ability_id == &"":
+		return 1.0
+	match passive_ability_id:
+		_:
+			return 1.0
+
+## Multiplier contribution from this combatant's L5 passive, applied to incoming
+## DAMAGE_OVER_TIME tick damage (stacks multiplicatively with Vigor's existing dot_damage_
+## multiplier() floor). 1.0 (neutral) below L5, with no passive, or for an id with no DoT hook.
+func passive_dot_damage_multiplier() -> float:
+	if level < 5 or passive_ability_id == &"":
+		return 1.0
+	match passive_ability_id:
+		_:
+			return 1.0
+
+## Multiplier contribution from this combatant's L5 passive, applied to max Mana in apply_stats().
+## 1.0 (neutral) below L5, with no passive, or for an id with no Mana hook.
+func passive_max_mana_multiplier() -> float:
+	if level < 5 or passive_ability_id == &"":
+		return 1.0
+	match passive_ability_id:
+		_:
+			return 1.0
+
+## Event hook: called once per scored payline hit (combat.gd's _on_paylines_resolved), for a
+## passive that reacts to paylines scoring rather than contributing a multiplier. No-op below L5,
+## with no passive, or for an id with no payline hook.
+func passive_on_payline_scored(_tier: ReelFace.ResultTier) -> void:
+	if level < 5 or passive_ability_id == &"":
+		return
+	match passive_ability_id:
+		_:
+			pass
 
 ## The highest thorns_pct among active effects, or 0.0 if none carry it (Bastion, Task 22).
 func thorns_pct() -> float:
