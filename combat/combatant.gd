@@ -131,6 +131,12 @@ var ultimate_id: StringName = &"sticky_wild"
 ## Empty = no passive (enemies, or a class not yet wired).
 var passive_ability_id: StringName = &""
 
+## Track B (Universal Perks, spec 2026-07-24 §4): the ids of perks this character has picked, in
+## pick order. One-time-pick per id (non-stacking) — enforced by pick_talent_perk().
+var talent_perks: Array[StringName] = []
+
+const UNIVERSAL_PERK_LEVELS: Array[int] = [2, 4, 6, 8, 10]
+
 ## Hard level cap (spec 2026-07-23 §2) — talent points stop generating here, and no code path
 ## currently has any reason to exceed it.
 const MAX_LEVEL: int = 10
@@ -399,6 +405,7 @@ func effective_stats() -> Stats:
 	for g: Gear in gear:
 		if g != null:
 			s = s.plus(g.stat_bonuses)
+	s = s.plus(talent_stat_bonuses())
 	return s
 
 ## True if this combatant may equip [param g]: meets the rarity level-gate, and — if [param g]
@@ -483,9 +490,10 @@ func apply_stats() -> void:
 	if resource_pool != null:
 		# Focus boosts only the rail(s) the class actually USES (base > 0): a stamina class gets no phantom
 		# mana pool, and a mana-only caster (Seer, base_max_stamina = 0) gets no phantom stamina rail.
-		resource_pool.max_stamina = (base_max_stamina + s.focus) if base_max_stamina > 0 else 0
+		var deep_reserves_bonus: int = 3 if (&"deep_reserves" in talent_perks) else 0
+		resource_pool.max_stamina = (base_max_stamina + s.focus + deep_reserves_bonus) if base_max_stamina > 0 else 0
 		resource_pool.stamina = mini(resource_pool.stamina, resource_pool.max_stamina)
-		resource_pool.max_mana = ceili((base_max_mana + s.focus) * passive_max_mana_multiplier()) if base_max_mana > 0 else 0
+		resource_pool.max_mana = (ceili((base_max_mana + s.focus) * passive_max_mana_multiplier()) + deep_reserves_bonus) if base_max_mana > 0 else 0
 		resource_pool.mana = mini(resource_pool.mana, resource_pool.max_mana)
 		# Focus also adds to the per-Upkeep regen tick (spec §5.3), same base>0 rail-gating as above.
 		var focus_regen_bonus: int = floori(s.focus * FOCUS_REGEN_PER_POINT)
@@ -501,6 +509,71 @@ func apply_stats() -> void:
 ## combatant's OWN weapon reels only (N-vs-M safe — each combatant has its own Weapon). Call ONCE at
 ## setup (after gear/apply_stats); NOT idempotent — each call appends more faces, so do not re-apply.
 ## [ASSUMPTION] +1 crit-success face (×2.0) per LUCK_PER_CRIT_FACE points of Luck (threshold, not 1:1).
+## How many Universal Perk picks this character has earned: one for each milestone level in
+## UNIVERSAL_PERK_LEVELS reached (spec 2026-07-24 §2's D&D-ASI-style cadence). Derived, not stored.
+func universal_points_earned() -> int:
+	var n: int = 0
+	for milestone: int in UNIVERSAL_PERK_LEVELS:
+		if level >= milestone:
+			n += 1
+	return n
+
+func universal_points_available() -> int:
+	return universal_points_earned() - talent_perks.size()
+
+## Sum of every currently-picked FLAT-STAT universal perk's stat bonus. A bespoke perk contributes
+## nothing here — it's read directly by id at its own hook (talent_flat_initiative_bonus() etc.),
+## the same pattern as passives.
+func talent_stat_bonuses() -> Stats:
+	var s: Stats = Stats.new()
+	for id: StringName in talent_perks:
+		var def: TalentPerkDef = TalentPerkLibrary.find_perk(id)
+		if def != null and def.stat_key != &"":
+			match def.stat_key:
+				&"might": s.might += def.stat_amount
+				&"finesse": s.finesse += def.stat_amount
+				&"vigor": s.vigor += def.stat_amount
+				&"focus": s.focus += def.stat_amount
+				&"grit": s.grit += def.stat_amount
+				&"luck": s.luck += def.stat_amount
+	return s
+
+## Picks universal perk [param id] if a point is available, the perk exists, and it hasn't already
+## been picked. Returns true on success.
+func pick_talent_perk(id: StringName) -> bool:
+	if universal_points_available() <= 0:
+		return false
+	if id in talent_perks:
+		return false
+	if TalentPerkLibrary.find_perk(id) == null:
+		return false
+	talent_perks.append(id)
+	apply_stats()
+	recompute_initiative()
+	return true
+
+## Unpicks [param id] (town-only respec — the caller/UI gates this, not this method). Returns true
+## on success, false if [param id] wasn't picked.
+func unpick_talent_perk(id: StringName) -> bool:
+	if id not in talent_perks:
+		return false
+	talent_perks.erase(id)
+	apply_stats()
+	recompute_initiative()
+	return true
+
+## Flat Initiative bonus from a picked sharp_reflexes perk. 0 if not picked.
+func talent_flat_initiative_bonus() -> int:
+	return 5 if (&"sharp_reflexes" in talent_perks) else 0
+
+## Multiplier contribution from a picked thick_skin perk, applied to INCOMING damage.
+func talent_incoming_multiplier() -> float:
+	return 0.95 if (&"thick_skin" in talent_perks) else 1.0
+
+## Multiplier contribution from a picked battle_hardened perk, applied to incoming DoT damage.
+func talent_dot_damage_multiplier() -> float:
+	return 0.9 if (&"battle_hardened" in talent_perks) else 1.0
+
 func apply_luck() -> void:
 	if weapon == null:
 		return
@@ -564,13 +637,14 @@ func incoming_damage_multiplier() -> float:
 		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and e.affects_incoming:
 			total *= e.effective_magnitude()
 	total *= passive_incoming_multiplier()
+	total *= talent_incoming_multiplier()
 	return total
 
 ## Vigor's reel/spin hook (spec §5.2): reduces incoming DAMAGE_OVER_TIME tick damage. Floored so
 ## Vigor never grants full DoT immunity.
 func dot_damage_multiplier() -> float:
 	var base: float = clampf(1.0 - effective_stats().vigor * VIGOR_DOT_RESIST_PER_POINT, VIGOR_DOT_RESIST_FLOOR, 1.0)
-	return base * passive_dot_damage_multiplier()
+	return base * passive_dot_damage_multiplier() * talent_dot_damage_multiplier()
 
 ## Multiplier contribution from this combatant's L5 passive (spec 2026-07-23 §4), applied to
 ## OUTGOING damage. 1.0 (neutral) below L5, with no passive, or for an id with no outgoing hook.
@@ -664,7 +738,7 @@ func recompute_initiative() -> void:
 	for e: Effect in active_effects:
 		if e != null and e.kind == Effect.Kind.INITIATIVE_MOD:
 			total += e.effective_magnitude()
-	current_initiative = base_initiative + int(roundf(total))
+	current_initiative = base_initiative + int(roundf(total)) + talent_flat_initiative_bonus()
 
 ## Attaches an effect (already a fresh/duplicated instance) and updates the derived sort key.
 func attach_effect(effect: Effect) -> void:
