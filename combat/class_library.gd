@@ -62,6 +62,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"heft"
 			c.ability_cost = 2
 			c.ultimate_id = &"rampage"  # +1 reel, Heft-all, AoE (spec §4A) — not the sticky-wild placeholder
+			c.passive_ability_id = &"bulwark"
 			c.meter_charge_weights = [0, 0, 2, 2, 3]  # neutral charges +2 (was +1) — Vanguard meter identity
 			c.extra_abilities = [
 				_ability(&"bloodwrath", 2, 3, &"stamina", 0),

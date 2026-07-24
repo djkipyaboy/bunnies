@@ -20,6 +20,7 @@ static func display_name(id: StringName) -> String:
 		&"rallying_cry": return "Rallying Cry"
 		# --- passives (L5+) ---
 		&"last_stand": return "Last Stand"
+		&"bulwark": return "Bulwark"
 		# --- Warrior ---
 		&"sundering_strike": return "Sundering Strike"
 		&"heroic_guard": return "Heroic Guard"
@@ -62,6 +63,7 @@ static func description(id: StringName) -> String:
 		&"rallying_cry": return "Adds a no-damage reel; on a hit, shields every ally for 3 turns — half your weapon's damage on a success, full on a crit. Usable alongside Earthquake."
 		# --- passives (L5+) ---
 		&"last_stand": return "Passive: deals +20% damage while at or below 30% HP."
+		&"bulwark": return "Passive: takes 15% less damage while above 50% HP."
 		# --- Warrior ---
 		&"sundering_strike": return "Slashing attack reel; on a hit, SUNDERS the target — it takes ×1.25 damage for 2 turns."
 		&"heroic_guard": return "Self: GUARDED (incoming damage ×0.75) and TAUNT (enemies are drawn to attack you), 3 turns."

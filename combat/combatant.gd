@@ -591,6 +591,8 @@ func passive_incoming_multiplier() -> float:
 	if level < 5 or passive_ability_id == &"":
 		return 1.0
 	match passive_ability_id:
+		&"bulwark":
+			return 0.85 if (float(hp) / float(maxi(max_hp, 1))) > 0.50 else 1.0
 		_:
 			return 1.0
 
