@@ -156,6 +156,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_mana = 9; c.start_mana = 15; c.mana_regen = 2
 			c.ability_id = &"select_fate"; c.ability_cost = 6; c.ability_resource = &"mana"
 			c.ultimate_id = &"big_bang"
+			c.passive_ability_id = &"arcane_reservoir"
 			c.extra_abilities = [
 				_ability(&"hex", 2, 4, &"mana", 0),
 				_ability(&"foresight", 3, 4, &"mana", 0),

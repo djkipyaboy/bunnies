@@ -485,7 +485,7 @@ func apply_stats() -> void:
 		# mana pool, and a mana-only caster (Seer, base_max_stamina = 0) gets no phantom stamina rail.
 		resource_pool.max_stamina = (base_max_stamina + s.focus) if base_max_stamina > 0 else 0
 		resource_pool.stamina = mini(resource_pool.stamina, resource_pool.max_stamina)
-		resource_pool.max_mana = (base_max_mana + s.focus) if base_max_mana > 0 else 0
+		resource_pool.max_mana = ceili((base_max_mana + s.focus) * passive_max_mana_multiplier()) if base_max_mana > 0 else 0
 		resource_pool.mana = mini(resource_pool.mana, resource_pool.max_mana)
 		# Focus also adds to the per-Upkeep regen tick (spec §5.3), same base>0 rail-gating as above.
 		var focus_regen_bonus: int = floori(s.focus * FOCUS_REGEN_PER_POINT)
@@ -618,6 +618,8 @@ func passive_max_mana_multiplier() -> float:
 	if level < 5 or passive_ability_id == &"":
 		return 1.0
 	match passive_ability_id:
+		&"arcane_reservoir":
+			return 1.2
 		_:
 			return 1.0
 
