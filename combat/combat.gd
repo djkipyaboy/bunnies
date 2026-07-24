@@ -1880,6 +1880,17 @@ func _apply_attack(attack) -> void:
 					var bonus: int = ceili(attack.final_damage * 0.5)
 					t.take_damage(bonus)
 					_log("  🎯 Crippling Shot exploits %s's condition for %d bonus damage." % [t.display_name, bonus])
+			# Warrior "Bleeding Wild" talent (Task 15): any hit landed while the Wild Ultimate is
+			# still active this spin also lashes the target with a stack of Bleed. Checked BEFORE
+			# consume_wild_spin() (called once for the whole spin in _finish_spin()), so
+			# sticky_wild_spins_remaining is still the pre-decrement value for every reel this spin.
+			if _attacker.class_id == &"warrior" and _attacker.has_ability_talent(&"wild_bleeding") and _attacker.sticky_wild_spins_remaining > 0:
+				var wild_bleed: Effect = EffectLibrary.make(&"bleed")
+				wild_bleed.dot_base_damage = _attacker.weapon_effective_base_damage()
+				_attacker.apply_rider_talent_adjustments(&"bleed", wild_bleed, t)
+				t.attach_effect(wild_bleed)
+				_log("  🩸 %s's WILD lashes %s with a stack of BLEED." % [_attacker.display_name, t.display_name])
+				(_panels[t] as CombatantPanel).refresh_status()
 			if attack.rider_effect_id != &"":
 				var talent_bonus_pct: float = _attacker.rider_talent_bonus_damage_pct(attack.rider_effect_id)
 				if talent_bonus_pct > 0.0:

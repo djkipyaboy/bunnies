@@ -451,7 +451,9 @@ func commit() -> void:
 	if fire_ultimate_staged:
 		match ultimate_id:
 			&"wild":
-				combatant.fire_sticky_wild(_weapon_reel_count(), WILD_SPINS)        # single spin (Warrior)
+				# Warrior "Lasting Wild" talent (Task 15): the crit bias lasts 2 spins instead of 1.
+				var spins: int = (WILD_SPINS + 1) if combatant.has_ability_talent(&"wild_lasting") else WILD_SPINS
+				combatant.fire_sticky_wild(_weapon_reel_count(), spins)        # single spin (Warrior), +1 with Lasting Wild
 			&"sticky_wild":
 				combatant.fire_sticky_wild(_weapon_reel_count(), STICKY_WILD_SPINS)  # two spins (Skirmisher)
 			&"rampage":

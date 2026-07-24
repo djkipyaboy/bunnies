@@ -620,6 +620,14 @@ func unpick_ability_talent(row_id: StringName) -> bool:
 ## ability-cost call site (Step 4 below).
 func ability_talent_cost_delta(ability_id: StringName) -> int:
 	match class_id:
+		&"warrior":
+			match ability_id:
+				&"rend":
+					return -1 if has_ability_talent(&"rend_efficient") else 0
+				&"sundering_strike":
+					return -1 if has_ability_talent(&"sunder_efficient") else 0
+				_:
+					return 0
 		_:
 			return 0
 
@@ -629,6 +637,12 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 ## by MainPhasePlan.commit()'s cooldown-start call (Step 4 below).
 func ability_talent_cooldown_delta(ability_id: StringName) -> int:
 	match class_id:
+		&"warrior":
+			match ability_id:
+				&"second_wind":
+					return -1 if has_ability_talent(&"wind_swift") else 0
+				_:
+					return 0
 		_:
 			return 0
 
@@ -644,6 +658,21 @@ func ability_talent_cooldown_delta(ability_id: StringName) -> int:
 ## Entangle) being affected.
 func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target: Combatant) -> void:
 	match class_id:
+		&"warrior":
+			match rider_id:
+				&"bleed":
+					if has_ability_talent(&"rend_deeper_cut"):
+						for i: int in range(effect.dot_fractions.size()):
+							effect.dot_fractions[i] *= 1.25
+					if has_ability_talent(&"rend_lasting_wound"):
+						effect.max_stacks = 4
+						if effect.dot_fractions.size() < 4:
+							effect.dot_fractions.append(1.55)
+				&"sundered":
+					if has_ability_talent(&"sunder_deeper"):
+						effect.magnitude = 1.35
+					if has_ability_talent(&"sunder_lingering"):
+						effect.duration = 3
 		_:
 			pass
 
@@ -756,7 +785,9 @@ func passive_outgoing_multiplier(defender: Combatant = null) -> float:
 		return 1.0
 	match passive_ability_id:
 		&"last_stand":
-			return 1.2 if (float(hp) / float(maxi(max_hp, 1))) <= 0.30 else 1.0
+			var threshold: float = 0.40 if has_ability_talent(&"stand_wider") else 0.30
+			var bonus: float = 1.3 if has_ability_talent(&"stand_deeper") else 1.2
+			return bonus if (float(hp) / float(maxi(max_hp, 1))) <= threshold else 1.0
 		&"opportunist":
 			if defender == null:
 				return 1.0
@@ -774,6 +805,12 @@ func passive_incoming_multiplier() -> float:
 	match passive_ability_id:
 		&"bulwark":
 			return 0.85 if (float(hp) / float(maxi(max_hp, 1))) > 0.50 else 1.0
+		&"last_stand":
+			if not has_ability_talent(&"stand_guarded"):
+				return 1.0
+			# stand_guarded shares the "passive" row with stand_wider (max 1 pick per row), so the
+			# HP gate here is always the base 30% threshold — never simultaneously widened.
+			return 0.9 if (float(hp) / float(maxi(max_hp, 1))) <= 0.30 else 1.0
 		_:
 			return 1.0
 
@@ -1056,12 +1093,19 @@ func try_entangle(type: DamageType, cost: int, cap: int) -> bool:
 func apply_heroic_guard(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
+	var dur: int = 4 if has_ability_talent(&"guard_lasting") else 3
 	var guard: Effect = EffectLibrary.make(&"guarded")
-	guard.duration = 3
+	if has_ability_talent(&"guard_reinforced"):
+		guard.magnitude = 0.65
+	guard.duration = dur
 	attach_effect(guard)
 	var taunt: Effect = EffectLibrary.make(&"taunt")
-	taunt.duration = 3
+	taunt.duration = dur
 	attach_effect(taunt)
+	if has_ability_talent(&"guard_cleansing"):
+		# Reuses the existing full debuff-cleanse (the same primitive Second Wind already calls) —
+		# there's no "remove exactly 1 debuff" primitive in this codebase.
+		cleanse()
 	return true
 
 ## Warrior "Second Wind" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Heals 30% max HP (ceil),
@@ -1072,11 +1116,17 @@ func apply_heroic_guard(cost: int) -> bool:
 func apply_second_wind(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	heal(ceili(max_hp * 0.30))
+	var heal_pct: float = 0.40 if has_ability_talent(&"wind_deeper") else 0.30
+	heal(ceili(max_hp * heal_pct))
 	cleanse()
 	var guard: Effect = EffectLibrary.make(&"guarded")
 	guard.duration = 3
 	attach_effect(guard)
+	if has_ability_talent(&"wind_empowering"):
+		var empowered: Effect = EffectLibrary.make(&"empowered")
+		empowered.magnitude = 1.15
+		empowered.duration = 1
+		attach_effect(empowered)
 	return true
 
 ## Vanguard "Bloodwrath" scaling formula (playtest 2026-07-04: steepened from +1%/2% missing HP,
@@ -1453,6 +1503,11 @@ func fire_sticky_wild(reel_count: int, spins: int) -> bool:
 	bonus_meter.consume()
 	sticky_wild_count = reel_count
 	sticky_wild_spins_remaining = spins
+	if class_id == &"warrior" and has_ability_talent(&"wild_truer"):
+		var empowered: Effect = EffectLibrary.make(&"empowered")
+		empowered.magnitude = 1.15
+		empowered.duration = spins
+		attach_effect(empowered)
 	return true
 
 ## The reels currently forced to crit-success (for the resolver): [0, 1, …, sticky_wild_count-1]
