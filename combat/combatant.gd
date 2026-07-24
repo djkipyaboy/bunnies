@@ -504,11 +504,6 @@ func apply_stats() -> void:
 	if bonus_meter != null:
 		bonus_meter.floor = base_meter_floor + s.grit
 
-## Edits this combatant's weapon reels to add crit-success faces from its Luck (the reel IS the
-## dice — Luck raises crit ODDS via more crit FACES, then reshuffles to distribute them). Mutates this
-## combatant's OWN weapon reels only (N-vs-M safe — each combatant has its own Weapon). Call ONCE at
-## setup (after gear/apply_stats); NOT idempotent — each call appends more faces, so do not re-apply.
-## [ASSUMPTION] +1 crit-success face (×2.0) per LUCK_PER_CRIT_FACE points of Luck (threshold, not 1:1).
 ## How many Universal Perk picks this character has earned: one for each milestone level in
 ## UNIVERSAL_PERK_LEVELS reached (spec 2026-07-24 §2's D&D-ASI-style cadence). Derived, not stored.
 func universal_points_earned() -> int:
@@ -574,6 +569,11 @@ func talent_incoming_multiplier() -> float:
 func talent_dot_damage_multiplier() -> float:
 	return 0.9 if (&"battle_hardened" in talent_perks) else 1.0
 
+## Edits this combatant's weapon reels to add crit-success faces from its Luck (the reel IS the
+## dice — Luck raises crit ODDS via more crit FACES, then reshuffles to distribute them). Mutates this
+## combatant's OWN weapon reels only (N-vs-M safe — each combatant has its own Weapon). Call ONCE at
+## setup (after gear/apply_stats); NOT idempotent — each call appends more faces, so do not re-apply.
+## [ASSUMPTION] +1 crit-success face (×2.0) per LUCK_PER_CRIT_FACE points of Luck (threshold, not 1:1).
 func apply_luck() -> void:
 	if weapon == null:
 		return
