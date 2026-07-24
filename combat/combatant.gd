@@ -580,6 +580,8 @@ func passive_outgoing_multiplier(defender: Combatant = null) -> float:
 	if level < 5 or passive_ability_id == &"":
 		return 1.0
 	match passive_ability_id:
+		&"last_stand":
+			return 1.2 if (float(hp) / float(maxi(max_hp, 1))) <= 0.30 else 1.0
 		_:
 			return 1.0
 

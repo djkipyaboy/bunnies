@@ -18,6 +18,8 @@ static func display_name(id: StringName) -> String:
 		&"hunters_mark": return "Hunter's Mark"
 		&"select_fate": return "Select your Fate!"
 		&"rallying_cry": return "Rallying Cry"
+		# --- passives (L5+) ---
+		&"last_stand": return "Last Stand"
 		# --- Warrior ---
 		&"sundering_strike": return "Sundering Strike"
 		&"heroic_guard": return "Heroic Guard"
@@ -58,6 +60,8 @@ static func description(id: StringName) -> String:
 		&"hunters_mark": return "Marks the target for 3 turns — allies' crit-fails become hits against it. Usable alongside your Ultimate."
 		&"select_fate": return "Adds a reel (joins paylines) and converts this whole spin to a damage type you pick. Locked out while The Big Bang is staged — the Ultimate picks the type for free."
 		&"rallying_cry": return "Adds a no-damage reel; on a hit, shields every ally for 3 turns — half your weapon's damage on a success, full on a crit. Usable alongside Earthquake."
+		# --- passives (L5+) ---
+		&"last_stand": return "Passive: deals +20% damage while at or below 30% HP."
 		# --- Warrior ---
 		&"sundering_strike": return "Slashing attack reel; on a hit, SUNDERS the target — it takes ×1.25 damage for 2 turns."
 		&"heroic_guard": return "Self: GUARDED (incoming damage ×0.75) and TAUNT (enemies are drawn to attack you), 3 turns."

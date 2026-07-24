@@ -41,6 +41,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"rend"
 			c.ability_cost = 2
 			c.ultimate_id = &"wild"  # single-spin crit-bias wild (distinct from the Skirmisher's 2-spin sticky wild)
+			c.passive_ability_id = &"last_stand"
 			c.extra_abilities = [
 				_ability(&"sundering_strike", 2, 3, &"stamina", 0),
 				_ability(&"heroic_guard", 3, 3, &"stamina", 0),
