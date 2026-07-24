@@ -1880,6 +1880,12 @@ func _apply_attack(attack) -> void:
 					var bonus: int = ceili(attack.final_damage * 0.5)
 					t.take_damage(bonus)
 					_log("  🎯 Crippling Shot exploits %s's condition for %d bonus damage." % [t.display_name, bonus])
+			if attack.rider_effect_id != &"":
+				var talent_bonus_pct: float = _attacker.rider_talent_bonus_damage_pct(attack.rider_effect_id)
+				if talent_bonus_pct > 0.0:
+					var talent_bonus: int = ceili(attack.final_damage * talent_bonus_pct)
+					t.take_damage(talent_bonus)
+					_log("  ✦ %s's talent adds %d bonus damage." % [_attacker.display_name, talent_bonus])
 		# Surface the type matchup (vs the primary defender, which final_damage was computed against) so
 		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
 		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0
@@ -1909,6 +1915,7 @@ func _apply_attack(attack) -> void:
 				# so its per-turn damage scales off the attacker's weapon (spec §4B). Off the type chart.
 				if rider.kind == Effect.Kind.DAMAGE_OVER_TIME and _attacker.weapon != null:
 					rider.dot_base_damage = _attacker.weapon_effective_base_damage()
+				_attacker.apply_rider_talent_adjustments(attack.rider_effect_id, rider, t)
 				t.attach_effect(rider)
 				_log("  %s is afflicted with %s (%d turns)." % [t.display_name, String(rider.id).to_upper(), rider.duration])
 				(_panels[t] as CombatantPanel).refresh_status()

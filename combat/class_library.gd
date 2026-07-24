@@ -30,6 +30,7 @@ static func make(id: StringName) -> CharacterClass:
 		&"warrior":
 			# Balanced bruiser (the canonical Martin). Base ability Rend → stacking BLEED (§4B).
 			var c: CharacterClass = CharacterClass.new()
+			c.class_id = &"warrior"
 			c.display_name = "Martin (Mouse)"; c.species = "Mouse"
 			c.base_stats = _stats(3, 2, 3, 1, 2, 0)
 			c.weapon_base_damage = 8.0; c.weapon_type = slashing; c.reel_count = 3
@@ -51,6 +52,7 @@ static func make(id: StringName) -> CharacterClass:
 		&"vanguard":
 			# Heavy badger: hits late but like a mountain; huge HP; high meter carryover. Ability Heft.
 			var c: CharacterClass = CharacterClass.new()
+			c.class_id = &"vanguard"
 			c.display_name = "Sunflash (Badger)"; c.species = "Badger"
 			c.base_stats = _stats(4, 0, 5, 0, 3, 0)
 			c.weapon_base_damage = 15.0; c.weapon_type = crushing; c.reel_count = 2
@@ -73,6 +75,7 @@ static func make(id: StringName) -> CharacterClass:
 		&"skirmisher":
 			# Dual-wield hare: fast, acts first, four small swings. Ability Flurry (relentless 5th strike).
 			var c: CharacterClass = CharacterClass.new()
+			c.class_id = &"skirmisher"
 			c.display_name = "Basil Stag Hare"; c.species = "Hare"
 			c.base_stats = _stats(1, 5, 2, 2, 1, 0)
 			c.weapon_base_damage = 6.0; c.weapon_type = slashing; c.reel_count = 4
@@ -96,6 +99,7 @@ static func make(id: StringName) -> CharacterClass:
 		&"chancer":
 			# Luck otter: four Storm cards, extra crit faces (Luck 1), post-spin re-rolls.
 			var c: CharacterClass = CharacterClass.new()
+			c.class_id = &"chancer"
 			c.display_name = "Cheek (Otter)"; c.species = "Otter"
 			c.base_stats = _stats(2, 3, 2, 1, 0, 1)  # [ASSUMPTION] Luck 1 (was 4 — playtest: crit too often)
 			c.weapon_base_damage = 6.0; c.weapon_type = storm; c.reel_count = 4
@@ -121,6 +125,7 @@ static func make(id: StringName) -> CharacterClass:
 			# Precision archer: four Piercing bow reels, marks a target so allies' fumbles become hits,
 			# Ultimate scatters an explosive shot. Base ability Hunter's Mark (spec §3.4).
 			var c: CharacterClass = CharacterClass.new()
+			c.class_id = &"ranger"
 			c.display_name = "Ranger (Squirrel)"; c.species = "Squirrel"
 			c.base_stats = _stats(2, 4, 2, 2, 1, 0)
 			c.weapon_base_damage = 7.0; c.weapon_type = piercing; c.reel_count = 4
@@ -143,6 +148,7 @@ static func make(id: StringName) -> CharacterClass:
 			# Mystic caster: heavy 2-reel War Staff, mana-only. Base Select your Fate! picks the spin's
 			# damage type (+1 reel); Ultimate The Big Bang nukes all enemies + heals the party (spec 2026-06-27).
 			var c: CharacterClass = CharacterClass.new()
+			c.class_id = &"seer"
 			c.display_name = "Seer (Vole)"; c.species = "Vole"
 			c.base_stats = _stats(0, 2, 1, 6, 1, 0)
 			c.weapon_base_damage = 13.0; c.weapon_type = mystic; c.reel_count = 2
@@ -167,6 +173,7 @@ static func make(id: StringName) -> CharacterClass:
 			# Earth caster-guardian: 3-reel Earthstave, mana-only. Base Rallying Cry shields the party;
 			# Ultimate Earthquake nukes one + half-splashes others + STUNS every enemy hit (spec 2026-06-29).
 			var c: CharacterClass = CharacterClass.new()
+			c.class_id = &"warden"
 			c.display_name = "Warden (Mole)"; c.species = "Mole"
 			c.base_stats = _stats(1, 1, 3, 4, 2, 0)
 			c.weapon_base_damage = 9.0; c.weapon_type = earth; c.reel_count = 3

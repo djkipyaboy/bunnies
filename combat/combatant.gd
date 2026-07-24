@@ -131,6 +131,16 @@ var ultimate_id: StringName = &"sticky_wild"
 ## Empty = no passive (enemies, or a class not yet wired).
 var passive_ability_id: StringName = &""
 
+## Which class this combatant is (mirrors CharacterClass.class_id) — used to look up this
+## combatant's own Ability Talent options via AbilityTalentLibrary.options_for(). Empty for enemies
+## (they don't have a talent tree).
+var class_id: StringName = &""
+
+## Track A (Ability Talents, spec 2026-07-24 §3): row_id -> the single option_id picked in that
+## row. An absent key means no pick yet in that row (cap of 1 pick/row, enforced by
+## pick_ability_talent()).
+var ability_talent_picks: Dictionary = {}
+
 ## Track B (Universal Perks, spec 2026-07-24 §4): the ids of perks this character has picked, in
 ## pick order. One-time-pick per id (non-stacking) — enforced by pick_talent_perk().
 var talent_perks: Array[StringName] = []
@@ -556,6 +566,97 @@ func unpick_talent_perk(id: StringName) -> bool:
 	apply_stats()
 	recompute_initiative()
 	return true
+
+## The fixed level at which [param row_id] unlocks (spec 2026-07-24 §2's table). -1 for an unknown
+## row_id (should never happen with the 6 fixed AbilityTalentLibrary.ROW_IDS values).
+func ability_talent_row_unlock_level(row_id: StringName) -> int:
+	match row_id:
+		&"base_ability": return 5
+		&"ability_l2": return 6
+		&"ability_l3": return 7
+		&"ability_l4": return 8
+		&"passive": return 9
+		&"ultimate": return 10
+		_: return -1
+
+func ability_talent_row_unlocked(row_id: StringName) -> bool:
+	return level >= ability_talent_row_unlock_level(row_id)
+
+## True if [param option_id] is the one currently picked in whichever row it belongs to (a linear
+## scan of the picks Dictionary's values — at most 6 entries, so this stays cheap).
+func has_ability_talent(option_id: StringName) -> bool:
+	return option_id in ability_talent_picks.values()
+
+## Picks [param option_id] for [param row_id] if: the row is unlocked, the row has no pick yet (cap
+## of 1/row), and option_id is genuinely one of that row's 3 valid options for this combatant's
+## class. Returns true on success.
+func pick_ability_talent(row_id: StringName, option_id: StringName) -> bool:
+	if not ability_talent_row_unlocked(row_id):
+		return false
+	if ability_talent_picks.has(row_id):
+		return false
+	var valid: Array[AbilityTalentOption] = AbilityTalentLibrary.options_for(class_id, row_id)
+	var found: bool = false
+	for opt: AbilityTalentOption in valid:
+		if opt.id == option_id:
+			found = true
+			break
+	if not found:
+		return false
+	ability_talent_picks[row_id] = option_id
+	return true
+
+## Clears [param row_id]'s pick (town-only respec — the caller/UI gates this). Returns true on
+## success, false if that row had no pick.
+func unpick_ability_talent(row_id: StringName) -> bool:
+	if not ability_talent_picks.has(row_id):
+		return false
+	ability_talent_picks.erase(row_id)
+	return true
+
+## Flat Stamina/Mana cost DISCOUNT (negative or zero) this combatant's Ability Talents grant to
+## casting [param ability_id] (an "Efficient X" option). 0 for any (class_id, ability_id) with no
+## such talent. Extended per-class in Tasks 15-21; consumed by MainPhasePlan.commit() at every
+## ability-cost call site (Step 4 below).
+func ability_talent_cost_delta(ability_id: StringName) -> int:
+	match class_id:
+		_:
+			return 0
+
+## Flat cooldown-turn DISCOUNT (negative or zero) this combatant's Ability Talents grant to
+## [param ability_id] (a "Swift X" option, only meaningful on the 7 cooldown-bearing L4 extras). 0
+## for any (class_id, ability_id) with no such talent. Extended per-class in Tasks 15-21; consumed
+## by MainPhasePlan.commit()'s cooldown-start call (Step 4 below).
+func ability_talent_cooldown_delta(ability_id: StringName) -> int:
+	match class_id:
+		_:
+			return 0
+
+## Applies this attacker's own Ability Talent adjustments to a freshly-made rider Effect (an id
+## returned by EffectLibrary.make(rider_id)) before it's attached to [param target] — covers
+## "Lasting X"/"Heavier X"/rider-magnitude-bump options. Mutates [param effect] in place and/or
+## attaches an extra effect to [param target] directly. No-op for any (class_id, rider_id) pair with
+## no adjustment. Extended per-class in Tasks 15-21; called from the shared rider-attach site in
+## combat.gd (Step 5 below) — every rider-carrying ability across every class flows through this ONE
+## site, so this dispatch (keyed by class_id, not by a per-ability id) is how a specific class's
+## specific ability's rider gets adjusted without the other classes' rider-carrying abilities (which
+## may reuse the same rider_id, e.g. &"rooted" is used by both Ranger's Snare Trap and Warden's
+## Entangle) being affected.
+func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target: Combatant) -> void:
+	match class_id:
+		_:
+			pass
+
+## Flat bonus-damage PERCENTAGE (0.0 = none) this attacker's Ability Talents grant when their
+## [param rider_id] rider-carrying reel lands a hit (a "Deeper X" option on a rider-attack ability,
+## e.g. Quake Slam/Jinx the Odds/Snare Trap/Entangle) — dealt as an immediate separate follow-up
+## hit of the same damage type, mirroring the existing Crippling Shot bonus_vs_cc precedent
+## (combat.gd). 0.0 for any (class_id, rider_id) pair with no such talent. Extended per-class in
+## Tasks 15-21; called from the same rider-attack damage site as bonus_vs_cc (Step 5 below).
+func rider_talent_bonus_damage_pct(rider_id: StringName) -> float:
+	match class_id:
+		_:
+			return 0.0
 
 ## Flat Initiative bonus from a picked sharp_reflexes perk. 0 if not picked.
 func talent_flat_initiative_bonus() -> int:

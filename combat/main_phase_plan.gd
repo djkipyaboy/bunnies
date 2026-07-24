@@ -331,7 +331,8 @@ func preview_resource() -> int:
 		return 0
 	var res: StringName = combatant.ability_resource
 	var cur: int = combatant.resource_pool.mana if res == &"mana" else combatant.resource_pool.stamina
-	return (cur - ability_cost) if (ability_staged and not ability_is_free()) else cur
+	var talent_cost: int = ability_cost + combatant.ability_talent_cost_delta(ability_id)
+	return (cur - talent_cost) if (ability_staged and not ability_is_free()) else cur
 
 ## Back-compat alias used by the current UI (stamina-only classes). Returns preview_resource().
 func preview_stamina() -> int:
@@ -377,73 +378,76 @@ func _weapon_reel_count() -> int:
 ## carry their own guards; staging already validated, so they succeed. No-op when nothing is staged.
 func commit() -> void:
 	# When Heft is free-via-Rampage, skip the paid ability commit — fire_rampage applies the Heft itself.
+	var talent_cost: int = ability_cost + combatant.ability_talent_cost_delta(ability_id)
 	if ability_staged and not ability_is_free():
 		match ability_id:
 			&"flurry":
-				combatant.try_splice_reel(combatant.weapon_type(), combatant.weapon_effective_base_damage(), ability_cost, reel_cap)
+				combatant.try_splice_reel(combatant.weapon_type(), combatant.weapon_effective_base_damage(), talent_cost, reel_cap)
 			&"rend":
-				combatant.try_rend_reel(combatant.weapon_type(), ability_cost, reel_cap)
+				combatant.try_rend_reel(combatant.weapon_type(), talent_cost, reel_cap)
 			&"heft":
-				combatant.apply_heft(ability_cost)
+				combatant.apply_heft(talent_cost)
 			&"reroll":
-				combatant.stage_reroll(ability_cost)
+				combatant.stage_reroll(talent_cost)
 			&"hunters_mark":
-				combatant.stage_hunters_mark(ability_cost)  # orchestrator attaches the mark to the defender
+				combatant.stage_hunters_mark(talent_cost)  # orchestrator attaches the mark to the defender
 			&"select_fate":
-				combatant.apply_select_fate(selected_fate_type, ability_cost)  # +1 reel, retype loadout (Seer)
+				combatant.apply_select_fate(selected_fate_type, talent_cost)  # +1 reel, retype loadout (Seer)
 			&"rallying_cry":
-				combatant.apply_rallying_cry(ability_cost, reel_cap)  # +1 utility reel; orchestrator shields the party
+				combatant.apply_rallying_cry(talent_cost, reel_cap)  # +1 utility reel; orchestrator shields the party
 			&"warden_support_heal":
-				combatant.stage_warden_support_heal(ability_cost)
+				combatant.stage_warden_support_heal(talent_cost)
 			&"warden_support_curse":
-				combatant.stage_warden_support_curse(ability_cost)
+				combatant.stage_warden_support_curse(talent_cost)
 	if staged_extra_ability_id != &"":
 		var def: AbilityDef = combatant.find_extra_ability(staged_extra_ability_id)
+		var extra_talent_cost: int = def.cost + combatant.ability_talent_cost_delta(staged_extra_ability_id)
 		match staged_extra_ability_id:
 			&"sundering_strike":
-				combatant.try_sundering_strike(combatant.weapon_type(), def.cost, reel_cap)
+				combatant.try_sundering_strike(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"quake_slam":
-				combatant.try_quake_slam(combatant.weapon_type(), def.cost, reel_cap)
+				combatant.try_quake_slam(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"jinx_the_odds":
-				combatant.try_jinx_the_odds(combatant.weapon_type(), def.cost, reel_cap)
+				combatant.try_jinx_the_odds(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"snare_trap":
-				combatant.try_snare_trap(combatant.weapon_type(), def.cost, reel_cap)
+				combatant.try_snare_trap(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"crippling_shot":
-				combatant.try_crippling_shot(combatant.weapon_type(), def.cost, reel_cap)
+				combatant.try_crippling_shot(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"hex":
-				combatant.try_hex(combatant.weapon_type(), def.cost, reel_cap)
+				combatant.try_hex(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"entangle":
-				combatant.try_entangle(combatant.weapon_type(), def.cost, reel_cap)
+				combatant.try_entangle(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"aimed_shot":
-				combatant.stage_aimed_shot(def.cost)  # orchestrator attaches Empowered (bonus vs a Marked target)
+				combatant.stage_aimed_shot(extra_talent_cost)  # orchestrator attaches Empowered (bonus vs a Marked target)
 			&"foresight":
-				combatant.stage_foresight(def.cost)  # orchestrator picks lowest-HP% ally + shields them
+				combatant.stage_foresight(extra_talent_cost)  # orchestrator picks lowest-HP% ally + shields them
 			&"regrowth":
-				combatant.stage_regrowth(def.cost)  # orchestrator picks lowest-HP% ally + grants Regen
+				combatant.stage_regrowth(extra_talent_cost)  # orchestrator picks lowest-HP% ally + grants Regen
 			&"heroic_guard":
-				combatant.apply_heroic_guard(def.cost)
+				combatant.apply_heroic_guard(extra_talent_cost)
 			&"second_wind":
-				combatant.apply_second_wind(def.cost)
+				combatant.apply_second_wind(extra_talent_cost)
 			&"bloodwrath":
-				combatant.apply_bloodwrath(def.cost)
+				combatant.apply_bloodwrath(extra_talent_cost)
 			&"mountain_stance":
-				combatant.apply_mountain_stance(def.cost)
+				combatant.apply_mountain_stance(extra_talent_cost)
 			&"bastion":
-				combatant.apply_bastion(def.cost)
+				combatant.apply_bastion(extra_talent_cost)
 			&"feint_riposte":
-				combatant.apply_feint_riposte(def.cost)
+				combatant.apply_feint_riposte(extra_talent_cost)
 			&"quickstep":
-				combatant.apply_quickstep(def.cost)
+				combatant.apply_quickstep(extra_talent_cost)
 			&"riposte_storm":
-				combatant.fire_riposte_storm(def.cost)
+				combatant.fire_riposte_storm(extra_talent_cost)
 			&"loaded_dice":
-				combatant.apply_loaded_dice(def.cost)
+				combatant.apply_loaded_dice(extra_talent_cost)
 			&"mana_surge":
-				combatant.apply_mana_surge(combatant.weapon_type(), def.cost, reel_cap)
+				combatant.apply_mana_surge(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"double_or_nothing":
 				combatant.fire_double_or_nothing(combatant.weapon_type(), reel_cap)
 		if def != null and def.cooldown_turns > 0:
-			combatant.start_cooldown(staged_extra_ability_id, def.cooldown_turns)
+			var talent_cd: int = maxi(1, def.cooldown_turns + combatant.ability_talent_cooldown_delta(staged_extra_ability_id))
+			combatant.start_cooldown(staged_extra_ability_id, talent_cd)
 	if fire_ultimate_staged:
 		match ultimate_id:
 			&"wild":
