@@ -25,6 +25,7 @@ static func display_name(id: StringName) -> String:
 		&"house_edge": return "House Edge"
 		&"steady_aim": return "Steady Aim"
 		&"arcane_reservoir": return "Arcane Reservoir"
+		&"deep_roots": return "Deep Roots"
 		# --- Warrior ---
 		&"sundering_strike": return "Sundering Strike"
 		&"heroic_guard": return "Heroic Guard"
@@ -72,6 +73,7 @@ static func description(id: StringName) -> String:
 		&"house_edge": return "Passive: gains +1 extra Bonus Meter charge whenever any payline scores."
 		&"steady_aim": return "Passive: deals +10% damage against a target marked by Hunter's Mark."
 		&"arcane_reservoir": return "Passive: max Mana is increased by 20%."
+		&"deep_roots": return "Passive: takes 15% less damage from damage-over-time effects, and regenerates 1/16 of max HP (rounded up) every turn."
 		# --- Warrior ---
 		&"sundering_strike": return "Slashing attack reel; on a hit, SUNDERS the target — it takes ×1.25 damage for 2 turns."
 		&"heroic_guard": return "Self: GUARDED (incoming damage ×0.75) and TAUNT (enemies are drawn to attack you), 3 turns."

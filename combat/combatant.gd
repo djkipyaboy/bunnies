@@ -609,8 +609,22 @@ func passive_dot_damage_multiplier() -> float:
 	if level < 5 or passive_ability_id == &"":
 		return 1.0
 	match passive_ability_id:
+		&"deep_roots":
+			return 0.85
 		_:
 			return 1.0
+
+## Flat HP healed at this combatant's own Upkeep from its L5 passive (spec 2026-07-23 §4, revised
+## same day to add Warden's regen). 0 below L5, with no passive, or for an id with no Upkeep-heal
+## hook. Applied directly via heal() in combat.gd's UPKEEP phase handling — NOT an attached Effect.
+func passive_upkeep_heal_amount() -> int:
+	if level < 5 or passive_ability_id == &"":
+		return 0
+	match passive_ability_id:
+		&"deep_roots":
+			return ceili(float(max_hp) / 16.0)
+		_:
+			return 0
 
 ## Multiplier contribution from this combatant's L5 passive, applied to max Mana in apply_stats().
 ## 1.0 (neutral) below L5, with no passive, or for an id with no Mana hook.

@@ -180,6 +180,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_mana = 8; c.start_mana = 12; c.mana_regen = 1
 			c.ability_id = &"rallying_cry"; c.ability_cost = 4; c.ability_resource = &"mana"
 			c.ultimate_id = &"earthquake"
+			c.passive_ability_id = &"deep_roots"
 			c.extra_abilities = [
 				_ability(&"entangle", 2, 4, &"mana", 0),
 				_ability(&"regrowth", 3, 4, &"mana", 0),

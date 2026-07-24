@@ -1289,6 +1289,10 @@ func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 		# before the bearer acts instead of after. Deliberately AFTER on_upkeep() (resource regen)
 		# so a lethal tick can't be masked by that same-phase regen.
 		_apply_dot(_attacker)
+		var passive_heal: int = _attacker.passive_upkeep_heal_amount()
+		if passive_heal > 0 and _attacker.is_alive():
+			_attacker.heal(passive_heal)
+			_log("  %s regenerates %d HP from Deep Roots." % [_attacker.display_name, passive_heal])
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	elif phase == PhaseManager.Phase.END:
