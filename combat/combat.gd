@@ -1628,6 +1628,10 @@ func _commit_main1() -> void:
 	# downstream crit-fail→hit swap in _do_spin is side-agnostic, so an enemy's mark helps every enemy.
 	if _attacker.hunters_mark_pending:
 		var mark: Effect = EffectLibrary.make(&"hunters_mark")
+		# Ranger Ability Talents (Task 19): Deeper Mark (duration) / Weakening Mark (bonus Weakened) —
+		# mirrors Warrior's Bleeding Wild precedent (Task 15) of calling apply_rider_talent_adjustments()
+		# directly at a bespoke manual-attach site, not only the one generic shared rider-attach site.
+		_attacker.apply_rider_talent_adjustments(&"hunters_mark", mark, _defender)
 		_defender.attach_effect(mark)
 		_attacker.hunters_mark_pending = false
 		_log("  ⊕ %s MARKS %s — crit-fails become hits vs it (%d turns)." % [_attacker.display_name, _defender.display_name, mark.duration])
@@ -1635,11 +1639,19 @@ func _commit_main1() -> void:
 	# Aimed Shot (Task 23): a self-buff, so the orchestrator sizes it here where the defender's Mark
 	# status is known — bigger bonus when the shot is lined up on an already-Marked target.
 	if _attacker.aimed_shot_pending:
+		# Ranger "Deeper Aim" talent (Task 19): both bonus tiers rise by +10 points (+30%/+60% ->
+		# +40%/+70%).
+		var marked_bonus: float = 1.7 if _attacker.has_ability_talent(&"aim_deeper") else 1.6
+		var unmarked_bonus: float = 1.4 if _attacker.has_ability_talent(&"aim_deeper") else 1.3
 		var e: Effect = EffectLibrary.make(&"empowered")
-		e.magnitude = 1.6 if _defender.has_effect(&"hunters_mark") else 1.3
+		e.magnitude = marked_bonus if _defender.has_effect(&"hunters_mark") else unmarked_bonus
 		e.duration = 1
 		_attacker.attach_effect(e)
 		_attacker.aimed_shot_pending = false
+		# Ranger "Piercing Aim" talent (Task 19): flags a bonus Weakened application, consumed the
+		# first time a reel connects this spin (combat.gd's _apply_attack()).
+		if _attacker.has_ability_talent(&"aim_piercing"):
+			_attacker.aimed_shot_hit_pending = true
 		_log("  ⊕ %s takes Aimed Shot — damage empowered %.0f%% this turn." % [_attacker.display_name, (e.magnitude - 1.0) * 100.0])
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 	# Foresight (Task 27): a support ability with no ally-click targeting UI yet (YAGNI), so the
@@ -1648,8 +1660,11 @@ func _commit_main1() -> void:
 	if _attacker.foresight_pending:
 		var ally: Combatant = _lowest_hp_pct_ally(_attacker)
 		if ally != null:
-			var amount: int = ceili(_attacker.resource_pool.max_mana * 0.15)
-			ally.apply_shield(amount, 3)
+			# Seer Ability Talents (Task 20): Deeper Foresight (shield %) / Lasting Foresight (duration)
+			# are read via two small Combatant helpers (mirrors Vanguard's bloodwrath_bonus_pct()
+			# precedent, Task 16) so the math stays directly unit-testable.
+			var amount: int = _attacker.foresight_shield_amount()
+			ally.apply_shield(amount, _attacker.foresight_shield_duration())
 			_log("  🔮 %s grants Foresight — %s shields %d HP." % [_attacker.display_name, ally.display_name, amount])
 		_attacker.foresight_pending = false
 	# Regrowth (Task 30): mirrors Foresight — the orchestrator auto-picks the lowest-HP% living
@@ -1663,6 +1678,11 @@ func _commit_main1() -> void:
 			# Effect default of 0.0 and every Regen tick heals ceili(0.0 * fraction) = 0 (dead ability).
 			if _attacker.weapon != null:
 				regen.dot_base_damage = _attacker.weapon_effective_base_damage()
+			# Warden Ability Talents (Task 21): Deeper Regrowth (+25% per tick) / Lasting Regrowth
+			# (max stacks 3->4) — mirrors Ranger's Hunter's Mark precedent (Task 19) of calling
+			# apply_rider_talent_adjustments() directly at a bespoke manual-attach site, not only the
+			# one generic shared rider-attach site.
+			_attacker.apply_rider_talent_adjustments(&"regen", regen, ally)
 			ally.attach_effect(regen)
 			_log("  🌿 %s grants Regrowth to %s." % [_attacker.display_name, ally.display_name])
 		_attacker.regrowth_pending = false
@@ -1822,26 +1842,46 @@ func _apply_post_spin_rerolls(reels: Array[ActionReel], attacks: Array[CombatRes
 	var base: float = _attacker.weapon_effective_base_damage()
 	var might: int = _attacker.might_damage_bonus_per_reel(reels.size())
 	if _attacker.reroll_pending:
-		var idx: int = Combatant.worst_reroll_index(attacks)
-		if idx >= 0 and idx < reels.size():
-			var prev: String = ReelFace.ResultTier.keys()[attacks[idx].face.result_tier]
-			attacks[idx] = _resolver.reresolve_reel(reels[idx], base, _defender.defense_type, might)
-			changed.append(idx)
-			_log("  ♻ %s RE-ROLLS reel %d: was %s → %s." % [_attacker.display_name, idx + 1, prev, ReelFace.ResultTier.keys()[attacks[idx].face.result_tier]])
-		else:
+		var reroll_targets: Array[int] = []
+		var first_idx: int = Combatant.worst_reroll_index(attacks)
+		if first_idx >= 0 and first_idx < reels.size():
+			reroll_targets.append(first_idx)
+			if _attacker.has_ability_talent(&"reroll_double"):
+				var second_idx: int = Combatant.worst_reroll_index(attacks, [first_idx])
+				if second_idx >= 0 and second_idx < reels.size():
+					reroll_targets.append(second_idx)
+		if reroll_targets.is_empty():
 			_attacker.refund_reroll()
 			_log("  ♻ %s Re-roll: no bad reel to re-roll — %d Stamina refunded." % [_attacker.display_name, _attacker.ability_cost])
 			(_panels[_attacker] as CombatantPanel).refresh_resources()
+		else:
+			for idx: int in reroll_targets:
+				var prev: String = ReelFace.ResultTier.keys()[attacks[idx].face.result_tier]
+				attacks[idx] = _resolver.reresolve_reel(reels[idx], base, _defender.defense_type, might)
+				if _attacker.has_ability_talent(&"reroll_deeper") and attacks[idx].final_damage > 0:
+					attacks[idx].final_damage = Combatant.reroll_deeper_damage(attacks[idx].final_damage)
+				changed.append(idx)
+				_log("  ♻ %s RE-ROLLS reel %d: was %s → %s." % [_attacker.display_name, idx + 1, prev, ReelFace.ResultTier.keys()[attacks[idx].face.result_tier]])
 	if _attacker.wildcard_gamble_pending:
+		var crit_mult: float = 2.25 if _attacker.has_ability_talent(&"wildcard_deeper") else 2.0
+		var fail_pct: float = 0.25 if _attacker.has_ability_talent(&"wildcard_safer") else 0.0
 		for i: int in range(mini(weapon_count, reels.size())):
 			if attacks[i].face != null and attacks[i].face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 				continue  # crit reels are not gambled
 			var prev_tier: String = ReelFace.ResultTier.keys()[attacks[i].face.result_tier]
 			var orig: int = attacks[i].final_damage
 			var rolled: CombatResolver.AttackResult = _resolver.reresolve_reel(reels[i], base, _defender.defense_type, might)
-			rolled.final_damage = Combatant.gamble_final_damage(rolled.face.result_tier, orig)
+			rolled.final_damage = Combatant.gamble_final_damage(rolled.face.result_tier, orig, crit_mult, fail_pct)
 			var rolled_tier: String = ReelFace.ResultTier.keys()[rolled.face.result_tier]
-			var outcome: String = ("×2" if rolled.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS else ("lost" if rolled.final_damage == 0 and orig > 0 else "kept"))
+			var outcome: String
+			if rolled.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+				outcome = "×%.2f" % crit_mult
+			elif rolled.final_damage == 0 and orig > 0:
+				outcome = "lost"
+			elif rolled.final_damage < orig and orig > 0:
+				outcome = "reduced (safer wildcard)"
+			else:
+				outcome = "kept"
 			_log("    R%d was %s → gamble → %s (%s)." % [i + 1, prev_tier, rolled_tier, outcome])
 			attacks[i] = rolled
 			if i not in changed:
@@ -1877,7 +1917,12 @@ func _apply_attack(attack) -> void:
 				# their stunned turn ends until their own NEXT on_end, which is exactly the window a
 				# called shot like this should be able to exploit.
 				if t.has_effect(&"slow") or t.has_effect(&"rooted") or t.stunned_last_turn:
-					var bonus: int = ceili(attack.final_damage * 0.5)
+					# Ranger "Deeper Crippling" talent (Task 19): bumps this EXISTING bonus from 50% to
+					# 65% — modifying an existing bonus rather than adding a new one, so this is a direct
+					# inline check rather than the generic rider_talent_bonus_damage_pct hook (Deeper
+					# Snare uses that hook instead, for the opposite reason: it adds a NEW bonus hit).
+					var cc_bonus_pct: float = 0.65 if _attacker.has_ability_talent(&"crippling_deeper") else 0.5
+					var bonus: int = ceili(attack.final_damage * cc_bonus_pct)
 					t.take_damage(bonus)
 					_log("  🎯 Crippling Shot exploits %s's condition for %d bonus damage." % [t.display_name, bonus])
 			# Warrior "Bleeding Wild" talent (Task 15): any hit landed while the Wild Ultimate is
@@ -1897,6 +1942,17 @@ func _apply_attack(attack) -> void:
 					var talent_bonus: int = ceili(attack.final_damage * talent_bonus_pct)
 					t.take_damage(talent_bonus)
 					_log("  ✦ %s's talent adds %d bonus damage." % [_attacker.display_name, talent_bonus])
+			# Ranger "Piercing Aim" talent (Task 19): the first reel that actually connects this spin
+			# (while Aimed Shot's bonus is pending from this same turn's cast) also lashes the target
+			# with a bonus stack of Weakened. Consumed once (aimed_shot_hit_pending cleared here) so a
+			# 4-reel spin doesn't re-log the same debuff attach on every subsequent connecting reel.
+			if _attacker.aimed_shot_hit_pending and attack.final_damage > 0:
+				var piercing_weak: Effect = EffectLibrary.make(&"weakened")
+				t.attach_effect(piercing_weak)
+				_attacker.aimed_shot_hit_pending = false
+				_log("  🏹 Piercing Aim: %s is WEAKENED." % t.display_name)
+				if _panels.has(t):
+					(_panels[t] as CombatantPanel).refresh_status()
 			# Vanguard "Slowing Rampage" talent (Task 16): any hit landed while Rampage's AoE window
 			# is active also lashes the target with a stack of Slow — mirrors Task 15's Warrior
 			# "Bleeding Wild" block (is_aoe_active() is only true during Rampage's own spin(s)).
@@ -1936,6 +1992,21 @@ func _apply_attack(attack) -> void:
 		if attack.final_damage > 0 and _attacker.class_id == &"skirmisher" and _attacker.has_ability_talent(&"opportunist_charging") and _attacker.passive_outgoing_multiplier(_defender) > 1.0:
 			_attacker.bonus_meter.add_flat(1)
 			_log("    ⚔ Opportunist strikes true — BM +1  (%d/%d)" % [_attacker.bonus_meter.value, _attacker.bonus_meter.cap])
+		# Ranger "Charging Aim" talent (Task 19): an extra flat +1 charge whenever this hit actually
+		# benefited from the Steady Aim passive bonus — mirrors Skirmisher's Charging Opportunist
+		# precedent (Task 17) exactly, reading passive_outgoing_multiplier(_defender) against the same
+		# primary defender the actual damage math used this spin.
+		if attack.final_damage > 0 and _attacker.class_id == &"ranger" and _attacker.has_ability_talent(&"steady_charging") and _attacker.passive_outgoing_multiplier(_defender) > 1.0:
+			_attacker.bonus_meter.add_flat(1)
+			_log("    🏹 Steady Aim strikes true — BM +1  (%d/%d)" % [_attacker.bonus_meter.value, _attacker.bonus_meter.cap])
+	# Chancer "Wider Edge" talent (Task 18): House Edge's baseline (passive_on_payline_scored) only
+	# triggers on a SCORED PAYLINE (a full run across the weapon-attack grid). Once this is picked, a
+	# LONE reel landing NEUTRAL also grants House Edge's flat charge without needing to complete a
+	# payline — the chosen reading of the approved wording (NEUTRAL is itself CLAUDE.md §4's "utility"
+	# tier, not a separate reel subtype).
+	if attack.face.result_tier == ReelFace.ResultTier.NEUTRAL and _attacker.passive_ability_id == &"house_edge" and _attacker.has_ability_talent(&"edge_wider") and _attacker.bonus_meter != null:
+		_attacker.bonus_meter.add_flat(1)
+		_log("  🎰 %s's WIDER EDGE triggers — +1 Bonus Meter." % _attacker.display_name)
 	if attack.rider_effect_id != &"":
 		for t: Combatant in targets:
 			var rider: Effect = EffectLibrary.make(attack.rider_effect_id)
@@ -1966,7 +2037,7 @@ func _apply_attack(attack) -> void:
 			_attacker.take_damage(ceili(attack.base_damage))
 			_log("  💥 %s's gamble recoils for %d." % [_attacker.display_name, ceili(attack.base_damage)])
 		elif attack.face.result_tier != ReelFace.ResultTier.FAILURE:
-			_attacker.double_or_nothing_refund_accum += 1
+			_attacker.double_or_nothing_refund_accum += 2 if _attacker.has_ability_talent(&"gamble_refunding") else 1
 
 	_pending_strips -= 1
 	if _pending_strips <= 0:
@@ -2067,13 +2138,16 @@ func _sacrifice_reinforcements(c: Combatant) -> void:
 		_log("  ☾ The Hollow Warden sacrifices its reinforcements, healing %d HP." % heal_amt)
 	c.boss_reinforcement_ids.clear()
 
-## Splashes ceil([param total] / 2) damage to every OTHER living enemy of [param attacker] (every enemy
-## except the primary [member _defender]) and logs each with [param type_label]. Off the type chart (flat
-## half) — the deferred N-vs-M per-target-type simplification. Returns the enemies actually damaged (for
-## Earthquake's follow-up force-stun). Shared by Ranger Collateral and Warden Earthquake. 1v1 → no-op.
-func _splash_half_to_others(attacker: Combatant, total: int, type_label: String) -> Array[Combatant]:
+## Splashes ceil([param total] * [param fraction]) damage to every OTHER living enemy of [param attacker]
+## (every enemy except the primary [member _defender]) and logs each with [param type_label]. Off the
+## type chart (flat fraction) — the deferred N-vs-M per-target-type simplification. Returns the enemies
+## actually damaged (for Earthquake's follow-up force-stun, and now Ranger's Marking Collateral talent).
+## Shared by Ranger Collateral and Warden Earthquake — [param fraction] defaults to 0.5 (the original,
+## unchanged behavior), so Earthquake's own call site needs no edit; only Ranger's "Deeper Collateral"
+## talent (Task 19) ever passes a non-default value. 1v1 → no-op.
+func _splash_half_to_others(attacker: Combatant, total: int, type_label: String, fraction: float = 0.5) -> Array[Combatant]:
 	var damaged: Array[Combatant] = []
-	var splash: int = ceili(total / 2.0)
+	var splash: int = ceili(total * fraction)
 	if splash <= 0:
 		return damaged
 	for other: Combatant in _enemies_of(attacker):
@@ -2081,7 +2155,7 @@ func _splash_half_to_others(attacker: Combatant, total: int, type_label: String)
 			continue
 		other.take_damage(splash)
 		damaged.append(other)
-		_log("  💥 splash → %s takes %d %s (half of %d)." % [other.display_name, splash, type_label, total])
+		_log("  💥 splash → %s takes %d %s (%.0f%% of %d)." % [other.display_name, splash, type_label, fraction * 100.0, total])
 		if _panels.has(other):
 			(_panels[other] as CombatantPanel).refresh_status()
 	return damaged
@@ -2164,21 +2238,44 @@ func _finish_spin() -> void:
 	# the splash is verified headlessly with a synthetic 3-enemy setup. [ASSUMPTION] splash = total/2,
 	# off the type chart for now (per-target type recompute is the same future N-vs-M refinement as Rampage).
 	if _attacker.is_collateral_active():
-		_splash_half_to_others(_attacker, _collateral_total, "Piercing")
+		# Ranger "Deeper Collateral" talent (Task 19): the splash fraction of the primary total rises
+		# from 1/2 to 2/3. _splash_half_to_others()'s new optional fraction param defaults to 0.5, so
+		# Warden's Earthquake call site below is completely unaffected.
+		var collateral_fraction: float = (2.0 / 3.0) if _attacker.has_ability_talent(&"collateral_deeper") else 0.5
+		var splashed: Array[Combatant] = _splash_half_to_others(_attacker, _collateral_total, "Piercing", collateral_fraction)
+		# Ranger "Marking Collateral" talent (Task 19): every enemy the splash actually hit also gets
+		# Hunter's Mark — reuses _splash_half_to_others()'s existing return value (already there for
+		# Earthquake's own force-stun follow-up below), so no extra enemy-iteration logic is needed.
+		if _attacker.has_ability_talent(&"collateral_marking"):
+			for other: Combatant in splashed:
+				other.attach_effect(EffectLibrary.make(&"hunters_mark"))
+				_log("  ⊕ Marking Collateral: %s is also MARKED." % other.display_name)
+				if _panels.has(other):
+					(_panels[other] as CombatantPanel).refresh_status()
 		_attacker.consume_collateral_spin()
 	# The Big Bang (Seer Ultimate): the spin already hit all enemies (AoE). Now heal each ally ceil(total/6),
 	# converting any heal overflow into a 2-turn SHIELDED (higher-overrides). 1v1 → the Seer heals itself.
 	if _attacker.is_big_bang_active():
-		var heal_amt: int = ceili(_big_bang_total / 6.0)
-		_log("  ✶ THE BIG BANG: %d total damage → heal %d to each ally (1/6)." % [_big_bang_total, heal_amt])
+		# Seer Ability Talents (Task 20): Deeper Bang's heal fraction and Shielding Bang's extra shield
+		# duration are read via two small Combatant helpers (same bloodwrath_bonus_pct() precedent as
+		# the Foresight block above).
+		var heal_divisor: float = _attacker.big_bang_heal_divisor()
+		var heal_amt: int = ceili(_big_bang_total / heal_divisor)
+		var shield_turns: int = BIG_BANG_SHIELD_TURNS + _attacker.big_bang_shield_duration_bonus()
+		_log("  ✶ THE BIG BANG: %d total damage → heal %d to each ally (1/%d)." % [_big_bang_total, heal_amt, int(heal_divisor)])
 		for ally: Combatant in _allies_of(_attacker):
 			var overflow: int = ally.heal(heal_amt)
 			var restored: int = heal_amt - overflow
 			if overflow > 0:
-				ally.apply_shield(overflow, BIG_BANG_SHIELD_TURNS)
+				ally.apply_shield(overflow, shield_turns)
 				_log("    %s +%d HP, excess %d → SHIELD %d (%d turns)." % [ally.display_name, restored, overflow, ally.shield_hp, ally.shield_turns])
 			elif restored > 0:
 				_log("    %s +%d HP." % [ally.display_name, restored])
+			# Curing Bang: cleanse a debuff from every ally this heal reaches. No "remove exactly 1"
+			# primitive exists in this codebase — reuses the same full-cleanse() precedent as Warrior's
+			# guard_cleansing / Second Wind (Task 15's own comment).
+			if _attacker.has_ability_talent(&"bigbang_curing"):
+				ally.cleanse()
 			if _panels.has(ally):
 				(_panels[ally] as CombatantPanel).refresh_status()
 				(_panels[ally] as CombatantPanel).refresh_shield()
@@ -2188,14 +2285,36 @@ func _finish_spin() -> void:
 	# their Initiative (force_stun_next_turn; they keep their queue position and roll the d100 gate on their
 	# turn). "Successful attack" = the spin dealt that enemy > 0 damage.
 	if _attacker.is_earthquake_active():
-		var quaked: Array[Combatant] = _splash_half_to_others(_attacker, _earthquake_total, "Earth")
+		# Warden "Deeper Quake" talent (Task 21): the splash fraction of the primary total rises from
+		# 1/2 to 2/3, reusing _splash_half_to_others()'s optional fraction param (added by Ranger's
+		# Deeper Collateral, Task 19) directly — no second parameter invented.
+		var earthquake_fraction: float = (2.0 / 3.0) if _attacker.has_ability_talent(&"quake_deeper") else 0.5
+		var quaked: Array[Combatant] = _splash_half_to_others(_attacker, _earthquake_total, "Earth", earthquake_fraction)
+		# Warden "Rooting Quake" talent (Task 21): every enemy Earthquake actually hit (primary +
+		# splashed) also gets Rooted. Routed through apply_rider_talent_adjustments() so a Warden who
+		# ALSO picked "Lasting Entangle" gets the 3-turn Rooted duration here too — a deliberate,
+		# consistent bonus, mirroring Warrior's Bleeding Wild precedent (Task 15).
 		if _earthquake_total > 0 and _defender.is_alive():
 			_defender.force_stun_next_turn = true
 			_log("  ☷ EARTHQUAKE → %s is STUNNED next turn (initiative unchanged)." % _defender.display_name)
+			if _attacker.has_ability_talent(&"quake_rooting"):
+				var rooted_primary: Effect = EffectLibrary.make(&"rooted")
+				_attacker.apply_rider_talent_adjustments(&"rooted", rooted_primary, _defender)
+				_defender.attach_effect(rooted_primary)
+				_log("  🌱 Rooting Quake → %s is ROOTED." % _defender.display_name)
+				if _panels.has(_defender):
+					(_panels[_defender] as CombatantPanel).refresh_status()
 		for other: Combatant in quaked:
 			if other.is_alive():
 				other.force_stun_next_turn = true
 				_log("  ☷ EARTHQUAKE → %s is STUNNED next turn (initiative unchanged)." % other.display_name)
+				if _attacker.has_ability_talent(&"quake_rooting"):
+					var rooted_other: Effect = EffectLibrary.make(&"rooted")
+					_attacker.apply_rider_talent_adjustments(&"rooted", rooted_other, other)
+					other.attach_effect(rooted_other)
+					_log("  🌱 Rooting Quake → %s is ROOTED." % other.display_name)
+					if _panels.has(other):
+						(_panels[other] as CombatantPanel).refresh_status()
 		_attacker.consume_earthquake_spin()
 	# Darkness Rampage (Hollow Warden phase-locked attack, spec 2026-07-19 §3.5): the spin already hit
 	# every living PC (AoE). Now self-heal the boss ceil(total/2).
@@ -2216,10 +2335,15 @@ func _finish_spin() -> void:
 			amount = ceili(base)
 		elif _rallying_cry_tier == ReelFace.ResultTier.SUCCESS:
 			amount = ceili(base * 0.5)
+		# Warden "Deeper Cry" talent (Task 21): both shield tiers are 20% bigger.
+		if amount > 0 and _attacker.has_ability_talent(&"cry_deeper"):
+			amount = ceili(amount * 1.2)
 		if amount > 0:
-			_log("  ⛨ RALLYING CRY → %d shield to all allies (%d turns)." % [amount, RALLYING_CRY_SHIELD_TURNS])
+			# Warden "Lasting Cry" talent (Task 21): the shield lasts 1 turn longer.
+			var shield_turns: int = (RALLYING_CRY_SHIELD_TURNS + 1) if _attacker.has_ability_talent(&"cry_lasting") else RALLYING_CRY_SHIELD_TURNS
+			_log("  ⛨ RALLYING CRY → %d shield to all allies (%d turns)." % [amount, shield_turns])
 			for ally: Combatant in _allies_of(_attacker):
-				ally.apply_shield(amount, RALLYING_CRY_SHIELD_TURNS)
+				ally.apply_shield(amount, shield_turns)
 				if _panels.has(ally):
 					(_panels[ally] as CombatantPanel).refresh_status()
 					(_panels[ally] as CombatantPanel).refresh_shield()
@@ -2239,6 +2363,11 @@ func _finish_spin() -> void:
 	_attacker.consume_wild_spin()
 	if _attacker.is_boss and _attacker.weapon.base_damage == 18.0:
 		_attacker.weapon.base_damage = 12.0  # restore the Hollow Warden's normal attack damage after Darkness Rampage
+	# Chancer "Lucky Wildcard" talent (Task 18): +1 flat Bonus Meter charge once Wildcard Gamble has
+	# fully resolved.
+	if _attacker.wildcard_gamble_pending and _attacker.has_ability_talent(&"wildcard_lucky") and _attacker.bonus_meter != null:
+		_attacker.bonus_meter.add_flat(1)
+		_log("  🍀 %s's Lucky Wildcard refunds +1 Bonus Meter charge." % _attacker.display_name)
 	_attacker.clear_reroll_state()  # Chancer reroll/gamble were applied in _do_spin's post-spin pass
 	# Clarify the Sticky-Wild's multi-spin nature in the log (the meter is spent up front; the WILD
 	# then rides for N spins — so it can look "active but uncharged" on the next turn).

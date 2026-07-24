@@ -466,11 +466,15 @@ func commit() -> void:
 			&"wildcard_gamble":
 				combatant.fire_wildcard_gamble()
 			&"collateral":
-				combatant.fire_collateral(combatant.weapon_type(), COLLATERAL_SPINS)  # +1 reel; orchestrator splashes
+				# Ranger "Lasting Collateral" talent (Task 19): the added reel stays for 2 spins instead of 1.
+				var collateral_spins: int = (COLLATERAL_SPINS + 1) if combatant.has_ability_talent(&"collateral_lasting") else COLLATERAL_SPINS
+				combatant.fire_collateral(combatant.weapon_type(), collateral_spins)  # +1 reel; orchestrator splashes, +1 spin with Lasting Collateral
 			&"big_bang":
 				combatant.fire_big_bang(combatant.weapon_type(), BIG_BANG_REELS, BIG_BANG_SPINS)  # 4 wild AoE reels (Seer)
 			&"earthquake":
-				combatant.fire_earthquake(combatant.weapon_type(), EARTHQUAKE_SPINS)  # +1 WILD reel; orchestrator splashes + stuns
+				# Warden "Lasting Quake" talent (Task 21): the crit bias lasts 2 spins instead of 1.
+				var earthquake_spins: int = (EARTHQUAKE_SPINS + 1) if combatant.has_ability_talent(&"quake_lasting") else EARTHQUAKE_SPINS
+				combatant.fire_earthquake(combatant.weapon_type(), earthquake_spins)  # +1 WILD reel; orchestrator splashes + stuns, +1 spin with Lasting Quake
 	# The Big Bang's own type picker (free) retypes the FINAL loadout — including the reels fire_big_bang
 	# just appended. Runs after the Ultimate fires. Standalone Select your Fate already retyped in
 	# apply_select_fate (and is locked out while Big Bang is staged), so this is the Big Bang path only.

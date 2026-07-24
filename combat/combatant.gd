@@ -267,6 +267,13 @@ var hunters_mark_pending: bool = false
 ## Empowered with a bonus magnitude if the defender is already Marked (combat.gd, Task 23 wiring).
 var aimed_shot_pending: bool = false
 
+## Ranger "Piercing Aim" talent (Task 19) pending flag: set alongside aimed_shot_pending's own
+## commit-time attach when the aim_piercing talent is picked. Consumed the first time a reel
+## actually connects this same spin (combat.gd's _apply_attack()), which attaches a bonus stack of
+## Weakened to the target and clears the flag — mirrors loaded_dice_pending's same-turn
+## set-then-consume shape exactly.
+var aimed_shot_hit_pending: bool = false
+
 ## Seer "Foresight" (L7) pending flag: the orchestrator picks the lowest-HP% living ally
 ## (combat.gd, Task 27 wiring) and shields them.
 var foresight_pending: bool = false
@@ -510,7 +517,8 @@ func apply_stats() -> void:
 		if base_max_stamina > 0:
 			resource_pool.regen_per_turn = base_stamina_regen + focus_regen_bonus
 		if base_max_mana > 0:
-			resource_pool.mana_regen_per_turn = base_mana_regen + focus_regen_bonus
+			var reservoir_regen_bonus: int = 1 if (class_id == &"seer" and has_ability_talent(&"reservoir_regen")) else 0
+			resource_pool.mana_regen_per_turn = base_mana_regen + focus_regen_bonus + reservoir_regen_bonus
 	if bonus_meter != null:
 		bonus_meter.floor = base_meter_floor + s.grit
 
@@ -648,6 +656,52 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 					return -1 if has_ability_talent(&"step_efficient") else 0
 				_:
 					return 0
+		&"chancer":
+			match ability_id:
+				&"reroll":
+					return -1 if has_ability_talent(&"reroll_efficient") else 0
+				&"loaded_dice":
+					return -1 if has_ability_talent(&"dice_efficient") else 0
+				&"jinx_the_odds":
+					return -1 if has_ability_talent(&"jinx_efficient") else 0
+				_:
+					return 0
+		&"ranger":
+			match ability_id:
+				&"hunters_mark":
+					return -1 if has_ability_talent(&"mark_efficient") else 0
+				&"aimed_shot":
+					return -1 if has_ability_talent(&"aim_efficient") else 0
+				&"snare_trap":
+					return -1 if has_ability_talent(&"snare_efficient") else 0
+				_:
+					return 0
+		&"warden":
+			match ability_id:
+				&"rallying_cry":
+					return -1 if has_ability_talent(&"cry_efficient") else 0
+				&"entangle":
+					return -1 if has_ability_talent(&"entangle_efficient") else 0
+				&"regrowth":
+					return -1 if has_ability_talent(&"regrowth_efficient") else 0
+				_:
+					return 0
+		&"seer":
+			# reservoir_efficient (passive row) reduces ALL FOUR Seer abilities by 1 at once — broader
+			# than every other class's single-ability "Efficient X" shape (Task 20's Implementation
+			# note 4). Each ability's OWN "_efficient" talent lives in a different row and stacks with it.
+			var reservoir_bonus: int = -1 if has_ability_talent(&"reservoir_efficient") else 0
+			match ability_id:
+				&"select_fate":
+					return reservoir_bonus + (-1 if has_ability_talent(&"fate_efficient") else 0)
+				&"hex":
+					return reservoir_bonus + (-1 if has_ability_talent(&"hex_efficient") else 0)
+				&"foresight":
+					return reservoir_bonus + (-1 if has_ability_talent(&"foresight_efficient") else 0)
+				&"mana_surge":
+					return reservoir_bonus
+				_:
+					return 0
 		_:
 			return 0
 
@@ -673,6 +727,30 @@ func ability_talent_cooldown_delta(ability_id: StringName) -> int:
 			match ability_id:
 				&"riposte_storm":
 					return -1 if has_ability_talent(&"storm_swift") else 0
+				_:
+					return 0
+		&"chancer":
+			match ability_id:
+				&"double_or_nothing":
+					return -1 if has_ability_talent(&"gamble_swift") else 0
+				_:
+					return 0
+		&"ranger":
+			match ability_id:
+				&"crippling_shot":
+					return -1 if has_ability_talent(&"crippling_swift") else 0
+				_:
+					return 0
+		&"warden":
+			match ability_id:
+				&"bastion":
+					return -1 if has_ability_talent(&"bastion_swift") else 0
+				_:
+					return 0
+		&"seer":
+			match ability_id:
+				&"mana_surge":
+					return -1 if has_ability_talent(&"surge_swift") else 0
 				_:
 					return 0
 		_:
@@ -705,6 +783,54 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 						effect.magnitude = 1.35
 					if has_ability_talent(&"sunder_lingering"):
 						effect.duration = 3
+		&"chancer":
+			match rider_id:
+				&"jinxed":
+					if has_ability_talent(&"jinx_lasting"):
+						effect.duration = 3
+		&"ranger":
+			match rider_id:
+				&"hunters_mark":
+					# mark_weakening's OWN bonus Weakened (see combat.gd's hunters_mark_pending block)
+					# is attached separately via a plain EffectLibrary.make() call that never routes
+					# through this function — so it stays decoupled from crippling_lasting's duration
+					# bump below, even though both ultimately use rider id &"weakened".
+					if has_ability_talent(&"mark_deeper"):
+						effect.duration = 4
+					if has_ability_talent(&"mark_weakening"):
+						target.attach_effect(EffectLibrary.make(&"weakened"))
+				&"rooted":
+					if has_ability_talent(&"snare_lasting"):
+						effect.duration = 3
+				&"weakened":
+					if has_ability_talent(&"crippling_lasting"):
+						effect.duration = 3
+		&"warden":
+			match rider_id:
+				&"rooted":
+					# Also fires when Earthquake's own "Rooting Quake" talent applies Rooted (see
+					# combat.gd's Earthquake block below) — a deliberate, consistent bonus, not an
+					# oversight (mirrors Warrior's Bleeding Wild precedent, Task 15).
+					if has_ability_talent(&"entangle_lasting"):
+						effect.duration = 3
+				&"regen":
+					if has_ability_talent(&"regrowth_deeper"):
+						for i: int in range(effect.dot_fractions.size()):
+							effect.dot_fractions[i] *= 1.25
+					if has_ability_talent(&"regrowth_lasting"):
+						effect.max_stacks = 4
+						if effect.dot_fractions.size() < 4:
+							effect.dot_fractions.append(1.55)
+		&"seer":
+			match rider_id:
+				&"cursed":
+					if has_ability_talent(&"hex_deeper"):
+						for i: int in range(effect.dot_fractions.size()):
+							effect.dot_fractions[i] *= 1.25
+					if has_ability_talent(&"hex_lasting"):
+						effect.max_stacks = 4
+						if effect.dot_fractions.size() < 4:
+							effect.dot_fractions.append(1.55)
 		_:
 			pass
 
@@ -716,6 +842,24 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 ## Tasks 15-21; called from the same rider-attack damage site as bonus_vs_cc (Step 5 below).
 func rider_talent_bonus_damage_pct(rider_id: StringName) -> float:
 	match class_id:
+		&"chancer":
+			match rider_id:
+				&"jinxed":
+					return 0.15 if has_ability_talent(&"jinx_deeper") else 0.0
+				_:
+					return 0.0
+		&"ranger":
+			match rider_id:
+				&"rooted":
+					return 0.15 if has_ability_talent(&"snare_deeper") else 0.0
+				_:
+					return 0.0
+		&"warden":
+			match rider_id:
+				&"rooted":
+					return 0.15 if has_ability_talent(&"entangle_deeper") else 0.0
+				_:
+					return 0.0
 		_:
 			return 0.0
 
@@ -830,7 +974,14 @@ func passive_outgoing_multiplier(defender: Combatant = null) -> float:
 				return 1.0
 			return 1.25 if has_ability_talent(&"opportunist_deeper") else 1.15
 		&"steady_aim":
-			return 1.10 if (defender != null and defender.has_effect(&"hunters_mark")) else 1.0
+			if defender == null:
+				return 1.0
+			var triggered: bool = defender.has_effect(&"hunters_mark")
+			if has_ability_talent(&"steady_wider"):
+				triggered = triggered or defender.has_effect(&"weakened")
+			if not triggered:
+				return 1.0
+			return 1.20 if has_ability_talent(&"steady_deeper") else 1.10
 		_:
 			return 1.0
 
@@ -867,7 +1018,7 @@ func passive_dot_damage_multiplier() -> float:
 		return 1.0
 	match passive_ability_id:
 		&"deep_roots":
-			return 0.85
+			return 0.75 if has_ability_talent(&"roots_deeper") else 0.85
 		_:
 			return 1.0
 
@@ -879,7 +1030,8 @@ func passive_upkeep_heal_amount() -> int:
 		return 0
 	match passive_ability_id:
 		&"deep_roots":
-			return ceili(float(max_hp) / 16.0)
+			var divisor: float = 12.0 if has_ability_talent(&"roots_regen") else 16.0
+			return ceili(float(max_hp) / divisor)
 		_:
 			return 0
 
@@ -890,7 +1042,7 @@ func passive_max_mana_multiplier() -> float:
 		return 1.0
 	match passive_ability_id:
 		&"arcane_reservoir":
-			return 1.2
+			return 1.35 if has_ability_talent(&"reservoir_deeper") else 1.2
 		_:
 			return 1.0
 
@@ -903,9 +1055,31 @@ func passive_on_payline_scored(_tier: ReelFace.ResultTier) -> void:
 	match passive_ability_id:
 		&"house_edge":
 			if bonus_meter != null:
-				bonus_meter.add_flat(1)
+				bonus_meter.add_flat(2 if has_ability_talent(&"edge_deeper") else 1)
+			if has_ability_talent(&"edge_lucky") and resource_pool != null and randf() < 0.25:
+				resource_pool.refund({&"mana": 1})
 		_:
 			pass
+
+## Seer "Foresight" (L7) shield amount: 20% of max Mana with Deeper Foresight, else 15%. Read by
+## combat.gd's foresight_pending block (Task 20) so the math stays directly unit-testable.
+func foresight_shield_amount() -> int:
+	var pct: float = 0.20 if has_ability_talent(&"foresight_deeper") else 0.15
+	return ceili(float(resource_pool.max_mana) * pct)
+
+## Seer "Foresight" shield duration: 4 turns with Lasting Foresight, else 3.
+func foresight_shield_duration() -> int:
+	return 4 if has_ability_talent(&"foresight_lasting") else 3
+
+## Seer "The Big Bang" heal-fraction divisor: heals ceil(total / this) to each ally. 5.0 (1/5) with
+## Deeper Bang, else 6.0 (1/6). Read by combat.gd's is_big_bang_active() block (Task 20).
+func big_bang_heal_divisor() -> float:
+	return 5.0 if has_ability_talent(&"bigbang_deeper") else 6.0
+
+## Seer "The Big Bang" overflow-shield duration BONUS (turns added on top of BIG_BANG_SHIELD_TURNS).
+## 1 with Shielding Bang, else 0.
+func big_bang_shield_duration_bonus() -> int:
+	return 1 if has_ability_talent(&"bigbang_shielding") else 0
 
 ## The highest thorns_pct among active effects, or 0.0 if none carry it (Bastion, Task 22).
 func thorns_pct() -> float:
@@ -920,6 +1094,12 @@ func thorns_pct() -> float:
 	# regardless of bulwark_wider's own threshold change.
 	if class_id == &"vanguard" and passive_ability_id == &"bulwark" and has_ability_talent(&"bulwark_thorned"):
 		if (float(hp) / float(maxi(max_hp, 1))) > 0.50 and 0.10 > best:
+			best = 0.10
+	# Warden "Thorned Roots" talent (Task 21): Deep Roots grants a passive 10% Thorns at ALL times —
+	# no HP-condition gate (unlike Bulwark's own conditional passive above), same shape otherwise:
+	# Deep Roots has no attached Effect instance to carry a thorns_pct field.
+	if class_id == &"warden" and passive_ability_id == &"deep_roots" and has_ability_talent(&"roots_thorned"):
+		if 0.10 > best:
 			best = 0.10
 	return best
 
@@ -1259,9 +1439,9 @@ func apply_bastion(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
 	var guard: Effect = EffectLibrary.make(&"guarded")
-	guard.magnitude = 0.5
+	guard.magnitude = 0.4 if has_ability_talent(&"bastion_reinforced") else 0.5
 	guard.duration = 4
-	guard.thorns_pct = 0.20
+	guard.thorns_pct = 0.30 if has_ability_talent(&"bastion_deeper") else 0.20
 	attach_effect(guard)
 	var taunt: Effect = EffectLibrary.make(&"taunt")
 	taunt.duration = 4
@@ -1333,8 +1513,10 @@ func fire_riposte_storm(cost: int) -> bool:
 func apply_mana_surge(type: DamageType, cost: int, reel_cap: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
+	if has_ability_talent(&"surge_refunding"):
+		resource_pool.refund({&"mana": ceili(cost * 0.25)})
 	var e: Effect = EffectLibrary.make(&"empowered")
-	e.magnitude = 1.6
+	e.magnitude = 1.75 if has_ability_talent(&"surge_deeper") else 1.6
 	e.duration = 1
 	attach_effect(e)
 	for i: int in range(2):
@@ -1350,15 +1532,18 @@ func apply_loaded_dice(cost: int) -> bool:
 	# Mana, not Stamina — the Chancer moved rails on 2026-07-04 (see class_library.gd).
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
+	var crit_mult: float = 2.25 if has_ability_talent(&"dice_deeper") else 2.0
 	for i: int in range(turn_reels.size()):
 		var r: ActionReel = turn_reels[i].duplicate(true)
 		var f: ReelFace = ReelFace.new()
 		f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
-		f.multiplier = 2.0
+		f.multiplier = crit_mult
 		r.faces.append(f)
 		r.faces.shuffle()
 		turn_reels[i] = r
 	loaded_dice_pending = true
+	if has_ability_talent(&"dice_lucky") and bonus_meter != null:
+		bonus_meter.add_flat(1)
 	return true
 
 ## Inserts [param reel] (a weapon-attack reel) immediately AFTER the last weapon-attack reel in this
@@ -1386,7 +1571,28 @@ func weapon_type() -> DamageType:
 func apply_select_fate(chosen_type: DamageType, cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
-	turn_reels.append(ActionReel.make_default(chosen_type))  # +1 weapon-attack reel (joins paylines)
+	var extra: ActionReel = ActionReel.make_default(chosen_type)
+	if has_ability_talent(&"fate_deeper"):
+		# The added reel isn't rider-carrying, so there's nothing for the generic
+		# rider_talent_bonus_damage_pct() hook to key off — scale this freshly-constructed reel's own
+		# hit faces directly (reel-instance-scoped, same approach Vanguard's Task 16 used for
+		# slam_deeper/rampage_deeper, for the same underlying reason: no rider to key a shared hook off).
+		for f: ReelFace in extra.faces:
+			if f.result_tier == ReelFace.ResultTier.SUCCESS or f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+				f.multiplier *= 1.15
+	turn_reels.append(extra)  # +1 weapon-attack reel (joins paylines)
+	if has_ability_talent(&"fate_wilder"):
+		# Mirrors apply_loaded_dice's exact mechanism: add 1 temporary crit-success face to EACH of
+		# this turn's reels (including the one just appended), deep-copying so the underlying weapon
+		# is never mutated.
+		for i: int in range(turn_reels.size()):
+			var r: ActionReel = turn_reels[i].duplicate(true)
+			var f: ReelFace = ReelFace.new()
+			f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
+			f.multiplier = 2.0
+			r.faces.append(f)
+			r.faces.shuffle()
+			turn_reels[i] = r
 	convert_turn_reels_to(chosen_type)
 	return true
 
@@ -1417,14 +1623,26 @@ func apply_rallying_cry(cost: int, cap: int) -> bool:
 ## Index of the single worst reel to re-roll (Chancer): priority CRIT_FAILURE > FAILURE > NEUTRAL,
 ## first occurrence on a tie. Returns -1 when no reel landed any of those tiers (nothing to re-roll).
 ## Static + pure (operates on an Array of CombatResolver.AttackResult) so it is trivially testable.
-static func worst_reroll_index(attacks: Array) -> int:
+static func worst_reroll_index(attacks: Array, exclude: Array = []) -> int:
 	var priority: Array = [ReelFace.ResultTier.CRIT_FAILURE, ReelFace.ResultTier.FAILURE, ReelFace.ResultTier.NEUTRAL]
 	for tier in priority:
 		for i: int in range(attacks.size()):
+			if i in exclude:
+				continue
 			var a = attacks[i]
 			if a != null and a.face != null and a.face.result_tier == tier:
 				return i
 	return -1
+
+## Chancer "Deeper Re-roll" talent (Task 18): +10% bonus damage on a post-spin Re-roll reel that
+## hits (final_damage > 0). Static + pure (mirrors bloodwrath_bonus_pct/gamble_final_damage's own
+## static-pure precedent) so it's directly unit-testable without a live spin. Round-up per project
+## convention (memory: round-up-damage-healing).
+static func reroll_deeper_damage(final_damage: int) -> int:
+	# The tiny epsilon guards against float imprecision (100 * 1.10 can land at
+	# 110.00000000000001 in IEEE 754 double, which ceili would round up to 111) without changing
+	# the intended round-UP behavior for any genuinely fractional result.
+	return ceili(final_damage * 1.10 - 0.0001)
 
 ## Hunter's Mark (Ranger ability, spec §3.4) reel transform: returns a copy of [param reels] in which
 ## every WEAPON-ATTACK reel has its CRIT_FAILURE faces converted to SUCCESS (×1.0) — the accuracy
@@ -1505,11 +1723,11 @@ static func gambled_reels(reels: Array) -> Array[ActionReel]:
 ## Wildcard Gamble (Chancer Ultimate) double-or-nothing transform for ONE re-rolled reel: a crit-success
 ## re-roll doubles the reel's original damage; a fail/crit-fail re-roll zeroes it; anything else leaves
 ## the original standing. Static + pure.
-static func gamble_final_damage(rerolled_tier: int, original_final_damage: int) -> int:
+static func gamble_final_damage(rerolled_tier: int, original_final_damage: int, crit_mult: float = 2.0, fail_pct: float = 0.0) -> int:
 	if rerolled_tier == ReelFace.ResultTier.CRIT_SUCCESS:
-		return original_final_damage * 2
+		return ceili(original_final_damage * crit_mult)
 	if rerolled_tier == ReelFace.ResultTier.FAILURE or rerolled_tier == ReelFace.ResultTier.CRIT_FAILURE:
-		return 0
+		return ceili(original_final_damage * fail_pct)
 	return original_final_damage
 
 ## Vanguard "Heft" (spec §4A): spends [param cost] Stamina and, on each reel of THIS turn, converts
@@ -1910,7 +2128,7 @@ func fire_double_or_nothing(type: DamageType, reel_cap: int) -> bool:
 	var cost: int = resource_pool.mana
 	resource_pool.spend({&"mana": cost})
 	var e: Effect = EffectLibrary.make(&"empowered")
-	e.magnitude = 2.0
+	e.magnitude = 2.25 if has_ability_talent(&"gamble_deeper") else 2.0
 	e.duration = 1
 	attach_effect(e)
 	double_or_nothing_pending = true
