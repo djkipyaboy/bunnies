@@ -213,7 +213,7 @@ func _build_combatants() -> void:
 		for id: StringName in _pc_class_ids:
 			var pc: Combatant = ClassLibrary.make(id).build_combatant(true)
 			if _endgame_enabled:
-				pc.level = 9
+				pc.level = 10
 				_scale_up_for_endgame(pc)
 			_pcs.append(pc)
 		# Enemy party (§5.1): one Combatant per selected enemy id, in selection order.

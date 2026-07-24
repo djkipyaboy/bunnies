@@ -22,4 +22,10 @@ func _init() -> void:
 	var pc: Combatant = cc.build_combatant(true)
 	_check(pc.extra_abilities.size() == 3, "build_combatant copies extra_abilities")
 	_check(pc.level == 1, "build_combatant defaults level to 1")
+
+	var cap_c: Combatant = Combatant.new()
+	cap_c.level = 999
+	_check(cap_c.level == Combatant.MAX_LEVEL, "level assignment clamps to MAX_LEVEL (10)")
+	cap_c.level = -5
+	_check(cap_c.level == 1, "level assignment clamps to a minimum of 1")
 	quit()

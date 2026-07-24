@@ -125,10 +125,18 @@ var ability_resource: StringName = &"stamina"
 ## (Vanguard: +1 reel, Heft-all, AoE). Drives MainPhasePlan's ultimate dispatch.
 var ultimate_id: StringName = &"sticky_wild"
 
-## Character level — gates extra_abilities (spec 2026-07-01). Default 1 = only the L1 base ability
-## + nothing extra. Still a test/tester knob, not driven by [member xp] yet — the full leveling
-## curve/level-up effects are deferred (docs/design-bible/22-leveling-and-progression.md).
-var level: int = 1
+## Hard level cap (spec 2026-07-23 §2) — talent points stop generating here, and no code path
+## currently has any reason to exceed it.
+const MAX_LEVEL: int = 10
+
+## Character level — gates extra_abilities (L2/L3/L4, spec 2026-07-23) and unlocks the L5 passive
+## + L5-10 talent points (talent_points_earned()). Clamped to [1, MAX_LEVEL] on assignment — a real,
+## enforced cap (spec 2026-07-23 §2), unlike the pre-2026-07-23 unbounded field. Still a test/tester
+## knob, not driven by [member xp] yet — the full leveling curve/level-up moment is deferred
+## (docs/design-bible/22-leveling-and-progression.md; spec 2026-07-23 §8).
+var level: int = 1:
+	set(value):
+		level = clampi(value, 1, MAX_LEVEL)
 
 ## Flat XP accumulator (player direction 2026-07-12) — awarded per enemy defeated in combat
 ## (combat.gd's _on_enemy_defeated). Deliberately does NOT drive level-ups yet: no XP curve, no
