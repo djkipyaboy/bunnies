@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Chancer L5 "Loaded Dice" (Task 20): a mana-cost, NO-reel-count-change extra ability that adds
+## Chancer L2 "Loaded Dice" (Task 20): a mana-cost, NO-reel-count-change extra ability that adds
 ## one crit-success face (mult 2.0, mirrors apply_luck) to each of THIS turn's reels for one spin
 ## only, then flags loaded_dice_pending so the orchestrator lights an extra scored payline
 ## (PaylineLibrary.bonus_line) for this spin. Like Riposte Storm/Quickstep/Mountain Stance, it only
@@ -20,12 +20,12 @@ func _init() -> void:
 
 	# Below unlock level: not stageable even though everything else is fine.
 	var early_c: Combatant = cc.build_combatant(true)
-	early_c.level = 4
+	early_c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(early_c)
-	_check(not early_plan.can_stage_extra_ability(&"loaded_dice"), "not stageable below level 5")
+	_check(not early_plan.can_stage_extra_ability(&"loaded_dice"), "not stageable below level 2")
 
 	var c: Combatant = cc.build_combatant(true)
-	c.level = 5
+	c.level = 2
 	c.resource_pool.mana = c.resource_pool.max_mana
 	var starting_mana: int = c.resource_pool.mana
 
@@ -37,7 +37,7 @@ func _init() -> void:
 		before_face_counts.append(r.faces.size())
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"loaded_dice"), "stageable at level 5, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"loaded_dice"), "stageable at level 2, affordable, no CD")
 
 	plan.toggle_extra_ability(&"loaded_dice")
 	_check(plan.staged_extra_ability_id == &"loaded_dice", "toggle stages loaded_dice")
@@ -90,7 +90,7 @@ func _init() -> void:
 	# Mutual exclusion with Wildcard Gamble (playtest 2026-07-04, player request: "too many crits"
 	# stacked together) — symmetric, last-press-wins, mirrors the base/extra-ability slot convention.
 	var g: Combatant = cc.build_combatant(true)
-	g.level = 5
+	g.level = 2
 	g.resource_pool.mana = g.resource_pool.max_mana
 	g.bonus_meter.add_flat(g.bonus_meter.cap)  # arm it
 	var gplan: MainPhasePlan = MainPhasePlan.new(g)

@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Skirmisher L9 "Riposte Storm" (task 19): a self-cast, NO-reel, ultimate-tier extra ability
+## Skirmisher L4 "Riposte Storm" (task 19): a self-cast, NO-reel, ultimate-tier extra ability
 ## (3-turn CD) that detonates accumulated riposte_charges (built by Evasion, task 9/17) as a
 ## temporary Empowered (+15%/charge, capped at 5 charges = +75%, duration 1) on this turn's
 ## reels, then resets the charge counter to 0. Like Quickstep (task 18) / Mountain Stance
@@ -21,12 +21,12 @@ func _init() -> void:
 
 	# Below unlock level: not stageable even though everything else is fine.
 	var early_c: Combatant = cc.build_combatant(true)
-	early_c.level = 7
+	early_c.level = 3
 	var early_plan: MainPhasePlan = MainPhasePlan.new(early_c)
-	_check(not early_plan.can_stage_extra_ability(&"riposte_storm"), "not stageable below level 9")
+	_check(not early_plan.can_stage_extra_ability(&"riposte_storm"), "not stageable below level 4")
 
 	var c: Combatant = cc.build_combatant(true)
-	c.level = 9
+	c.level = 4
 	# Riposte Storm costs 4 stamina but Skirmisher's start_stamina is only 3 [ASSUMPTION] — top up
 	# to max_stamina so the affordable-path assertions actually exercise "affordable".
 	c.resource_pool.stamina = c.resource_pool.max_stamina
@@ -34,7 +34,7 @@ func _init() -> void:
 	c.riposte_charges = 3
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"riposte_storm"), "stageable at level 9, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"riposte_storm"), "stageable at level 4, affordable, no CD")
 
 	plan.toggle_extra_ability(&"riposte_storm")
 	_check(plan.staged_extra_ability_id == &"riposte_storm", "toggle stages riposte_storm")
@@ -48,7 +48,7 @@ func _init() -> void:
 	_check(c.riposte_charges == 0, "commit reset riposte_charges to 0")
 	var def: AbilityDef = c.find_extra_ability(&"riposte_storm")
 	_check(c.resource_pool.stamina == starting_stamina - def.cost, "commit spent the ability's stamina cost (4)")
-	_check(c.is_on_cooldown(&"riposte_storm"), "commit put the L9 ability on cooldown")
+	_check(c.is_on_cooldown(&"riposte_storm"), "commit put the L4 ability on cooldown")
 
 	# Direct Combatant-method checks, including the +5-charge cap.
 	var direct_c: Combatant = cc.build_combatant(true)

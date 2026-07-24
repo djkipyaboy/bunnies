@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Vanguard L5 "Bloodwrath" (spec 2026-07-01 §4B, task 14): a self-cast, NO-reel extra ability that
+## Vanguard L2 "Bloodwrath" (spec 2026-07-01 §4B, task 14): a self-cast, NO-reel extra ability that
 ## grants Empowered scaled to the caster's missing-HP% (+1% dmg per 1% HP missing, capped +50% —
 ## steepened from +1%/2%, cap 40%, on playtest 2026-07-04 so the scaling is felt sooner) — a
 ## high-risk juggernaut buff. Like Heroic Guard (task 12) this only exercises the shared commit()
@@ -22,11 +22,11 @@ func _init() -> void:
 	# Below unlock level: not stageable even though everything else is fine.
 	c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(not early_plan.can_stage_extra_ability(&"bloodwrath"), "not stageable below level 5")
+	_check(not early_plan.can_stage_extra_ability(&"bloodwrath"), "not stageable below level 2")
 
-	c.level = 5
+	c.level = 2
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"bloodwrath"), "stageable at level 5, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"bloodwrath"), "stageable at level 2, affordable, no CD")
 
 	plan.toggle_extra_ability(&"bloodwrath")
 	_check(plan.staged_extra_ability_id == &"bloodwrath", "toggle stages bloodwrath")
@@ -44,7 +44,7 @@ func _init() -> void:
 
 	# Affordability check: drain stamina to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.level = 5
+	poor_c.level = 2
 	poor_c.resource_pool.stamina = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
 	_check(not poor_plan.can_stage_extra_ability(&"bloodwrath"), "not stageable with 0 stamina")

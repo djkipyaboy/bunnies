@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Skirmisher L7 "Quickstep" (task 18): a self-cast, NO-reel extra ability that grants Haste (a
+## Skirmisher L3 "Quickstep" (task 18): a self-cast, NO-reel extra ability that grants Haste (a
 ## one-time +20 initiative bump via the &"haste" INITIATIVE_MOD effect). Like Feint & Riposte
 ## (task 17) it only exercises the shared commit() dispatch; it does NOT touch
 ## REEL_ADDING_EXTRA_IDS/preview_reels (adds no reel).
@@ -13,12 +13,12 @@ func _init() -> void:
 
 	# Below unlock level: not stageable even though everything else is fine.
 	var early_c: Combatant = cc.build_combatant(true)
-	early_c.level = 5
+	early_c.level = 2
 	var early_plan: MainPhasePlan = MainPhasePlan.new(early_c)
-	_check(not early_plan.can_stage_extra_ability(&"quickstep"), "not stageable below level 7")
+	_check(not early_plan.can_stage_extra_ability(&"quickstep"), "not stageable below level 3")
 
 	var c: Combatant = cc.build_combatant(true)
-	c.level = 7
+	c.level = 3
 	# Quickstep costs 3 stamina but Skirmisher's start_stamina is only 3 [ASSUMPTION] — top up to
 	# max_stamina so the affordable-path assertions actually exercise "affordable".
 	c.resource_pool.stamina = c.resource_pool.max_stamina
@@ -26,7 +26,7 @@ func _init() -> void:
 	var initiative_before: int = c.current_initiative
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"quickstep"), "stageable at level 7, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"quickstep"), "stageable at level 3, affordable, no CD")
 
 	plan.toggle_extra_ability(&"quickstep")
 	_check(plan.staged_extra_ability_id == &"quickstep", "toggle stages quickstep")

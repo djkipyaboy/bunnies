@@ -42,9 +42,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_cost = 2
 			c.ultimate_id = &"wild"  # single-spin crit-bias wild (distinct from the Skirmisher's 2-spin sticky wild)
 			c.extra_abilities = [
-				_ability(&"sundering_strike", 5, 3, &"stamina", 0),
-				_ability(&"heroic_guard", 7, 3, &"stamina", 0),
-				_ability(&"second_wind", 9, 5, &"stamina", 4),
+				_ability(&"sundering_strike", 2, 3, &"stamina", 0),
+				_ability(&"heroic_guard", 3, 3, &"stamina", 0),
+				_ability(&"second_wind", 4, 5, &"stamina", 4),
 			]
 			return c
 		&"vanguard":
@@ -63,9 +63,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.ultimate_id = &"rampage"  # +1 reel, Heft-all, AoE (spec §4A) — not the sticky-wild placeholder
 			c.meter_charge_weights = [0, 0, 2, 2, 3]  # neutral charges +2 (was +1) — Vanguard meter identity
 			c.extra_abilities = [
-				_ability(&"bloodwrath", 5, 3, &"stamina", 0),
-				_ability(&"quake_slam", 7, 4, &"stamina", 0),
-				_ability(&"mountain_stance", 9, 5, &"stamina", 4),
+				_ability(&"bloodwrath", 2, 3, &"stamina", 0),
+				_ability(&"quake_slam", 3, 4, &"stamina", 0),
+				_ability(&"mountain_stance", 4, 5, &"stamina", 4),
 			]
 			return c
 		&"skirmisher":
@@ -85,9 +85,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"flurry"
 			c.ability_cost = 2
 			c.extra_abilities = [
-				_ability(&"feint_riposte", 5, 3, &"stamina", 0),
-				_ability(&"quickstep", 7, 3, &"stamina", 0),
-				_ability(&"riposte_storm", 9, 4, &"stamina", 3),
+				_ability(&"feint_riposte", 2, 3, &"stamina", 0),
+				_ability(&"quickstep", 3, 3, &"stamina", 0),
+				_ability(&"riposte_storm", 4, 4, &"stamina", 3),
 			]
 			return c
 		&"chancer":
@@ -108,9 +108,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.ultimate_id = &"wildcard_gamble"
 			c.payline_profile_id = &"casino"
 			c.extra_abilities = [
-				_ability(&"loaded_dice", 5, 3, &"mana", 0),
-				_ability(&"jinx_the_odds", 7, 3, &"mana", 0),
-				_ability(&"double_or_nothing", 9, 0, &"mana", 7),  # cost computed at cast time (Task 24)
+				_ability(&"loaded_dice", 2, 3, &"mana", 0),
+				_ability(&"jinx_the_odds", 3, 3, &"mana", 0),
+				_ability(&"double_or_nothing", 4, 0, &"mana", 7),  # cost computed at cast time (Task 24)
 			]
 			return c
 		&"ranger":
@@ -129,9 +129,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"hunters_mark"; c.ability_cost = 3; c.ability_resource = &"stamina"
 			c.ultimate_id = &"collateral"
 			c.extra_abilities = [
-				_ability(&"aimed_shot", 5, 3, &"stamina", 0),
-				_ability(&"snare_trap", 7, 4, &"stamina", 0),
-				_ability(&"crippling_shot", 9, 5, &"stamina", 3),
+				_ability(&"aimed_shot", 2, 3, &"stamina", 0),
+				_ability(&"snare_trap", 3, 4, &"stamina", 0),
+				_ability(&"crippling_shot", 4, 5, &"stamina", 3),
 			]
 			return c
 		&"seer":
@@ -152,9 +152,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"select_fate"; c.ability_cost = 6; c.ability_resource = &"mana"
 			c.ultimate_id = &"big_bang"
 			c.extra_abilities = [
-				_ability(&"hex", 5, 4, &"mana", 0),
-				_ability(&"foresight", 7, 4, &"mana", 0),
-				_ability(&"mana_surge", 9, 6, &"mana", 4),
+				_ability(&"hex", 2, 4, &"mana", 0),
+				_ability(&"foresight", 3, 4, &"mana", 0),
+				_ability(&"mana_surge", 4, 6, &"mana", 4),
 			]
 			return c
 		&"warden":
@@ -175,9 +175,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.ability_id = &"rallying_cry"; c.ability_cost = 4; c.ability_resource = &"mana"
 			c.ultimate_id = &"earthquake"
 			c.extra_abilities = [
-				_ability(&"entangle", 5, 4, &"mana", 0),
-				_ability(&"regrowth", 7, 4, &"mana", 0),
-				_ability(&"bastion", 9, 6, &"mana", 4),
+				_ability(&"entangle", 2, 4, &"mana", 0),
+				_ability(&"regrowth", 3, 4, &"mana", 0),
+				_ability(&"bastion", 4, 6, &"mana", 4),
 			]
 			return c
 		_:

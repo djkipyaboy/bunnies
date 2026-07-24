@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Seer L5 "Hex" (spec 2026-07-01, task 26): a reel-adding extra ability, the SIXTH of its kind and
+## Seer L2 "Hex" (spec 2026-07-01, task 26): a reel-adding extra ability, the SIXTH of its kind and
 ## the FIRST to spend MANA (the Seer's rail) rather than Stamina, and the first to attach a BENEFICIAL-
 ## capable DoT rider path's sibling — Hex splices a real-Mystic-damage weapon-attack reel whose hit
 ## faces carry the &"cursed" rider (a Mystic DAMAGE_OVER_TIME debuff, EffectLibrary Task 7). The actual
@@ -28,11 +28,11 @@ func _init() -> void:
 	# Below unlock level: not stageable even though everything else is fine.
 	c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check_f(not early_plan.can_stage_extra_ability(&"hex"), "not stageable below level 5")
-	c.level = 5
+	_check_f(not early_plan.can_stage_extra_ability(&"hex"), "not stageable below level 2")
+	c.level = 2
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check_f(plan.can_stage_extra_ability(&"hex"), "stageable at level 5, affordable, no CD")
+	_check_f(plan.can_stage_extra_ability(&"hex"), "stageable at level 2, affordable, no CD")
 
 	var before_count: int = c.turn_reels.size()
 	var before_mana: int = c.resource_pool.mana
@@ -68,7 +68,7 @@ func _init() -> void:
 
 	# Cap check: fill the loadout to reel_cap, then staging must be refused even though affordable.
 	var cap_c: Combatant = cc.build_combatant(true)
-	cap_c.level = 5
+	cap_c.level = 2
 	var cap_plan: MainPhasePlan = MainPhasePlan.new(cap_c)
 	while cap_c.turn_reels.size() < cap_plan.reel_cap:
 		cap_c.turn_reels.append(ActionReel.make_default(cap_c.weapon_type()))
@@ -76,7 +76,7 @@ func _init() -> void:
 
 	# Affordability check: drain mana to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.level = 5
+	poor_c.level = 2
 	poor_c.resource_pool.mana = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
 	_check_f(not poor_plan.can_stage_extra_ability(&"hex"), "not stageable with 0 mana")

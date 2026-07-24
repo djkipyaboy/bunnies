@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Chancer L7 "Jinx the Odds" (spec 2026-07-01 §4, task 21): a reel-adding extra ability that
+## Chancer L3 "Jinx the Odds" (spec 2026-07-01 §4, task 21): a reel-adding extra ability that
 ## splices one real-damage weapon-type reel whose hit faces also carry the &"jinxed" rider —
 ## mirrors Warrior's Sundering Strike (Task 11) and Vanguard's Quake Slam (Task 15) exactly,
 ## exercising the shared REEL_ADDING_EXTRA_IDS plumbing (cap-check + preview + commit).
@@ -11,16 +11,16 @@ func _check(cond: bool, label: String) -> void:
 func _init() -> void:
 	var cc: CharacterClass = ClassLibrary.make(&"chancer")
 	var c: Combatant = cc.build_combatant(true)
-	c.level = 7
+	c.level = 3
 
 	# Below unlock level: not stageable even though everything else is fine.
 	c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(not early_plan.can_stage_extra_ability(&"jinx_the_odds"), "not stageable below level 7")
-	c.level = 7
+	_check(not early_plan.can_stage_extra_ability(&"jinx_the_odds"), "not stageable below level 3")
+	c.level = 3
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"jinx_the_odds"), "stageable at level 7, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"jinx_the_odds"), "stageable at level 3, affordable, no CD")
 
 	var before_count: int = c.turn_reels.size()
 	plan.toggle_extra_ability(&"jinx_the_odds")
@@ -49,7 +49,7 @@ func _init() -> void:
 
 	# Cap check: fill the loadout to reel_cap, then staging must be refused even though affordable.
 	var cap_c: Combatant = cc.build_combatant(true)
-	cap_c.level = 7
+	cap_c.level = 3
 	var cap_plan: MainPhasePlan = MainPhasePlan.new(cap_c)
 	while cap_c.turn_reels.size() < cap_plan.reel_cap:
 		cap_c.turn_reels.append(ActionReel.make_default(cap_c.weapon_type()))
@@ -57,7 +57,7 @@ func _init() -> void:
 
 	# Affordability check: drain mana to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.level = 7
+	poor_c.level = 3
 	poor_c.resource_pool.mana = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
 	_check(not poor_plan.can_stage_extra_ability(&"jinx_the_odds"), "not stageable with 0 mana")

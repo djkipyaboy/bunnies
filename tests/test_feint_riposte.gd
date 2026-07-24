@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Skirmisher L5 "Feint & Riposte" (task 17): a self-cast, NO-reel extra ability that grants BOTH
+## Skirmisher L2 "Feint & Riposte" (task 17): a self-cast, NO-reel extra ability that grants BOTH
 ## Evasion and Taunt at once — the bait-and-dodge setup for the later Riposte Storm (task 18). Like
 ## Mountain Stance (task 16) / Bloodwrath (task 14) it only exercises the shared commit() dispatch;
 ## it does NOT touch REEL_ADDING_EXTRA_IDS/preview_reels (adds no reel).
@@ -15,17 +15,17 @@ func _init() -> void:
 	var early_c: Combatant = cc.build_combatant(true)
 	early_c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(early_c)
-	_check(not early_plan.can_stage_extra_ability(&"feint_riposte"), "not stageable below level 5")
+	_check(not early_plan.can_stage_extra_ability(&"feint_riposte"), "not stageable below level 2")
 
 	var c: Combatant = cc.build_combatant(true)
-	c.level = 5
+	c.level = 2
 	# Feint & Riposte costs 3 stamina but Skirmisher's start_stamina is only 3 [ASSUMPTION] — top up to
 	# max_stamina so the affordable-path assertions actually exercise "affordable".
 	c.resource_pool.stamina = c.resource_pool.max_stamina
 	var starting_stamina: int = c.resource_pool.stamina
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"feint_riposte"), "stageable at level 5, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"feint_riposte"), "stageable at level 2, affordable, no CD")
 
 	plan.toggle_extra_ability(&"feint_riposte")
 	_check(plan.staged_extra_ability_id == &"feint_riposte", "toggle stages feint_riposte")

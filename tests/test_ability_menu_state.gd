@@ -8,14 +8,14 @@ func _check(cond: bool, label: String) -> void:
 func _make_combatant() -> Combatant:
 	var c: Combatant = Combatant.new()
 	c.is_player = true
-	c.level = 9
+	c.level = 4
 	c.ability_id = &"flurry"
 	c.ability_resource = &"stamina"
 	c.resource_pool = ResourcePool.new()
 	c.resource_pool.stamina = 10
 	c.resource_pool.max_stamina = 10
 	var a: AbilityDef = AbilityDef.new()
-	a.id = &"riposte_storm"; a.unlock_level = 9; a.cost = 4; a.resource = &"stamina"; a.cooldown_turns = 3
+	a.id = &"riposte_storm"; a.unlock_level = 4; a.cost = 4; a.resource = &"stamina"; a.cooldown_turns = 3
 	c.extra_abilities = [a]
 	return c
 
@@ -41,7 +41,7 @@ func _init() -> void:
 	_check(AbilityMenuPanel.row_state(plan, c, &"riposte_storm") == AbilityMenuPanel.RowState.ON_COOLDOWN, "extra: ON_COOLDOWN")
 	_check(AbilityMenuPanel.cooldown_text(c, &"riposte_storm") == "On cooldown: 3 turns", "cooldown text shows remaining turns")
 	c.cooldowns.clear()
-	_check(AbilityMenuPanel.cooldown_text(c, &"riposte_storm") == "Ready — 3-turn cooldown after use", "L9 off-cooldown text warns of CD")
+	_check(AbilityMenuPanel.cooldown_text(c, &"riposte_storm") == "Ready — 3-turn cooldown after use", "L4 off-cooldown text warns of CD")
 	c.resource_pool.stamina = 0
 	_check(AbilityMenuPanel.row_state(plan, c, &"riposte_storm") == AbilityMenuPanel.RowState.UNAFFORDABLE, "extra: UNAFFORDABLE at 0 STA")
 	c.resource_pool.stamina = 10

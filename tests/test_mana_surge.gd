@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Seer L9 "Mana Surge" (task 28): an ultimate-tier extra ability (4-turn CD) that attaches a
+## Seer L4 "Mana Surge" (task 28): an ultimate-tier extra ability (4-turn CD) that attaches a
 ## massive Empowered (+60%, duration 1) AND appends up to 2 own-type weapon-attack reels (playtest
 ## 2026-07-02 tuning — the Seer's 2-reel baseline made a pure multiplier with no added hit chance
 ## not worth 6 mana). Exercises the shared commit() dispatch AND TWO_REEL_BONUS_EXTRA_IDS's preview/
@@ -15,17 +15,17 @@ func _init() -> void:
 
 	# Below unlock level: not stageable even though everything else is fine.
 	var early_c: Combatant = cc.build_combatant(true)
-	early_c.level = 7
+	early_c.level = 3
 	var early_plan: MainPhasePlan = MainPhasePlan.new(early_c)
-	_check(not early_plan.can_stage_extra_ability(&"mana_surge"), "not stageable below level 9")
+	_check(not early_plan.can_stage_extra_ability(&"mana_surge"), "not stageable below level 4")
 
 	var c: Combatant = cc.build_combatant(true)
-	c.level = 9
+	c.level = 4
 	c.resource_pool.mana = c.resource_pool.max_mana
 	var starting_mana: int = c.resource_pool.mana
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"mana_surge"), "stageable at level 9, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"mana_surge"), "stageable at level 4, affordable, no CD")
 
 	plan.toggle_extra_ability(&"mana_surge")
 	_check(plan.staged_extra_ability_id == &"mana_surge", "toggle stages mana_surge")
@@ -39,7 +39,7 @@ func _init() -> void:
 	_check(is_equal_approx(c.outgoing_damage_multiplier(), 1.6), "outgoing_damage_multiplier == 1.6 right after commit")
 	var def: AbilityDef = c.find_extra_ability(&"mana_surge")
 	_check(c.resource_pool.mana == starting_mana - def.cost, "commit spent the ability's mana cost (6)")
-	_check(c.is_on_cooldown(&"mana_surge"), "commit put the L9 ability on cooldown (4 turns)")
+	_check(c.is_on_cooldown(&"mana_surge"), "commit put the L4 ability on cooldown (4 turns)")
 
 	# duration 1: one on_end() tick expires it (tick_effects() decrements duration and removes it).
 	c.on_end()

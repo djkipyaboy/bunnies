@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Ranger L9 "Crippling Shot" (spec 2026-07-01, task 25): a reel-adding extra ability, the FIFTH
+## Ranger L4 "Crippling Shot" (spec 2026-07-01, task 25): a reel-adding extra ability, the FIFTH
 ## of its kind, and the FIRST to use ActionReel.make_rider_attack()'s optional bonus_vs_cc param
 ## and CombatResolver.AttackResult.source_reel. Splices a real-damage weapon-type reel whose hit
 ## faces carry the &"weakened" rider AND whose reel is flagged bonus_vs_cc — combat.gd's
@@ -16,7 +16,7 @@ func _check(cond: bool, label: String) -> void:
 func _init() -> void:
 	var cc: CharacterClass = ClassLibrary.make(&"ranger")
 	var c: Combatant = cc.build_combatant(true)
-	c.level = 9
+	c.level = 4
 	# Crippling Shot costs 5 stamina but the Ranger's start_stamina is only 3 (spec §3.4 — the pool
 	# regens across turns); top up so the affordability path under test is the level/cap/CD gate, not
 	# a starting-pool shortfall unrelated to this ability.
@@ -25,11 +25,11 @@ func _init() -> void:
 	# Below unlock level: not stageable even though everything else is fine.
 	c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(not early_plan.can_stage_extra_ability(&"crippling_shot"), "not stageable below level 9")
-	c.level = 9
+	_check(not early_plan.can_stage_extra_ability(&"crippling_shot"), "not stageable below level 4")
+	c.level = 4
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"crippling_shot"), "stageable at level 9, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"crippling_shot"), "stageable at level 4, affordable, no CD")
 
 	var before_count: int = c.turn_reels.size()
 	plan.toggle_extra_ability(&"crippling_shot")
@@ -67,7 +67,7 @@ func _init() -> void:
 
 	# Cap check: fill the loadout to reel_cap, then staging must be refused even though affordable.
 	var cap_c: Combatant = cc.build_combatant(true)
-	cap_c.level = 9
+	cap_c.level = 4
 	cap_c.resource_pool.stamina = 5
 	var cap_plan: MainPhasePlan = MainPhasePlan.new(cap_c)
 	while cap_c.turn_reels.size() < cap_plan.reel_cap:
@@ -76,7 +76,7 @@ func _init() -> void:
 
 	# Affordability check: drain stamina to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.level = 9
+	poor_c.level = 4
 	poor_c.resource_pool.stamina = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
 	_check(not poor_plan.can_stage_extra_ability(&"crippling_shot"), "not stageable with 0 stamina")

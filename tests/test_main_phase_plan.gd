@@ -249,12 +249,12 @@ func _initialize() -> void:
 	potion5.quantity = 1
 	item_inv5.items = [potion5]
 	var ce: Combatant = _mk_pc(3, 0)
-	ce.level = 9
+	ce.level = 4
 	ce.resource_pool.stamina = 10
 	ce.resource_pool.max_stamina = 10
 	var extra_def: AbilityDef = AbilityDef.new()
 	extra_def.id = &"riposte_storm"
-	extra_def.unlock_level = 9
+	extra_def.unlock_level = 4
 	extra_def.cost = 4
 	extra_def.resource = &"stamina"
 	extra_def.cooldown_turns = 3

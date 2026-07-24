@@ -5,10 +5,10 @@ func _check(cond: bool, label: String) -> void:
 
 func _init() -> void:
 	var c: Combatant = Combatant.new()
-	c.level = 9
+	c.level = 4
 	c.resource_pool = ResourcePool.new()
 	c.resource_pool.stamina = 5; c.resource_pool.max_stamina = 5
-	var a: AbilityDef = AbilityDef.new(); a.id = &"second_wind"; a.unlock_level = 9; a.cost = 5; a.resource = &"stamina"; a.cooldown_turns = 4
+	var a: AbilityDef = AbilityDef.new(); a.id = &"second_wind"; a.unlock_level = 4; a.cost = 5; a.resource = &"stamina"; a.cooldown_turns = 4
 	c.extra_abilities = [a]
 
 	_check(not c.is_on_cooldown(&"second_wind"), "not on cooldown initially")
@@ -27,7 +27,7 @@ func _init() -> void:
 	c.cooldowns.clear()
 	c.level = 1
 	_check(not plan.can_stage_extra_ability(&"second_wind"), "not stageable below unlock level")
-	c.level = 9
+	c.level = 4
 	plan.toggle_extra_ability(&"second_wind")
 	_check(plan.staged_extra_ability_id == &"second_wind", "toggle stages the extra ability")
 

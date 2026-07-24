@@ -17,10 +17,10 @@ func _init() -> void:
 	_check(panel.row_ids() == ([&"rallying_cry"] as Array[StringName]), "level 1: only the base ability row")
 	_check(panel.visible, "open_for shows the panel")
 
-	c.level = 9
+	c.level = 4
 	panel.open_for(c, plan)
 	var want: Array[StringName] = [&"rallying_cry", &"entangle", &"regrowth", &"bastion"]
-	_check(panel.row_ids() == want, "level 9: 4 rows in unlock order (base, L5, L7, L9)")
+	_check(panel.row_ids() == want, "level 4: 4 rows in unlock order (base, L2, L3, L4)")
 
 	panel.open_for(c, plan)
 	_check(panel.row_ids() == want, "re-open rebuilds instead of accumulating rows")
@@ -49,6 +49,9 @@ func _init() -> void:
 	vg.hp = maxi(vg.max_hp - int(vg.max_hp * 0.25), 1)  # ~25% missing -> +25% (1%-per-1% formula)
 	_check(AbilityMenuPanel._dynamic_suffix(&"bloodwrath", vg).contains("+25% damage"), "bloodwrath suffix at 25%% missing HP shows +25%%")
 	_check(AbilityMenuPanel._dynamic_suffix(&"heroic_guard", vg) == "", "no dynamic suffix for other abilities")
+
+	var base_btn: Button = panel._row_buttons[c.ability_id]
+	_check("[L1]" in base_btn.text, "base ability row shows the [L1] tag")
 
 	panel.free()
 	quit()

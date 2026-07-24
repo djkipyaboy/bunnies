@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Warrior L9 "Second Wind" (spec 2026-07-01 §4B, task 13): a self-cast, NO-reel, ultimate-tier
+## Warrior L4 "Second Wind" (spec 2026-07-01 §4B, task 13): a self-cast, NO-reel, ultimate-tier
 ## extra ability (4-turn CD) that heals 30% max HP (ceil), Cleanses every debuff, and grants
 ## Guarded. First real exercise of the cooldown system (Task 3) inside an actual ability commit —
 ## verifies the generic "if def.cooldown_turns > 0: start_cooldown(...)" line in commit() (Task 11)
@@ -16,15 +16,15 @@ func _init() -> void:
 	# Below unlock level: not stageable even though everything else is fine.
 	c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(not early_plan.can_stage_extra_ability(&"second_wind"), "not stageable below level 9")
+	_check(not early_plan.can_stage_extra_ability(&"second_wind"), "not stageable below level 4")
 
-	c.level = 9
+	c.level = 4
 	# Second Wind costs 5 stamina, more than the Warrior's start_stamina (3) but within max_stamina
-	# (6 = base 5 + Focus 1) — top up to max to model a mid-fight combatant reaching for the L9
+	# (6 = base 5 + Focus 1) — top up to max to model a mid-fight combatant reaching for the L4
 	# ultimate-tier ability after some Upkeep regen, rather than the fresh-combat starting pool.
 	c.resource_pool.stamina = c.resource_pool.max_stamina
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"second_wind"), "stageable at level 9, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"second_wind"), "stageable at level 4, affordable, no CD")
 
 	# Damage the combatant and attach a debuff so healing/cleanse have something to undo.
 	c.hp = 10
@@ -50,7 +50,7 @@ func _init() -> void:
 
 	# Affordability check: drain stamina to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.level = 9
+	poor_c.level = 4
 	poor_c.resource_pool.stamina = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
 	_check(not poor_plan.can_stage_extra_ability(&"second_wind"), "not stageable with 0 stamina")

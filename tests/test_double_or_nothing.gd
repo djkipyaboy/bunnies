@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Chancer L9 "Double or Nothing" (spec 2026-07-01, task 22): an ultimate-tier, ALL-IN gamble that
+## Chancer L4 "Double or Nothing" (spec 2026-07-01, task 22): an ultimate-tier, ALL-IN gamble that
 ## spends 100% of current Mana (must have at least 1) for a big 1-spin Empowered PLUS up to 2
 ## bonus reels — a crit-fail on that spin recoils as self-damage, any other non-fail reel refunds
 ## Mana. Magnitude 2.0 and the +2 reels are a playtest 2026-07-02 tuning pass (see the
@@ -56,7 +56,7 @@ func _init() -> void:
 
 	# --- can_stage_extra_ability override: mana >= 1, ignoring the AbilityDef's cost=0 ---------
 	var gate_c: Combatant = cc.build_combatant(true)
-	gate_c.level = 9
+	gate_c.level = 4
 	var plan: MainPhasePlan = MainPhasePlan.new(gate_c)
 
 	gate_c.resource_pool.mana = 0
@@ -67,8 +67,8 @@ func _init() -> void:
 
 	# Below unlock level: still gated normally even with mana available.
 	gate_c.level = 1
-	_check(not plan.can_stage_extra_ability(&"double_or_nothing"), "not stageable below level 9")
-	gate_c.level = 9
+	_check(not plan.can_stage_extra_ability(&"double_or_nothing"), "not stageable below level 4")
+	gate_c.level = 4
 
 	# On cooldown: still gated normally even with mana available.
 	gate_c.start_cooldown(&"double_or_nothing", 7)
@@ -77,7 +77,7 @@ func _init() -> void:
 
 	# --- commit() wiring: toggling + committing calls fire_double_or_nothing via the match arm ----
 	var commit_c: Combatant = cc.build_combatant(true)
-	commit_c.level = 9
+	commit_c.level = 4
 	commit_c.resource_pool.mana = 5
 	var commit_before_reels: int = commit_c.turn_reels.size()
 	var commit_plan: MainPhasePlan = MainPhasePlan.new(commit_c)

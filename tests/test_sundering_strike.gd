@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Warrior L5 "Sundering Strike" (spec 2026-07-01 §4B, task 11): a reel-adding extra ability that
+## Warrior L2 "Sundering Strike" (spec 2026-07-01 §4B, task 11): a reel-adding extra ability that
 ## splices one real-damage weapon-type reel whose hit faces also carry the &"sundered" rider —
 ## unlike Rend, which deals no direct damage. Also exercises the shared REEL_ADDING_EXTRA_IDS
 ## plumbing (cap-check + preview + commit) that later reel-adding extra abilities will extend.
@@ -11,16 +11,16 @@ func _check(cond: bool, label: String) -> void:
 func _init() -> void:
 	var cc: CharacterClass = ClassLibrary.make(&"warrior")
 	var c: Combatant = cc.build_combatant(true)
-	c.level = 5
+	c.level = 2
 
 	# Below unlock level: not stageable even though everything else is fine.
 	c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(not early_plan.can_stage_extra_ability(&"sundering_strike"), "not stageable below level 5")
-	c.level = 5
+	_check(not early_plan.can_stage_extra_ability(&"sundering_strike"), "not stageable below level 2")
+	c.level = 2
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"sundering_strike"), "stageable at level 5, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"sundering_strike"), "stageable at level 2, affordable, no CD")
 
 	var before_count: int = c.turn_reels.size()
 	plan.toggle_extra_ability(&"sundering_strike")
@@ -49,7 +49,7 @@ func _init() -> void:
 
 	# Cap check: fill the loadout to reel_cap, then staging must be refused even though affordable.
 	var cap_c: Combatant = cc.build_combatant(true)
-	cap_c.level = 5
+	cap_c.level = 2
 	var cap_plan: MainPhasePlan = MainPhasePlan.new(cap_c)
 	while cap_c.turn_reels.size() < cap_plan.reel_cap:
 		cap_c.turn_reels.append(ActionReel.make_default(cap_c.weapon_type()))
@@ -57,7 +57,7 @@ func _init() -> void:
 
 	# Affordability check: drain stamina to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.level = 5
+	poor_c.level = 2
 	poor_c.resource_pool.stamina = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
 	_check(not poor_plan.can_stage_extra_ability(&"sundering_strike"), "not stageable with 0 stamina")

@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Warden L5 "Entangle" (spec docs/superpowers/specs — task 29): a reel-adding extra ability, the
+## Warden L2 "Entangle" (spec docs/superpowers/specs — task 29): a reel-adding extra ability, the
 ## SEVENTH and FINAL member of REEL_ADDING_EXTRA_IDS. Splices a real-Earth-damage weapon-attack reel
 ## whose hit faces carry the &"rooted" rider — the SAME shared rider Ranger's Snare Trap (task 24)
 ## uses, just spent from the Warden's Mana rail instead of Ranger's Stamina. Mirrors test_hex.gd's
@@ -25,11 +25,11 @@ func _init() -> void:
 	# Below unlock level: not stageable even though everything else is fine.
 	c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check_f(not early_plan.can_stage_extra_ability(&"entangle"), "not stageable below level 5")
-	c.level = 5
+	_check_f(not early_plan.can_stage_extra_ability(&"entangle"), "not stageable below level 2")
+	c.level = 2
 
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check_f(plan.can_stage_extra_ability(&"entangle"), "stageable at level 5, affordable, no CD")
+	_check_f(plan.can_stage_extra_ability(&"entangle"), "stageable at level 2, affordable, no CD")
 
 	var before_count: int = c.turn_reels.size()
 	var before_mana: int = c.resource_pool.mana
@@ -65,7 +65,7 @@ func _init() -> void:
 
 	# Cap check: fill the loadout to reel_cap, then staging must be refused even though affordable.
 	var cap_c: Combatant = cc.build_combatant(true)
-	cap_c.level = 5
+	cap_c.level = 2
 	var cap_plan: MainPhasePlan = MainPhasePlan.new(cap_c)
 	while cap_c.turn_reels.size() < cap_plan.reel_cap:
 		cap_c.turn_reels.append(ActionReel.make_default(cap_c.weapon_type()))
@@ -73,7 +73,7 @@ func _init() -> void:
 
 	# Affordability check: drain mana to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.level = 5
+	poor_c.level = 2
 	poor_c.resource_pool.mana = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
 	_check_f(not poor_plan.can_stage_extra_ability(&"entangle"), "not stageable with 0 mana")

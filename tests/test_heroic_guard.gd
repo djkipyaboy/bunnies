@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Warrior L7 "Heroic Guard" (spec 2026-07-01 §4B, task 12): a self-cast, NO-reel extra ability that
+## Warrior L3 "Heroic Guard" (spec 2026-07-01 §4B, task 12): a self-cast, NO-reel extra ability that
 ## grants Guarded + Taunt so he pulls fire off fragile allies. Unlike Sundering Strike (task 11) this
 ## does NOT touch REEL_ADDING_EXTRA_IDS/preview_reels — it only exercises the shared commit() dispatch.
 
@@ -14,11 +14,11 @@ func _init() -> void:
 	# Below unlock level: not stageable even though everything else is fine.
 	c.level = 1
 	var early_plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(not early_plan.can_stage_extra_ability(&"heroic_guard"), "not stageable below level 7")
+	_check(not early_plan.can_stage_extra_ability(&"heroic_guard"), "not stageable below level 3")
 
-	c.level = 7
+	c.level = 3
 	var plan: MainPhasePlan = MainPhasePlan.new(c)
-	_check(plan.can_stage_extra_ability(&"heroic_guard"), "stageable at level 7, affordable, no CD")
+	_check(plan.can_stage_extra_ability(&"heroic_guard"), "stageable at level 3, affordable, no CD")
 
 	plan.toggle_extra_ability(&"heroic_guard")
 	_check(plan.staged_extra_ability_id == &"heroic_guard", "toggle stages heroic_guard")
@@ -35,7 +35,7 @@ func _init() -> void:
 
 	# Affordability check: drain stamina to 0, staging must be refused.
 	var poor_c: Combatant = cc.build_combatant(true)
-	poor_c.level = 7
+	poor_c.level = 3
 	poor_c.resource_pool.stamina = 0
 	var poor_plan: MainPhasePlan = MainPhasePlan.new(poor_c)
 	_check(not poor_plan.can_stage_extra_ability(&"heroic_guard"), "not stageable with 0 stamina")
