@@ -1925,6 +1925,17 @@ func _apply_attack(attack) -> void:
 		var added: int = _attacker.bonus_meter.value - before
 		if added > 0 and _attacker.bonus_meter.is_visible:
 			_log("    BM +%d  (%d/%d)" % [added, _attacker.bonus_meter.value, _attacker.bonus_meter.cap])
+		# Skirmisher "Charging Opportunist" talent (Task 17): an extra flat +1 charge whenever this
+		# hit actually benefited from the Opportunist passive bonus. outgoing_damage_multiplier() is
+		# always computed against the PRIMARY defender only (this file's own dmg_mult line,
+		# "_attacker.outgoing_damage_multiplier(_defender)") — never per-target — so reading
+		# passive_outgoing_multiplier(_defender) here reuses the exact same defender the actual damage
+		# math used this spin. Opportunist isn't a rider, so neither of Task 14's generic per-rider-id
+		# hooks apply — checked directly here instead, the same way Task 15/16 added Bleeding Wild/
+		# Slowing Rampage directly at their own orchestrator sites.
+		if attack.final_damage > 0 and _attacker.class_id == &"skirmisher" and _attacker.has_ability_talent(&"opportunist_charging") and _attacker.passive_outgoing_multiplier(_defender) > 1.0:
+			_attacker.bonus_meter.add_flat(1)
+			_log("    ⚔ Opportunist strikes true — BM +1  (%d/%d)" % [_attacker.bonus_meter.value, _attacker.bonus_meter.cap])
 	if attack.rider_effect_id != &"":
 		for t: Combatant in targets:
 			var rider: Effect = EffectLibrary.make(attack.rider_effect_id)

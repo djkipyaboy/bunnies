@@ -638,6 +638,16 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 					return -1 if has_ability_talent(&"slam_efficient") else 0
 				_:
 					return 0
+		&"skirmisher":
+			match ability_id:
+				&"flurry":
+					return -1 if has_ability_talent(&"flurry_efficient") else 0
+				&"feint_riposte":
+					return -1 if has_ability_talent(&"feint_efficient") else 0
+				&"quickstep":
+					return -1 if has_ability_talent(&"step_efficient") else 0
+				_:
+					return 0
 		_:
 			return 0
 
@@ -657,6 +667,12 @@ func ability_talent_cooldown_delta(ability_id: StringName) -> int:
 			match ability_id:
 				&"mountain_stance":
 					return -1 if has_ability_talent(&"stance_swift") else 0
+				_:
+					return 0
+		&"skirmisher":
+			match ability_id:
+				&"riposte_storm":
+					return -1 if has_ability_talent(&"storm_swift") else 0
 				_:
 					return 0
 		_:
@@ -807,7 +823,12 @@ func passive_outgoing_multiplier(defender: Combatant = null) -> float:
 		&"opportunist":
 			if defender == null:
 				return 1.0
-			return 1.15 if (defender.has_effect(&"slow") or defender.has_effect(&"rooted") or defender.stunned_last_turn) else 1.0
+			var triggered: bool = defender.has_effect(&"slow") or defender.has_effect(&"rooted") or defender.stunned_last_turn
+			if has_ability_talent(&"opportunist_wider"):
+				triggered = triggered or defender.has_effect(&"weakened")
+			if not triggered:
+				return 1.0
+			return 1.25 if has_ability_talent(&"opportunist_deeper") else 1.15
 		&"steady_aim":
 			return 1.10 if (defender != null and defender.has_effect(&"hunters_mark")) else 1.0
 		_:
@@ -1030,7 +1051,19 @@ func try_splice_reel(type: DamageType, base_damage: float, cost: int, cap: int) 
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	turn_reels.append(ActionReel.make_default(type))
+	var reel: ActionReel = ActionReel.make_default(type)
+	if has_ability_talent(&"flurry_deeper"):
+		# Skirmisher "Deeper Flurry" talent (Task 17): +10% bonus damage on Flurry's own added reel —
+		# scaled directly on this reel's face multipliers, mirroring Vanguard's rampage_deeper
+		# precedent (Task 16), since this is a plain make_default() weapon-attack reel with no
+		# rider_effect_id for a generic talent hook to key off.
+		for face: ReelFace in reel.faces:
+			face.multiplier *= 1.10
+	turn_reels.append(reel)
+	if has_ability_talent(&"flurry_hastening"):
+		var haste: Effect = EffectLibrary.make(&"haste")
+		haste.duration = 1
+		attach_effect(haste)
 	return true
 
 ## Splices one [param type]-typed REND reel onto THIS turn (the Warrior's Rend ability). Same as
@@ -1244,12 +1277,15 @@ func apply_bastion(cost: int) -> bool:
 func apply_feint_riposte(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
+	var dur: int = 4 if has_ability_talent(&"feint_lasting") else 3
 	var evasion: Effect = EffectLibrary.make(&"evasion")
-	evasion.duration = 3
+	evasion.duration = dur
 	attach_effect(evasion)
 	var taunt: Effect = EffectLibrary.make(&"taunt")
-	taunt.duration = 3
+	taunt.duration = dur
 	attach_effect(taunt)
+	if has_ability_talent(&"feint_deeper"):
+		gain_riposte_charges(1)
 	return true
 
 ## Skirmisher "Quickstep" (L7): self-cast Haste (a one-time +20 initiative bump, mirrors Slow's
@@ -1263,7 +1299,13 @@ func apply_quickstep(cost: int) -> bool:
 		return false
 	var haste: Effect = EffectLibrary.make(&"haste")
 	haste.duration = 3
+	if has_ability_talent(&"step_deeper"):
+		haste.magnitude = 30.0
 	attach_effect(haste)
+	if has_ability_talent(&"step_evasive"):
+		var evasion: Effect = EffectLibrary.make(&"evasion")
+		evasion.duration = 1
+		attach_effect(evasion)
 	return true
 
 ## Skirmisher "Riposte Storm" (L9, ultimate-tier, 3-turn CD): detonates accumulated riposte_charges
@@ -1273,9 +1315,10 @@ func apply_quickstep(cost: int) -> bool:
 func fire_riposte_storm(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
+	var per_charge: float = 0.20 if has_ability_talent(&"storm_deeper") else 0.15
 	var e: Effect = EffectLibrary.make(&"empowered")
-	e.magnitude = 1.0 + 0.15 * mini(riposte_charges, 5)
-	e.duration = 1
+	e.magnitude = 1.0 + per_charge * mini(riposte_charges, 5)
+	e.duration = 2 if has_ability_talent(&"storm_lasting") else 1
 	attach_effect(e)
 	riposte_charges = 0
 	return true
@@ -1579,6 +1622,15 @@ func fire_sticky_wild(reel_count: int, spins: int) -> bool:
 		empowered.magnitude = 1.15
 		empowered.duration = spins
 		attach_effect(empowered)
+	if class_id == &"skirmisher" and has_ability_talent(&"sticky_deeper"):
+		var empowered2: Effect = EffectLibrary.make(&"empowered")
+		empowered2.magnitude = 1.15
+		empowered2.duration = spins
+		attach_effect(empowered2)
+	if class_id == &"skirmisher" and has_ability_talent(&"sticky_hastening"):
+		var haste: Effect = EffectLibrary.make(&"haste")
+		haste.duration = spins
+		attach_effect(haste)
 	return true
 
 ## The reels currently forced to crit-success (for the resolver): [0, 1, …, sticky_wild_count-1]

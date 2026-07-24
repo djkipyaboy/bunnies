@@ -455,7 +455,9 @@ func commit() -> void:
 				var spins: int = (WILD_SPINS + 1) if combatant.has_ability_talent(&"wild_lasting") else WILD_SPINS
 				combatant.fire_sticky_wild(_weapon_reel_count(), spins)        # single spin (Warrior), +1 with Lasting Wild
 			&"sticky_wild":
-				combatant.fire_sticky_wild(_weapon_reel_count(), STICKY_WILD_SPINS)  # two spins (Skirmisher)
+				# Skirmisher "Lasting Sticky Wild" talent (Task 17): the crit bias lasts 3 spins instead of 2.
+				var sticky_spins: int = (STICKY_WILD_SPINS + 1) if combatant.has_ability_talent(&"sticky_lasting") else STICKY_WILD_SPINS
+				combatant.fire_sticky_wild(_weapon_reel_count(), sticky_spins)  # two spins (Skirmisher), +1 with Lasting Sticky Wild
 			&"rampage":
 				# Vanguard "Lasting Rampage" talent (Task 16): the AoE window lasts 2 spins instead
 				# of 1 — same pattern as &"wild"'s wild_lasting just above.

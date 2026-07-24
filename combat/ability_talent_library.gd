@@ -185,6 +185,94 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [r1, r2, r3]
 				_:
 					return []
+		&"skirmisher":
+			match row_id:
+				&"base_ability":
+					var f1: AbilityTalentOption = AbilityTalentOption.new()
+					f1.id = &"flurry_deeper"; f1.row_id = row_id
+					f1.display_name = "Deeper Flurry"
+					f1.description = "Flurry's added reel deals +10% bonus damage."
+					var f2: AbilityTalentOption = AbilityTalentOption.new()
+					f2.id = &"flurry_hastening"; f2.row_id = row_id
+					f2.display_name = "Hastening Flurry"
+					f2.description = "Flurry also grants self Haste for 1 turn."
+					var f3: AbilityTalentOption = AbilityTalentOption.new()
+					f3.id = &"flurry_efficient"; f3.row_id = row_id
+					f3.display_name = "Efficient Flurry"
+					f3.description = "Flurry's Stamina cost is reduced to 1 (was 2)."
+					return [f1, f2, f3]
+				&"ability_l2":
+					var r1: AbilityTalentOption = AbilityTalentOption.new()
+					r1.id = &"feint_deeper"; r1.row_id = row_id
+					r1.display_name = "Deeper Feint"
+					r1.description = "Feint & Riposte grants +1 riposte charge immediately on cast."
+					var r2: AbilityTalentOption = AbilityTalentOption.new()
+					r2.id = &"feint_lasting"; r2.row_id = row_id
+					r2.display_name = "Lasting Feint"
+					r2.description = "Feint & Riposte's Evasion and Taunt last 4 turns (was 3)."
+					var r3: AbilityTalentOption = AbilityTalentOption.new()
+					r3.id = &"feint_efficient"; r3.row_id = row_id
+					r3.display_name = "Efficient Feint"
+					r3.description = "Feint & Riposte's Stamina cost is reduced to 2 (was 3)."
+					return [r1, r2, r3]
+				&"ability_l3":
+					var s1: AbilityTalentOption = AbilityTalentOption.new()
+					s1.id = &"step_deeper"; s1.row_id = row_id
+					s1.display_name = "Deeper Quickstep"
+					s1.description = "Quickstep's Haste grants +30 Initiative (was +20)."
+					var s2: AbilityTalentOption = AbilityTalentOption.new()
+					s2.id = &"step_evasive"; s2.row_id = row_id
+					s2.display_name = "Evasive Quickstep"
+					s2.description = "Quickstep also grants 1 turn of Evasion."
+					var s3: AbilityTalentOption = AbilityTalentOption.new()
+					s3.id = &"step_efficient"; s3.row_id = row_id
+					s3.display_name = "Efficient Quickstep"
+					s3.description = "Quickstep's Stamina cost is reduced to 2 (was 3)."
+					return [s1, s2, s3]
+				&"ability_l4":
+					var t1: AbilityTalentOption = AbilityTalentOption.new()
+					t1.id = &"storm_deeper"; t1.row_id = row_id
+					t1.display_name = "Deeper Storm"
+					t1.description = "Riposte Storm's per-charge scaling increases to +20% (was +15%)."
+					var t2: AbilityTalentOption = AbilityTalentOption.new()
+					t2.id = &"storm_lasting"; t2.row_id = row_id
+					t2.display_name = "Lasting Storm"
+					t2.description = "Riposte Storm's Empowered lasts 2 turns (was 1)."
+					var t3: AbilityTalentOption = AbilityTalentOption.new()
+					t3.id = &"storm_swift"; t3.row_id = row_id
+					t3.display_name = "Swift Storm"
+					t3.description = "Riposte Storm's cooldown is reduced to 2 turns (was 3)."
+					return [t1, t2, t3]
+				&"passive":
+					var p1: AbilityTalentOption = AbilityTalentOption.new()
+					p1.id = &"opportunist_deeper"; p1.row_id = row_id
+					p1.display_name = "Ruthless Opportunist"
+					p1.description = "Opportunist's damage bonus increases to +25% (was +15%)."
+					var p2: AbilityTalentOption = AbilityTalentOption.new()
+					p2.id = &"opportunist_wider"; p2.row_id = row_id
+					p2.display_name = "Wider Opportunist"
+					p2.description = "Opportunist's trigger also includes a Weakened defender."
+					var p3: AbilityTalentOption = AbilityTalentOption.new()
+					p3.id = &"opportunist_charging"; p3.row_id = row_id
+					p3.display_name = "Charging Opportunist"
+					p3.description = "Landing a hit via Opportunist also grants +1 flat Bonus Meter charge."
+					return [p1, p2, p3]
+				&"ultimate":
+					var u1: AbilityTalentOption = AbilityTalentOption.new()
+					u1.id = &"sticky_deeper"; u1.row_id = row_id
+					u1.display_name = "Deeper Sticky Wild"
+					u1.description = "Sticky Wild also grants self Empowered (x1.15 outgoing damage) for its duration."
+					var u2: AbilityTalentOption = AbilityTalentOption.new()
+					u2.id = &"sticky_hastening"; u2.row_id = row_id
+					u2.display_name = "Hastening Wild"
+					u2.description = "Casting Sticky Wild also grants self Haste for its duration."
+					var u3: AbilityTalentOption = AbilityTalentOption.new()
+					u3.id = &"sticky_lasting"; u3.row_id = row_id
+					u3.display_name = "Lasting Sticky Wild"
+					u3.description = "Sticky Wild's crit bias lasts 3 spins instead of 2."
+					return [u1, u2, u3]
+				_:
+					return []
 		_:
 			return []
 
