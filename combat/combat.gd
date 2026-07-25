@@ -854,8 +854,9 @@ func _build_start_overlay() -> void:
 	dummy_btn.pressed.connect(_on_dummy_toggle_pressed)
 	_start_overlay.add_child(dummy_btn)
 
-	# ENDGAME toggle (playtest aid, spec 2026-07-01 §5): spawns PCs at level 9 so all 4 abilities +
-	# the Ultimate are unlocked for testing the full kit.
+	# ENDGAME toggle (playtest aid, spec 2026-07-01 §5, level bumped 9->10 for the 2026-07-24
+	# ability-talent-tracks redesign): spawns PCs at level 10 so all 4 abilities + the Ultimate +
+	# every talent-track pick are unlocked for testing the full kit.
 	var endgame_btn := Button.new()
 	endgame_btn.text = "ENDGAME: %s" % ("ON" if _endgame_enabled else "OFF")
 	endgame_btn.position = Vector2((view.x * 0.5) + 10.0, view.y - 48.0)
@@ -1272,7 +1273,7 @@ func _on_dummy_toggle_pressed() -> void:
 	_dummies_enabled = not _dummies_enabled
 	get_tree().reload_current_scene()
 
-## Flips the ENDGAME toggle and reloads so the scenario rebuilds PCs at level 9 (or back to 1).
+## Flips the ENDGAME toggle and reloads so the scenario rebuilds PCs at level 10 (or back to 1).
 func _on_endgame_toggle_pressed() -> void:
 	_endgame_enabled = not _endgame_enabled
 	get_tree().reload_current_scene()
