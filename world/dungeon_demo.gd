@@ -40,6 +40,7 @@ var _fade_overlay: FadeOverlay
 var _dungeon_exit: SceneExit
 var _interact_prompt: InteractPrompt
 var _inventory_panel: InventoryMenuPanel
+var _talent_panel: TalentMenuPanel
 var _event_log_panel: EventLogPanel
 var _pickup_debug_label: Label
 var _amber_label: Label
@@ -275,6 +276,11 @@ func _build_ui() -> void:
 	ui.add_child(_inventory_panel)
 	_inventory_panel.item_discarded.connect(_on_item_discarded)
 
+	_talent_panel = TalentMenuPanel.new()
+	_talent_panel.position = Vector2(140, 60)
+	_talent_panel.hide()
+	ui.add_child(_talent_panel)
+
 	_pickup_debug_label = Label.new()
 	_pickup_debug_label.name = "PickupDebugLabel"
 	_pickup_debug_label.position = Vector2(16, 70)
@@ -421,7 +427,7 @@ func _on_pickup_rejected(item_name: String) -> void:
 func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
-	if _inventory_panel.visible:
+	if _inventory_panel.visible or _talent_panel.visible:
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
@@ -462,7 +468,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_stats"):
 		_toggle_stats()
 		return
-	if _inventory_panel.visible:
+	if event.is_action_pressed("toggle_talents"):
+		_toggle_talents()
+		return
+	if _inventory_panel.visible or _talent_panel.visible:
 		return
 	if not event.is_action_pressed("interact"):
 		return
@@ -471,6 +480,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		target.interact()
 
 func _toggle_inventory() -> void:
+	if _talent_panel.visible:
+		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
 		_pc.set_movement_paused(false)
@@ -479,9 +490,23 @@ func _toggle_inventory() -> void:
 		_pc.set_movement_paused(true)
 
 func _toggle_stats() -> void:
+	if _talent_panel.visible:
+		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
 		_pc.set_movement_paused(false)
 	else:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false, &"stats")
+		_pc.set_movement_paused(true)
+
+## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
+## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
+func _toggle_talents() -> void:
+	if _inventory_panel.visible:
+		return
+	if _talent_panel.visible:
+		_talent_panel.close()
+		_pc.set_movement_paused(false)
+	else:
+		_talent_panel.open_for(_pc_combatant, false)   # dungeon = not a safe zone, respec unavailable
 		_pc.set_movement_paused(true)

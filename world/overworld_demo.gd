@@ -50,6 +50,7 @@ var _shop_stock: Array = []
 var _party_inventory: PartyInventory
 var _vault: Vault
 var _inventory_panel: InventoryMenuPanel
+var _talent_panel: TalentMenuPanel
 var _village_entrance: SceneExit
 var _dungeon_entrance: SceneExit
 var _spawn_position: Vector2 = Vector2.ZERO
@@ -276,6 +277,11 @@ func _build_ui() -> void:
 	_inventory_panel.hide()
 	ui.add_child(_inventory_panel)
 	_inventory_panel.item_discarded.connect(_on_item_discarded)
+
+	_talent_panel = TalentMenuPanel.new()
+	_talent_panel.position = Vector2(140, 60)
+	_talent_panel.hide()
+	ui.add_child(_talent_panel)
 
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
@@ -545,7 +551,7 @@ func _on_random_encounter_resolved() -> void:
 	_pc.set_movement_paused(false)
 
 func _toggle_inventory() -> void:
-	if _random_encounter_panel.is_open():
+	if _random_encounter_panel.is_open() or _talent_panel.visible:
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -558,7 +564,7 @@ func _toggle_inventory() -> void:
 ## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
 ## different starting tab.
 func _toggle_stats() -> void:
-	if _random_encounter_panel.is_open():
+	if _random_encounter_panel.is_open() or _talent_panel.visible:
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -567,10 +573,22 @@ func _toggle_stats() -> void:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false, &"stats")
 		_pc.set_movement_paused(true)
 
+## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
+## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
+func _toggle_talents() -> void:
+	if _random_encounter_panel.is_open() or _inventory_panel.visible:
+		return
+	if _talent_panel.visible:
+		_talent_panel.close()
+		_pc.set_movement_paused(false)
+	else:
+		_talent_panel.open_for(_pc_combatant, false)   # overworld = not a safe zone, respec unavailable
+		_pc.set_movement_paused(true)
+
 func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
-	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open():
+	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open() or _talent_panel.visible:
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
@@ -614,7 +632,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_stats"):
 		_toggle_stats()
 		return
-	if _inventory_panel.visible or _random_encounter_panel.is_open():
+	if event.is_action_pressed("toggle_talents"):
+		_toggle_talents()
+		return
+	if _inventory_panel.visible or _random_encounter_panel.is_open() or _talent_panel.visible:
 		return
 	if not event.is_action_pressed("interact"):
 		return

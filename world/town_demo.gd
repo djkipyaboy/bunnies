@@ -29,6 +29,7 @@ var _highlighted_target: Interactable
 var _talking_to: Villager
 var _ui_layer: CanvasLayer
 var _inventory_panel: InventoryMenuPanel
+var _talent_panel: TalentMenuPanel
 var _vendor_prompt_panel: VendorPromptPanel
 var _shop_panel: ShopPanel
 var _pickup_debug_label: Label
@@ -314,6 +315,11 @@ func _build_inventory_demo() -> void:
 	_inventory_panel.item_discarded.connect(_on_item_discarded)
 	_inventory_panel.thank_you_note_requested.connect(_dialogue_box.open)
 
+	_talent_panel = TalentMenuPanel.new()
+	_talent_panel.position = Vector2(140, 60)
+	_talent_panel.hide()
+	_ui_layer.add_child(_talent_panel)
+
 	_vendor_prompt_panel = VendorPromptPanel.new()
 	_vendor_prompt_panel.hide()
 	_ui_layer.add_child(_vendor_prompt_panel)
@@ -585,7 +591,7 @@ func _set_highlighted_target(target: Interactable) -> void:
 	_highlighted_target = target
 
 func _toggle_inventory() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible:
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -598,13 +604,25 @@ func _toggle_inventory() -> void:
 ## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
 ## different starting tab.
 func _toggle_stats() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible:
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
 		_pc.set_movement_paused(false)
 	else:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, true, &"stats")
+		_pc.set_movement_paused(true)
+
+## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
+## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
+func _toggle_talents() -> void:
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _inventory_panel.visible:
+		return
+	if _talent_panel.visible:
+		_talent_panel.close()
+		_pc.set_movement_paused(false)
+	else:
+		_talent_panel.open_for(_pc_combatant, true)   # town = safe zone, respec available
 		_pc.set_movement_paused(true)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -617,7 +635,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_stats"):
 		_toggle_stats()
 		return
-	if _inventory_panel.visible:
+	if event.is_action_pressed("toggle_talents"):
+		_toggle_talents()
+		return
+	if _inventory_panel.visible or _talent_panel.visible:
 		return
 	if not event.is_action_pressed("interact"):
 		return
