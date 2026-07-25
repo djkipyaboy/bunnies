@@ -50,8 +50,11 @@ func _init() -> void:
 	_check(AbilityMenuPanel._dynamic_suffix(&"bloodwrath", vg).contains("+25% damage"), "bloodwrath suffix at 25%% missing HP shows +25%%")
 	_check(AbilityMenuPanel._dynamic_suffix(&"heroic_guard", vg) == "", "no dynamic suffix for other abilities")
 
+	# Player request (2026-07-25 playtest): the base ability's "[L1]" tag was a leftover disambiguation
+	# aid from the L5/L7/L9->L2/L3/L4 unlock-ladder compression and reads as internal/dev noise to a
+	# real player (no other ability level is ever tagged this way) — hidden from the menu entirely.
 	var base_btn: Button = panel._row_buttons[c.ability_id]
-	_check("[L1]" in base_btn.text, "base ability row shows the [L1] tag")
+	_check("[L1]" not in base_btn.text, "base ability row no longer shows an [L1] tag")
 
 	panel.free()
 	quit()

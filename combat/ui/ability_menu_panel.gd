@@ -129,8 +129,7 @@ func _build_row(id: StringName, c: Combatant, plan: MainPhasePlan, y: float) -> 
 	var state: RowState = row_state(plan, c, id)
 
 	var btn := Button.new()
-	var level_tag: String = "  [L1]" if (c != null and id == c.ability_id) else ""
-	btn.text = "%s%s  (%s)" % [AbilityCatalog.display_name(id), level_tag, cost_text(plan, c, id)]
+	btn.text = "%s  (%s)" % [AbilityCatalog.display_name(id), cost_text(plan, c, id)]
 	btn.position = Vector2(PAD, y)
 	btn.custom_minimum_size = Vector2(BTN_W, ROW_H - 10.0)
 	var status: String = cooldown_text(c, id)
