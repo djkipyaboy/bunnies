@@ -63,10 +63,10 @@ identically — this is a pure UI change.
 
 ### Callers (`world/town_demo.gd`, `world/overworld_demo.gd`, `world/dungeon_demo.gd`)
 
-- Each scene's `_toggle_talents()` changes its `_talent_panel.open_for(_pc_combatant, true)` call to
-  `_talent_panel.open_for(_pc_combatant, _companions, true)` (dungeon/overworld pass `false` for
-  `respec_available` today if that's already their existing convention — no change to that value,
-  only the new `_companions` argument is added). No other change needed in these files.
+- Each scene's `_toggle_talents()` changes its `_talent_panel.open_for(_pc_combatant, <bool>)` call
+  to insert `_companions` as the second argument (town: `open_for(_pc_combatant, _companions, true)`;
+  dungeon/overworld: `open_for(_pc_combatant, _companions, false)`, unchanged from their existing
+  `respec_available` values — town is the only safe zone). No other change needed in these files.
 
 ### Testing
 
