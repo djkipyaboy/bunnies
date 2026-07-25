@@ -34,18 +34,25 @@ static func row_state(plan: MainPhasePlan, c: Combatant, id: StringName) -> RowS
 		return RowState.NORMAL
 	return RowState.UNAFFORDABLE
 
-## "2 STA" / "4 MANA", read LIVE from the plan (base) or AbilityDef (extra) — never from the catalog.
+## "2 STA" / "4 MANA", read LIVE from the plan (base) or AbilityDef (extra) — never from the
+## catalog. Applies any picked Ability Talent cost discount (ability_talent_cost_delta) so the
+## row's own live label matches what commit() will actually charge, not just the untalented base.
 static func cost_text(plan: MainPhasePlan, c: Combatant, id: StringName) -> String:
 	if id == &"double_or_nothing":
 		return "all-in: ALL remaining Mana"
 	if c != null and id == c.ability_id:
-		return "%d %s" % [plan.ability_cost, _rail_label(c.ability_resource)]
+		var cost: int = plan.ability_cost + c.ability_talent_cost_delta(id)
+		return "%d %s" % [cost, _rail_label(c.ability_resource)]
 	var def: AbilityDef = c.find_extra_ability(id) if c != null else null
 	if def == null:
 		return ""
-	return "%d %s" % [def.cost, _rail_label(def.resource)]
+	var extra_cost: int = def.cost + c.ability_talent_cost_delta(id)
+	return "%d %s" % [extra_cost, _rail_label(def.resource)]
 
-## "Ready" / "On cooldown: N turns" / "Ready — N-turn cooldown after use" (spec §2).
+## "Ready" / "On cooldown: N turns" / "Ready — N-turn cooldown after use" (spec §2). The off-
+## cooldown preview applies any picked Ability Talent cooldown discount (same maxi(1, ...) formula
+## MainPhasePlan.commit() uses when actually starting the cooldown), so this never shows a stale
+## untalented duration before the ability's first cast.
 static func cooldown_text(c: Combatant, id: StringName) -> String:
 	if c == null or id == c.ability_id:
 		return "Ready"  # base abilities have no cooldowns
@@ -53,7 +60,8 @@ static func cooldown_text(c: Combatant, id: StringName) -> String:
 		return "On cooldown: %d turns" % int(c.cooldowns.get(id, 0))
 	var def: AbilityDef = c.find_extra_ability(id)
 	if def != null and def.cooldown_turns > 0:
-		return "Ready — %d-turn cooldown after use" % def.cooldown_turns
+		var adjusted: int = maxi(1, def.cooldown_turns + c.ability_talent_cooldown_delta(id))
+		return "Ready — %d-turn cooldown after use" % adjusted
 	return "Ready"
 
 static func _rail_label(resource: StringName) -> String:

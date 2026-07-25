@@ -67,5 +67,43 @@ func _init() -> void:
 	_check(&"vigor_boost" in c5.talent_perks, "the real Combatant now carries the picked universal perk")
 	panel.close()
 
+	# Playtest-found bug (2026-07-24): pressing an EMPTY universal-perk slot's button did nothing —
+	# no handler existed for that case at all. Drive the REAL button press (not the
+	# press_universal_perk_for_test() bypass, which calls pick_talent_perk() directly and would
+	# never have caught this) through to a real picker option press.
+	var c6: Combatant = _mk_warrior_at(10)
+	panel.open_for(c6, true)
+	_check(not panel.perk_picker_open_for_test(), "sanity: the perk picker starts closed")
+	_check(panel.press_universal_slot_for_test(0), "pressing an empty universal-perk slot succeeds")
+	_check(panel.perk_picker_open_for_test(), "pressing an empty slot opens the perk picker")
+	_check(panel.perk_picker_option_count_for_test() == 10, "the picker offers all 10 perks when none are picked yet (got %d)" % panel.perk_picker_option_count_for_test())
+	_check(panel.press_perk_picker_option_for_test(&"vigor_boost"), "pressing a picker option succeeds")
+	_check(&"vigor_boost" in c6.talent_perks, "the real Combatant now carries the perk chosen through the actual picker UI")
+	_check(not panel.perk_picker_open_for_test(), "the picker closes after a pick (panel rebuilds)")
+	panel.close()
+
+	# Playtest-found bug (2026-07-24): Button.toggle_mode auto-flips the CLICKED button's own
+	# visual state on every click. Re-pressing an already-selected option must NOT change the real
+	# pick, and the rebuild must restore that button's toggle-ON state (not leave it looking
+	# deselected while the pick silently survives underneath, which read as "my de-select didn't
+	# stick" and then "reverted" the next time anything else rebuilt the panel).
+	var c7: Combatant = _mk_warrior_at(10)
+	c7.pick_ability_talent(&"base_ability", &"rend_efficient")
+	panel.open_for(c7, true)
+	_check(panel.press_option_for_test(&"base_ability", &"rend_efficient"), "re-pressing the already-selected option is accepted (no-op on data, rebuilds the view)")
+	_check(c7.has_ability_talent(&"rend_efficient"), "the pick is UNCHANGED by re-pressing its own button")
+	_check(panel.is_option_selected(&"base_ability", &"rend_efficient"), "the button still shows as selected after the rebuild (not left looking deselected)")
+	panel.close()
+
+	# Same guard outside a safe zone: re-pressing an already-spent row's own option (or attempting
+	# a different one) while respec is unavailable must also rebuild, not leave a stale/mismatched
+	# toggle state on the buttons.
+	var c8: Combatant = _mk_warrior_at(10)
+	c8.pick_ability_talent(&"base_ability", &"rend_efficient")
+	panel.open_for(c8, false)
+	_check(not panel.press_option_for_test(&"base_ability", &"rend_deeper_cut"), "outside a safe zone, pressing a DIFFERENT option in an already-spent row is refused (button is disabled)")
+	_check(c8.has_ability_talent(&"rend_efficient"), "the original pick survives untouched")
+	panel.close()
+
 	print(("TALENT MENU PANEL TEST PASSED" if _failures == 0 else "TALENT MENU PANEL TEST FAILED: %d" % _failures))
 	quit(_failures)

@@ -7,6 +7,11 @@ extends Panel
 ## Built the same way AbilityMenuPanel/InventoryMenuPanel/TypeChartPanel are: manual Control
 ## layout, no .tscn, no drag-and-drop, click-to-pick/click-to-swap only, with _for_test() hooks so
 ## headless tests can drive it without a live scene tree event loop.
+##
+## Deliberately has NO self-close button (playtest-found bug, 2026-07-24): this is a world-scene
+## panel that pauses PC movement while open, and closing must go through the driving scene's own
+## _toggle_talents() so movement-pause state stays in sync — mirrors InventoryMenuPanel (never had
+## one) and ShopPanel (had one, removed for this exact reason, 2026-07-17).
 
 const ROW_IDS: Array[StringName] = [&"base_ability", &"ability_l2", &"ability_l3", &"ability_l4", &"passive", &"ultimate"]
 const ROW_LABELS: Dictionary = {
@@ -28,7 +33,7 @@ var _row_option_buttons: Dictionary = {}   # row_id -> Array[Button] (index-alig
 var _row_locked_labels: Dictionary = {}    # row_id -> Label
 var _universal_buttons: Array[Button] = [] # index-aligned with the earned-milestone slots shown
 var _universal_perk_ids_shown: Array[StringName] = []
-var _close_button: Button
+var _perk_picker_container: Panel
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, PANEL_H)
@@ -41,6 +46,7 @@ func _clear() -> void:
 	_row_locked_labels.clear()
 	_universal_buttons.clear()
 	_universal_perk_ids_shown.clear()
+	_perk_picker_container = null
 
 ## Opens the panel for [param c] — shows [param c]'s own class's 6-row Ability Talent grid plus the
 ## shared Universal Perk milestone list. [param respec_available] mirrors InventoryMenuPanel's
@@ -58,13 +64,6 @@ func open_for(c: Combatant, respec_available: bool = true) -> void:
 	title.text = "Talents"
 	title.position = Vector2(PAD, PAD)
 	add_child(title)
-
-	_close_button = Button.new()
-	_close_button.text = "✕"
-	_close_button.position = Vector2(PANEL_W - PAD - 24.0, PAD)
-	_close_button.size = Vector2(24.0, 24.0)
-	_close_button.pressed.connect(close)
-	add_child(_close_button)
 
 	var y: float = PAD + 36.0
 	for row_id: StringName in ROW_IDS:
@@ -121,10 +120,19 @@ func _build_row(row_id: StringName, y: float) -> void:
 
 func _on_option_pressed(row_id: StringName, option_id: StringName) -> void:
 	var current_pick: StringName = _combatant.ability_talent_picks.get(row_id, &"")
+	# Both early-return branches below rebuild via open_for() even though NEITHER changes
+	# ability_talent_picks. Playtest-found bug (2026-07-24): every option button has
+	# toggle_mode = true, so Godot flips the CLICKED button's own visual pressed-state on every
+	# click regardless of what this handler does — a bare `return` here left the real pick
+	# unchanged while the button LOOKED deselected, until some other rebuild elsewhere restored
+	# the true state and it appeared to "revert." Rebuilding here reconstructs every button from
+	# the real ability_talent_picks value, so the visual state can never diverge from it.
 	if current_pick == option_id:
-		return  # already this option — no-op (re-pressing a toggled button shouldn't unpick it)
+		open_for(_combatant, _respec_available)
+		return
 	if current_pick != &"":
 		if not _respec_available:
+			open_for(_combatant, _respec_available)
 			return
 		_combatant.unpick_ability_talent(row_id)
 	_combatant.pick_ability_talent(row_id, option_id)
@@ -159,14 +167,60 @@ func _build_universal_section(y: float) -> void:
 		_universal_perk_ids_shown.append(perk_id)
 
 func _on_universal_slot_pressed(_slot: int, existing_perk_id: StringName) -> void:
-	# A minimal picker: opening this panel again with a perk explicitly requested via
-	# press_universal_perk_for_test() is how tests drive a real pick; a live player-facing perk
-	# SELECTION sub-menu (choosing WHICH of the 10 to spend a slot on) is the same kind of small
-	# secondary popup InventoryMenuPanel's own Bag-tab item-detail view already uses — deferred to
-	# whoever polishes this panel's live-game presentation, not required for the data flow to work.
-	if existing_perk_id != &"" and _respec_available:
-		_combatant.unpick_talent_perk(existing_perk_id)
-		open_for(_combatant, _respec_available)
+	if existing_perk_id != &"":
+		if _respec_available:
+			_combatant.unpick_talent_perk(existing_perk_id)
+			open_for(_combatant, _respec_available)
+		return
+	# Playtest-found bug (2026-07-24): an EMPTY slot's press had no handler at all — pressing
+	# "— pick a perk —" silently did nothing. Opens a small secondary popup listing every
+	# not-yet-picked Universal Perk (mirrors InventoryMenuPanel's Bag-tab item-detail-view
+	# convention of a small owned sub-panel).
+	_open_perk_picker()
+
+## Lists every Universal Perk this Combatant hasn't already picked as its own button; pressing one
+## spends the point via pick_talent_perk() and rebuilds the whole panel. Cancel closes it with no
+## change. Positioned just to the right of the main panel so it never overlaps the grid/perk list.
+func _open_perk_picker() -> void:
+	if _perk_picker_container != null:
+		_perk_picker_container.queue_free()
+	_perk_picker_container = Panel.new()
+	_perk_picker_container.position = Vector2(PANEL_W + PAD, 60.0)
+	add_child(_perk_picker_container)
+
+	var picked: Array[StringName] = _combatant.talent_perks
+	var y: float = PAD
+	for def: TalentPerkDef in TalentPerkLibrary.universal_perks():
+		if def.id in picked:
+			continue
+		var btn: Button = Button.new()
+		btn.text = def.display_name
+		btn.tooltip_text = def.description
+		btn.position = Vector2(PAD, y)
+		btn.size = Vector2(220.0, UNIVERSAL_ROW_H)
+		btn.pressed.connect(_on_perk_picker_option_pressed.bind(def.id))
+		_perk_picker_container.add_child(btn)
+		y += UNIVERSAL_ROW_H + 4.0
+
+	var cancel_btn: Button = Button.new()
+	cancel_btn.text = "Cancel"
+	cancel_btn.position = Vector2(PAD, y)
+	cancel_btn.size = Vector2(220.0, UNIVERSAL_ROW_H)
+	cancel_btn.pressed.connect(_close_perk_picker)
+	_perk_picker_container.add_child(cancel_btn)
+	y += UNIVERSAL_ROW_H + PAD
+
+	_perk_picker_container.custom_minimum_size = Vector2(220.0 + PAD * 2.0, y)
+	_perk_picker_container.size = _perk_picker_container.custom_minimum_size
+
+func _close_perk_picker() -> void:
+	if _perk_picker_container != null:
+		_perk_picker_container.queue_free()
+		_perk_picker_container = null
+
+func _on_perk_picker_option_pressed(perk_id: StringName) -> void:
+	_combatant.pick_talent_perk(perk_id)
+	open_for(_combatant, _respec_available)  # _clear() frees the picker along with everything else
 
 ## --- Test hooks (mirror AbilityMenuPanel's _for_test() convention) ---
 
@@ -206,8 +260,42 @@ func press_option_for_test(row_id: StringName, option_id: StringName) -> bool:
 func universal_slot_count() -> int:
 	return _universal_buttons.size()
 
+## Presses the real button for universal-perk slot [param slot] (headless test hook — drives the
+## actual _on_universal_slot_pressed() path, whether that slot is empty or already picked). Returns
+## false if the slot doesn't exist or its button is disabled.
+func press_universal_slot_for_test(slot: int) -> bool:
+	if slot < 0 or slot >= _universal_buttons.size():
+		return false
+	var btn: Button = _universal_buttons[slot]
+	if btn.disabled:
+		return false
+	_on_universal_slot_pressed(slot, _universal_perk_ids_shown[slot])
+	return true
+
+## True while the perk-picker sub-popup (opened by pressing an empty universal-perk slot) is open.
+func perk_picker_open_for_test() -> bool:
+	return _perk_picker_container != null
+
+## How many not-yet-picked perks the open picker is offering (headless test hook).
+func perk_picker_option_count_for_test() -> int:
+	if _perk_picker_container == null:
+		return 0
+	return _perk_picker_container.get_child_count() - 1  # minus the trailing Cancel button
+
+## Presses the perk-picker's button for [param perk_id] (headless test hook). Returns false if the
+## picker isn't open or doesn't offer that perk.
+func press_perk_picker_option_for_test(perk_id: StringName) -> bool:
+	if _perk_picker_container == null:
+		return false
+	for child: Node in _perk_picker_container.get_children():
+		if child is Button and (child as Button).text == (TalentPerkLibrary.find_perk(perk_id).display_name if TalentPerkLibrary.find_perk(perk_id) != null else ""):
+			_on_perk_picker_option_pressed(perk_id)
+			return true
+	return false
+
 ## Picks [param perk_id] into the first still-empty, non-disabled Universal Perk slot (headless test
-## hook). Returns false if there's no such slot.
+## hook — bypasses the real picker UI; press_universal_slot_for_test()/press_perk_picker_option_
+## for_test() drive the actual click path). Returns false if there's no such slot.
 func press_universal_perk_for_test(perk_id: StringName) -> bool:
 	if TalentPerkLibrary.find_perk(perk_id) == null:
 		return false
