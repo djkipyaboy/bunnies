@@ -611,9 +611,16 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 	_stat_labels["%d_xp" % col] = xp_label
 
 ## Targeting overlay for an armed "Use" action (design 2026-07-26 §4.3): a click-catcher over each
-## column with a living combatant (mirrors combat.gd's invisible click-catcher idiom), a highlight
-## tint on the picked target, a live effect description, and Confirm/Cancel. Rendered only while
-## _use_pending_item != null.
+## column with an assigned combatant — spec §5 allows targeting a dead ally, so this only guards on
+## c == null (an unassigned companion slot), not on hp/alive state — (mirrors combat.gd's invisible
+## click-catcher idiom), a highlight tint on the picked target, a live effect description, and
+## Confirm/Cancel. Rendered only while _use_pending_item != null.
+##
+## KNOWN COSMETIC GAP (2026-07-26 review, not fixed — would need reordering _build_stats_panel()'s
+## column-then-overlay build sequence, more than a cheap fix): this tint draws ON TOP of the stat
+## text it's meant to sit behind, since Godot draws children in add_child() order and the column
+## labels/stats are already added before this function runs. Purely a paint-order issue — functional
+## behavior (targeting/highlighting) is unaffected. Flagged for a human to eyeball at playtest.
 func _build_use_targeting_overlay(columns: Array) -> void:
 	var col_top: float = GRID_TOP + (SLOT_H + SLOT_GAP)
 	var col_height: float = float(USE_OVERLAY_ROWS) * (SLOT_H + SLOT_GAP)
@@ -638,6 +645,10 @@ func _build_use_targeting_overlay(columns: Array) -> void:
 		tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		tint.position = Vector2(x, col_top)
 		tint.size = Vector2(COLUMN_W, col_height)
+		# Deliberately weaker than HIGHLIGHT_BLEND (0.6, used to lerp a small paperdoll slot button's
+		# own modulate) — this tint instead washes over an entire column of stat text, so a lower
+		# fixed alpha keeps that text legible rather than reusing the stronger blend meant for a
+		# single button-sized highlight.
 		tint.color = Color(HIGHLIGHT_COLOR.r, HIGHLIGHT_COLOR.g, HIGHLIGHT_COLOR.b, 0.25 if _use_target == c else 0.0)
 		add_child(tint)
 
@@ -1220,7 +1231,13 @@ func _on_grid_item_gui_input(event: InputEvent, item: Resource, is_weapon: bool)
 ## Arms targeting mode for the selected Consumable and switches to the Stats tab (design 2026-07-26
 ## §4.3) — mirrors ItemMenuPanel's staging step, but out-of-combat instead of staged-for-this-turn.
 func _on_use_pressed() -> void:
-	_use_pending_item = _selected.get("item")
+	# Matches this file's own idiom elsewhere (an untyped Variant read then cast, e.g.
+	# _equip_selected()'s `var item: Resource = _selected["item"]`) rather than assigning the raw
+	# Dictionary.get() Variant straight into a typed field. Currently unreachable with anything but
+	# a ConsumableItem (the Use button only ever appears for one, per _build_action_row()), but this
+	# is more defensive if that ever changes.
+	var item: Resource = _selected.get("item")
+	_use_pending_item = item as ConsumableItem
 	_selected = {}
 	_use_target = null
 	_use_result_message = ""
@@ -1388,9 +1405,16 @@ func discard_button_visible_for_test() -> bool:
 func use_button_visible_for_test() -> bool:
 	return _use_button != null
 
+## Presses the Bag tab's "Use" action button (test hook). Asserts rather than silently no-oping
+## when the button doesn't exist (2026-07-26 review finding — a silent no-op here previously let a
+## test-authoring mistake pass vacuously: calling this while the panel isn't on the Bag tab with a
+## Consumable selected produced a "PASS" that never actually exercised _on_use_pressed() at all; see
+## memory godot-toggle-button-and-test-bypass-gotchas for the same failure class documented
+## elsewhere in this project). A caller hitting this assert should switch_tab_for_test(&"bag") and
+## re-select a Consumable first.
 func press_use_for_test() -> void:
-	if _use_button != null:
-		_on_use_pressed()
+	assert(_use_button != null, "press_use_for_test() called with no Use button built — is the panel on the Bag tab with a Consumable selected?")
+	_on_use_pressed()
 
 ## Simulates clicking column [param col]'s targeting overlay (test hook). No-op if that column has
 ## no click-catcher (empty companion slot, or targeting isn't currently armed).
@@ -1415,6 +1439,13 @@ func use_target_for_test() -> Combatant:
 func use_result_message_for_test() -> String:
 	return _use_result_message
 
+## True if Confirm can't currently be pressed — either because it hasn't been built at all (not
+## armed, e.g. no item was ever staged via press_use_for_test()) or because it exists but is
+## disabled (armed, no target picked yet). Deliberately not distinguished (2026-07-26 review
+## question): every real caller of this hook only asks it while targeting is already known to be
+## armed (right after press_use_for_test()), where "doesn't exist" can't happen — the "null" arm
+## only matters for a caller that got the sequencing wrong, and for that case "disabled" is the
+## correct answer anyway.
 func use_confirm_disabled_for_test() -> bool:
 	return _use_confirm_button == null or _use_confirm_button.disabled
 

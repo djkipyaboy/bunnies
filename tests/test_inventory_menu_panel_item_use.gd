@@ -104,6 +104,12 @@ func _init() -> void:
 	_check(panel.use_result_message_for_test().find("Basil") != -1, "the result message names the healed ally (got '%s')" % panel.use_result_message_for_test())
 
 	# Cancel: no consumption, no effect.
+	# 2026-07-26 reviewer fix: _on_use_pressed() leaves _active_tab == "stats" (Confirm above never
+	# switches it back), and the Use button only exists on the Bag tab (_build_action_row() is only
+	# called from _rebuild()'s non-stats branch) — without switching back to Bag first,
+	# press_use_for_test() would silently no-op (no button to press) and every check below would
+	# pass vacuously on already-true leftover state, never actually exercising Cancel.
+	panel.switch_tab_for_test(&"bag")
 	panel.select_grid_item_for_test(potion, false)
 	panel.press_use_for_test()
 	panel.click_use_target_for_test(0)
@@ -113,6 +119,9 @@ func _init() -> void:
 	_check(panel.use_pending_item_for_test() == null, "Cancel exits targeting mode")
 
 	# Switching tabs while armed cancels targeting the same way.
+	# Same reason as the Cancel block above: Cancel left _active_tab == "stats", so the Use button
+	# needs the Bag tab re-armed first before press_use_for_test() has anything to press.
+	panel.switch_tab_for_test(&"bag")
 	panel.select_grid_item_for_test(potion, false)
 	panel.press_use_for_test()
 	panel.switch_tab_for_test(&"bag")
