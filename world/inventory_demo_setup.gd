@@ -58,6 +58,7 @@ static func seed_demo_party() -> Dictionary:
 	healing_potion.item_type = &"healing_potion"
 	healing_potion.display_name = "Healing Potion"
 	healing_potion.heal_amount = 30
+	healing_potion.effect_type = &"heal"
 	healing_potion.quantity = 3
 	inv.items = [healing_potion]
 

@@ -9,3 +9,4 @@ extends Resource
 @export var item_type: StringName = &""
 @export var quantity: int = 1
 @export var heal_amount: int = 0
+@export var effect_type: StringName = &"heal"
