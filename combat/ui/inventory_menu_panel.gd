@@ -169,9 +169,12 @@ static func slot_display_text(item: Resource) -> String:
 		return (item as Gear).display_name
 	if item is Weapon:
 		return (item as Weapon).display_name
+	if item is ConsumableItem:
+		return "%s x%d" % [(item as ConsumableItem).display_name, (item as ConsumableItem).quantity]
 	return "?"
 
-## The rarity color to render an item's label in (neutral gray when empty).
+## The rarity color to render an item's label in (neutral gray when empty or a Consumable, which
+## has no rarity).
 static func slot_display_color(item: Resource) -> Color:
 	if item == null:
 		return Color(0.6, 0.6, 0.6)
@@ -179,16 +182,21 @@ static func slot_display_color(item: Resource) -> Color:
 		return RarityVisuals.color((item as Gear).rarity)
 	if item is Weapon:
 		return RarityVisuals.color((item as Weapon).rarity)
+	if item is ConsumableItem:
+		return Color(0.6, 0.6, 0.6)
 	return Color.WHITE
 
-## Combined display list for a Bag/Vault-shaped container's Gear + Weapon arrays: each entry
-## {"item": Resource, "is_weapon": bool}, gear first then weapons (stable, deterministic order).
-static func combined_items(gear_list: Array, weapon_list: Array) -> Array[Dictionary]:
+## Combined display list for a Bag/Vault-shaped container's Gear + Weapon (+ Consumable, Bag-tab
+## only — the Vault has no consumable storage) arrays: each entry {"item": Resource, "is_weapon":
+## bool}, gear first then weapons then consumables (stable, deterministic order).
+static func combined_items(gear_list: Array, weapon_list: Array, item_list: Array = []) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for g: Gear in gear_list:
 		out.append({"item": g, "is_weapon": false})
 	for w: Weapon in weapon_list:
 		out.append({"item": w, "is_weapon": true})
+	for ci: ConsumableItem in item_list:
+		out.append({"item": ci, "is_weapon": false})
 	return out
 
 ## Tooltip text for [param item] (Gear or Weapon): name, slot, and a stat_bonuses/reel-affix summary.
@@ -208,6 +216,8 @@ static func _item_name(item: Resource) -> String:
 		return (item as Gear).display_name
 	if item is Weapon:
 		return (item as Weapon).display_name
+	if item is ConsumableItem:
+		return (item as ConsumableItem).display_name
 	return "?"
 
 ## The paperdoll slot index (1..6) for a Gear.Slot value — the inverse of gear_slot_for().
@@ -219,6 +229,8 @@ static func _item_slot_summary(item: Resource) -> String:
 		return "Slot: %s" % SLOT_NAMES[gear_slot_index_for((item as Gear).slot)]
 	if item is Weapon:
 		return "Slot: Weapon"
+	if item is ConsumableItem:
+		return "Slot: Consumable"
 	return ""
 
 static func _item_stat_summary(item: Resource) -> String:
@@ -238,6 +250,8 @@ static func _item_stat_summary(item: Resource) -> String:
 		return ", ".join(parts) if parts.size() > 0 else "No bonuses"
 	if item is Weapon:
 		return "Base damage %.1f" % (item as Weapon).base_damage
+	if item is ConsumableItem:
+		return ConsumableEffects.description(item as ConsumableItem, null)
 	return ""
 
 ## The Gear equipped in [param c]'s slot [param gear_slot] (a raw Gear.Slot value, not a paperdoll
@@ -249,6 +263,8 @@ static func equipped_item_in_gear_slot(c: Combatant, gear_slot: int) -> Gear:
 	return null
 
 static func _compare_lines(item: Resource, columns: Array) -> Array[String]:
+	if not (item is Gear or item is Weapon):
+		return []
 	var out: Array[String] = []
 	for i in range(columns.size()):
 		var c: Combatant = columns[i]
@@ -426,11 +442,16 @@ func _active_weapon_list() -> Array:
 		return _party_inventory.weapons
 	return _vault.weapons if _vault_available else []
 
+## Consumables only ever live in the Bag (the Vault has no consumable storage) — the Vault tab's
+## grid is unaffected by this.
+func _active_item_list() -> Array:
+	return _party_inventory.items if _active_tab == &"bag" else []
+
 func _grid_item_count() -> int:
-	return _active_gear_list().size() + _active_weapon_list().size()
+	return _active_gear_list().size() + _active_weapon_list().size() + _active_item_list().size()
 
 func _build_grid() -> void:
-	var items: Array[Dictionary] = combined_items(_active_gear_list(), _active_weapon_list())
+	var items: Array[Dictionary] = combined_items(_active_gear_list(), _active_weapon_list(), _active_item_list())
 	for i in range(items.size()):
 		var entry: Dictionary = items[i]
 		var col: int = i % GRID_COLS
