@@ -9,8 +9,11 @@ extends SceneTree
 var _instance: Node
 var _frames: int = 0
 var _companion: Combatant
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
+	if not cond:
+		_failures += 1
 	print(("ok " if cond else "FAIL ") + label)
 
 func _init() -> void:
@@ -64,5 +67,6 @@ func _process(_delta: float) -> bool:
 	if _frames >= 3:
 		print("ok companion-talent-survives-bench regression complete")
 		_instance.free()
+		quit(_failures)
 		return true
 	return false

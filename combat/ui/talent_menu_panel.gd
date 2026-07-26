@@ -120,6 +120,8 @@ func _build_party_tabs() -> void:
 		_party_tab_buttons.append(btn)
 
 func _on_party_tab_pressed(index: int) -> void:
+	if index < 0 or index >= _party.size():
+		return
 	_viewed_index = index
 	_rebuild()
 
