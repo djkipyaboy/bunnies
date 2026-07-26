@@ -40,11 +40,16 @@ func _init() -> void:
 
 	# Party Selection button (2026-07-12, player-requested companion recruitment) — re-open first
 	# since close() above hid it, and re-open rebuilds every row from scratch anyway.
+	# Fixed 2026-07-26: this used to increment a plain `int` inside the lambda below, which never
+	# propagates out (same GDScript closure-capture-by-value gotcha documented at the `selected` var
+	# above) — the assertion below always failed regardless of whether the signal actually fired.
+	# Root-caused during the 2026-07-25 endgame-level-up-town work; fixed here with the same
+	# one-element-array workaround.
 	panel.open_for(entries)
-	var party_selection_pressed_count: int = 0
-	panel.party_selection_pressed.connect(func() -> void: party_selection_pressed_count += 1)
+	var party_selection_pressed_count: Array[int] = [0]
+	panel.party_selection_pressed.connect(func() -> void: party_selection_pressed_count[0] += 1)
 	panel.press_party_selection_for_test()
-	_check(party_selection_pressed_count == 1, "pressing Party Selection emits party_selection_pressed")
+	_check(party_selection_pressed_count[0] == 1, "pressing Party Selection emits party_selection_pressed")
 
 	# Plain-int lambda capture doesn't propagate out in GDScript (see the `selected` note above);
 	# use the same one-element-array workaround already established elsewhere in this codebase
