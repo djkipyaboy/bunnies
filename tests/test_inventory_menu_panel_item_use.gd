@@ -59,5 +59,21 @@ func _init() -> void:
 	_check(inv.items.size() == 1 and inv.items[0] == potion, "double-clicking a potion does not remove it from the Bag")
 	_check(pc.gear.is_empty(), "double-clicking a potion does not equip anything")
 
+	# Action row: Send to Vault only for Gear/Weapon, Use only for a selected Consumable.
+	var hat: Gear = Gear.new()
+	hat.slot = Gear.Slot.HEADWEAR
+	hat.display_name = "Cloth Cap"
+	hat.stat_bonuses = Stats.new()
+	inv.gear = [hat]
+	panel._rebuild()
+
+	panel.select_grid_item_for_test(hat, false)
+	_check(panel._action_button != null and panel._action_button.text == "Send to Vault", "selecting Gear shows Send to Vault")
+	_check(not panel.use_button_visible_for_test(), "selecting Gear does not show a Use button")
+
+	panel.select_grid_item_for_test(potion, false)
+	_check(panel._action_button == null, "selecting a Consumable hides Send to Vault (no Vault storage exists for it)")
+	_check(panel.use_button_visible_for_test(), "selecting a Consumable shows a Use button")
+
 	panel.free()
 	quit()

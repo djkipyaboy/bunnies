@@ -93,6 +93,7 @@ const VAULT_UNAVAILABLE_MESSAGE: String = "Travel to the nearest settlement to a
 
 var _grid_buttons: Array[Button] = []
 var _action_button: Button
+var _use_button: Button
 var _action_label: Label
 var _tab_buttons: Dictionary = {}    # StringName -> Button
 var _compare_check: CheckBox
@@ -335,6 +336,9 @@ func _rebuild() -> void:
 	_discard_button = null
 	_discard_spin = null
 	_discard_all_check = null
+	_use_button = null
+	_action_button = null
+	_action_label = null
 
 	var columns: Array = paperdoll_columns(_pc, _companions)
 	for col in range(3):
@@ -732,6 +736,12 @@ func _build_vault_unavailable_message() -> void:
 	label.modulate = Color(1.0, 0.3, 0.3)
 	add_child(label)
 
+## True when the current Bag/Vault selection can be sent to/from the Vault — Gear and Weapon only.
+## A selected ConsumableItem has no Vault storage (design 2026-07-26 §4.2), so it never shows here.
+func _selected_is_vaultable() -> bool:
+	var item: Resource = _selected.get("item")
+	return item is Gear or item is Weapon
+
 func _build_action_row() -> void:
 	if _selected.is_empty():
 		return
@@ -741,7 +751,7 @@ func _build_action_row() -> void:
 
 	# The Vault-transfer action is gated on _vault_available (unchanged from before this feature);
 	# Discard is NOT gated on it — discarding your own carried items works anywhere.
-	if _vault_available:
+	if _vault_available and _selected_is_vaultable():
 		_action_button = Button.new()
 		_action_button.position = Vector2(next_x, y)
 		_action_button.custom_minimum_size = Vector2(ACTION_BTN_W, ACTION_BTN_H)
@@ -764,6 +774,16 @@ func _build_action_row() -> void:
 		_action_label.modulate = Color(1.0, 0.4, 0.4)
 		add_child(_action_label)
 		next_x += 160.0
+
+	if _active_tab == &"bag" and _selected.get("item") is ConsumableItem:
+		_use_button = Button.new()
+		_use_button.text = "Use"
+		_use_button.position = Vector2(next_x, y)
+		_use_button.custom_minimum_size = Vector2(ACTION_BTN_W, ACTION_BTN_H)
+		_use_button.modulate = HIGHLIGHT_COLOR
+		_use_button.pressed.connect(_on_use_pressed)
+		add_child(_use_button)
+		next_x += ACTION_BTN_W + 10.0
 
 	if _active_tab == &"bag":
 		_discard_button = Button.new()
@@ -1101,6 +1121,9 @@ func _on_grid_item_gui_input(event: InputEvent, item: Resource, is_weapon: bool)
 	if event is InputEventMouseButton and event.pressed and event.double_click and event.button_index == MOUSE_BUTTON_LEFT:
 		_handle_double_click(item, is_weapon)
 
+func _on_use_pressed() -> void:
+	pass
+
 ## The rendered text of paperdoll slot [param slot_idx] in column [param col] (test hook).
 func slot_button_text_for_test(col: int, slot_idx: int) -> String:
 	var btn: Button = _slot_buttons.get("%d_%d" % [col, slot_idx], null)
@@ -1232,3 +1255,7 @@ func discard_prompt_open_for_test() -> bool:
 
 func discard_button_visible_for_test() -> bool:
 	return _discard_button != null
+
+## Whether the Bag tab's "Use" action button is currently shown (test hook).
+func use_button_visible_for_test() -> bool:
+	return _use_button != null
