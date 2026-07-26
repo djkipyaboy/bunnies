@@ -25,6 +25,11 @@ func _process(_delta: float) -> bool:
 		town._toggle_talents()
 		_check(town._talent_panel.visible, "toggle opens the panel")
 		_check(town._pc.movement_paused_for_test(), "toggle pauses PC movement")
+		_check(town._talent_panel.party_tab_count() == town._companions.size() + 1, "talent panel shows one tab per active party member (PC + companions, got %d)" % town._talent_panel.party_tab_count())
+		_check(town._talent_panel.viewed_combatant_for_test() == town._pc_combatant, "the talent panel defaults to viewing the PC")
+		if town._companions.size() > 0:
+			_check(town._talent_panel.press_party_tab_for_test(1), "switching to the first companion's tab succeeds")
+			_check(town._talent_panel.viewed_combatant_for_test() == town._companions[0], "the panel now views the real companion instance, not a copy")
 		town._toggle_talents()
 		_check(not town._talent_panel.visible, "toggle again closes the panel")
 		_check(not town._pc.movement_paused_for_test(), "toggle again resumes PC movement")

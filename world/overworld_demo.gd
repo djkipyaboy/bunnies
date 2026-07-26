@@ -582,7 +582,7 @@ func _toggle_talents() -> void:
 		_talent_panel.close()
 		_pc.set_movement_paused(false)
 	else:
-		_talent_panel.open_for(_pc_combatant, false)   # overworld = not a safe zone, respec unavailable
+		_talent_panel.open_for(_pc_combatant, _companions, false)   # overworld = not a safe zone, respec unavailable
 		_pc.set_movement_paused(true)
 
 func _process(_delta: float) -> void:

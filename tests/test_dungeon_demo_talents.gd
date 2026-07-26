@@ -26,6 +26,11 @@ func _process(_delta: float) -> bool:
 		dungeon._toggle_talents()
 		_check(dungeon._talent_panel.visible, "toggle opens the panel")
 		_check(dungeon._pc.movement_paused_for_test(), "toggle pauses PC movement")
+		_check(dungeon._talent_panel.party_tab_count() == dungeon._companions.size() + 1, "talent panel shows one tab per active party member (PC + companions, got %d)" % dungeon._talent_panel.party_tab_count())
+		_check(dungeon._talent_panel.viewed_combatant_for_test() == dungeon._pc_combatant, "the talent panel defaults to viewing the PC")
+		if dungeon._companions.size() > 0:
+			_check(dungeon._talent_panel.press_party_tab_for_test(1), "switching to the first companion's tab succeeds")
+			_check(dungeon._talent_panel.viewed_combatant_for_test() == dungeon._companions[0], "the panel now views the real companion instance, not a copy")
 
 		# interact must not fire while the talent panel is open.
 		var interact_event := InputEventAction.new()

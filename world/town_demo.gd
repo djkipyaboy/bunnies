@@ -622,7 +622,7 @@ func _toggle_talents() -> void:
 		_talent_panel.close()
 		_pc.set_movement_paused(false)
 	else:
-		_talent_panel.open_for(_pc_combatant, true)   # town = safe zone, respec available
+		_talent_panel.open_for(_pc_combatant, _companions, true)   # town = safe zone, respec available
 		_pc.set_movement_paused(true)
 
 func _unhandled_input(event: InputEvent) -> void:
