@@ -262,6 +262,7 @@ func _build_ui() -> void:
 	_board_panel = AdventuringBoardPanel.new()
 	_board_panel.position = Vector2(500, 150)
 	_board_panel.party_selection_pressed.connect(_on_party_selection_pressed)
+	_board_panel.endgame_level_up_pressed.connect(_on_endgame_level_up_pressed)
 	_board_panel.entry_selected.connect(_on_board_entry_selected)
 	_ui_layer.add_child(_board_panel)
 	_board_panel.close()
@@ -521,6 +522,22 @@ func _on_board_opened(_entries: Array[QuestBoardEntry]) -> void:
 func _on_party_selection_pressed() -> void:
 	_board_panel.close()
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
+
+## "Level Up to Endgame" (2026-07-25 endgame-level-up-town-design.md) — a one-way testing aid,
+## town-only. Unlike combat.tscn's reload-based ENDGAME toggle, town's PC/companions/bench are the
+## same persistent Combatant objects for the whole session, so there's no "revert" here — this
+## exists solely to unlock every Ability Talent/Universal Perk row for playtesting, not to model a
+## real progression system (none exists yet). Setting .level directly is safe at any time: every
+## derived value (ability-talent unlocks, universal perk points, weapon damage scaling, passives)
+## is computed live off Combatant.level, never cached.
+func _on_endgame_level_up_pressed() -> void:
+	_board_panel.close()
+	_pc_combatant.level = Combatant.MAX_LEVEL
+	for c: Combatant in _companions:
+		c.level = Combatant.MAX_LEVEL
+	for c: Combatant in _bench:
+		c.level = Combatant.MAX_LEVEL
+	_handoff().log_event("Party leveled up to Endgame (Level %d)" % Combatant.MAX_LEVEL, &"party")
 
 func _on_add_companion_requested(companion: Combatant) -> void:
 	if PartySelectionPanel.party_full(_companions):
