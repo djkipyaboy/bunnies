@@ -46,6 +46,10 @@ const ACTION_BTN_H: float = 26.0
 const TABS_TOP: float = PAPERDOLL_TOP + PAPERDOLL_H + 14.0
 const GRID_TOP: float = TABS_TOP + TAB_BTN_H + 8.0
 
+## Row count spanned by one Stats-tab column (title, HP, resource, meter, 6 stats, weapon damage,
+## XP) — used to size/position the item-use targeting overlay (design 2026-07-26 §4.3).
+const USE_OVERLAY_ROWS: int = 12
+
 ## Valid-target highlight tint (spec §3.1) — a bright accent distinct from every RarityVisuals
 ## color (white/green/blue/purple/orange), so it never reads as a rarity.
 const HIGHLIGHT_COLOR: Color = Color(0.3, 1.0, 1.0)
@@ -94,6 +98,13 @@ const VAULT_UNAVAILABLE_MESSAGE: String = "Travel to the nearest settlement to a
 var _grid_buttons: Array[Button] = []
 var _action_button: Button
 var _use_button: Button
+var _use_pending_item: ConsumableItem = null
+var _use_target: Combatant = null
+var _use_result_message: String = ""
+var _use_click_catchers: Dictionary = {}   # int col -> Button
+var _use_confirm_button: Button
+var _use_cancel_button: Button
+var _use_description_label: Label
 var _action_label: Label
 var _tab_buttons: Dictionary = {}    # StringName -> Button
 var _compare_check: CheckBox
@@ -308,6 +319,9 @@ func open_for(pc: Combatant, companions: Array, party_inventory: PartyInventory,
 	_active_tab = initial_tab
 	_selected = {}
 	_selected_material = null
+	_use_pending_item = null
+	_use_target = null
+	_use_result_message = ""
 	_discard_prompt_open = false
 	_discard_all = false
 	_discard_quantity = 1
@@ -337,6 +351,10 @@ func _rebuild() -> void:
 	_discard_spin = null
 	_discard_all_check = null
 	_use_button = null
+	_use_click_catchers.clear()
+	_use_confirm_button = null
+	_use_cancel_button = null
+	_use_description_label = null
 	_action_button = null
 	_action_label = null
 
@@ -363,6 +381,10 @@ func _rebuild() -> void:
 	if _active_tab == &"stats":
 		# Amber header row + title row + HP/Resource/Bonus-Meter rows + 6 stat rows + weapon-damage row + xp row.
 		bottom = GRID_TOP + float(STAT_ROWS.size() + 7) * (SLOT_H + SLOT_GAP) + PAD
+		if _use_pending_item != null:
+			bottom += 2.0 * (SLOT_H + SLOT_GAP)   # description row + Confirm/Cancel row
+		elif _use_result_message != "":
+			bottom += (SLOT_H + SLOT_GAP)   # transient result row
 	elif _active_tab == &"materials" or _active_tab == &"quest":
 		var list: Array = _party_inventory.materials if _active_tab == &"materials" else _party_inventory.quest_items
 		bottom = GRID_TOP + float(maxi(list.size(), 1)) * (SLOT_H + SLOT_GAP) + PAD
@@ -487,6 +509,11 @@ func _build_stats_panel() -> void:
 	for col in range(3):
 		_build_stats_column(col, columns[col])
 
+	if _use_pending_item != null:
+		_build_use_targeting_overlay(columns)
+	elif _use_result_message != "":
+		_build_use_result_message()
+
 func _build_stats_column(col: int, c: Combatant) -> void:
 	var x: float = PAD + float(col) * (COLUMN_W + COLUMN_GAP)
 	var top: float = GRID_TOP + (SLOT_H + SLOT_GAP)   # +1 row: the Amber header now occupies GRID_TOP itself
@@ -582,6 +609,72 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 		xp_label.text = "XP: %d" % c.xp
 	add_child(xp_label)
 	_stat_labels["%d_xp" % col] = xp_label
+
+## Targeting overlay for an armed "Use" action (design 2026-07-26 §4.3): a click-catcher over each
+## column with a living combatant (mirrors combat.gd's invisible click-catcher idiom), a highlight
+## tint on the picked target, a live effect description, and Confirm/Cancel. Rendered only while
+## _use_pending_item != null.
+func _build_use_targeting_overlay(columns: Array) -> void:
+	var col_top: float = GRID_TOP + (SLOT_H + SLOT_GAP)
+	var col_height: float = float(USE_OVERLAY_ROWS) * (SLOT_H + SLOT_GAP)
+	for col in range(3):
+		var c: Combatant = columns[col]
+		if c == null:
+			continue
+		var x: float = PAD + float(col) * (COLUMN_W + COLUMN_GAP)
+
+		var hit := Button.new()
+		hit.flat = true
+		hit.modulate = Color(1, 1, 1, 0)   # invisible; input is gated by mouse_filter, not alpha
+		hit.position = Vector2(x, col_top)
+		hit.custom_minimum_size = Vector2(COLUMN_W, col_height)
+		hit.size = Vector2(COLUMN_W, col_height)
+		hit.tooltip_text = "Click to target %s." % c.display_name
+		hit.pressed.connect(_on_use_column_pressed.bind(col))
+		add_child(hit)
+		_use_click_catchers[col] = hit
+
+		var tint := ColorRect.new()
+		tint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tint.position = Vector2(x, col_top)
+		tint.size = Vector2(COLUMN_W, col_height)
+		tint.color = Color(HIGHLIGHT_COLOR.r, HIGHLIGHT_COLOR.g, HIGHLIGHT_COLOR.b, 0.25 if _use_target == c else 0.0)
+		add_child(tint)
+
+	var row_y: float = GRID_TOP + float(USE_OVERLAY_ROWS + 1) * (SLOT_H + SLOT_GAP)
+	_use_description_label = Label.new()
+	_use_description_label.text = ConsumableEffects.description(_use_pending_item, _use_target)
+	_use_description_label.position = Vector2(PAD, row_y)
+	_use_description_label.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
+	_use_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_use_description_label)
+
+	var btn_y: float = row_y + SLOT_H + SLOT_GAP
+	_use_confirm_button = Button.new()
+	_use_confirm_button.text = "Confirm"
+	_use_confirm_button.position = Vector2(PAD, btn_y)
+	_use_confirm_button.custom_minimum_size = Vector2(ACTION_BTN_W * 0.5, ACTION_BTN_H)
+	_use_confirm_button.disabled = _use_target == null
+	_use_confirm_button.pressed.connect(_on_use_confirm_pressed)
+	add_child(_use_confirm_button)
+
+	_use_cancel_button = Button.new()
+	_use_cancel_button.text = "Cancel"
+	_use_cancel_button.position = Vector2(PAD + ACTION_BTN_W * 0.5 + 8.0, btn_y)
+	_use_cancel_button.custom_minimum_size = Vector2(ACTION_BTN_W * 0.5, ACTION_BTN_H)
+	_use_cancel_button.pressed.connect(_on_use_cancel_pressed)
+	add_child(_use_cancel_button)
+
+## The transient result line shown on the Stats tab immediately after a Confirm, until the tab is
+## switched or the panel reopens (both of which clear _use_result_message).
+func _build_use_result_message() -> void:
+	var row_y: float = GRID_TOP + float(USE_OVERLAY_ROWS + 1) * (SLOT_H + SLOT_GAP)
+	var label := Label.new()
+	label.text = _use_result_message
+	label.position = Vector2(PAD, row_y)
+	label.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
+	label.modulate = Color(0.6, 1.0, 0.6)
+	add_child(label)
 
 ## Derives the Stats tab's Resource row content for a non-null Combatant (spec
 ## 2026-07-13-stats-tab-resources-design.md §3): whichever rail (Stamina or Mana) the character
@@ -934,6 +1027,9 @@ func _on_tab_pressed(tab: StringName) -> void:
 	_selected = {}
 	_selected_material = null
 	_selected_quest_item = null
+	_use_pending_item = null
+	_use_target = null
+	_use_result_message = ""
 	_discard_prompt_open = false
 	_discard_all = false
 	_discard_quantity = 1
@@ -1121,8 +1217,40 @@ func _on_grid_item_gui_input(event: InputEvent, item: Resource, is_weapon: bool)
 	if event is InputEventMouseButton and event.pressed and event.double_click and event.button_index == MOUSE_BUTTON_LEFT:
 		_handle_double_click(item, is_weapon)
 
+## Arms targeting mode for the selected Consumable and switches to the Stats tab (design 2026-07-26
+## §4.3) — mirrors ItemMenuPanel's staging step, but out-of-combat instead of staged-for-this-turn.
 func _on_use_pressed() -> void:
-	pass
+	_use_pending_item = _selected.get("item")
+	_selected = {}
+	_use_target = null
+	_use_result_message = ""
+	_active_tab = &"stats"
+	_rebuild()
+
+## Sets column [param col]'s combatant as the item-use target. Only reachable via a click-catcher
+## that was never built for a null (unassigned companion) column, so [param col] always resolves to
+## a live Combatant here.
+func _on_use_column_pressed(col: int) -> void:
+	var columns: Array = paperdoll_columns(_pc, _companions)
+	_use_target = columns[col]
+	_rebuild()
+
+## Applies the pending item's effect to the target, consumes exactly 1 unit, and exits targeting mode.
+func _on_use_confirm_pressed() -> void:
+	if _use_pending_item == null or _use_target == null:
+		return
+	_use_result_message = ConsumableEffects.apply(_use_pending_item, _use_target)
+	_party_inventory.consume_item(_use_pending_item.item_type)
+	_use_pending_item = null
+	_use_target = null
+	_rebuild()
+
+## Exits targeting mode with no effect applied and no consumption.
+func _on_use_cancel_pressed() -> void:
+	_use_pending_item = null
+	_use_target = null
+	_use_result_message = ""
+	_rebuild()
 
 ## The rendered text of paperdoll slot [param slot_idx] in column [param col] (test hook).
 func slot_button_text_for_test(col: int, slot_idx: int) -> String:
@@ -1259,3 +1387,39 @@ func discard_button_visible_for_test() -> bool:
 ## Whether the Bag tab's "Use" action button is currently shown (test hook).
 func use_button_visible_for_test() -> bool:
 	return _use_button != null
+
+func press_use_for_test() -> void:
+	if _use_button != null:
+		_on_use_pressed()
+
+## Simulates clicking column [param col]'s targeting overlay (test hook). No-op if that column has
+## no click-catcher (empty companion slot, or targeting isn't currently armed).
+func click_use_target_for_test(col: int) -> void:
+	if _use_click_catchers.has(col):
+		_on_use_column_pressed(col)
+
+func press_use_confirm_for_test() -> void:
+	if _use_confirm_button != null and not _use_confirm_button.disabled:
+		_on_use_confirm_pressed()
+
+func press_use_cancel_for_test() -> void:
+	if _use_cancel_button != null:
+		_on_use_cancel_pressed()
+
+func use_pending_item_for_test() -> ConsumableItem:
+	return _use_pending_item
+
+func use_target_for_test() -> Combatant:
+	return _use_target
+
+func use_result_message_for_test() -> String:
+	return _use_result_message
+
+func use_confirm_disabled_for_test() -> bool:
+	return _use_confirm_button == null or _use_confirm_button.disabled
+
+func use_description_text_for_test() -> String:
+	return _use_description_label.text if _use_description_label != null else ""
+
+func use_click_catcher_exists_for_test(col: int) -> bool:
+	return _use_click_catchers.has(col)

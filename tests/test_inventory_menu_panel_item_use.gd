@@ -75,5 +75,57 @@ func _init() -> void:
 	_check(panel._action_button == null, "selecting a Consumable hides Send to Vault (no Vault storage exists for it)")
 	_check(panel.use_button_visible_for_test(), "selecting a Consumable shows a Use button")
 
+	# Targeting flow: press Use, click a column, Confirm applies + consumes; Cancel doesn't.
+	var companion: Combatant = Combatant.new()
+	companion.display_name = "Basil"
+	companion.max_hp = 100
+	companion.hp = 40
+	panel._companions = [companion]
+	pc.max_hp = 100
+	pc.hp = 100
+	panel._rebuild()
+
+	panel.select_grid_item_for_test(potion, false)
+	panel.press_use_for_test()
+	_check(panel.active_tab_for_test() == &"stats", "pressing Use switches to the Stats tab")
+	_check(panel.use_pending_item_for_test() == potion, "pressing Use arms the pending item")
+	_check(panel.use_confirm_disabled_for_test(), "Confirm is disabled before a target is picked")
+	_check(not panel.use_click_catcher_exists_for_test(2), "the empty 3rd companion column has no click-catcher")
+
+	panel.click_use_target_for_test(0)  # column 0 = Companion 1 = Basil
+	_check(panel.use_target_for_test() == companion, "clicking a column sets it as the target")
+	_check(not panel.use_confirm_disabled_for_test(), "Confirm is enabled once a target is picked")
+	_check(panel.use_description_text_for_test().find("Basil") != -1, "the live description names the current target (got '%s')" % panel.use_description_text_for_test())
+
+	panel.press_use_confirm_for_test()
+	_check(companion.hp == 70, "Confirm applies the heal to the targeted ally")
+	_check(inv.find_item(&"healing_potion").quantity == 2, "Confirm consumes exactly 1 unit")
+	_check(panel.use_pending_item_for_test() == null, "Confirm exits targeting mode")
+	_check(panel.use_result_message_for_test().find("Basil") != -1, "the result message names the healed ally (got '%s')" % panel.use_result_message_for_test())
+
+	# Cancel: no consumption, no effect.
+	panel.select_grid_item_for_test(potion, false)
+	panel.press_use_for_test()
+	panel.click_use_target_for_test(0)
+	panel.press_use_cancel_for_test()
+	_check(companion.hp == 70, "Cancel does not apply the effect")
+	_check(inv.find_item(&"healing_potion").quantity == 2, "Cancel does not consume a unit")
+	_check(panel.use_pending_item_for_test() == null, "Cancel exits targeting mode")
+
+	# Switching tabs while armed cancels targeting the same way.
+	panel.select_grid_item_for_test(potion, false)
+	panel.press_use_for_test()
+	panel.switch_tab_for_test(&"bag")
+	_check(panel.use_pending_item_for_test() == null, "switching tabs while armed cancels targeting")
+	_check(inv.find_item(&"healing_potion").quantity == 2, "switching tabs while armed does not consume a unit")
+
+	# Reopening the panel clears any stale armed state.
+	panel.select_grid_item_for_test(potion, false)
+	panel.press_use_for_test()
+	panel.click_use_target_for_test(0)
+	panel.open_for(pc, [companion], inv, vault)
+	_check(panel.use_pending_item_for_test() == null, "open_for() clears a stale pending item")
+	_check(panel.use_target_for_test() == null, "open_for() clears a stale target")
+
 	panel.free()
 	quit()
