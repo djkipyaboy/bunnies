@@ -527,17 +527,25 @@ func _on_party_selection_pressed() -> void:
 ## town-only. Unlike combat.tscn's reload-based ENDGAME toggle, town's PC/companions/bench are the
 ## same persistent Combatant objects for the whole session, so there's no "revert" here — this
 ## exists solely to unlock every Ability Talent/Universal Perk row for playtesting, not to model a
-## real progression system (none exists yet). Setting .level directly is safe at any time: every
-## derived value (ability-talent unlocks, universal perk points, weapon damage scaling, passives)
-## is computed live off Combatant.level, never cached.
+## real progression system (none exists yet). Most derived values (ability-talent unlocks, universal
+## perk points, weapon damage scaling, passives) ARE computed live off Combatant.level, but a caster's
+## resource_pool.max_mana is a CACHED value (see passive_max_mana_multiplier(), gated on level >= 5)
+## that's only recomputed by apply_stats() — so _level_to_endgame() calls it explicitly, the same way
+## pick_talent_perk()/unpick_talent_perk() already do after a state change that affects derived stats.
+func _level_to_endgame(c: Combatant) -> void:
+	c.level = Combatant.MAX_LEVEL
+	c.apply_stats()
+
 func _on_endgame_level_up_pressed() -> void:
 	_board_panel.close()
-	_pc_combatant.level = Combatant.MAX_LEVEL
+	_pc.set_movement_paused(false)
+	_level_to_endgame(_pc_combatant)
 	for c: Combatant in _companions:
-		c.level = Combatant.MAX_LEVEL
+		_level_to_endgame(c)
 	for c: Combatant in _bench:
-		c.level = Combatant.MAX_LEVEL
+		_level_to_endgame(c)
 	_handoff().log_event("Party leveled up to Endgame (Level %d)" % Combatant.MAX_LEVEL, &"party")
+	show_message("Party leveled up to Endgame (Level %d)" % Combatant.MAX_LEVEL)
 
 func _on_add_companion_requested(companion: Combatant) -> void:
 	if PartySelectionPanel.party_full(_companions):
