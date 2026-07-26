@@ -13,6 +13,11 @@ signal entry_selected(entry: QuestBoardEntry)
 ## (town_demo.gd), matching entry_selected's "emit and let the caller act" pattern.
 signal party_selection_pressed
 
+## Emitted by the "Level Up to Endgame" button (2026-07-25, player-requested playtest aid) — same
+## hand-off pattern as party_selection_pressed: this panel never touches Combatant.level itself, it
+## just tells town_demo.gd to do it.
+signal endgame_level_up_pressed
+
 const PAD: float = 16.0
 const ROW_H: float = 28.0
 const PANEL_W: float = 420.0
@@ -31,6 +36,7 @@ const CATEGORY_LABELS: Dictionary = {
 var _row_buttons: Array[Button] = []
 var _detail_label: Label
 var _party_selection_button: Button
+var _endgame_level_up_button: Button
 
 ## Groups entries by category, preserving CURRENT/SIDE/RECAP order within each bucket.
 ## Pure/static so it's unit-testable without building the panel.
@@ -56,6 +62,14 @@ func open_for(entries: Array[QuestBoardEntry]) -> void:
 	_party_selection_button.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
 	_party_selection_button.pressed.connect(func() -> void: party_selection_pressed.emit())
 	add_child(_party_selection_button)
+	y += ROW_H + 6.0
+
+	_endgame_level_up_button = Button.new()
+	_endgame_level_up_button.text = "Level Up to Endgame"
+	_endgame_level_up_button.position = Vector2(PAD, y)
+	_endgame_level_up_button.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
+	_endgame_level_up_button.pressed.connect(func() -> void: endgame_level_up_pressed.emit())
+	add_child(_endgame_level_up_button)
 	y += ROW_H + 6.0
 
 	var groups: Dictionary = group_by_category(entries)
@@ -102,3 +116,6 @@ func press_row_for_test(index: int) -> void:
 
 func press_party_selection_for_test() -> void:
 	_party_selection_button.pressed.emit()
+
+func press_endgame_level_up_for_test() -> void:
+	_endgame_level_up_button.pressed.emit()

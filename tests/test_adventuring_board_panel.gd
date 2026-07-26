@@ -46,6 +46,14 @@ func _init() -> void:
 	panel.press_party_selection_for_test()
 	_check(party_selection_pressed_count == 1, "pressing Party Selection emits party_selection_pressed")
 
+	# Plain-int lambda capture doesn't propagate out in GDScript (see the `selected` note above);
+	# use the same one-element-array workaround already established elsewhere in this codebase
+	# (tests/test_random_encounter_panel.gd, tests/test_vendor_prompt_panel.gd).
+	var endgame_level_up_pressed_count: Array[int] = [0]
+	panel.endgame_level_up_pressed.connect(func() -> void: endgame_level_up_pressed_count[0] += 1)
+	panel.press_endgame_level_up_for_test()
+	_check(endgame_level_up_pressed_count[0] == 1, "pressing Level Up to Endgame emits endgame_level_up_pressed")
+
 	panel.close()
 	_check(not panel.visible, "close() hides the panel")
 	panel.free()  # never entered the tree, so free manually (matches test_ability_menu_panel.gd)
