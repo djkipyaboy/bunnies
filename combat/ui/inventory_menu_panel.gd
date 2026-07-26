@@ -993,6 +993,11 @@ func _set_equip_reject_message(g: Gear) -> void:
 func _equip_selected(c: Combatant, slot_idx: int) -> void:
 	var item: Resource = _selected["item"]
 	var is_weapon: bool = _selected["is_weapon"]
+	if not is_weapon and not (item is Gear):
+		# A selected ConsumableItem (now grid-selectable per the 2026-07-26 item-use design) is never
+		# a paperdoll equip target — avoids an `(item as Gear).slot` crash on a non-Gear item, the
+		# same class of bug is_valid_target() already guards against for highlighting.
+		return
 	if is_weapon:
 		_active_container_take_weapon(item)
 		var displaced: Weapon = c.equip_weapon(item)
@@ -1055,6 +1060,10 @@ func _assign_charm_placement(pc_col: Combatant, g: Gear) -> void:
 ## Bag-tab double-click auto-equip onto the PC column specifically (spec §3.3, §3.4) — never a
 ## companion, regardless of which column the player might have been looking at.
 func _auto_equip_onto_pc(item: Resource, is_weapon: bool) -> void:
+	if not is_weapon and not (item is Gear):
+		# A double-clicked ConsumableItem (now grid-selectable per the 2026-07-26 item-use design) is
+		# never auto-equippable — avoids an `(item as Gear).slot` crash on a non-Gear item.
+		return
 	var pc_col: Combatant = paperdoll_columns(_pc, _companions)[1]
 	if pc_col == null:
 		return

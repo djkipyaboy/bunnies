@@ -45,5 +45,19 @@ func _init() -> void:
 	_check(found_button.tooltip_text.find("Heals your target for 30 HP") != -1, "the potion's tooltip states its effect (got '%s')" % found_button.tooltip_text)
 	_check(found_button.tooltip_text.find("vs ") == -1, "a Consumable's tooltip has no bogus Gear/Weapon compare line (got '%s')" % found_button.tooltip_text)
 
+	# 2026-07-26 self-review fix: before this task, a ConsumableItem could never reach _selected/
+	# _equip_selected/_auto_equip_onto_pc at all (nothing rendered it in the grid). Making it
+	# grid-selectable exposed a latent `(item as Gear).slot` crash in both the explicit-slot-click
+	# equip path and the double-click auto-equip path — fixed by guarding both to no-op on a
+	# non-Gear/Weapon selection. Confirm both paths are now silent no-ops, not crashes.
+	panel.select_grid_item_for_test(potion, false)
+	panel.press_slot_for_test(1, 1)   # PC column, Headwear slot
+	_check(inv.items.size() == 1 and inv.items[0] == potion, "explicit slot-click on a selected potion does not remove it from the Bag")
+	_check(pc.gear.is_empty(), "explicit slot-click on a selected potion does not equip anything")
+
+	panel.double_click_grid_item_for_test(potion, false)
+	_check(inv.items.size() == 1 and inv.items[0] == potion, "double-clicking a potion does not remove it from the Bag")
+	_check(pc.gear.is_empty(), "double-clicking a potion does not equip anything")
+
 	panel.free()
 	quit()
