@@ -20,12 +20,14 @@ const ROW_LABELS: Dictionary = {
 }
 
 const PANEL_W: float = 620.0
-const PANEL_H: float = 560.0
+const PANEL_H: float = 600.0
 const PAD: float = 12.0
 const ROW_H: float = 56.0
 const OPTION_BTN_W: float = 190.0
 const OPTION_BTN_H: float = 22.0
 const UNIVERSAL_ROW_H: float = 24.0
+const TAB_ROW_H: float = 28.0
+const TAB_BTN_W: float = 150.0
 
 var _combatant: Combatant
 var _respec_available: bool = true
@@ -34,6 +36,9 @@ var _row_locked_labels: Dictionary = {}    # row_id -> Label
 var _universal_buttons: Array[Button] = [] # index-aligned with the earned-milestone slots shown
 var _universal_perk_ids_shown: Array[StringName] = []
 var _perk_picker_container: Panel
+var _party: Array[Combatant] = []          # PC (index 0) + up to 2 active companions
+var _viewed_index: int = 0                 # which _party member the grid/perks below are showing
+var _party_tab_buttons: Array[Button] = [] # index-aligned with _party
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, PANEL_H)
@@ -47,17 +52,35 @@ func _clear() -> void:
 	_universal_buttons.clear()
 	_universal_perk_ids_shown.clear()
 	_perk_picker_container = null
+	_party_tab_buttons.clear()
 
-## Opens the panel for [param c] — shows [param c]'s own class's 6-row Ability Talent grid plus the
-## shared Universal Perk milestone list. [param respec_available] mirrors InventoryMenuPanel's
-## vault_available convention exactly: false shows every already-spent pick (still presented, per
-## this project's "still an option, just restricted" rule) but disables the swap/pick action on any
-## row/slot that already has a pick, or any not-yet-reached-but-unlocked row a player could newly
-## spend a point on outside a safe zone.
-func open_for(c: Combatant, respec_available: bool = true) -> void:
-	_clear()
-	_combatant = c
+## Opens the panel for [param pc] + [param companions] (0-2 entries, the active party — mirrors
+## InventoryMenuPanel's own (pc, companions, ...) convention) — shows the CURRENTLY VIEWED member's
+## own class's 6-row Ability Talent grid plus the shared Universal Perk milestone list, with a
+## switcher tab per party member. Always defaults to viewing the PC (index 0) on a fresh open — no
+## cross-open "remember last viewed character" state (switching tabs WHILE open is handled by
+## _on_party_tab_pressed()/_rebuild(), which do NOT reset _viewed_index). [param respec_available]
+## mirrors InventoryMenuPanel's vault_available convention exactly: false shows every already-spent
+## pick (still presented, per this project's "still an option, just restricted" rule) but disables
+## the swap/pick action on any row/slot that already has a pick, or any not-yet-reached-but-unlocked
+## row a player could newly spend a point on outside a safe zone. Applies uniformly to whichever
+## party member is currently viewed — it's a location gate, not a per-character one.
+func open_for(pc: Combatant, companions: Array, respec_available: bool = true) -> void:
+	_party = [pc]
+	for c: Combatant in companions:
+		_party.append(c)
+	_viewed_index = 0
 	_respec_available = respec_available
+	_rebuild()
+
+func close() -> void:
+	hide()
+
+## Rebuilds the whole panel for _party[_viewed_index] — shared by open_for() (fresh open, always
+## PC) and every in-place update (tab switch, a pick, a respec) that must NOT reset _viewed_index.
+func _rebuild() -> void:
+	_clear()
+	_combatant = _party[_viewed_index]
 	show()
 
 	var title: Label = Label.new()
@@ -65,7 +88,9 @@ func open_for(c: Combatant, respec_available: bool = true) -> void:
 	title.position = Vector2(PAD, PAD)
 	add_child(title)
 
-	var y: float = PAD + 36.0
+	_build_party_tabs()
+
+	var y: float = PAD + 36.0 + TAB_ROW_H
 	for row_id: StringName in ROW_IDS:
 		_build_row(row_id, y)
 		y += ROW_H
@@ -78,8 +103,25 @@ func open_for(c: Combatant, respec_available: bool = true) -> void:
 	y += 22.0
 	_build_universal_section(y)
 
-func close() -> void:
-	hide()
+## One switcher button per active party member, directly under the title. Clicking a DIFFERENT
+## member's tab changes which character's talents are shown/edited without resetting back to the
+## PC — a tab switch is a view change within the same open, unlike open_for() itself.
+func _build_party_tabs() -> void:
+	for i: int in range(_party.size()):
+		var member: Combatant = _party[i]
+		var btn: Button = Button.new()
+		btn.text = member.display_name
+		btn.position = Vector2(PAD + float(i) * (TAB_BTN_W + 8.0), PAD + 24.0)
+		btn.size = Vector2(TAB_BTN_W, TAB_ROW_H - 4.0)
+		btn.toggle_mode = true
+		btn.button_pressed = (i == _viewed_index)
+		btn.pressed.connect(_on_party_tab_pressed.bind(i))
+		add_child(btn)
+		_party_tab_buttons.append(btn)
+
+func _on_party_tab_pressed(index: int) -> void:
+	_viewed_index = index
+	_rebuild()
 
 func _build_row(row_id: StringName, y: float) -> void:
 	var unlocked: bool = _combatant.ability_talent_row_unlocked(row_id)
@@ -128,15 +170,15 @@ func _on_option_pressed(row_id: StringName, option_id: StringName) -> void:
 	# the true state and it appeared to "revert." Rebuilding here reconstructs every button from
 	# the real ability_talent_picks value, so the visual state can never diverge from it.
 	if current_pick == option_id:
-		open_for(_combatant, _respec_available)
+		_rebuild()
 		return
 	if current_pick != &"":
 		if not _respec_available:
-			open_for(_combatant, _respec_available)
+			_rebuild()
 			return
 		_combatant.unpick_ability_talent(row_id)
 	_combatant.pick_ability_talent(row_id, option_id)
-	open_for(_combatant, _respec_available)  # rebuild to reflect the new selection state
+	_rebuild()  # rebuild to reflect the new selection state
 
 func _build_universal_section(y: float) -> void:
 	var earned: int = _combatant.universal_points_earned()
@@ -170,7 +212,7 @@ func _on_universal_slot_pressed(_slot: int, existing_perk_id: StringName) -> voi
 	if existing_perk_id != &"":
 		if _respec_available:
 			_combatant.unpick_talent_perk(existing_perk_id)
-			open_for(_combatant, _respec_available)
+			_rebuild()
 		return
 	# Playtest-found bug (2026-07-24): an EMPTY slot's press had no handler at all — pressing
 	# "— pick a perk —" silently did nothing. Opens a small secondary popup listing every
@@ -220,7 +262,7 @@ func _close_perk_picker() -> void:
 
 func _on_perk_picker_option_pressed(perk_id: StringName) -> void:
 	_combatant.pick_talent_perk(perk_id)
-	open_for(_combatant, _respec_available)  # _clear() frees the picker along with everything else
+	_rebuild()  # _clear() frees the picker along with everything else
 
 ## --- Test hooks (mirror AbilityMenuPanel's _for_test() convention) ---
 
@@ -301,5 +343,21 @@ func press_universal_perk_for_test(perk_id: StringName) -> bool:
 		return false
 	if not _combatant.pick_talent_perk(perk_id):
 		return false
-	open_for(_combatant, _respec_available)
+	_rebuild()
 	return true
+
+## Number of party-switcher tabs currently shown (headless test hook).
+func party_tab_count() -> int:
+	return _party_tab_buttons.size()
+
+## Presses the real switcher tab for _party[index] (headless test hook — drives the actual
+## _on_party_tab_pressed() path). Returns false if index is out of range.
+func press_party_tab_for_test(index: int) -> bool:
+	if index < 0 or index >= _party_tab_buttons.size():
+		return false
+	_on_party_tab_pressed(index)
+	return true
+
+## The Combatant currently being viewed/edited (headless test hook).
+func viewed_combatant_for_test() -> Combatant:
+	return _combatant
