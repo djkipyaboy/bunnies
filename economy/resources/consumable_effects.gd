@@ -19,6 +19,17 @@ static func apply(item: ConsumableItem, target: Combatant) -> String:
 		_:
 			return "Nothing happens."
 
+## Whether [param item]'s effect would actually do anything to [param target] — used to warn the
+## player and block Confirm before a wasted, zero-effect use (2026-07-26 no-effect-warning design).
+## A second effect_type adds its own branch here alongside apply()/description(); an unrecognized
+## effect_type is conservatively false (can't be proven to do anything).
+static func has_effect(item: ConsumableItem, target: Combatant) -> bool:
+	match item.effect_type:
+		&"heal":
+			return target != null and target.hp > 0 and target.hp < target.max_hp
+		_:
+			return false
+
 ## The live "what will this do" text shown while targeting, before Confirm is pressed. [param target]
 ## may be null (no target picked yet) — falls back to a generic phrase, mirroring ItemMenuPanel's
 ## existing null-ally_target convention.

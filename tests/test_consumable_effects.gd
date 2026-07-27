@@ -59,4 +59,18 @@ func _init() -> void:
 	_check(basil2.hp == 50, "an unrecognized effect_type applies no effect")
 	_check(mystery_result != "", "an unrecognized effect_type still returns a non-empty fallback message")
 
+	# has_effect() — drives the out-of-combat no-effect warning (2026-07-26 design).
+	var missing_hp: Combatant = _make_combatant("Missing HP", 40, 100)
+	_check(ConsumableEffects.has_effect(potion, missing_hp), "has_effect() is true for a target missing HP")
+
+	var full_hp: Combatant = _make_combatant("Full HP", 100, 100)
+	_check(not ConsumableEffects.has_effect(potion, full_hp), "has_effect() is false for a full-HP target")
+
+	var dead_target: Combatant = _make_combatant("Dead", 0, 100)
+	_check(not ConsumableEffects.has_effect(potion, dead_target), "has_effect() is false for a dead target")
+
+	_check(not ConsumableEffects.has_effect(potion, null), "has_effect() is false for a null target")
+
+	_check(not ConsumableEffects.has_effect(mystery, basil2), "has_effect() is false for an unrecognized effect_type")
+
 	quit()

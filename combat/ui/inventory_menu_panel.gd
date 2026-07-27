@@ -653,8 +653,13 @@ func _build_use_targeting_overlay(columns: Array) -> void:
 		move_child(tint, 0)   # draw behind every other sibling (column labels/stats), not on top of them
 
 	var row_y: float = GRID_TOP + float(USE_OVERLAY_ROWS + 1) * (SLOT_H + SLOT_GAP)
+	var target_has_effect: bool = _use_target != null and ConsumableEffects.has_effect(_use_pending_item, _use_target)
+
 	_use_description_label = Label.new()
-	_use_description_label.text = ConsumableEffects.description(_use_pending_item, _use_target)
+	if _use_target != null and not target_has_effect:
+		_use_description_label.text = "%s will have no effect on %s." % [_use_pending_item.display_name, _use_target.display_name]
+	else:
+		_use_description_label.text = ConsumableEffects.description(_use_pending_item, _use_target)
 	_use_description_label.position = Vector2(PAD, row_y)
 	_use_description_label.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
 	_use_description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -665,7 +670,7 @@ func _build_use_targeting_overlay(columns: Array) -> void:
 	_use_confirm_button.text = "Confirm"
 	_use_confirm_button.position = Vector2(PAD, btn_y)
 	_use_confirm_button.custom_minimum_size = Vector2(ACTION_BTN_W * 0.5, ACTION_BTN_H)
-	_use_confirm_button.disabled = _use_target == null
+	_use_confirm_button.disabled = _use_target == null or not target_has_effect
 	_use_confirm_button.pressed.connect(_on_use_confirm_pressed)
 	add_child(_use_confirm_button)
 
@@ -1258,7 +1263,7 @@ func _on_use_column_pressed(col: int) -> void:
 
 ## Applies the pending item's effect to the target, consumes exactly 1 unit, and exits targeting mode.
 func _on_use_confirm_pressed() -> void:
-	if _use_pending_item == null or _use_target == null:
+	if _use_pending_item == null or _use_target == null or not ConsumableEffects.has_effect(_use_pending_item, _use_target):
 		return
 	_use_result_message = ConsumableEffects.apply(_use_pending_item, _use_target)
 	_party_inventory.consume_item(_use_pending_item.item_type)

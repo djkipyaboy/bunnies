@@ -150,5 +150,27 @@ func _init() -> void:
 	_check(panel.use_pending_item_for_test() == null, "open_for() clears a stale pending item")
 	_check(panel.use_target_for_test() == null, "open_for() clears a stale target")
 
+	# No-effect warning (2026-07-26 design): a full-HP or dead target shows a warning and keeps
+	# Confirm disabled instead of applying a wasted use.
+	companion.hp = companion.max_hp   # full HP
+	potion.quantity = 3               # earlier sections in this file consumed this stack down;
+	inv.items = [potion]              # reset both the quantity and the array entry so this section
+	                                   # is self-contained regardless of how much was consumed above
+	panel._rebuild()
+	panel.select_grid_item_for_test(potion, false)
+	panel.press_use_for_test()
+	panel.click_use_target_for_test(0)
+	_check(panel.use_confirm_disabled_for_test(), "Confirm stays disabled when the target is already at full HP")
+	_check(panel.use_description_text_for_test().find("no effect") != -1, "the description warns of no effect on a full-HP target (got '%s')" % panel.use_description_text_for_test())
+	panel.press_use_confirm_for_test()   # no-op: hook itself checks disabled
+	_check(companion.hp == companion.max_hp, "a disabled Confirm cannot be pressed into applying a wasted heal")
+	_check(panel.use_pending_item_for_test() == potion, "a disabled Confirm does not exit targeting mode")
+
+	companion.hp = 0   # dead
+	panel.click_use_target_for_test(0)
+	_check(panel.use_confirm_disabled_for_test(), "Confirm stays disabled when the target is dead")
+	_check(panel.use_description_text_for_test().find("no effect") != -1, "the description warns of no effect on a dead target (got '%s')" % panel.use_description_text_for_test())
+	panel.press_use_cancel_for_test()
+
 	panel.free()
 	quit()
