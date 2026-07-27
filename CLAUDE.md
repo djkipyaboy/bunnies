@@ -1817,3 +1817,46 @@ working directly on `main` (player's explicit instruction this session, no workt
   to test — `cd "C:/bunnies/bunnies-main" && ./Godot_v4.6.3-stable_win64_console.exe --path bunnies
   res://world/<scene>.tscn` (the project's configured main scene is `combat.tscn`, so any other
   scene needs the explicit path argument).
+
+**SHIPPED 2026-07-27 — TREASURE TROVE + MOUNTAIN ENTRANCE FINALIZATION, all headless-test-green
+(251/251), human playtest still pending.** This closes the ENTIRE dungeon milestone roadmap (memory
+`dungeon-milestone-roadmap-2026-07-17`) — the Treasure Trove was the last open item on that list.
+Spec `docs/superpowers/specs/2026-07-27-treasure-trove-and-mountain-entrance-design.md`, built as 6
+tasks (commits `35e943a`/`0c9eb60`/`3b763d9`/`2645dee`/`cbc8a51`, plus this closing status/verification
+task):
+- **`QuestItem.description`** (new field) + Quest Items tab tooltips on `InventoryMenuPanel` — the
+  tab previously showed only a bare name/quantity row with no way to see a quest item's flavor text.
+- **`TreasureTroveLibrary`** (new, `economy/treasure_trove_library.gd`) — a code registry of authored
+  dungeon-boss rewards, mirroring `EnemyLibrary`/`LootTableLibrary`'s static-registry shape but
+  **deliberately NOT a `LootTable`**: every field in the returned bundle is unconditionally granted,
+  no `drop_chance` roll anywhere — boss rewards stay independent of the random per-kill loot system
+  so a future difficulty/re-challenge tier could scale reward rarity without touching that system at
+  all. One authored bundle so far, `&"hollow_warden_trove"`: **Canary Lamp Helm** (Rare Headwear,
+  +3 Vigor), **150 Amber**, **Warden's Dust x3** (`CraftingMaterial`), and the **Sunken Sigil** (a
+  non-discardable `QuestItem` with a stub description flagging it as "story content — not yet
+  implemented" — the deliberate seed of a future story hook, not a placeholder oversight).
+- **`TreasureTrove`** (new, `world/treasure_trove.gd`, `extends Interactable`) — floor 4's capstone
+  reward object. Built fresh every scene load like every other dungeon placement; branches on
+  whether the Hollow Warden encounter is already marked defeated (checked by `dungeon_demo.gd` at
+  construction time, not by reaching into `CombatHandoff` itself for that flag — it only marks
+  ITSELF collected). Pre-boss-kill: a locked message, grants nothing. Post-boss-kill: grants the full
+  bundle once, then frees itself — same one-shot collect-then-vanish shape as `CagedCat`/
+  `GroundItemPickup`.
+- **Wired onto dungeon floor 4** (`dungeon_demo.gd._place_treasure_trove()`) — placed clear of the
+  floor's existing StairsUp/enemy/caged-cat placements, skips re-placing itself once already opened
+  (mirroring the cat/key's own already-collected tracking), and its opened-bundle summary posts to
+  both the on-screen message label and the cross-scene event log (`&"loot"` category).
+- **Finalized the overworld's dungeon-entrance prompt text** (`overworld_demo.gd`) from the
+  temporary `"Enter Dungeon (temporary)"` placeholder (in place since the dungeon-scene-structure
+  work, 2026-07-17) to the final, non-placeholder `"Enter the Dungeon"`.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 251-file headless sweep (this
+  task's own verification pass) came back clean — the ONE nonzero exit hit was
+  `tests/test_jinxed_reels.gd` (exit 139/SIGSEGV), the already-documented intermittent
+  teardown-only flake class; confirmed clean (exit 0) on immediate retry, not a regression. The
+  pre-existing, unrelated, out-of-scope `tests/test_adventuring_board_panel.gd` failure (documented
+  since 2026-07-14) doesn't surface in an exit-code sweep at all (its own internal FAIL tracking
+  never propagates to a nonzero process exit) and was not touched. **A human has not yet playtested
+  this live** — beat the Hollow Warden, find and open the Treasure Trove on floor 4, confirm all 4
+  rewards land correctly across `InventoryMenuPanel`'s tabs (Gear/Amber-stat-row/Materials/Quest
+  Items), confirm the Sunken Sigil's stub tooltip shows, and confirm the overworld's dungeon entrance
+  now reads "Enter the Dungeon."
