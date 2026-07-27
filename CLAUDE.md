@@ -1860,3 +1860,26 @@ task):
   rewards land correctly across `InventoryMenuPanel`'s tabs (Gear/Amber-stat-row/Materials/Quest
   Items), confirm the Sunken Sigil's stub tooltip shows, and confirm the overworld's dungeon entrance
   now reads "Enter the Dungeon."
+
+**FIRST HUMAN PLAYTEST of the above, SHIPPED 2026-07-27 — confirmed working, 1 fix.** Player ran the
+full dungeon (including a fresh "Level Up to Endgame" pass first — all party members reached level
+10, full talent/perk trees unlocked, perk stats applied accurately, talent choices applied correctly
+in combat) and beat the Hollow Warden, confirming the boss fight and the Treasure Trove reward loop
+both work end to end. One real gap found and fixed same session (commit `551318c`, 3 files, full
+251-file sweep re-confirmed clean): **both the floor-2 key and the floor-4 trove were placed
+unconditionally**, with only their `interact()` outcome gated on the relevant encounter being
+defeated — so the trove was visibly sitting on floor 4 before the boss was ever fought, and the
+player was able to grab the key and skip straight from floor 1 to the boss without fighting floors
+2/3 at all. Fixed: `_place_dungeon_key()`/`_place_treasure_trove()` now skip placing the node
+entirely unless `DungeonFloor2Enemy`/`DungeonFloor4Enemy` is already marked defeated — genuinely
+absent, not just locked-but-visible. **This resolves the open question from the 2026-07-23 session**
+("dungeon floors can be raced past... player genuinely unsure") for the key specifically; floor 3
+still has no equivalent gate (nothing placed there depends on its encounter), so racing past floor
+3's fight to reach the stairs is still possible — not raised this session, revisit if it comes up.
+Also confirmed working-as-intended (not a bug): the Thank You Note still shows in the Quest Items tab
+with a Discard option post-turn-in (it's deliberately `discardable = true`, a flavor keepsake).
+**Deferred to the player's own backlog, not built:** a proper quest-interaction UI for Lost Cat (and
+future quests generically) — a popup with the quest description + Confirm/Cancel on accept, and a
+popup with the quest-giver's completion message + reward list + a Confirm-to-grant button on turn-in,
+plus event-log entries for accept/complete (currently silent). See memory
+`treasure-trove-playtest-2026-07-27` for the full record.
