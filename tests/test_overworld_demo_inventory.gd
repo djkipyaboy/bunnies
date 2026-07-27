@@ -40,6 +40,23 @@ func _process(_delta: float) -> bool:
 		overworld._inventory_panel.switch_tab_for_test(&"vault")
 		_check(overworld._inventory_panel.vault_unavailable_message_shown_for_test(), "Vault tab on the overworld shows the Vault-unavailable message")
 
+		# Out-of-combat item-use (2026-07-26 design): the Use button on a selected Consumable is
+		# not gated by _vault_available/scene context — it must appear on the overworld exactly
+		# as it does in town.
+		overworld._inventory_panel.switch_tab_for_test(&"bag")
+		var potion: ConsumableItem = overworld._party_inventory.find_item(&"healing_potion")
+		if potion == null:
+			potion = ConsumableItem.new()
+			potion.item_type = &"healing_potion"
+			potion.display_name = "Healing Potion"
+			potion.heal_amount = 30
+			potion.effect_type = &"heal"
+			potion.quantity = 1
+			overworld._party_inventory.items.append(potion)
+			overworld._inventory_panel._rebuild()
+		overworld._inventory_panel.select_grid_item_for_test(potion, false)
+		_check(overworld._inventory_panel.use_button_visible_for_test(), "the Use button appears for a selected Consumable on the overworld (not gated by vault availability)")
+
 		# Manual Discard spawns a real GroundItemPickup at the PC's position
 		# (2026-07-14-ground-item-pickups-design.md §3.7).
 		overworld._inventory_panel.switch_tab_for_test(&"bag")

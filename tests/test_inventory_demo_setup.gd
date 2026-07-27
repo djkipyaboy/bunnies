@@ -62,6 +62,7 @@ func _initialize() -> void:
 	var potion_seed: ConsumableItem = inv.find_item(&"healing_potion")
 	_check(potion_seed != null and potion_seed.quantity > 0, "the seeded Healing Potion has a positive quantity")
 	_check(potion_seed.heal_amount > 0, "the seeded Healing Potion has a positive heal_amount")
+	_check(potion_seed.effect_type == &"heal", "the seeded Healing Potion has effect_type &heal")
 
 	print(("INVENTORY DEMO SETUP TEST PASSED" if _failures == 0 else "INVENTORY DEMO SETUP TEST FAILED: %d" % _failures))
 	quit(_failures)

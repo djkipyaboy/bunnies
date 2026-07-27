@@ -91,6 +91,7 @@ func _init() -> void:
 	_check(panel.use_pending_item_for_test() == potion, "pressing Use arms the pending item")
 	_check(panel.use_confirm_disabled_for_test(), "Confirm is disabled before a target is picked")
 	_check(not panel.use_click_catcher_exists_for_test(2), "the empty 3rd companion column has no click-catcher")
+	_check(panel.use_click_catcher_exists_for_test(1), "the PC's own column has a click-catcher")
 
 	panel.click_use_target_for_test(0)  # column 0 = Companion 1 = Basil
 	_check(panel.use_target_for_test() == companion, "clicking a column sets it as the target")
@@ -128,10 +129,23 @@ func _init() -> void:
 	_check(panel.use_pending_item_for_test() == null, "switching tabs while armed cancels targeting")
 	_check(inv.find_item(&"healing_potion").quantity == 2, "switching tabs while armed does not consume a unit")
 
+	# Targeting column 1 (the PC's own column, not just the companion column tested above).
+	pc.hp = 60   # give the PC missing HP so a heal is actually observable
+	panel.switch_tab_for_test(&"bag")
+	panel.select_grid_item_for_test(potion, false)
+	panel.press_use_for_test()
+	panel.click_use_target_for_test(1)  # column 1 = PC
+	_check(panel.use_target_for_test() == pc, "clicking column 1 targets the PC")
+	panel.press_use_confirm_for_test()
+	_check(pc.hp == 90, "Confirm applies the heal to the PC when targeted via column 1")
+	_check(inv.find_item(&"healing_potion").quantity == 1, "Confirm on the PC-column target still consumes exactly 1 unit")
+
 	# Reopening the panel clears any stale armed state.
+	panel.switch_tab_for_test(&"bag")
 	panel.select_grid_item_for_test(potion, false)
 	panel.press_use_for_test()
 	panel.click_use_target_for_test(0)
+	_check(panel.use_target_for_test() == companion, "sanity: armed with a target before reopen")
 	panel.open_for(pc, [companion], inv, vault)
 	_check(panel.use_pending_item_for_test() == null, "open_for() clears a stale pending item")
 	_check(panel.use_target_for_test() == null, "open_for() clears a stale target")

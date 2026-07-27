@@ -162,7 +162,7 @@ func _display_name_for(item: Resource) -> String:
 func _stat_summary_for(item: Resource) -> String:
 	if not (item is Gear):
 		if item is ConsumableItem:
-			return "Heals %d HP" % (item as ConsumableItem).heal_amount
+			return ConsumableEffects.description(item as ConsumableItem, null)
 		return ""
 	var s: Stats = (item as Gear).stat_bonuses
 	var parts: Array[String] = []
