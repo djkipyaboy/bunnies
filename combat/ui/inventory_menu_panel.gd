@@ -616,11 +616,10 @@ func _build_stats_column(col: int, c: Combatant) -> void:
 ## click-catcher idiom), a highlight tint on the picked target, a live effect description, and
 ## Confirm/Cancel. Rendered only while _use_pending_item != null.
 ##
-## KNOWN COSMETIC GAP (2026-07-26 review, not fixed — would need reordering _build_stats_panel()'s
-## column-then-overlay build sequence, more than a cheap fix): this tint draws ON TOP of the stat
-## text it's meant to sit behind, since Godot draws children in add_child() order and the column
-## labels/stats are already added before this function runs. Purely a paint-order issue — functional
-## behavior (targeting/highlighting) is unaffected. Flagged for a human to eyeball at playtest.
+## Paint-order note (2026-07-26 review, fixed): Godot draws children in add_child() order, and the
+## column labels/stats are already added before this function runs, so the tint would draw ON TOP of
+## the stat text without correction — move_child(tint, 0) below puts it at draw index 0 (behind every
+## other sibling in this panel) and was enough to fix it, no build-sequence reordering needed.
 func _build_use_targeting_overlay(columns: Array) -> void:
 	var col_top: float = GRID_TOP + (SLOT_H + SLOT_GAP)
 	var col_height: float = float(USE_OVERLAY_ROWS) * (SLOT_H + SLOT_GAP)
@@ -651,6 +650,7 @@ func _build_use_targeting_overlay(columns: Array) -> void:
 		# single button-sized highlight.
 		tint.color = Color(HIGHLIGHT_COLOR.r, HIGHLIGHT_COLOR.g, HIGHLIGHT_COLOR.b, 0.25 if _use_target == c else 0.0)
 		add_child(tint)
+		move_child(tint, 0)   # draw behind every other sibling (column labels/stats), not on top of them
 
 	var row_y: float = GRID_TOP + float(USE_OVERLAY_ROWS + 1) * (SLOT_H + SLOT_GAP)
 	_use_description_label = Label.new()
@@ -999,6 +999,7 @@ func _confirm_discard_bag_item() -> void:
 		dropped.display_name = item.display_name
 		dropped.item_type = item.item_type
 		dropped.heal_amount = item.heal_amount
+		dropped.effect_type = item.effect_type
 		dropped.quantity = qty
 		if item.quantity <= 0:
 			_party_inventory.items.erase(item)
@@ -1242,6 +1243,9 @@ func _on_use_pressed() -> void:
 	_use_target = null
 	_use_result_message = ""
 	_active_tab = &"stats"
+	_discard_prompt_open = false
+	_discard_all = false
+	_discard_quantity = 1
 	_rebuild()
 
 ## Sets column [param col]'s combatant as the item-use target. Only reachable via a click-catcher

@@ -436,6 +436,9 @@ func _init() -> void:
 	potions.item_type = &"healing_potion"
 	potions.display_name = "Healing Potion"
 	potions.quantity = 5
+	# Non-default effect_type (ConsumableItem's default is &"heal") so the effect_type assertion
+	# below would actually catch a regression, not just happen to match the default.
+	potions.effect_type = &"cleanse"
 	discard_inv.items = [potions]
 	discard_panel.switch_tab_for_test(&"bag")
 	discard_panel.select_grid_item_for_test(potions, false)
@@ -446,6 +449,7 @@ func _init() -> void:
 	_check(discarded[0] != potions, "the dropped item is a DUPLICATE, not the original stack object")
 	_check(discarded[0].quantity == 2, "the dropped duplicate carries exactly the discarded quantity")
 	_check(discarded[0].item_type == &"healing_potion", "the dropped duplicate carries the same item_type")
+	_check(discarded[0].effect_type == &"cleanse", "the dropped duplicate carries the same effect_type (got %s)" % discarded[0].effect_type)
 
 	# --- Discard: Consumable, "All" toggle removes the entry entirely ---
 	discard_panel.switch_tab_for_test(&"bag")
