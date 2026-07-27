@@ -5,9 +5,14 @@ extends SceneTree
 
 var _instance: Node
 var _frames: int = 0
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
-	print(("ok " if cond else "FAIL ") + label)
+	if cond:
+		print("ok " + label)
+	else:
+		_failures += 1
+		print("FAIL " + label)
 
 func _init() -> void:
 	var scene: PackedScene = load("res://world/overworld_demo.tscn")
@@ -26,6 +31,7 @@ func _process(_delta: float) -> bool:
 		_instance.free()
 		get_root().get_node("CombatHandoff").clear_pending()
 	if _frames >= 2:
-		quit()
+		print(("ok overworld-dungeon-entrance smoke test complete" if _failures == 0 else "FAIL overworld-dungeon-entrance smoke test: %d failure(s)" % _failures))
+		quit(_failures)
 		return true
 	return false

@@ -17,6 +17,11 @@ func _check(c: bool, l: String) -> void:
 var _inv: PartyInventory
 var _trove_open: TreasureTrove
 var _opened: Array = [false]
+var _opened_gear_name: Array = [""]
+var _opened_amber: Array = [0]
+var _opened_material_name: Array = [""]
+var _opened_material_qty: Array = [0]
+var _opened_quest_item_name: Array = [""]
 var _frames: int = 0
 
 func _init() -> void:
@@ -39,7 +44,14 @@ func _init() -> void:
 	_trove_open = TreasureTrove.new()
 	_trove_open.party_inventory = _inv
 	_trove_open.boss_defeated = true
-	_trove_open.trove_opened.connect(func(_g: String, _a: int, _m: String, _q: int, _qi: String) -> void: _opened[0] = true)
+	_trove_open.trove_opened.connect(func(g: String, a: int, m: String, q: int, qi: String) -> void:
+		_opened[0] = true
+		_opened_gear_name[0] = g
+		_opened_amber[0] = a
+		_opened_material_name[0] = m
+		_opened_material_qty[0] = q
+		_opened_quest_item_name[0] = qi
+	)
 	root.add_child(_trove_open)
 
 func _process(_delta: float) -> bool:
@@ -47,6 +59,11 @@ func _process(_delta: float) -> bool:
 	if _frames == 1:
 		_trove_open.interact()
 		_check(_opened[0], "trove_opened signal fires on a successful open")
+		_check(_opened_gear_name[0] == "Canary Lamp Helm", "trove_opened emits the gear name")
+		_check(_opened_amber[0] == 150, "trove_opened emits the Amber amount")
+		_check(_opened_material_name[0] == "Warden's Dust", "trove_opened emits the material name")
+		_check(_opened_material_qty[0] == 3, "trove_opened emits the material quantity")
+		_check(_opened_quest_item_name[0] == "Sunken Sigil", "trove_opened emits the quest item name")
 		_check(_inv.amber == 150, "the Amber chunk is granted to the party")
 		_check(_inv.materials.size() == 1 and _inv.materials[0].display_name == "Warden's Dust", "the crafting material is granted")
 		_check(_inv.has_quest_item(&"sunken_sigil"), "the Sunken Sigil quest item is granted")

@@ -426,8 +426,9 @@ func _place_treasure_trove() -> void:
 	_floors[3].add_child(trove)
 
 func _on_trove_opened(gear_name: String, amber: int, material_name: String, material_qty: int, quest_item_name: String) -> void:
-	show_message("Treasure Trove: %s, %d Amber, %s x%d, %s" % [gear_name, amber, material_name, material_qty, quest_item_name])
-	_handoff().log_event("Opened the Treasure Trove", &"loot")
+	var summary: String = "Treasure Trove: %s, %d Amber, %s x%d, %s" % [gear_name, amber, material_name, material_qty, quest_item_name]
+	show_message(summary)
+	_handoff().log_event(summary, &"loot")
 
 func _on_item_discarded(item: Resource, _quantity: int) -> void:
 	var pickup := GroundItemPickup.new()

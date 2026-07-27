@@ -18,9 +18,14 @@ var _dungeon_instance: Node
 var _dungeon_instance_2: Node
 var _amber_before: int = -1
 var _frames: int = 0
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
-	print(("ok " if cond else "FAIL ") + label)
+	if cond:
+		print("ok " + label)
+	else:
+		_failures += 1
+		print("FAIL " + label)
 
 func _init() -> void:
 	var scene: PackedScene = load("res://world/dungeon_demo.tscn")
@@ -79,7 +84,7 @@ func _process(_delta: float) -> bool:
 		_combat_handoff.clear_pending()
 
 	if _frames >= 8:
-		print("ok dungeon-treasure-trove regression complete")
-		quit()
+		print(("ok dungeon-treasure-trove regression complete" if _failures == 0 else "FAIL dungeon-treasure-trove regression: %d failure(s)" % _failures))
+		quit(_failures)
 		return true
 	return false

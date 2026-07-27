@@ -29,6 +29,10 @@ func interact() -> void:
 		locked_message_requested.emit("The trove is sealed — something still guards this floor.")
 		return
 	var bundle: Dictionary = TreasureTroveLibrary.make(trove_id)
+	# Unconditional give_gear(), not the capacity-gated try_give_gear(): this is a one-time capstone
+	# boss reward and the trove self-marks-defeated + queue_free()s in this same call, so a capacity
+	# failure would need a real fallback path (ground-drop? block the open entirely?) that's out of
+	# scope for one line — a boss-kill reward should never be silently lost to a full Bag.
 	party_inventory.give_gear(bundle["gear"])
 	party_inventory.amber += bundle["amber"]
 	party_inventory.give_material(bundle["material"])
