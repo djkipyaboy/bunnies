@@ -1883,3 +1883,21 @@ future quests generically) — a popup with the quest description + Confirm/Canc
 popup with the quest-giver's completion message + reward list + a Confirm-to-grant button on turn-in,
 plus event-log entries for accept/complete (currently silent). See memory
 `treasure-trove-playtest-2026-07-27` for the full record.
+
+**SAME-DAY FIX 2026-07-27 — THANK YOU NOTE DIALOGUE/INVENTORY DEADLOCK (found via
+systematic-debugging, root-caused not guessed).** Player reported viewing the Thank You Note's
+description froze the game — neither the dialogue nor the inventory panel could be closed, forcing
+a force-quit. Root cause: `town_demo.gd` wired `thank_you_note_requested` directly to
+`_dialogue_box.open`, letting the `DialogueBox` open ON TOP of an already-visible
+`InventoryMenuPanel` — a dual-open state every other input guard in the file assumes can never
+happen (every other dialogue trigger, Villager or vendor, only ever fires while no panel is open).
+Once in that state, `_toggle_inventory()`'s early-return on `_dialogue_box.is_open()` blocked the
+'I' key from closing the panel, and `_unhandled_input()`'s `_inventory_panel.visible` check
+swallowed the interact key before it ever reached the dialogue-advance branch — a genuine mutual
+deadlock, reproduced headlessly (`tests/test_thank_you_note_inventory_deadlock.gd`) before any fix
+was attempted. Fixed (commit `c7c323f`) by hiding the inventory panel BEFORE opening the dialogue
+via a new `_on_thank_you_note_requested()` handler, restoring the "at most one modal panel open"
+invariant instead of teaching every guard to tolerate a second one. Full 251-file sweep re-confirmed
+clean. Neither `overworld_demo.gd` nor `dungeon_demo.gd` currently wire `thank_you_note_requested`
+at all, so this exact bug can't fire there today — but the same "signal wired straight to
+`_dialogue_box.open`" shortcut would reintroduce it if a future feature took it again.
