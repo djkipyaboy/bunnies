@@ -373,8 +373,13 @@ func _place_dungeon_enemy(node_name: StringName, enemy_ids: Array[StringName], p
 	enemy.dungeon_floor = floor_index
 	_floors[floor_index].add_child(enemy)
 
+## Same-day playtest finding (2026-07-27): the key used to be placed unconditionally from the
+## floor's start, letting a player skip floor 2's fight entirely and still walk off with it. Now
+## it isn't placed at all until DungeonFloor2Enemy is marked defeated.
 func _place_dungeon_key() -> void:
 	if _handoff().is_defeated(&"DungeonKeyPickup"):
+		return
+	if not _handoff().is_defeated(&"DungeonFloor2Enemy"):
 		return
 	var pickup := GroundItemPickup.new()
 	pickup.name = "DungeonKeyPickup"
@@ -411,15 +416,19 @@ func _place_caged_cat() -> void:
 	_floors[3].add_child(cat)
 
 ## Floor 4's Treasure Trove (2026-07-27-treasure-trove-and-mountain-entrance-design.md §3.3).
-## Locked/grants nothing until the Hollow Warden encounter (DungeonFloor4Enemy) is marked defeated;
-## once opened, marks itself defeated too so a later scene rebuild doesn't re-place it.
+## Not placed at all until the Hollow Warden encounter (DungeonFloor4Enemy) is marked defeated —
+## same-day playtest finding: the trove was visibly sitting on floor 4 before the boss was fought,
+## just non-functional; a boss reward shouldn't be visible before the boss is beaten. Once opened,
+## marks itself defeated too so a later scene rebuild doesn't re-place it.
 func _place_treasure_trove() -> void:
 	if _handoff().is_defeated(&"HollowWardenTrove"):
+		return
+	if not _handoff().is_defeated(&"DungeonFloor4Enemy"):
 		return
 	var trove := TreasureTrove.new()
 	trove.name = "HollowWardenTrove"
 	trove.party_inventory = _party_inventory
-	trove.boss_defeated = _handoff().is_defeated(&"DungeonFloor4Enemy")
+	trove.boss_defeated = true
 	trove.global_position = floor_bounds(3).position + TROVE_LOCAL
 	trove.locked_message_requested.connect(show_message)
 	trove.trove_opened.connect(_on_trove_opened)

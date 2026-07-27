@@ -5,18 +5,22 @@ extends SceneTree
 ## tests/test_dungeon_lock_and_key.gd's locked/unlocked technique and
 ## tests/test_dungeon_floor_survives_combat.gd's two-fresh-instance no-respawn technique.
 ##
+## Updated 2026-07-27 (same-day playtest finding): the trove used to be PLACED unconditionally
+## and only its interact() outcome was gated on boss_defeated — a human playtest reported the
+## trove was visibly sitting on floor 4 before the Hollow Warden was even fought. It's now not
+## placed AT ALL until DungeonFloor4Enemy is marked defeated, so this test proves genuine absence
+## on the first (pre-boss-kill) instance rather than a locked-but-visible object.
+##
 ## Deviations from the plan's literal test text, both confirmed against real behavior rather than
 ## guessed: (1) InventoryDemoSetup.seed_demo_party() seeds 30 starting Amber (2026-07-17 general
-## store design), so a locked interact() must be checked against "unchanged from its starting
-## value," not a literal 0, and an opened trove's +150 Amber lands at 180, not 150. (2)
-## queue_free() is deferred — checking get_node_or_null() for the freed trove needs one extra
-## processed frame after interact(), matching tests/test_ground_item_pickup.gd's established
-## "await process_frame before checking is_instance_valid()" convention.
+## store design), so an opened trove's +150 Amber lands at 180, not 150. (2) queue_free() is
+## deferred — checking get_node_or_null() for the freed trove needs one extra processed frame
+## after interact(), matching tests/test_ground_item_pickup.gd's established "await process_frame
+## before checking is_instance_valid()" convention.
 
 var _combat_handoff: Node
 var _dungeon_instance: Node
 var _dungeon_instance_2: Node
-var _amber_before: int = -1
 var _frames: int = 0
 var _failures: int = 0
 
@@ -40,13 +44,7 @@ func _process(_delta: float) -> bool:
 		_combat_handoff.clear_pending()
 
 		var dungeon: DungeonDemo = _dungeon_instance
-		var trove: TreasureTrove = dungeon._floors[3].get_node("HollowWardenTrove")
-		_check(trove != null, "the Treasure Trove is placed on floor 4")
-		_check(trove.boss_defeated == false, "the trove is locked before the boss is defeated")
-
-		_amber_before = dungeon._party_inventory.amber
-		trove.interact()
-		_check(dungeon._party_inventory.amber == _amber_before, "interacting while locked grants nothing")
+		_check(dungeon._floors[3].get_node_or_null("HollowWardenTrove") == null, "the Treasure Trove is NOT placed before the boss is defeated")
 
 		_combat_handoff.mark_defeated(&"DungeonFloor4Enemy")
 
