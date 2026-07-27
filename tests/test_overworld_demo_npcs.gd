@@ -39,6 +39,11 @@ func _process(_delta: float) -> bool:
 	if _frames == 1:
 		_combat_handoff = get_root().get_node("CombatHandoff")
 		var overworld: OverworldDemo = _instance
+		# This test never moves the PC's global_position, so the 2026-07-17/18
+		# AUTO_TRIGGER_ARM_DISTANCE gate (overworld_demo.gd) would otherwise permanently block
+		# every auto_trigger interactable below (RewardPickup, GatheringNode) — arm it directly,
+		# the same way this test already reaches into other private PC/overworld state.
+		overworld._auto_trigger_armed = true
 
 		var enemy_node: OverworldEnemy = overworld._world.get_node("OverworldRat")
 		var reward_node: RewardPickup = overworld._world.get_node("ShinyTrinket")

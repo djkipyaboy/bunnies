@@ -27,6 +27,11 @@ func _process(_delta: float) -> bool:
 		_combat_handoff.defeated_encounter_ids = [] as Array[StringName]
 
 		var overworld: OverworldDemo = _instance
+		# This test never moves the PC's global_position, so the 2026-07-17/18
+		# AUTO_TRIGGER_ARM_DISTANCE gate (overworld_demo.gd) would otherwise permanently block
+		# BanditAmbush's auto_trigger — arm it directly, the same way this test already reaches
+		# into other private PC/overworld state.
+		overworld._auto_trigger_armed = true
 		var encounter_node: RandomEncounterNode = overworld._world.get_node("BanditAmbush")
 
 		# Force the node into reach and drive one real _process() frame — mirrors
