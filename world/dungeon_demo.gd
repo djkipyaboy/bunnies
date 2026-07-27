@@ -15,6 +15,7 @@ const ENEMY_LOCAL := Vector2(400, 300)
 const ENTRANCE_LOCAL := Vector2(100, 500)
 const KEY_LOCAL := Vector2(600, 150)   # floor 2 (index 1); clear of its stairs (700,100)/(100,500) and enemy (400,300)
 const CAT_LOCAL := Vector2(650, 200)   # floor 4 (index 3); clear of its StairsUp (100,500) and enemy (400,300)
+const TROVE_LOCAL := Vector2(650, 450)   # floor 4 (index 3); clear of StairsUp (100,500), enemy (400,300), and the cat (650,200)
 
 ## Playtest-found bug (2026-07-17): "Leave Dungeon" used to drop the player at the overworld's
 ## generic PC_SPAWN (near the village) instead of near the mountain they actually used. Must match
@@ -214,6 +215,7 @@ func _ready() -> void:
 	_place_dungeon_enemies()
 	_place_dungeon_key()
 	_place_caged_cat()
+	_place_treasure_trove()
 	_dungeon_exit.pc_combatant = _pc_combatant
 	_dungeon_exit.companions = _companions
 	_dungeon_exit.bench = _bench
@@ -407,6 +409,25 @@ func _place_caged_cat() -> void:
 	cat.locked_message_requested.connect(show_message)
 	cat.cat_rescued.connect(func() -> void: _handoff().mark_defeated(&"WhiskersPickup"))
 	_floors[3].add_child(cat)
+
+## Floor 4's Treasure Trove (2026-07-27-treasure-trove-and-mountain-entrance-design.md §3.3).
+## Locked/grants nothing until the Hollow Warden encounter (DungeonFloor4Enemy) is marked defeated;
+## once opened, marks itself defeated too so a later scene rebuild doesn't re-place it.
+func _place_treasure_trove() -> void:
+	if _handoff().is_defeated(&"HollowWardenTrove"):
+		return
+	var trove := TreasureTrove.new()
+	trove.name = "HollowWardenTrove"
+	trove.party_inventory = _party_inventory
+	trove.boss_defeated = _handoff().is_defeated(&"DungeonFloor4Enemy")
+	trove.global_position = floor_bounds(3).position + TROVE_LOCAL
+	trove.locked_message_requested.connect(show_message)
+	trove.trove_opened.connect(_on_trove_opened)
+	_floors[3].add_child(trove)
+
+func _on_trove_opened(gear_name: String, amber: int, material_name: String, material_qty: int, quest_item_name: String) -> void:
+	show_message("Treasure Trove: %s, %d Amber, %s x%d, %s" % [gear_name, amber, material_name, material_qty, quest_item_name])
+	_handoff().log_event("Opened the Treasure Trove", &"loot")
 
 func _on_item_discarded(item: Resource, _quantity: int) -> void:
 	var pickup := GroundItemPickup.new()
