@@ -1762,3 +1762,58 @@ implement" instruction), TDD throughout:
   to the well in `town_demo.tscn`, interact while damaged/resource-depleted, confirm the restore and
   the on-screen message both read right, and confirm it doesn't visually collide with the nearby
   Villager.
+
+**SHIPPED 2026-07-26 — OUT-OF-COMBAT CONSUMABLE ITEM USE, human-playtested and confirmed working.**
+Closes the last remaining piece of the items-out-of-combat expansion thread (memory
+`combat-items-out-of-combat-expansion-2026-07-14`) — potions can now be used outside combat, not
+just via the in-combat Items menu. Brainstormed → spec'd
+(`docs/superpowers/specs/2026-07-26-out-of-combat-item-use-design.md`) → planned
+(`docs/superpowers/plans/2026-07-26-out-of-combat-item-use.md`, 6 tasks) → built subagent-driven,
+working directly on `main` (player's explicit instruction this session, no worktree):
+- **`ConsumableItem.effect_type`** (new field, default `&"heal"`) + a new static
+  **`ConsumableEffects`** helper (`economy/resources/consumable_effects.gd`, mirrors `TypeVisuals`/
+  `RarityVisuals`'s no-instance-state convention): `apply()`/`description()`/`has_effect()`. Only
+  `heal` is implemented — a second effect type (cleanse, buff, ...) adds one more match branch to
+  each function, no other code changes needed; the in-combat Item Reel path
+  (`ItemMenuPanel`/`MainPhasePlan`) stays untouched/heal-specific until it actually needs a second type.
+- **Consumables are now visible/selectable in `InventoryMenuPanel`'s Bag tab** — previously they
+  rendered NOWHERE in this UI (`combined_items()` only ever handled Gear/Weapon). Making them
+  selectable exposed and required fixing 2 real latent crashes in the paperdoll equip-click paths
+  (`_equip_selected`/`_auto_equip_onto_pc` both assumed the selection was always Gear) and a
+  `_compare_lines()` tooltip bug (no guard against a non-Gear/Weapon selection).
+- **A "Use" action + Stats-tab targeting overlay**: select a potion in the Bag tab → press Use →
+  arms targeting mode, switches to the Stats tab → click a party column (invisible click-catcher +
+  highlight tint, mirrors `combat.gd`'s existing click-catcher idiom) → live description +
+  Confirm/Cancel. Confirm applies a FLAT/DETERMINISTIC effect (no reel, no crit/fail roll — unlike
+  combat's 90/10 Item Reel, consistent with the Old Well's no-RNG convention for non-combat actions)
+  and consumes exactly 1 unit. Works identically in town, overworld, and the dungeon (never depended
+  on Vault access, so no new safe-zone gating was needed).
+- **No-effect warning** (player-requested same session, immediately after the above shipped):
+  `ConsumableEffects.has_effect()` returns false for a full-HP or dead target; the targeting overlay
+  then shows `"<item> will have no effect on <target>."` and keeps Confirm disabled instead of
+  letting a potion be wasted for zero effect. Scoped to out-of-combat only.
+- **Final whole-branch review caught 1 real Important bug**: `_confirm_discard_bag_item()` silently
+  dropped `effect_type` when duplicating a discarded Consumable stack (always reverted to the
+  `&"heal"` default) — this pass made that code path reachable from real players for the first time
+  (nothing previously rendered a Consumable in the Bag grid, so nothing could select/discard one).
+  Fixed: `dropped.effect_type = item.effect_type`, with a regression test using a non-default
+  effect_type so a reversion would actually be caught.
+- **Human-playtested and confirmed working**: Confirm visibly greys out for a full-HP target (both
+  PC and companion column), matching the no-effect warning exactly; the out-of-combat healing flow
+  works in the overworld.
+- **Bug investigation, same session, unrelated to this feature**: the feature's own 248-file
+  regression sweep surfaced 2 previously-undocumented, reproducible (not flaky) test failures —
+  `tests/test_overworld_demo_npcs.gd` and `tests/test_overworld_encounter_variety.gd`. Root-caused
+  (not guessed): both tests predate the 2026-07-17/18 `AUTO_TRIGGER_ARM_DISTANCE`/
+  `_auto_trigger_armed` gate added to `overworld_demo.gd` for an unrelated softlock fix, and neither
+  test ever moves the PC's `global_position`, so the gate permanently blocked every `auto_trigger`
+  interactable they drive (RewardPickup, GatheringNode, RandomEncounterNode). NOT a production bug —
+  fixed by arming the gate directly in both tests before touching any auto_trigger object, zero
+  production code changed.
+- **Environment note**: no computer-use/screenshot tool is available in this harness for a native
+  Godot desktop window — a live GUI genuinely needs the human to drive it (extends the existing §5
+  hard ceiling from "is it fun" to "can I see the rendered UI at all"). What IS possible: launching
+  the real, non-headless game as a background process so it pops up on the player's own screen ready
+  to test — `cd "C:/bunnies/bunnies-main" && ./Godot_v4.6.3-stable_win64_console.exe --path bunnies
+  res://world/<scene>.tscn` (the project's configured main scene is `combat.tscn`, so any other
+  scene needs the explicit path argument).
