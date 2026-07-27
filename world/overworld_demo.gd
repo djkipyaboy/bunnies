@@ -143,7 +143,7 @@ func _build_mountain() -> void:
 
 	var dungeon_entrance := SceneExit.new()
 	dungeon_entrance.name = "DungeonEntranceDebug"
-	dungeon_entrance.prompt_text = "Enter Dungeon (temporary)"
+	dungeon_entrance.prompt_text = "Enter the Dungeon"
 	dungeon_entrance.target_scene_path = "res://world/dungeon_demo.tscn"
 	dungeon_entrance.global_position = MOUNTAIN_RECT.position + Vector2(MOUNTAIN_RECT.size.x / 2.0, MOUNTAIN_RECT.size.y + 20.0)
 	dungeon_entrance.fade_overlay = _fade_overlay
