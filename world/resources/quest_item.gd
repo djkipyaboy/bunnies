@@ -22,3 +22,9 @@ extends Resource
 ## Optional custom confirm-prompt text shown instead of the generic "Discard this item?" — lets a
 ## sentimental item (the Thank You Note) push back a little before the player tosses it.
 @export var discard_flavor_text: String = ""
+
+## Hover-tooltip text shown for this item's row in InventoryMenuPanel's Quest Items tab. Default
+## empty — every existing quest item (Rusty Key, Rescued Cat, Thank You Note) shows no tooltip,
+## same as before this field existed. First real user: the Treasure Trove's Sunken Sigil, whose
+## story significance isn't designed yet — this field carries that stub text.
+@export var description: String = ""

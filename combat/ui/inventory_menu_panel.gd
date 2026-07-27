@@ -779,6 +779,7 @@ func _build_quest_row(index: int, text: String, entry: Resource) -> void:
 	btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
 	btn.pressed.connect(_on_quest_row_pressed.bind(entry))
 	add_child(btn)
+	btn.tooltip_text = entry.description if entry is QuestItem else ""
 	_list_labels.append(btn)
 
 ## Pressed handler for any Quest Items row: selects the entry (for a possible Discard below), and —
@@ -1387,6 +1388,10 @@ func list_row_text_for_test(index: int) -> String:
 ## placeholder message, otherwise the item count.
 func list_row_count_for_test() -> int:
 	return _list_labels.size()
+
+## The hover-tooltip text of the Materials/Quest tab's [param index]-th row (test hook).
+func list_row_tooltip_for_test(index: int) -> String:
+	return _list_labels[index].tooltip_text if index < _list_labels.size() else ""
 
 func press_discard_for_test() -> void:
 	if _discard_button != null:

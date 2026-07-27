@@ -49,6 +49,15 @@ func _init() -> void:
 	_check(panel.list_row_count_for_test() == 1, "a populated Quest tab shows one row per quest item")
 	_check(panel.list_row_text_for_test(0) == "Rusty Key", "the Quest tab shows the item's real display_name, not a placeholder")
 
+	var sigil: QuestItem = QuestItem.new()
+	sigil.display_name = "Sunken Sigil"
+	sigil.item_id = &"sunken_sigil"
+	sigil.description = "A cold, sigil-etched stone that hums faintly."
+	inv.quest_items = [key, sigil]
+	panel.switch_tab_for_test(&"quest")
+	_check(panel.list_row_tooltip_for_test(0) == "", "a quest item with no description shows no tooltip")
+	_check(panel.list_row_tooltip_for_test(1) == "A cold, sigil-etched stone that hums faintly.", "a quest item's description shows as its row's tooltip")
+
 	# Switching back to Bag still works — neither new tab wedges the panel.
 	panel.switch_tab_for_test(&"bag")
 	_check(panel.active_tab_for_test() == &"bag", "switching back to Bag works normally")
