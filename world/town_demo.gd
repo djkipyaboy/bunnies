@@ -314,7 +314,7 @@ func _build_inventory_demo() -> void:
 	_inventory_panel.hide()
 	_ui_layer.add_child(_inventory_panel)
 	_inventory_panel.item_discarded.connect(_on_item_discarded)
-	_inventory_panel.thank_you_note_requested.connect(_dialogue_box.open)
+	_inventory_panel.thank_you_note_requested.connect(_on_thank_you_note_requested)
 
 	_talent_panel = TalentMenuPanel.new()
 	_talent_panel.position = Vector2(140, 60)
@@ -473,6 +473,16 @@ func _on_dialogue_requested(dialogue_set: DialogueSet, villager: Villager) -> vo
 	_talking_to = villager
 	villager.set_wander_paused(true)
 	_pc.set_movement_paused(true)
+	_dialogue_box.open(dialogue_set)
+
+## Playtest-found deadlock (2026-07-27): connecting thank_you_note_requested directly to
+## _dialogue_box.open let the DialogueBox open ON TOP of an already-visible InventoryMenuPanel — a
+## state _toggle_inventory()/_unhandled_input()'s guards never anticipated (every other path into
+## DialogueBox only ever fires while no other panel is open), so neither the panel nor the dialogue
+## could be closed afterward. Hiding the panel first restores that "at most one modal panel open"
+## invariant instead of teaching every guard to tolerate a second one.
+func _on_thank_you_note_requested(dialogue_set: DialogueSet) -> void:
+	_inventory_panel.hide()
 	_dialogue_box.open(dialogue_set)
 
 func _on_dialogue_closed() -> void:
