@@ -164,6 +164,7 @@ func _build_dungeon_exit(container: Node2D, bounds: Rect2) -> SceneExit:
 	exit.fade_overlay = _fade_overlay
 	exit.target_spawn_position = OVERWORLD_EXIT_SPAWN
 	exit.has_target_spawn_position = true
+	exit.rounds_down_jackpot = true
 	container.add_child(exit)
 
 	# Same yellow scene-exit arrow convention as town_demo.gd's TownExit/ExitDoor (playtest-found

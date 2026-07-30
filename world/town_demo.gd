@@ -60,6 +60,7 @@ func _ready() -> void:
 	_build_ui()
 	_wire_doors()
 	_build_inventory_demo()
+	_party_inventory.round_down_jackpot_to_checkpoint()   # 2026-07-29 jackpot spec §2: town-arrival checkpoint
 	# TownExit was built in _wire_doors(), before the party existed — wire its party fields now
 	# (2026-07-12 shared-party-state work) so leaving town carries the SAME party the overworld
 	# will pick back up, instead of each scene seeding its own independent placeholder party.

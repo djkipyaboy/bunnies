@@ -43,6 +43,12 @@ var vault: Vault
 @export var target_spawn_position: Vector2 = Vector2.ZERO
 @export var has_target_spawn_position: bool = false
 
+## Opt-in (2026-07-29 UTIL-reel jackpot spec §2): rounds the party's Jackpot Meter down to its
+## nearest checkpoint on departure. Defaults false so every pre-existing SceneExit placement
+## (VillageEntrance, TownExit) is unaffected — only the dungeon's own exit sets this true, since the
+## spec ties the rounddown specifically to "leaving a dungeon," not every scene transition.
+@export var rounds_down_jackpot: bool = false
+
 func interact() -> void:
 	_stash_party()
 	await fade_overlay.fade_out()
@@ -51,6 +57,8 @@ func interact() -> void:
 ## Split out from interact() so tests can drive the CombatHandoff-population effect without
 ## triggering the fade + change_scene_to_file (same reasoning as OverworldEnemy._begin_handoff()).
 func _stash_party() -> void:
+	if rounds_down_jackpot and party_inventory != null:
+		party_inventory.round_down_jackpot_to_checkpoint()
 	_handoff().stash_party(pc_combatant, companions, party_inventory, vault, bench, shop_stock,
 		target_spawn_position, has_target_spawn_position)
 
