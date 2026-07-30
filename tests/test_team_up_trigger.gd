@@ -46,8 +46,12 @@ func _initialize() -> void:
 	_check(not inst._team_up_button.disabled, "Team-Up! becomes enabled once the meter hits the cap")
 
 	var staged_before: String = inst._staged_state_key()
-	inst._on_team_up_pressed()
-	_check(inst._team_up_panel.visible, "pressing Team-Up! opens the full-screen panel")
+	# Emit the button's own `pressed` signal (not a direct _on_team_up_pressed() call) so the
+	# _bind_signals() wiring itself (_team_up_button.pressed.connect(_on_team_up_pressed)) is
+	# actually exercised — final-review fix 2026-07-30: every prior assertion in this file called
+	# the handler directly, so the connection itself was never proven to work.
+	inst._team_up_button.pressed.emit()
+	_check(inst._team_up_panel.visible, "pressing Team-Up! (via its own pressed signal) opens the full-screen panel")
 	_check(inst._staged_state_key() == staged_before, "pressing Team-Up! doesn't stage anything in MainPhasePlan (free action)")
 	_check(inst._spin_button.disabled, "the normal SPIN button is paused while the panel is open")
 
@@ -59,6 +63,15 @@ func _initialize() -> void:
 	_check(inst._awaiting_player_spin and inst._attacker == pc, "control returns to the SAME still-open Main Phase 1")
 
 	_check(inst._jackpot_bar is ProgressBar, "combat.gd builds a _jackpot_bar")
+
+	# --- Guard clause: the handler must no-op outside the PC's own Main Phase 1 (2026-07-30
+	# final-review gap) — e.g. during the post-spin "review, then END TURN" window, or an enemy's
+	# turn — even if the meter happens to be sitting at the cap.
+	inv.jackpot_meter = PartyInventory.JACKPOT_CAP
+	inst._awaiting_player_spin = false
+	inst._on_team_up_pressed()
+	_check(not inst._team_up_panel.visible, "the handler no-ops when _awaiting_player_spin is false, even at a full meter")
+	_check(inv.jackpot_meter == PartyInventory.JACKPOT_CAP, "the meter is untouched by a no-op press")
 
 	inst.queue_free()
 	await process_frame

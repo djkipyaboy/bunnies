@@ -54,6 +54,7 @@ var _paylines_button: Button
 var _team_up_button: Button
 var _team_up_panel: TeamUpPanel
 var _jackpot_bar: ProgressBar
+var _jackpot_caption: Label
 var _payline_cycle_index: int = -1   # which payline the toggle is currently previewing (-1 = none)
 var _payline_banner: Label
 var _strips_box: HBoxContainer
@@ -454,10 +455,19 @@ func _build_ui() -> void:
 	add_child(_team_up_button)
 
 	# Jackpot Meter HUD (2026-07-29 spec §2) — same translucent-bar convention as the world scenes.
+	# A small caption above the bar (final-review fix 2026-07-30): previously an unlabeled gold bar
+	# sitting near other gold UI read as unidentifiable — mirrors CombatantPanel's own
+	# "Bonus Meter" caption-above-bar convention.
+	_jackpot_caption = Label.new()
+	_jackpot_caption.text = "Jackpot"
+	_jackpot_caption.add_theme_font_size_override("font_size", 12)
+	_jackpot_caption.position = Vector2(16, 0)
+	add_child(_jackpot_caption)
+
 	_jackpot_bar = ProgressBar.new()
 	_jackpot_bar.name = "JackpotBar"
 	_jackpot_bar.show_percentage = false
-	_jackpot_bar.position = Vector2(16, 16)
+	_jackpot_bar.position = Vector2(16, 18)
 	_jackpot_bar.custom_minimum_size = Vector2(200, 16)
 	_jackpot_bar.modulate = Color(1.0, 0.84, 0.4, 0.6)
 	_jackpot_bar.max_value = PartyInventory.JACKPOT_CAP
@@ -1248,6 +1258,7 @@ func _on_turn_started(c: Combatant) -> void:
 		_abilities_button.disabled = true
 		_ultimate_button.disabled = true
 		_items_button.disabled = true
+		_team_up_button.disabled = true
 		_prepare_strips(c.turn_reels)  # show the reels (idle) behind the gate
 		_log("  %s is STUNNED — %s a shake-off roll." % [c.display_name, "press SPIN for" if c.is_player else "rolling"])
 		if c.is_player:
@@ -1273,6 +1284,7 @@ func _take_dummy_turn(c: Combatant) -> void:
 	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
+	_team_up_button.disabled = true
 	var none: Array[ActionReel] = []
 	_prepare_strips(none)  # no reels — the dummy doesn't spin
 	var missing: int = c.max_hp - c.hp
@@ -1366,6 +1378,7 @@ func _on_spin_pressed() -> void:
 	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
+	_team_up_button.disabled = true
 	_ability_menu.hide()
 	_item_menu.hide()
 	_abilities_button.modulate = Color(1, 1, 1)
@@ -1484,7 +1497,9 @@ func _on_team_up_pressed() -> void:
 ## real minigame fires the same signal once its grid resolves). Resets the meter and restores the
 ## Main-1 buttons to whatever state they'd normally be in for the still-open turn.
 func _on_team_up_completed() -> void:
-	_party_inventory.jackpot_meter = 0
+	if _party_inventory == null:
+		return
+	_party_inventory.spend_jackpot()
 	_spin_button.disabled = false
 	_refresh_main1_preview()
 
@@ -1948,6 +1963,17 @@ func _apply_post_spin_rerolls(reels: Array[ActionReel], attacks: Array[CombatRes
 		_log("  🎲 %s WILDCARD GAMBLE — every non-crit reel re-rolled (double-or-nothing)!" % _attacker.display_name)
 	return changed
 
+## Adds [param amount] to the party Jackpot Meter and logs a one-time discoverability notice the
+## moment it CROSSES the cap (2026-07-29 spec §3 final-review fix 2026-07-30) — the Team-Up! button
+## just went live and a bare unlabeled bar filling up is easy to miss. Guarded on the before/after
+## straddling the cap so it fires exactly once per fill that reaches it, not every tick while sitting
+## at 100 (e.g. an already-full meter earning more fill hooks before Team-Up! is pressed).
+func _gain_jackpot_logged(amount: int) -> void:
+	var before: int = _party_inventory.jackpot_meter
+	_party_inventory.gain_jackpot(amount)
+	if before < PartyInventory.JACKPOT_CAP and _party_inventory.jackpot_meter >= PartyInventory.JACKPOT_CAP:
+		_log("  ✦ Jackpot Meter FULL — Team-Up! available!")
+
 func _apply_attack(attack) -> void:
 	var tier_name: String = ReelFace.ResultTier.keys()[attack.face.result_tier]
 	# Rampage Ultimate makes the spin AoE: each reel hits every enemy. Otherwise just the defender.
@@ -2066,13 +2092,16 @@ func _apply_attack(attack) -> void:
 	if attack.face.result_tier == ReelFace.ResultTier.NEUTRAL and _attacker.passive_ability_id == &"house_edge" and _attacker.has_ability_talent(&"edge_wider") and _attacker.bonus_meter != null:
 		_attacker.bonus_meter.add_flat(1)
 		_log("  🎰 %s's WIDER EDGE triggers — +1 Bonus Meter." % _attacker.display_name)
-	# Jackpot Meter fill — single face (2026-07-29 UTIL-reel jackpot spec §2): a landed NEUTRAL
-	# face on a PC-side reel charges the party-wide Jackpot Meter by a flat amount, independent of
-	# the per-combatant Bonus Meter above. Enemy-side NEUTRAL results never contribute. A standalone
+	# Jackpot Meter fill — single face (2026-07-29 UTIL-reel jackpot spec §2): "a flat amount per
+	# single UTIL face landed on a weapon-attack reel" — a landed NEUTRAL face on a PC-side WEAPON
+	# reel charges the party-wide Jackpot Meter by a flat amount, independent of the per-combatant
+	# Bonus Meter above. Non-weapon-attack utility reels (Rallying Cry, the Item Reel, etc.) are
+	# explicitly excluded per the spec's own wording (final-review fix 2026-07-30 — the original
+	# hook missed this scope restriction). Enemy-side NEUTRAL results never contribute. A standalone
 	# "Choose your Party" launch has no real PartyInventory (_party_inventory stays null) — guarded
 	# the same way Items/Amber/loot already are (see _party_inventory's own doc-comment).
-	if _attacker.is_player and _party_inventory != null and attack.face.result_tier == ReelFace.ResultTier.NEUTRAL:
-		_party_inventory.gain_jackpot(PartyInventory.JACKPOT_PER_UTIL_FACE)
+	if _attacker.is_player and _party_inventory != null and attack.face.result_tier == ReelFace.ResultTier.NEUTRAL and attack.source_reel != null and attack.source_reel.is_weapon_attack:
+		_gain_jackpot_logged(PartyInventory.JACKPOT_PER_UTIL_FACE)
 	if attack.rider_effect_id != &"":
 		for t: Combatant in targets:
 			var rider: Effect = EffectLibrary.make(attack.rider_effect_id)
@@ -2266,7 +2295,7 @@ func _on_paylines_resolved(hits: Array) -> void:
 				# the party Jackpot Meter by a larger flat amount, on top of the single-face fill each
 				# of that line's reels already triggered independently in _apply_attack().
 				if _attacker.is_player and _party_inventory != null:
-					_party_inventory.gain_jackpot(PartyInventory.JACKPOT_PER_UTIL_PAYLINE)
+					_gain_jackpot_logged(PartyInventory.JACKPOT_PER_UTIL_PAYLINE)
 		_highlight_payline(hit)
 
 ## All combatants on the same side as [param c] (its allies, including itself).
@@ -2448,6 +2477,7 @@ func _finish_spin() -> void:
 	_abilities_button.disabled = true
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
+	_team_up_button.disabled = true
 	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	_items_button.modulate = Color(1, 1, 1)
@@ -2508,6 +2538,7 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	_last_result_won = winner_is_player
 	_spin_button.disabled = true
 	_end_turn_button.disabled = true
+	_team_up_button.disabled = true
 	_awaiting_player_spin = false
 	_awaiting_end_turn = false
 	var label: Label = _overlay.get_node("ResultLabel")

@@ -153,12 +153,16 @@ func has_completed_quest(quest_id: StringName) -> bool:
 func gain_jackpot(amount: int) -> void:
 	jackpot_meter = mini(jackpot_meter + amount, JACKPOT_CAP)
 
+## Spends the full Jackpot Meter (2026-07-29 spec §3: Team-Up! is a full-meter spend, not partial).
+func spend_jackpot() -> void:
+	jackpot_meter = 0
+
 ## Rounds the meter DOWN to the nearest checkpoint (30/60/90/100; below 30 -> 0) rather than a hard
 ## reset (2026-07-29 spec §2) — called on town arrival and on leaving a dungeon. An exact 100 is
 ## preserved (not knocked down to 90): the player may be sitting on a full, not-yet-triggered meter.
 func round_down_jackpot_to_checkpoint() -> void:
-	if jackpot_meter >= 100:
-		jackpot_meter = 100
+	if jackpot_meter >= JACKPOT_CAP:
+		jackpot_meter = JACKPOT_CAP
 	elif jackpot_meter >= 90:
 		jackpot_meter = 90
 	elif jackpot_meter >= 60:

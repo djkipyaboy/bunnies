@@ -37,6 +37,7 @@ var _amber_label: Label
 var _location_label: Label
 var _quest_tracker: QuestTrackerPanel
 var _jackpot_bar: ProgressBar
+var _jackpot_caption: Label
 var _pc_combatant: Combatant
 var _companions: Array[Combatant] = []
 var _bench: Array[Combatant] = []
@@ -245,11 +246,19 @@ func _build_ui() -> void:
 	_ui_layer.add_child(_quest_tracker)
 
 	# Jackpot Meter HUD (2026-07-29 spec §2): a translucent fill-bar, no raw numbers — mirrors
-	# CombatantPanel's Bonus Meter bar convention (ProgressBar, show_percentage=false).
+	# CombatantPanel's Bonus Meter bar convention (ProgressBar, show_percentage=false). A caption
+	# label + a lower y-position (final-review fix 2026-07-30) — previously unlabeled and close
+	# enough to the quest tracker's 2-line text (up to ~y186 when active) to visually clip it.
+	_jackpot_caption = Label.new()
+	_jackpot_caption.text = "Jackpot"
+	_jackpot_caption.add_theme_font_size_override("font_size", 12)
+	_jackpot_caption.position = Vector2(16, 195)
+	_ui_layer.add_child(_jackpot_caption)
+
 	_jackpot_bar = ProgressBar.new()
 	_jackpot_bar.name = "JackpotBar"
 	_jackpot_bar.show_percentage = false
-	_jackpot_bar.position = Vector2(16, 180)
+	_jackpot_bar.position = Vector2(16, 213)
 	_jackpot_bar.custom_minimum_size = Vector2(200, 16)
 	_jackpot_bar.modulate = Color(1.0, 0.84, 0.4, 0.6)
 	_jackpot_bar.max_value = PartyInventory.JACKPOT_CAP

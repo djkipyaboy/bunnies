@@ -17,8 +17,11 @@ func _initialize() -> void:
 	inv_no_round.jackpot_meter = 75
 	var exit_default: SceneExit = SceneExit.new()
 	exit_default.party_inventory = inv_no_round
+	get_root().add_child(exit_default)  # _stash_party() looks up the CombatHandoff autoload via get_node("/root/CombatHandoff"), which requires this node to be in the tree first (final-review fix 2026-07-30 — an orphan instance silently failed that lookup and never actually exercised the handoff)
+	await process_frame  # let the node actually settle into the active scene tree before it resolves an absolute path
 	exit_default._stash_party()
 	_check(inv_no_round.jackpot_meter == 75, "a SceneExit with rounds_down_jackpot=false (default) leaves the meter untouched (got %d)" % inv_no_round.jackpot_meter)
+	exit_default.queue_free()
 
 	# --- SceneExit with rounds_down_jackpot = true (the dungeon's exit): rounds down ---
 	var inv_round: PartyInventory = PartyInventory.new()
@@ -26,8 +29,11 @@ func _initialize() -> void:
 	var exit_dungeon: SceneExit = SceneExit.new()
 	exit_dungeon.rounds_down_jackpot = true
 	exit_dungeon.party_inventory = inv_round
+	get_root().add_child(exit_dungeon)  # see exit_default's comment above — same fix
+	await process_frame
 	exit_dungeon._stash_party()
 	_check(inv_round.jackpot_meter == 60, "an opted-in SceneExit rounds the meter down on _stash_party() (75 -> 60, got %d)" % inv_round.jackpot_meter)
+	exit_dungeon.queue_free()
 
 	# --- dungeon_demo.gd's own DungeonExit instance is opted in ---
 	var CombatHandoff: Node = get_root().get_node("CombatHandoff")

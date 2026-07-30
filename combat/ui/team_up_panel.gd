@@ -3,9 +3,12 @@ extends Panel
 
 ## Full-screen Team-Up! overlay (2026-07-29 UTIL-reel jackpot spec §3). This first pass (the
 ## jackpot-meter-and-trigger plan) is a minimal placeholder: it acknowledges the free action and
-## lets the player continue. The team-up-minigame follow-on plan replaces this screen's BODY (the
-## title + Continue button below) with the real 5x3 Hold & Win reel grid — combat.gd only ever
-## calls open() and listens for completed, and that contract does not change.
+## lets the player continue. The team-up-minigame follow-on plan is expected to replace this
+## screen's BODY (the title + Continue button below) with the real 5x3 Hold & Win reel grid —
+## combat.gd only ever calls open() and listens for completed(). That first-pass open()/completed
+## shape is a reasonable STARTING contract for the eventual real minigame, not a locked one — no
+## minigame plan exists yet to design against, so its signature isn't guaranteed to survive that
+## redesign unchanged (final-review note 2026-07-30: don't treat this comment as a stability promise).
 ##
 ## Mirrors combat.gd's own full-screen precedent (_build_start_overlay's
 ## Control.PRESET_FULL_RECT), not the small content-sized floating panels AbilityMenuPanel/
@@ -21,7 +24,7 @@ func _ready() -> void:
 	visible = false
 
 	_title_label = Label.new()
-	_title_label.text = "Team-Up! The party channels the Jackpot's power!"
+	_title_label.text = "Team-Up! The party channels the Jackpot's power! (more to come!)"
 	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title_label.position = Vector2(300, 220)
 	_title_label.custom_minimum_size = Vector2(1000, 60)

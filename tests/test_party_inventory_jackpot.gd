@@ -57,9 +57,9 @@ func _initialize() -> void:
 	_check(i90.jackpot_meter == 90, "exactly 90 is unchanged (got %d)" % i90.jackpot_meter)
 
 	var i100: PartyInventory = PartyInventory.new()
-	i100.jackpot_meter = 100
+	i100.jackpot_meter = PartyInventory.JACKPOT_CAP
 	i100.round_down_jackpot_to_checkpoint()
-	_check(i100.jackpot_meter == 100, "a full meter (100) is preserved, not knocked down to 90 (got %d)" % i100.jackpot_meter)
+	_check(i100.jackpot_meter == PartyInventory.JACKPOT_CAP, "a full meter (JACKPOT_CAP) is preserved, not knocked down to 90 (got %d)" % i100.jackpot_meter)
 
 	var i0: PartyInventory = PartyInventory.new()
 	i0.round_down_jackpot_to_checkpoint()
