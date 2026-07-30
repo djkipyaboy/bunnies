@@ -2204,6 +2204,11 @@ func _on_paylines_resolved(hits: Array) -> void:
 					_log("  NEUTRAL LINE %s → refund 1 Stamina." % _describe_line(hit))
 					(_panels[_attacker] as CombatantPanel).refresh_resources()
 					_append_banner("UTIL")
+				# Jackpot Meter fill — payline (2026-07-29 spec §2): a scored UTIL-tier payline charges
+				# the party Jackpot Meter by a larger flat amount, on top of the single-face fill each
+				# of that line's reels already triggered independently in _apply_attack().
+				if _attacker.is_player and _party_inventory != null:
+					_party_inventory.gain_jackpot(PartyInventory.JACKPOT_PER_UTIL_PAYLINE)
 		_highlight_payline(hit)
 
 ## All combatants on the same side as [param c] (its allies, including itself).
