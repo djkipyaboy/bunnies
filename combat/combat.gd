@@ -2008,6 +2008,13 @@ func _apply_attack(attack) -> void:
 	if attack.face.result_tier == ReelFace.ResultTier.NEUTRAL and _attacker.passive_ability_id == &"house_edge" and _attacker.has_ability_talent(&"edge_wider") and _attacker.bonus_meter != null:
 		_attacker.bonus_meter.add_flat(1)
 		_log("  🎰 %s's WIDER EDGE triggers — +1 Bonus Meter." % _attacker.display_name)
+	# Jackpot Meter fill — single face (2026-07-29 UTIL-reel jackpot spec §2): a landed NEUTRAL
+	# face on a PC-side reel charges the party-wide Jackpot Meter by a flat amount, independent of
+	# the per-combatant Bonus Meter above. Enemy-side NEUTRAL results never contribute. A standalone
+	# "Choose your Party" launch has no real PartyInventory (_party_inventory stays null) — guarded
+	# the same way Items/Amber/loot already are (see _party_inventory's own doc-comment).
+	if _attacker.is_player and _party_inventory != null and attack.face.result_tier == ReelFace.ResultTier.NEUTRAL:
+		_party_inventory.gain_jackpot(PartyInventory.JACKPOT_PER_UTIL_FACE)
 	if attack.rider_effect_id != &"":
 		for t: Combatant in targets:
 			var rider: Effect = EffectLibrary.make(attack.rider_effect_id)
