@@ -10,6 +10,11 @@ extends Resource
 const BASE_BAG_CAPACITY: int = 20
 const BAG_CAPACITY_PER_SLOT: int = 10
 
+## 2026-07-29 UTIL-reel jackpot spec §2/§8 — [ASSUMPTION] first-pass values, tune by playtest.
+const JACKPOT_CAP: int = 100
+const JACKPOT_PER_UTIL_FACE: int = 5
+const JACKPOT_PER_UTIL_PAYLINE: int = 15
+
 @export var gear: Array[Gear] = []
 @export var weapons: Array[Weapon] = []   # mirrors `gear`; uncapped like gear (only the Bag TAB's slot count is capped)
 @export var reel_mods: Array[Resource] = []    # uncapped; shape TBD when 27-crafting is designed
@@ -17,6 +22,7 @@ const BAG_CAPACITY_PER_SLOT: int = 10
 @export var quest_items: Array[Resource] = []  # uncapped; never banked (per-playthrough only)
 @export var items: Array[ConsumableItem] = []  # uncapped array, but stacks count toward bag capacity
 @export var amber: int = 0   # 2026-07-17 general store design: the world's actual currency
+@export var jackpot_meter: int = 0   # 2026-07-29 UTIL-reel jackpot spec — party-wide, 0-JACKPOT_CAP
 @export var unlocked_companion_slots: int = 0  # 0-2, story-gated
 @export var accepted_quest_ids: Array[StringName] = []
 @export var completed_quest_ids: Array[StringName] = []
@@ -142,3 +148,22 @@ func complete_quest(quest_id: StringName) -> void:
 
 func has_completed_quest(quest_id: StringName) -> bool:
 	return completed_quest_ids.has(quest_id)
+
+## Adds a flat amount to the party-wide Jackpot Meter, clamped at JACKPOT_CAP (2026-07-29 spec §2).
+func gain_jackpot(amount: int) -> void:
+	jackpot_meter = mini(jackpot_meter + amount, JACKPOT_CAP)
+
+## Rounds the meter DOWN to the nearest checkpoint (30/60/90/100; below 30 -> 0) rather than a hard
+## reset (2026-07-29 spec §2) — called on town arrival and on leaving a dungeon. An exact 100 is
+## preserved (not knocked down to 90): the player may be sitting on a full, not-yet-triggered meter.
+func round_down_jackpot_to_checkpoint() -> void:
+	if jackpot_meter >= 100:
+		jackpot_meter = 100
+	elif jackpot_meter >= 90:
+		jackpot_meter = 90
+	elif jackpot_meter >= 60:
+		jackpot_meter = 60
+	elif jackpot_meter >= 30:
+		jackpot_meter = 30
+	else:
+		jackpot_meter = 0
