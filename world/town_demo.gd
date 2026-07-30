@@ -36,6 +36,7 @@ var _pickup_debug_label: Label
 var _amber_label: Label
 var _location_label: Label
 var _quest_tracker: QuestTrackerPanel
+var _jackpot_bar: ProgressBar
 var _pc_combatant: Combatant
 var _companions: Array[Combatant] = []
 var _bench: Array[Combatant] = []
@@ -242,6 +243,17 @@ func _build_ui() -> void:
 	_quest_tracker = QuestTrackerPanel.new()
 	_quest_tracker.position = Vector2(16, 140)
 	_ui_layer.add_child(_quest_tracker)
+
+	# Jackpot Meter HUD (2026-07-29 spec §2): a translucent fill-bar, no raw numbers — mirrors
+	# CombatantPanel's Bonus Meter bar convention (ProgressBar, show_percentage=false).
+	_jackpot_bar = ProgressBar.new()
+	_jackpot_bar.name = "JackpotBar"
+	_jackpot_bar.show_percentage = false
+	_jackpot_bar.position = Vector2(16, 180)
+	_jackpot_bar.custom_minimum_size = Vector2(200, 16)
+	_jackpot_bar.modulate = Color(1.0, 0.84, 0.4, 0.6)
+	_jackpot_bar.max_value = PartyInventory.JACKPOT_CAP
+	_ui_layer.add_child(_jackpot_bar)
 
 	# Location indicator (2026-07-23 playtest feedback): a persistent corner label naming where the
 	# PC currently is (Town/Overworld/Dungeon (Floor N)) — top-right, clear of the left-side
@@ -606,6 +618,7 @@ func _make_thank_you_note() -> QuestItem:
 func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
+	_jackpot_bar.value = _party_inventory.jackpot_meter
 	if _dialogue_box.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)

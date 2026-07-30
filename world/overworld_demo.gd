@@ -40,6 +40,7 @@ var _pickup_debug_label: Label
 var _amber_label: Label
 var _location_label: Label
 var _quest_tracker: QuestTrackerPanel
+var _jackpot_bar: ProgressBar
 var _random_encounter_panel: RandomEncounterPanel
 var _event_log_panel: EventLogPanel
 
@@ -317,6 +318,17 @@ func _build_ui() -> void:
 	_quest_tracker.position = Vector2(16, 140)
 	ui.add_child(_quest_tracker)
 
+	# Jackpot Meter HUD (2026-07-29 spec §2): a translucent fill-bar, no raw numbers — mirrors
+	# CombatantPanel's Bonus Meter bar convention (ProgressBar, show_percentage=false).
+	_jackpot_bar = ProgressBar.new()
+	_jackpot_bar.name = "JackpotBar"
+	_jackpot_bar.show_percentage = false
+	_jackpot_bar.position = Vector2(16, 180)
+	_jackpot_bar.custom_minimum_size = Vector2(200, 16)
+	_jackpot_bar.modulate = Color(1.0, 0.84, 0.4, 0.6)
+	_jackpot_bar.max_value = PartyInventory.JACKPOT_CAP
+	ui.add_child(_jackpot_bar)
+
 	# Location indicator (2026-07-23 playtest feedback): a persistent corner label naming where the
 	# PC currently is — top-right, clear of the left-side interact/pickup/Amber/quest stack.
 	_location_label = Label.new()
@@ -588,6 +600,7 @@ func _toggle_talents() -> void:
 func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
+	_jackpot_bar.value = _party_inventory.jackpot_meter
 	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open() or _talent_panel.visible:
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
