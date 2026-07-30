@@ -51,6 +51,9 @@ var _abilities_button: Button
 var _items_button: Button
 var _ultimate_button: Button
 var _paylines_button: Button
+var _team_up_button: Button
+var _team_up_panel: TeamUpPanel
+var _jackpot_bar: ProgressBar
 var _payline_cycle_index: int = -1   # which payline the toggle is currently previewing (-1 = none)
 var _payline_banner: Label
 var _strips_box: HBoxContainer
@@ -153,6 +156,9 @@ func _ready() -> void:
 	else:
 		_build_start_overlay()  # the selection screen — choose party + enemies, then BEGIN
 	_relayout_action_block.call_deferred()
+
+func _process(_delta: float) -> void:
+	_jackpot_bar.value = _party_inventory.jackpot_meter if _party_inventory != null else 0
 
 ## Fetches the CombatHandoff autoload by path rather than referencing it as a bare global identifier.
 ## Referencing the bare `CombatHandoff` identifier compiles fine when the editor/exported game runs
@@ -437,6 +443,26 @@ func _build_ui() -> void:
 	_items_button.tooltip_text = "Open your item list — stage one consumable for this turn."
 	add_child(_items_button)
 
+	# Team-Up! button (2026-07-29 UTIL-reel jackpot spec §3) — same button-bar convention as
+	# Abilities/Items; gating is computed in _refresh_main1_preview() alongside them.
+	_team_up_button = Button.new()
+	_team_up_button.text = "Team-Up!"
+	_team_up_button.position = Vector2(col_x.call(1), ROW3_Y)
+	_team_up_button.custom_minimum_size = Vector2(BTN_W, 44)
+	_team_up_button.disabled = true
+	_team_up_button.tooltip_text = "Free action: spend a full Jackpot Meter on a party-wide bonus round."
+	add_child(_team_up_button)
+
+	# Jackpot Meter HUD (2026-07-29 spec §2) — same translucent-bar convention as the world scenes.
+	_jackpot_bar = ProgressBar.new()
+	_jackpot_bar.name = "JackpotBar"
+	_jackpot_bar.show_percentage = false
+	_jackpot_bar.position = Vector2(16, 16)
+	_jackpot_bar.custom_minimum_size = Vector2(200, 16)
+	_jackpot_bar.modulate = Color(1.0, 0.84, 0.4, 0.6)
+	_jackpot_bar.max_value = PartyInventory.JACKPOT_CAP
+	add_child(_jackpot_bar)
+
 	# Scrollable combat log — keeps the full history; fills the center band below the button bar (its bottom
 	# close to but not touching the buttons above). Positioned/sized in _relayout_action_block.
 	_log_bg = Panel.new()
@@ -481,6 +507,10 @@ func _build_ui() -> void:
 
 	_build_overlay()
 	_build_fate_picker()
+
+	_team_up_panel = TeamUpPanel.new()
+	add_child(_team_up_panel)
+	_team_up_panel.completed.connect(_on_team_up_completed)
 
 ## Places combatant panels in a vertical column at [param x] (top-down, in [param members] order) and
 ## binds each. Panel height 278 + 14px gap (spec §2; grew from 238 on 2026-07-04 for the taller
@@ -1070,6 +1100,7 @@ func _bind_signals() -> void:
 	_ability_menu.ability_pressed.connect(_on_ability_menu_ability_pressed)
 	_items_button.pressed.connect(_on_items_pressed)
 	_item_menu.item_pressed.connect(_on_item_menu_item_pressed)
+	_team_up_button.pressed.connect(_on_team_up_pressed)
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 	_paylines_button.pressed.connect(_on_paylines_pressed)
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
@@ -1431,6 +1462,32 @@ func _on_item_menu_item_pressed(item_type: StringName) -> void:
 		_item_menu.open_for(_plan, _party_inventory, _ally_target)  # re-render states in place (e.g. press was a no-op)
 	_refresh_main1_preview()
 
+## Opens the Team-Up! overlay — a FREE action (spec §3): does not touch MainPhasePlan's staged
+## state, does not consume the triggering PC's turn. Pauses the normal Main-1 button row while the
+## overlay is up; _on_team_up_completed() restores it.
+func _on_team_up_pressed() -> void:
+	if not _awaiting_player_spin or _plan == null or _party_inventory == null:
+		return
+	if _party_inventory.jackpot_meter < PartyInventory.JACKPOT_CAP:
+		return
+	_spin_button.disabled = true
+	_abilities_button.disabled = true
+	_items_button.disabled = true
+	_ultimate_button.disabled = true
+	_team_up_button.disabled = true
+	_ability_menu.hide()
+	_item_menu.hide()
+	move_child(_team_up_panel, get_child_count() - 1)
+	_team_up_panel.open()
+
+## The Team-Up! round finished (this plan: the placeholder Continue button; the follow-on plan's
+## real minigame fires the same signal once its grid resolves). Resets the meter and restores the
+## Main-1 buttons to whatever state they'd normally be in for the still-open turn.
+func _on_team_up_completed() -> void:
+	_party_inventory.jackpot_meter = 0
+	_spin_button.disabled = false
+	_refresh_main1_preview()
+
 ## Fingerprint of the plan's staged-ability/item state — compared around a toggle to detect
 ## "something actually changed" (drives the close-on-successful-toggle rule for both menus).
 func _staged_state_key() -> String:
@@ -1508,6 +1565,7 @@ func _refresh_main1_preview() -> void:
 		_items_button.text = "Items"
 		_items_button.modulate = Color(1, 1, 1)
 	_items_button.disabled = not (is_player_main1 and _party_inventory != null and not _party_inventory.items.is_empty())
+	_team_up_button.disabled = not (is_player_main1 and _party_inventory != null and _party_inventory.jackpot_meter >= PartyInventory.JACKPOT_CAP)
 	if _item_menu.visible:
 		_item_menu.open_for(_plan, _party_inventory, _ally_target)  # keep an open menu's row states live
 
