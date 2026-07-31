@@ -7,6 +7,9 @@ extends Resource
 ## Do NOT instantiate directly. Use a subclass:
 ##   • [InitiativeReel] — digit 0–9 faces; a CONSTANT shared by every combatant (§4.2).
 ##   • [ActionReel]     — result-tier faces; VARIES by weapon/class/talent/gear (§4.4).
+##   • [TeamUpReel]      — team_up_symbol faces (Strike/Mend/Ward/Break/Surge), no fail
+##                         tiers; used only by the Team-Up! bonus round, where each row is
+##                         drawn independently rather than derived from one landed index.
 ##
 ## This is pure combat DATA. Scroll/animation is a separate view concern and lives on a
 ## display node, not here.

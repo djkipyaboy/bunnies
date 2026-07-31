@@ -52,9 +52,13 @@ slot-machine scripts) MUST follow them. `DESIGN.md` is still the source of truth
 
 ### Reel class hierarchy (LOCKED)
 
-Reels are an abstract base `Resource` with two subclasses — **not** one class with a `kind` enum
-(the two kinds carry genuinely different face data, so a shared enum would force an overloaded
-`ReelFace` and `if kind == …` branching):
+Reels are an abstract base `Resource` with subclasses — **not** one class with a `kind` enum
+(each kind carries genuinely different face data, so a shared enum would force an overloaded
+`ReelFace` and `if kind == …` branching). **Updated 2026-07-30:** this was originally authored
+as "two subclasses"; the Team-Up! minigame added a third, following the identical rationale
+(its faces carry a `team_up_symbol`, not `result_tier`/`multiplier` or a percentile digit) — the
+LOCKED rule is "one dedicated subclass per genuinely distinct face-data shape," not a hard cap
+of two:
 
 - **`Reel`** (base, `Resource`) — common contract: an ordered `faces` array and `spin() -> ReelFace`.
   Not instantiated directly.
@@ -64,6 +68,11 @@ Reels are an abstract base `Resource` with two subclasses — **not** one class 
 - **`ActionReel`** (`extends Reel`) — faces are **result tiers** (critfail/fail/neutral/success/
   critsuccess) carrying a `multiplier` + optional `rider_effect_id`. Instances **vary** by
   weapon/class/talent/gear — this is the build-expression layer.
+- **`TeamUpReel`** (`extends Reel`) — faces carry a `team_up_symbol` (Strike/Mend/Ward/Break/
+  Surge), no fail/negative tiers (every symbol is positive-for-the-party). Used only by the
+  Team-Up! bonus round (a Jackpot-Meter-triggered 5×3 Hold & Win minigame); rows are drawn
+  independently (3 separate `spin()` calls per reel per grid-fill) rather than derived from one
+  landed index via strip adjacency, so a locked row can be frozen while the others re-spin.
 
 > **STILL TODO (not yet decided — do not guess):** folder/scene structure. ASK before writing
 > code that depends on it.
