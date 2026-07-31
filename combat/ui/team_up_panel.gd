@@ -40,6 +40,10 @@ var _status_label: Label
 var _tally_label: Label
 var _continue_button: Button
 var _resolve_lines: Array[String] = []   # last resolved round's log lines, handed back via `completed`
+var _legend_label: RichTextLabel
+var _payline_preview_button: Button
+var _payline_preview_cells: Array = []
+var _payline_cycle_index: int = -1
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -85,6 +89,23 @@ func _ready() -> void:
 		completed.emit(_resolve_lines))
 	add_child(_continue_button)
 
+	_legend_label = RichTextLabel.new()
+	_legend_label.bbcode_enabled = true
+	_legend_label.fit_content = true
+	_legend_label.scroll_active = false
+	_legend_label.position = Vector2(40, 600)
+	_legend_label.custom_minimum_size = Vector2(840, 140)
+	_legend_label.text = "[b]Key:[/b]  [color=#e0a040]Strike[/color] damages ALL enemies  •  [color=#5fd35f]Mend[/color] heals ALL allies  •  [color=#5fd3d3]Ward[/color] shields ALL allies  •  [color=#d35f5f]Break[/color] applies Weakened to ALL enemies  •  [color=#d3d35f]Surge[/color] amplifies every OTHER symbol +50%% per completed Surge line this round (a lone Surge cell does nothing by itself)"
+	add_child(_legend_label)
+
+	_payline_preview_button = Button.new()
+	_payline_preview_button.text = "Show Paylines"
+	_payline_preview_button.position = Vector2(560, 350)
+	_payline_preview_button.custom_minimum_size = Vector2(160, 44)
+	_payline_preview_button.tooltip_text = "Cycle through this round's payline patterns one at a time (legibility aid)."
+	_payline_preview_button.pressed.connect(_on_payline_preview_pressed)
+	add_child(_payline_preview_button)
+
 func _build_grid() -> void:
 	_cell_buttons.clear()
 	for c: int in range(GRID_COLS):
@@ -113,14 +134,38 @@ func open_for(config: Dictionary, allies: Array, enemies: Array) -> void:
 	_tally_label.visible = false
 	_spin_button.disabled = false
 	_resolve_lines = []
+	_clear_payline_preview()
 	_refresh_grid()
 	visible = true
 
 func _on_spin_pressed() -> void:
 	if _minigame.spin():
+		_clear_payline_preview()
 		_refresh_grid()
 		if _minigame.is_complete():
 			_resolve()
+
+## Cycles this round's payline patterns one at a time over the Team-Up grid (mirrors combat.gd's
+## own "Paylines" button for the main weapon reels — legibility: one line, not all at once).
+func _on_payline_preview_pressed() -> void:
+	if _minigame == null:
+		return
+	var lines: Array = PaylineLibrary.lines_for(_minigame.grid.size())
+	if lines.is_empty():
+		return
+	_payline_cycle_index += 1
+	if _payline_cycle_index >= lines.size():
+		_payline_cycle_index = -1
+		_payline_preview_cells = []
+		_refresh_grid()
+		return
+	_payline_preview_cells = lines[_payline_cycle_index]
+	_refresh_grid()
+
+## Clears the payline-preview highlight (new round / new spin state).
+func _clear_payline_preview() -> void:
+	_payline_cycle_index = -1
+	_payline_preview_cells = []
 
 func _on_cell_pressed(col: int, row: int) -> void:
 	_minigame.lock(col, row)
@@ -141,7 +186,12 @@ func _refresh_grid() -> void:
 			var face: ReelFace = _minigame.grid[c][r]
 			btn.text = String(face.team_up_symbol).capitalize() if face != null else ""
 			btn.disabled = _minigame.locked[c][r] or _minigame.is_complete()
-			btn.modulate = Color(0.6, 1.0, 0.6) if _minigame.locked[c][r] else Color(1, 1, 1)
+			if _minigame.locked[c][r]:
+				btn.modulate = Color(0.6, 1.0, 0.6)
+			elif _payline_preview_cells.has(Vector2i(c, r)):
+				btn.modulate = Color(1.6, 1.5, 0.5)
+			else:
+				btn.modulate = Color(1, 1, 1)
 	_spin_button.disabled = _minigame.is_complete()
 	_status_label.text = "Spins left: %d   Lock tokens left: %d" % [_minigame.spins_remaining, _minigame.lock_tokens_remaining]
 
