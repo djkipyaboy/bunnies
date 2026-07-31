@@ -1491,7 +1491,7 @@ func _on_team_up_pressed() -> void:
 	_ability_menu.hide()
 	_item_menu.hide()
 	move_child(_team_up_panel, get_child_count() - 1)
-	_team_up_panel.open()
+	_team_up_panel.open_for(FreeSpinLibrary.make(&"dungeon"), _allies_of(_attacker), _enemies_of(_attacker))
 
 ## The Team-Up! round finished (this plan: the placeholder Continue button; the follow-on plan's
 ## real minigame fires the same signal once its grid resolves). Resets the meter and restores the

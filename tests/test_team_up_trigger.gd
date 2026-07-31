@@ -2,9 +2,19 @@ extends SceneTree
 
 # Headless end-to-end test: the "Team-Up!" trigger button (2026-07-29 UTIL-reel jackpot spec §3):
 # disabled below JACKPOT_CAP, enabled at cap during the PC's own Main Phase 1, pressing it is a
-# FREE action (doesn't touch MainPhasePlan's staged state or consume the turn), and completing the
-# (placeholder, this plan) TeamUpPanel resets the meter to 0 and hands control back to the same
-# still-open Main Phase 1.
+# FREE action (doesn't touch MainPhasePlan's staged state or consume the turn), and completing
+# TeamUpPanel resets the meter to 0 and hands control back to the same still-open Main Phase 1.
+#
+# 2026-07-29 team-up-minigame plan, Task 6: TeamUpPanel is no longer a placeholder (it's the real
+# 5x3 grid, see tests/test_team_up_panel_e2e.gd for full round coverage), but every assertion below
+# still passes unmodified — this test never plays a round, it presses Continue immediately via a
+# direct `pressed.emit()` on the button, and the real panel's Continue handler unconditionally
+# closes + emits `completed` with no `_minigame.is_complete()` guard (identical to the old
+# placeholder's unconditional Continue). So this file still validates exactly what it always did:
+# the trigger button's enable/disable gating, the free-action/no-staging guarantee, the
+# pause-while-open/restore-on-completed wiring, and the standalone-launch safety — it does NOT
+# duplicate the new e2e test's round-mechanics coverage (spin/lock/tally/damage), which only that
+# file exercises.
 # Run: "/c/bunnies/bunnies-main/Godot_v4.6.3-stable_win64_console.exe" --headless --path . --script res://tests/test_team_up_trigger.gd
 
 var _failures: int = 0
