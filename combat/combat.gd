@@ -2266,12 +2266,14 @@ func _sacrifice_reinforcements(c: Combatant) -> void:
 ## talent (Task 19) ever passes a non-default value. 1v1 → no-op.
 func _splash_half_to_others(attacker: Combatant, total: int, type_label: String, fraction: float = 0.5) -> Array[Combatant]:
 	var damaged: Array[Combatant] = []
-	var splash: int = ceili(total * fraction)
-	if splash <= 0:
+	var base_splash: int = ceili(total * fraction)
+	if base_splash <= 0:
 		return damaged
 	for other: Combatant in _enemies_of(attacker):
 		if other == _defender:
 			continue
+		var dmg_mult: float = attacker.outgoing_damage_multiplier(other) * other.incoming_damage_multiplier()
+		var splash: int = ceili(base_splash * dmg_mult)
 		other.take_damage(splash)
 		damaged.append(other)
 		_log("  💥 splash → %s takes %d %s (%.0f%% of %d)." % [other.display_name, splash, type_label, fraction * 100.0, total])
@@ -2288,7 +2290,8 @@ func _on_paylines_resolved(hits: Array) -> void:
 			ReelFace.ResultTier.CRIT_SUCCESS:
 				var weapon_type: DamageType = _attacker.weapon.reels[0].damage_type if not _attacker.weapon.reels.is_empty() else null
 				var type_mult: float = weapon_type.multiplier_against(_defender.defense_type) if weapon_type != null else 1.0
-				var bonus: int = ceili(_attacker.weapon_effective_base_damage() * (float(hit.length) / 3.0) * type_mult)
+				var line_dmg_mult: float = _attacker.outgoing_damage_multiplier(_defender) * _defender.incoming_damage_multiplier()
+				var bonus: int = ceili(_attacker.weapon_effective_base_damage() * (float(hit.length) / 3.0) * type_mult * line_dmg_mult)
 				_defender.take_damage(bonus)
 				_log("  ★ CRIT LINE (%d) %s → %d bonus damage!" % [hit.length, _describe_line(hit), bonus])
 				_append_banner("CRIT x%d" % hit.length)
