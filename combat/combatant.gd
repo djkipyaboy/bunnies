@@ -1168,6 +1168,18 @@ func cleanse() -> int:
 	recompute_initiative()
 	return before - active_effects.size()
 
+## Clears every active effect (buff AND debuff) plus any residual shield, for a fresh start in a
+## brand-new encounter (player decision 2026-07-31 — CombatHandoff reuses the same real Combatant
+## instances across sequential fights, so without this, Guarded/Taunt/Evasion/etc. would silently
+## survive from one unrelated fight into the next). Unlike cleanse(), which keeps beneficial
+## effects, this clears everything. Deliberately does NOT touch cooldowns/bonus_meter/xp — those
+## aren't the reported problem and have no reason to reset at combat end.
+func clear_combat_effects() -> void:
+	active_effects.clear()
+	shield_hp = 0
+	shield_turns = 0
+	shield_changed.emit(shield_hp, shield_turns)
+
 ## Removes the active effect with [param id], if any, then refreshes the derived sort key. Used by
 ## the boss phase-transition orchestrator to clear Indestructible the instant both its minions die —
 ## not a turn-counted expiry, so tick_effects()/cleanse() can't do this (spec 2026-07-19 §3.1).

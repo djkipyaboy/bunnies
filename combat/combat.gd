@@ -2571,6 +2571,8 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 					_log("Loot: %s (Bag full — left on the ground)" % g.display_name)
 
 func _on_combat_ended(winner_is_player: bool) -> void:
+	for c: Combatant in _pcs:
+		c.clear_combat_effects()
 	_last_result_won = winner_is_player
 	_spin_button.disabled = true
 	_end_turn_button.disabled = true
