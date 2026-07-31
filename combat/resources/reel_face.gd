@@ -40,6 +40,15 @@ enum ResultTier {
 @export_range(-1, 9) var digit: int = -1
 
 # ---------------------------------------------------------------------------
+# Team-Up-reel field
+# ---------------------------------------------------------------------------
+
+## Which of the 5 Team-Up symbols (Strike/Mend/Ward/Break/Surge) this face carries — a
+## TeamUpReel-only field, following this file's own "nullable fields serve multiple reel kinds"
+## precedent (2026-07-29 UTIL-reel jackpot spec §4). Empty on every Action/Initiative face.
+@export var team_up_symbol: StringName = &""
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
