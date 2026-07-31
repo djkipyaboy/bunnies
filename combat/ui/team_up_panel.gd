@@ -95,7 +95,7 @@ func _ready() -> void:
 	_legend_label.scroll_active = false
 	_legend_label.position = Vector2(40, 600)
 	_legend_label.custom_minimum_size = Vector2(840, 140)
-	_legend_label.text = "[b]Key:[/b]  [color=#e0a040]Strike[/color] damages ALL enemies  •  [color=#5fd35f]Mend[/color] heals ALL allies  •  [color=#5fd3d3]Ward[/color] shields ALL allies  •  [color=#d35f5f]Break[/color] applies Weakened to ALL enemies  •  [color=#d3d35f]Surge[/color] amplifies every OTHER symbol +50%% per completed Surge line this round (a lone Surge cell does nothing by itself)"
+	_legend_label.text = "[b]Key:[/b]  [color=#e0a040]Strike[/color] damages ALL enemies  •  [color=#5fd35f]Mend[/color] heals ALL allies  •  [color=#5fd3d3]Ward[/color] shields ALL allies  •  [color=#d35f5f]Break[/color] applies Weakened to ALL enemies  •  [color=#d3d35f]Surge[/color] amplifies every OTHER symbol +50% per completed Surge line this round (a lone Surge cell does nothing by itself)"
 	add_child(_legend_label)
 
 	_payline_preview_button = Button.new()

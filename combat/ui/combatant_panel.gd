@@ -30,12 +30,12 @@ func _ready() -> void:
 	# to paint onto the panel of the NEXT combatant in the column (looked like "debuffs are covered by
 	# the character beneath the target"). clip_contents is a hard backstop for any stacking this taller
 	# reservation still doesn't cover.
-	custom_minimum_size = Vector2(PANEL_W, 278)
+	custom_minimum_size = Vector2(PANEL_W, 312)
 	size = custom_minimum_size
 	clip_contents = true
 	var box := VBoxContainer.new()
 	box.position = Vector2(10, 8)
-	box.custom_minimum_size = Vector2(ROW_W, 262)
+	box.custom_minimum_size = Vector2(ROW_W, 296)
 	add_child(box)
 
 	_name_label = Label.new()

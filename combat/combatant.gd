@@ -1179,6 +1179,7 @@ func clear_combat_effects() -> void:
 	shield_hp = 0
 	shield_turns = 0
 	shield_changed.emit(shield_hp, shield_turns)
+	recompute_initiative()
 
 ## Removes the active effect with [param id], if any, then refreshes the derived sort key. Used by
 ## the boss phase-transition orchestrator to clear Indestructible the instant both its minions die —

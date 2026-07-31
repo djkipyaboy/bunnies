@@ -66,7 +66,7 @@ func _process(_delta: float) -> bool:
 		# --- Compute the real shrink threshold from the LIVE viewport — don't guess it. ---
 		var view: Vector2 = combat.get_viewport_rect().size
 		const TOP_Y: float = 80.0
-		const ROW_H: float = 292.0  # 278.0 panel height + 14.0 gap, matching _relayout_enemy_column()
+		const ROW_H: float = 326.0  # 312.0 panel height + 14.0 gap, matching _relayout_enemy_column()
 		const BOTTOM_MARGIN: float = 20.0
 		var available: float = view.y - TOP_Y - BOTTOM_MARGIN
 		# Smallest member count N where N * ROW_H > available (the production condition).
@@ -93,7 +93,7 @@ func _process(_delta: float) -> bool:
 			_check(is_equal_approx(panel.scale.x, expected_scale), "%s panel scale matches the computed shared scale factor" % m.display_name)
 			_check(panel.scale.x < 1.0, "%s panel is genuinely shrunk" % m.display_name)
 			_check(panel.scale.x >= 0.4, "%s panel never shrinks past the 0.4 hard floor" % m.display_name)
-			_check(panel.position.y + 278.0 * panel.scale.y <= view.y, "%s panel's scaled bottom edge stays within the viewport (no off-screen bug)" % m.display_name)
+			_check(panel.position.y + 312.0 * panel.scale.y <= view.y, "%s panel's scaled bottom edge stays within the viewport (no off-screen bug)" % m.display_name)
 
 			_check(combat._click_catchers.has(m), "%s has a tracked click-catcher" % m.display_name)
 			var hit: Button = combat._click_catchers[m]

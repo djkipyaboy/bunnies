@@ -92,6 +92,26 @@ func _process(_delta: float) -> bool:
 		_check(guarded_dmg < plain_dmg, "Guarded's 0.75 incoming multiplier reduces its splash vs. the plain target (guarded=%d plain=%d)" % [guarded_dmg, plain_dmg])
 		_check(guarded_dmg == ceili(ceili(40 * 0.5) * 0.75), "Guarded splash matches ceil(ceil(40*0.5) * 0.75) exactly (got %d)" % guarded_dmg)
 
+		# --- _splash_half_to_others() must NOT re-apply the ATTACKER's own outgoing multiplier ---
+		# (playtest 2026-07-31: [param total] passed in is already the sum of per-reel final_damage
+		# values the resolver computed, which already multiplied by the attacker's outgoing multiplier
+		# once — re-multiplying by attacker.outgoing_damage_multiplier() here double-counted Empowered).
+		var empowered_splasher: Combatant = _make_armed_attacker(crushing)
+		empowered_splasher.attach_effect(EffectLibrary.make(&"empowered"))
+		_check(is_equal_approx(empowered_splasher.outgoing_damage_multiplier(), 1.4), "sanity: Empowered gives the attacker a 1.4x outgoing multiplier")
+		var plain_target: Combatant = _make_target(false)
+		combat._attacker = empowered_splasher
+		combat._defender = _make_target(false)  # a throwaway primary, distinct from plain_target
+		combat._turn_manager.combatants = [empowered_splasher, combat._defender, plain_target]
+		combat._panels[plain_target] = CombatantPanel.new()
+
+		var plain_target_hp_before: int = plain_target.hp
+		combat._splash_half_to_others(empowered_splasher, 40, "Crushing")
+		var empowered_splash_dmg: int = plain_target_hp_before - plain_target.hp
+		var expected_no_double_count: int = ceili(40 * 0.5)
+		var expected_if_double_counted: int = ceili(ceili(40 * 0.5) * 1.4)
+		_check(empowered_splash_dmg == expected_no_double_count, "an Empowered attacker's splash to an unaffected target is NOT inflated by the attacker's own outgoing multiplier (got %d, expected %d, would be %d if double-counted)" % [empowered_splash_dmg, expected_no_double_count, expected_if_double_counted])
+
 		print(("PAYLINE/SPLASH DAMAGE MULTIPLIER TEST PASSED" if _failures == 0 else "PAYLINE/SPLASH DAMAGE MULTIPLIER TEST FAILED: %d" % _failures))
 		quit(_failures)
 	return false
