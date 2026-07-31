@@ -91,5 +91,20 @@ func _initialize() -> void:
 	_check(not mg4.spin(), "spin() returns false once complete")
 	_check(mg4.grid[0][0] == grid_snapshot, "an over-called spin() leaves the grid untouched")
 
-	print(("TEAM UP MINIGAME TEST PASSED (pre-tally) — run again after Task 3 for the surge-payline assertions" if _failures == 0 else "TEAM UP MINIGAME TEST FAILED: %d" % _failures))
+	# --- tally(): symbol counts + surge-line detection (needs TeamUpPaylineResolver, Task 3) ---
+	var mg5: TeamUpMinigame = TeamUpMinigame.new([_uniform_reel(&"strike"), _uniform_reel(&"strike")], 9, 1)
+	mg5.spin()
+	var t5: Dictionary = mg5.tally()
+	_check(t5["strike"] == 6, "a fully-strike 2x3 grid tallies 6 strike (got %d)" % t5["strike"])
+	_check(t5["mend"] == 0 and t5["ward"] == 0 and t5["break"] == 0, "other symbol counts are 0")
+	_check(t5["surge_lines"] == 0, "no surge symbols anywhere -> 0 completed surge lines")
+
+	var mg6: TeamUpMinigame = TeamUpMinigame.new([_uniform_reel(&"surge"), _uniform_reel(&"surge")], 9, 1)
+	mg6.spin()
+	var t6: Dictionary = mg6.tally()
+	# PaylineLibrary.lines_for(2): 2 columns (length 3) + 3 rows (length 2) + 0 diagonals (width<3) = 5 lines.
+	# Every cell is "surge", so all 5 lines complete.
+	_check(t6["surge_lines"] == 5, "a fully-surge 2x3 grid completes all 5 of PaylineLibrary.lines_for(2)'s lines (got %d)" % t6["surge_lines"])
+
+	print(("TEAM UP MINIGAME TEST PASSED" if _failures == 0 else "TEAM UP MINIGAME TEST FAILED: %d" % _failures))
 	quit(_failures)

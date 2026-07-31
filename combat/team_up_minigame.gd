@@ -55,7 +55,22 @@ func lock(col: int, row: int) -> bool:
 func is_complete() -> bool:
 	return spins_remaining <= 0
 
-## PLACEHOLDER for this step only — replaced in Step 5 below once TeamUpPaylineResolver (Task 3)
-## exists. Do not leave this as the final implementation; Step 5 is required.
+## Symbol counts + completed Surge-payline count over the current grid (2026-07-29 spec §4/§5).
+## Meaningful once is_complete() is true, but callable earlier if TeamUpPanel wants a live preview.
 func tally() -> Dictionary:
-	return {}
+	var counts: Dictionary = {}
+	for c: int in range(_cols):
+		for r: int in range(ROWS):
+			var face: ReelFace = grid[c][r]
+			if face == null or face.team_up_symbol == &"":
+				continue
+			counts[face.team_up_symbol] = counts.get(face.team_up_symbol, 0) + 1
+	var lines: Array = PaylineLibrary.lines_for(_cols)
+	var surge_hits: Array = TeamUpPaylineResolver.evaluate_by_symbol(grid, lines, &"surge")
+	return {
+		"strike": counts.get(&"strike", 0),
+		"mend": counts.get(&"mend", 0),
+		"ward": counts.get(&"ward", 0),
+		"break": counts.get(&"break", 0),
+		"surge_lines": surge_hits.size(),
+	}
