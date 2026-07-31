@@ -2212,21 +2212,7 @@ func _find_boss_ally(caster: Combatant) -> Combatant:
 func _check_boss_phase_transition(c: Combatant) -> void:
 	c.boss_turns_taken += 1
 	if c.boss_phase_two_active:
-		var both_dead: bool = true
-		for m: Combatant in c.boss_phase_minion_ids:
-			if m.is_alive():
-				both_dead = false
-				break
-		if both_dead:
-			c.remove_effect(&"indestructible")
-			c.boss_phase_two_active = false
-			var emp: Effect = EffectLibrary.make(&"empowered")
-			emp.duration = 999   # "until end of combat" — this boss-only grant, not the 2-turn player-facing version
-			c.attach_effect(emp)
-			_log("  ☾ The Hollow Warden's minions have fallen — it is EMPOWERED!")
-			if _panels.has(c):
-				(_panels[c] as CombatantPanel).refresh_status()
-		return   # a transition can't re-trigger the same turn it just resolved
+		return   # clearing now fires instantly off the minions' own `defeated` signal — see _on_boss_phase_minion_defeated
 	var hp_below_threshold: bool = c.hp < int(c.max_hp * 0.4)
 	var cooldown_elapsed: bool = c.boss_last_phase_trigger_turn == -1 or (c.boss_turns_taken - c.boss_last_phase_trigger_turn) >= 10
 	if hp_below_threshold and cooldown_elapsed:
@@ -2241,6 +2227,8 @@ func _check_boss_phase_transition(c: Combatant) -> void:
 		_log("  ☾ The Hollow Warden becomes INDESTRUCTIBLE and summons reinforcements!")
 		if _panels.has(c):
 			(_panels[c] as CombatantPanel).refresh_status()
+		minion_a.defeated.connect(_on_boss_phase_minion_defeated.bind(c))
+		minion_b.defeated.connect(_on_boss_phase_minion_defeated.bind(c))
 
 ## Instantly removes any surviving Ultimate-summoned reinforcements (no reward, since they're removed
 ## by the boss's own script rather than defeated in battle — spec 2026-07-19 §2) and heals the boss
@@ -2256,6 +2244,25 @@ func _sacrifice_reinforcements(c: Combatant) -> void:
 		c.heal(heal_amt)
 		_log("  ☾ The Hollow Warden sacrifices its reinforcements, healing %d HP." % heal_amt)
 	c.boss_reinforcement_ids.clear()
+
+## Fires the instant Indestructible clear the moment BOTH phase-2 minions are dead (playtest
+## 2026-07-31: the previous turn-start-polled check left Indestructible mechanically active for
+## every OTHER combatant's turn between the second minion's death and the boss's own next turn).
+## Connected to each minion's `defeated` signal at spawn time in _check_boss_phase_transition().
+func _on_boss_phase_minion_defeated(c: Combatant) -> void:
+	if not c.boss_phase_two_active:
+		return
+	for m: Combatant in c.boss_phase_minion_ids:
+		if m.is_alive():
+			return
+	c.remove_effect(&"indestructible")
+	c.boss_phase_two_active = false
+	var emp: Effect = EffectLibrary.make(&"empowered")
+	emp.duration = 999   # "until end of combat" — this boss-only grant, not the 2-turn player-facing version
+	c.attach_effect(emp)
+	_log("  ☾ The Hollow Warden's minions have fallen — it is EMPOWERED!")
+	if _panels.has(c):
+		(_panels[c] as CombatantPanel).refresh_status()
 
 ## Splashes ceil([param total] * [param fraction]) damage to every OTHER living enemy of [param attacker]
 ## (every enemy except the primary [member _defender]) and logs each with [param type_label]. Off the

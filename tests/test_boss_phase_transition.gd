@@ -51,13 +51,17 @@ func _process(_delta: float) -> bool:
 		_check(boss.boss_phase_two_active, "still in phase 2 while both minions live")
 		_check(boss.boss_phase_minion_ids.size() == 2, "no second pair spawned while still in phase 2")
 
-		# Kill both phase-2 minions — Indestructible clears, Empowered applies.
+		# Kill both phase-2 minions — Indestructible must clear INSTANTLY (2026-07-31 fix), before
+		# any further call to _check_boss_phase_transition() (i.e. before the boss's own next turn).
 		for m: Combatant in boss.boss_phase_minion_ids:
 			m.take_damage(m.hp)
-		combat._check_boss_phase_transition(boss)
-		_check(not boss.boss_phase_two_active, "phase 2 ends once both minions are dead")
-		_check(not boss.has_effect(&"indestructible"), "Indestructible clears when phase 2 ends")
-		_check(boss.has_effect(&"empowered"), "Empowered applies once phase 2 ends")
+		_check(not boss.has_effect(&"indestructible"), "Indestructible clears the INSTANT both phase-2 minions die, with no further poll needed")
+		_check(not boss.boss_phase_two_active, "phase 2 flag clears instantly too")
+		_check(boss.has_effect(&"empowered"), "Empowered applies instantly as well")
+		combat._check_boss_phase_transition(boss)  # a subsequent poll must be a harmless no-op now
+		_check(not boss.boss_phase_two_active, "phase 2 stays ended after the subsequent poll")
+		_check(not boss.has_effect(&"indestructible"), "Indestructible stays cleared after the subsequent poll")
+		_check(boss.has_effect(&"empowered"), "Empowered persists after the subsequent poll")
 
 		# Still below 40% but cooldown hasn't elapsed (boss_turns_taken is only 4 so far) — no re-trigger.
 		combat._check_boss_phase_transition(boss)
