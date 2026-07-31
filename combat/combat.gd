@@ -1722,6 +1722,7 @@ func _commit_main1() -> void:
 	if did_ability or did_extra != &"" or did_ultimate:
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
+		(_panels[_attacker] as CombatantPanel).refresh_riposte()
 	# Hunter's Mark: the orchestrator owns the target, so it does the attach (ARCHITECTURE §2). The
 	# downstream crit-fail→hit swap in _do_spin is side-agnostic, so an enemy's mark helps every enemy.
 	if _attacker.hunters_mark_pending:
@@ -1838,6 +1839,8 @@ func _do_spin() -> void:
 			if r.is_weapon_attack:
 				weapon_reel_count += 1
 		_defender.gain_riposte_charges(weapon_reel_count)
+		if _panels.has(_defender):
+			(_panels[_defender] as CombatantPanel).refresh_riposte()
 		_attacker.turn_reels = Combatant.evasion_reels(_attacker.turn_reels)
 		_prepare_strips(_attacker.turn_reels)
 	# Jinxed (Chancer "Jinx the Odds", Task 21): checked on the BEARER's own turn as the attacker (not

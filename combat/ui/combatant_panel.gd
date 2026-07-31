@@ -12,6 +12,7 @@ var _meter_bar: ProgressBar
 var _status_label: RichTextLabel
 var _stamina_label: Label
 var _shield_label: Label
+var _riposte_label: Label
 var _stats_label: Label
 var _types_label: RichTextLabel
 var _combatant: Combatant
@@ -81,6 +82,10 @@ func _ready() -> void:
 	_shield_label.add_theme_color_override("font_color", Color(0.6, 0.85, 1.0))
 	box.add_child(_shield_label)
 
+	_riposte_label = Label.new()
+	_riposte_label.add_theme_color_override("font_color", Color(0.85, 0.6, 0.9))
+	box.add_child(_riposte_label)
+
 	_status_label = RichTextLabel.new()
 	_status_label.bbcode_enabled = true
 	_status_label.fit_content = true
@@ -112,6 +117,7 @@ func bind(c: Combatant) -> void:
 	refresh_resources()
 	refresh_shield()
 	refresh_status()
+	refresh_riposte()
 	_refresh_stats()
 	_refresh_types()
 
@@ -202,6 +208,18 @@ func refresh_shield() -> void:
 
 func _on_shield_changed(_shield_hp: int, _shield_turns: int) -> void:
 	refresh_shield()
+
+## Updates the Riposte Storm charge counter ("⚔ Riposte charges: 3" while charges > 0, blank
+## otherwise) — riposte_charges is 0 and never gained for every non-Skirmisher class, so a
+## non-Skirmisher panel simply stays blank. Call from bind() + wherever gain_riposte_charges()/
+## fire_riposte_storm() run.
+func refresh_riposte() -> void:
+	if _riposte_label == null:
+		return
+	if _combatant != null and _combatant.riposte_charges > 0:
+		_riposte_label.text = "⚔ Riposte charges: %d" % _combatant.riposte_charges
+	else:
+		_riposte_label.text = ""
 
 ## Outlines this panel when it's the player's selected primary target (N-vs-M targeting). A red border
 ## via a stylebox override; removing the override restores the default panel look.
