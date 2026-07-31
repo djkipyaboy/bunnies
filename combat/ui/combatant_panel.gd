@@ -111,6 +111,7 @@ func bind(c: Combatant) -> void:
 	c.shield_changed.connect(_on_shield_changed)
 	refresh_resources()
 	refresh_shield()
+	refresh_status()
 	_refresh_stats()
 	_refresh_types()
 

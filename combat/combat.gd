@@ -1783,6 +1783,8 @@ func _commit_main1() -> void:
 			_attacker.apply_rider_talent_adjustments(&"regen", regen, ally)
 			ally.attach_effect(regen)
 			_log("  🌿 %s grants Regrowth to %s." % [_attacker.display_name, ally.display_name])
+			if _panels.has(ally):
+				(_panels[ally] as CombatantPanel).refresh_status()
 		_attacker.regrowth_pending = false
 	# Warden Acolyte "heal+guard the boss" (spec 2026-07-19 §3.2): the orchestrator finds the living
 	# boss ally (there is exactly one Hollow Warden per fight) and heals it + attaches Guarded.
