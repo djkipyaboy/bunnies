@@ -22,7 +22,13 @@ const GRID_COLS: int = 5
 const GRID_ROWS: int = 3
 const CELL_SIZE: float = 90.0
 const CELL_GAP: float = 10.0
-const GRID_ORIGIN: Vector2 = Vector2(300, 150)
+# Local (panel-relative) origin — the panel itself is now confined to the CENTER BAND between the
+# two combatant columns (playtest 2026-07-31: was literal full-screen, overlapping/see-through
+# against the reel strips and ability-toggle rows). Party column ends at x=324, enemy column
+# starts at x=1276 (combat.gd), so this rect clears both with margin on every side.
+const PANEL_RECT_POSITION: Vector2 = Vector2(340, 60)
+const PANEL_RECT_SIZE: Vector2 = Vector2(920, 780)
+const GRID_ORIGIN: Vector2 = Vector2(215, 40)   # local to the panel, roughly centered horizontally
 
 var _minigame: TeamUpMinigame
 var _damage_type: DamageType
@@ -36,33 +42,42 @@ var _continue_button: Button
 var _resolve_lines: Array[String] = []   # last resolved round's log lines, handed back via `completed`
 
 func _ready() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = PANEL_RECT_POSITION
+	size = PANEL_RECT_SIZE
+	custom_minimum_size = PANEL_RECT_SIZE
+	mouse_filter = Control.MOUSE_FILTER_STOP
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color(0.08, 0.08, 0.1, 1.0)   # fully opaque, independent of whatever the project theme does with an unstyled Panel
+	bg.border_color = Color(0.5, 0.45, 0.2)
+	bg.set_border_width_all(3)
+	add_theme_stylebox_override("panel", bg)
 	visible = false
 	_build_grid()
 
 	_spin_button = Button.new()
 	_spin_button.text = "Spin"
-	_spin_button.position = Vector2(700, 560)
+	_spin_button.position = Vector2(380, 350)
 	_spin_button.custom_minimum_size = Vector2(160, 44)
 	_spin_button.pressed.connect(_on_spin_pressed)
 	add_child(_spin_button)
 
 	_status_label = Label.new()
-	_status_label.position = Vector2(300, 500)
-	_status_label.custom_minimum_size = Vector2(1000, 30)
+	_status_label.position = Vector2(60, 410)
+	_status_label.custom_minimum_size = Vector2(800, 30)
 	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_status_label)
 
 	_tally_label = Label.new()
-	_tally_label.position = Vector2(300, 620)
-	_tally_label.custom_minimum_size = Vector2(1000, 60)
+	_tally_label.position = Vector2(60, 450)
+	_tally_label.custom_minimum_size = Vector2(800, 60)
 	_tally_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_tally_label.visible = false
 	add_child(_tally_label)
 
 	_continue_button = Button.new()
 	_continue_button.text = "Continue"
-	_continue_button.position = Vector2(700, 700)
+	_continue_button.position = Vector2(360, 520)
 	_continue_button.custom_minimum_size = Vector2(200, 50)
 	_continue_button.visible = false
 	_continue_button.pressed.connect(func() -> void:
