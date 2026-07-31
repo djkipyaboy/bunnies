@@ -1493,10 +1493,34 @@ func _on_team_up_pressed() -> void:
 	move_child(_team_up_panel, get_child_count() - 1)
 	_team_up_panel.open_for(FreeSpinLibrary.make(&"dungeon"), _allies_of(_attacker), _enemies_of(_attacker))
 
-## The Team-Up! round finished (this plan: the placeholder Continue button; the follow-on plan's
-## real minigame fires the same signal once its grid resolves). Resets the meter and restores the
-## Main-1 buttons to whatever state they'd normally be in for the still-open turn.
-func _on_team_up_completed() -> void:
+## The Team-Up! round finished. Resets the meter and restores the Main-1 buttons to whatever state
+## they'd normally be in for the still-open turn. [param log_lines] is TeamUpEffects.apply()'s
+## per-effect report (empty if Continue was pressed without a resolved round) — the panel resolves,
+## this orchestrator logs and refreshes the UI (final-review fix 2026-07-30).
+func _on_team_up_completed(log_lines: Array[String]) -> void:
+	for line: String in log_lines:
+		_log(line)
+	if not log_lines.is_empty():
+		_handoff().log_event("Team-Up! round resolved (%d effect(s))." % log_lines.size(), &"combat")
+	# Buff/debuff badges (Break's Weakened, Ward's shield chip) would otherwise not appear until the
+	# affected combatant's own next turn refreshed its panel.
+	if _attacker != null:
+		for c: Combatant in _allies_of(_attacker):
+			if _panels.has(c):
+				(_panels[c] as CombatantPanel).refresh_status()
+		for c: Combatant in _enemies_of(_attacker):
+			if _panels.has(c):
+				(_panels[c] as CombatantPanel).refresh_status()
+	# Team-Up is the first mechanic that can kill an enemy DURING the acting PC's own Main Phase 1 —
+	# every other kill happens during/after a spin, by which point _on_turn_started's identical
+	# dead-target handling has already run. Without this the PC is left aimed at a corpse and their
+	# weapon spin silently no-ops (final-review fix 2026-07-30). Mirrors _on_turn_started exactly,
+	# null included: first_living() returning null just clears every outline.
+	if _attacker != null and _attacker.is_player and (_defender == null or not _defender.is_alive()):
+		var want: Combatant = Combat.first_living(_enemies_of(_attacker))
+		_player_targets[_attacker] = want
+		_defender = want
+		_refresh_target_highlight()
 	if _party_inventory == null:
 		return
 	_party_inventory.spend_jackpot()

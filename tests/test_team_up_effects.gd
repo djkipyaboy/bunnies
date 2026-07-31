@@ -23,7 +23,7 @@ func _initialize() -> void:
 	var enemy2_hp_before: int = enemy2.hp
 
 	var tally: Dictionary = {"strike": 2, "mend": 1, "ward": 1, "break": 3, "surge_lines": 0}
-	TeamUpEffects.apply(tally, [ally1, ally2], [enemy1, enemy2], light)
+	var lines: Array[String] = TeamUpEffects.apply(tally, [ally1, ally2], [enemy1, enemy2], light)
 
 	_check(enemy1.hp < enemy1_hp_before, "Strike damages enemy1 (%d -> %d)" % [enemy1_hp_before, enemy1.hp])
 	_check(enemy2.hp < enemy2_hp_before, "Strike damages enemy2 (%d -> %d)" % [enemy2_hp_before, enemy2.hp])
@@ -33,6 +33,42 @@ func _initialize() -> void:
 	_check(ally2.shield_hp == TeamUpEffects.WARD_PER_SYMBOL, "Ward shields ally2 identically")
 	_check(enemy1.has_effect(&"weakened"), "Break applies the weakened debuff to enemy1")
 	_check(enemy2.has_effect(&"weakened"), "Break applies the weakened debuff to enemy2")
+
+	# --- apply() reports what it did, one line per effect per target (final-review fix 2026-07-30):
+	# combat.gd writes these to the combat log; the resolver itself never touches UI. ---
+	var joined: String = "\n".join(lines)
+	_check(not lines.is_empty(), "apply() returns a non-empty description array for a non-trivial tally")
+	# 2 enemies struck + 2 allies healed + 2 allies shielded + 2 enemies weakened = 8, no surge header.
+	_check(lines.size() == 8, "one line per applied effect per target (expected 8, got %d)" % lines.size())
+	_check(joined.contains("STRIKE") and joined.contains(enemy1.display_name), "the report names the Strike target")
+	_check(joined.contains("MEND") and joined.contains(ally1.display_name), "the report names the Mend target")
+	_check(joined.contains("WARD"), "the report mentions Ward")
+	_check(joined.contains("BREAK"), "the report mentions Break")
+	_check(not joined.contains("SURGE"), "no surge lines completed -> no Surge header line")
+
+	# --- Strike honors incoming_damage_multiplier() — the shared MULTIPLIER_EDIT defensive hook the
+	# Hollow Warden's Indestructible phase uses (magnitude 0.0 = take zero direct damage). Every
+	# other direct-damage path already applied it; Strike used to bypass it entirely. ---
+	var invuln: Combatant = EnemyLibrary.make(&"rat")
+	invuln.attach_effect(EffectLibrary.make(&"indestructible"))
+	_check(is_equal_approx(invuln.incoming_damage_multiplier(), 0.0), "the rigged enemy really has a 0.0 incoming multiplier")
+	var invuln_hp_before: int = invuln.hp
+	var invuln_lines: Array[String] = TeamUpEffects.apply({"strike": 5, "mend": 0, "ward": 0, "break": 0, "surge_lines": 2}, [], [invuln], light)
+	_check(invuln.hp == invuln_hp_before, "Strike deals 0 through Indestructible (hp %d -> %d)" % [invuln_hp_before, invuln.hp])
+	_check("\n".join(invuln_lines).contains("takes 0 damage"), "...and the report says so, rather than claiming full damage")
+
+	# A HALVED incoming multiplier (Guarded) scales Strike rather than zeroing it — proves the hook
+	# is genuinely multiplied in, not special-cased on 0.
+	var guarded: Combatant = EnemyLibrary.make(&"rat")
+	var unguarded: Combatant = EnemyLibrary.make(&"rat")
+	guarded.attach_effect(EffectLibrary.make(&"guarded"))
+	var guarded_hp_before: int = guarded.hp
+	var unguarded_hp_before: int = unguarded.hp
+	TeamUpEffects.apply({"strike": 4, "mend": 0, "ward": 0, "break": 0, "surge_lines": 0}, [], [guarded, unguarded], light)
+	var guarded_taken: int = guarded_hp_before - guarded.hp
+	var unguarded_taken: int = unguarded_hp_before - unguarded.hp
+	_check(unguarded_taken > 0, "the control enemy actually took Strike damage (%d)" % unguarded_taken)
+	_check(guarded_taken < unguarded_taken, "Guarded reduces Strike damage (%d vs %d)" % [guarded_taken, unguarded_taken])
 
 	# --- Surge amplification stacks additively across completed lines ---
 	var ally3: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)

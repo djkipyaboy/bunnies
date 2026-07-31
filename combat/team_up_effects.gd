@@ -17,8 +17,18 @@ const SURGE_AMPLIFY_PER_LINE: float = 0.5   ## each completed Surge payline adds
 ## [param tally]: from TeamUpMinigame.tally(). [param allies]/[param enemies]: plain Combatant
 ## arrays (combat.gd passes _allies_of(attacker)/_enemies_of(attacker)). [param damage_type]: the
 ## Team-Up round's damage type (Light for the one authored region so far).
-static func apply(tally: Dictionary, allies: Array, enemies: Array, damage_type: DamageType) -> void:
-	var amp: float = 1.0 + float(tally.get("surge_lines", 0)) * SURGE_AMPLIFY_PER_LINE
+##
+## Returns one human-readable line per applied effect per target, in the same shape/indent
+## _splash_half_to_others() already uses for its own combat-log lines — this class stays a pure
+## static resolver (no Node/UI dependency); TeamUpPanel hands the lines back to combat.gd via its
+## `completed` signal and combat.gd is the one that actually writes them to the log
+## (resolver reports, orchestrator applies — final-review fix 2026-07-30).
+static func apply(tally: Dictionary, allies: Array, enemies: Array, damage_type: DamageType) -> Array[String]:
+	var lines: Array[String] = []
+	var surge_lines: int = tally.get("surge_lines", 0)
+	var amp: float = 1.0 + float(surge_lines) * SURGE_AMPLIFY_PER_LINE
+	if surge_lines > 0:
+		lines.append("  ✦ Team-Up SURGE → %d completed line(s), all effects x%.1f." % [surge_lines, amp])
 
 	var strike_count: int = tally.get("strike", 0)
 	if strike_count > 0:
@@ -26,7 +36,13 @@ static func apply(tally: Dictionary, allies: Array, enemies: Array, damage_type:
 		for enemy: Combatant in enemies:
 			if enemy.is_alive():
 				var mult: float = damage_type.multiplier_against(enemy.defense_type) if damage_type != null else 1.0
-				enemy.take_damage(ceili(raw * mult))
+				# incoming_damage_multiplier() is the shared MULTIPLIER_EDIT defensive hook (Guarded,
+				# the Hollow Warden's Indestructible phase, ...). Every other direct-damage path
+				# applies it before take_damage(); Strike used to be the one that didn't
+				# (final-review fix 2026-07-30).
+				var dealt: int = ceili(raw * mult * enemy.incoming_damage_multiplier())
+				enemy.take_damage(dealt)
+				lines.append("  ⚔ Team-Up STRIKE → %s takes %d damage." % [enemy.display_name, dealt])
 
 	var mend_count: int = tally.get("mend", 0)
 	if mend_count > 0:
@@ -34,6 +50,7 @@ static func apply(tally: Dictionary, allies: Array, enemies: Array, damage_type:
 		for ally: Combatant in allies:
 			if ally.is_alive():
 				ally.heal(heal_amt)
+				lines.append("  ✚ Team-Up MEND → %s heals %d." % [ally.display_name, heal_amt])
 
 	var ward_count: int = tally.get("ward", 0)
 	if ward_count > 0:
@@ -41,6 +58,7 @@ static func apply(tally: Dictionary, allies: Array, enemies: Array, damage_type:
 		for ally: Combatant in allies:
 			if ally.is_alive():
 				ally.apply_shield(shield_amt, WARD_SHIELD_TURNS)
+				lines.append("  🛡 Team-Up WARD → %s gains a %d shield (%d turns)." % [ally.display_name, shield_amt, WARD_SHIELD_TURNS])
 
 	var break_count: int = tally.get("break", 0)
 	if break_count > 0:
@@ -50,3 +68,6 @@ static func apply(tally: Dictionary, allies: Array, enemies: Array, damage_type:
 				var eff: Effect = EffectLibrary.make(&"weakened")
 				eff.duration = duration
 				enemy.attach_effect(eff)
+				lines.append("  ✖ Team-Up BREAK → %s is Weakened (%d turns)." % [enemy.display_name, duration])
+
+	return lines
