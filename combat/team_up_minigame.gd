@@ -14,6 +14,9 @@ var locked: Array = []        # locked[col][row] = bool
 var lock_tokens_remaining: int
 var spins_remaining: int
 var _cols: int
+## Cells locked since the last spin() call — only these can be unlock()'d (player request,
+## 2026-08-01): a lock committed by an EARLIER spin is permanently held (the Hold & Win point).
+var _locked_this_round: Array[Vector2i] = []
 
 func _init(p_reels: Array[TeamUpReel], p_lock_tokens: int, p_max_spins: int) -> void:
 	reels = p_reels
@@ -34,6 +37,7 @@ func spin() -> bool:
 			if not locked[c][r]:
 				grid[c][r] = reels[c].spin()
 	spins_remaining -= 1
+	_locked_this_round.clear()
 	return true
 
 ## Locks a currently-visible position, freezing it for all remaining spins. Spending a token is
@@ -48,6 +52,24 @@ func lock(col: int, row: int) -> bool:
 		return false
 	locked[col][row] = true
 	lock_tokens_remaining -= 1
+	_locked_this_round.append(Vector2i(col, row))
+	return true
+
+## True if (col, row) is locked AND was locked THIS round (since the last spin()) — the only
+## locks unlock() will undo. Bounds-safe.
+func can_unlock(col: int, row: int) -> bool:
+	if col < 0 or col >= _cols or row < 0 or row >= ROWS:
+		return false
+	return locked[col][row] and _locked_this_round.has(Vector2i(col, row))
+
+## Undoes a same-round lock, refunding its token. Returns false (no-op) if the cell isn't locked,
+## is out of bounds, or was locked by an EARLIER spin (see can_unlock()).
+func unlock(col: int, row: int) -> bool:
+	if not can_unlock(col, row):
+		return false
+	locked[col][row] = false
+	lock_tokens_remaining += 1
+	_locked_this_round.erase(Vector2i(col, row))
 	return true
 
 ## True once every spin has been used. Every symbol is positive-for-the-party (spec §5) — there is

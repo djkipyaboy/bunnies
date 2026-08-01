@@ -168,7 +168,10 @@ func _clear_payline_preview() -> void:
 	_payline_preview_cells = []
 
 func _on_cell_pressed(col: int, row: int) -> void:
-	_minigame.lock(col, row)
+	if _minigame.locked[col][row]:
+		_minigame.unlock(col, row)
+	else:
+		_minigame.lock(col, row)
 	_refresh_grid()
 
 func _refresh_grid() -> void:
@@ -185,9 +188,13 @@ func _refresh_grid() -> void:
 				continue
 			var face: ReelFace = _minigame.grid[c][r]
 			btn.text = String(face.team_up_symbol).capitalize() if face != null else ""
-			btn.disabled = _minigame.locked[c][r] or _minigame.is_complete()
-			if _minigame.locked[c][r]:
-				btn.modulate = Color(0.6, 1.0, 0.6)
+			var is_locked: bool = _minigame.locked[c][r]
+			var can_undo: bool = _minigame.can_unlock(c, r)
+			btn.disabled = _minigame.is_complete() or (is_locked and not can_undo)
+			if is_locked and can_undo:
+				btn.modulate = Color(0.6, 1.0, 1.0)   # still-undoable this round (cyan-green)
+			elif is_locked:
+				btn.modulate = Color(0.6, 1.0, 0.6)   # committed from an earlier spin (green)
 			elif _payline_preview_cells.has(Vector2i(c, r)):
 				btn.modulate = Color(1.6, 1.5, 0.5)
 			else:

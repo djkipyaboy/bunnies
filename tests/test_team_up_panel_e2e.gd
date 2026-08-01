@@ -92,7 +92,12 @@ func _initialize() -> void:
 	_check(inst._team_up_panel._minigame.locked[2][1], "pressing cell button [2][1] calls lock() on exactly that grid position")
 	_check(not inst._team_up_panel._minigame.locked[0][0], "...and does NOT lock [0][0] (rules out 'every button locks the same cell')")
 	_check(not inst._team_up_panel._minigame.locked[4][2], "...nor the last cell (rules out last-value closure capture)")
-	_check(inst._team_up_panel._cell_buttons[2][1].disabled, "a locked cell's button visually disables")
+	# 2026-08-01 same-spin lock undo: a lock made THIS round stays CLICKABLE (not disabled) so it
+	# can be unlock()'d — only a lock committed by an EARLIER spin visually disables.
+	_check(not inst._team_up_panel._cell_buttons[2][1].disabled, "a same-round lock stays clickable (undoable), not disabled")
+	inst._team_up_panel._on_spin_pressed()
+	_check(inst._team_up_panel._minigame.locked[2][1], "the lock survives into the next spin")
+	_check(inst._team_up_panel._cell_buttons[2][1].disabled, "once committed by an earlier spin, the button visually disables")
 
 	# --- 5-wide diagonals: an all-Surge grid completes EVERY payline lines_for(5) generates ---
 	# (5 columns + 3 rows + 2 diagonals per 3-column window x 3 windows = 14). Nothing below width 3
