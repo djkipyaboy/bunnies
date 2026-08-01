@@ -17,6 +17,9 @@ signal party_selection_pressed
 ## hand-off pattern as party_selection_pressed: this panel never touches Combatant.level itself, it
 ## just tells town_demo.gd to do it.
 signal endgame_level_up_pressed
+## Emitted by the "Test: Hollow Warden Fight" button (2026-08-01, debug harness) — same hand-off
+## pattern as party_selection_pressed/endgame_level_up_pressed: this panel never touches
+## CombatHandoff itself, it just tells town_demo.gd to launch the real fight.
 signal test_boss_fight_pressed
 
 const PAD: float = 16.0

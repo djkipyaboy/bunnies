@@ -48,9 +48,24 @@ func _process(_delta: float) -> bool:
 		combat._enemies = []
 		combat._arrived_via_handoff = false
 
+		# --- final-review finding (2026-08-01): the panel's Riposte-charge label must refresh too,
+		# not just the underlying value — otherwise the VICTORY/DEFEAT card keeps showing the
+		# pre-clear count. Only wire a panel for pc1, to also prove the `_panels.has(c)` guard lets
+		# _on_combat_ended() run cleanly for pc2, whose panel was never built (mirrors
+		# test_riposte_charge_counter.gd's combat._panels wiring pattern).
+		pc1.gain_riposte_charges(4)
+		var pc1_panel: CombatantPanel = CombatantPanel.new()
+		root.add_child(pc1_panel)
+		pc1_panel.bind(pc1)
+		pc1_panel.refresh_riposte()
+		_check(pc1_panel._riposte_label.text.contains("4"), "sanity: panel shows the charge count before combat ends")
+		combat._panels[pc1] = pc1_panel
+
 		combat._on_combat_ended(true)
 		_check(pc1.active_effects.is_empty(), "PC1's effects are cleared when combat ends")
 		_check(pc2.active_effects.is_empty(), "PC2's (companion's) effects are cleared too")
+		_check(pc1.riposte_charges == 0, "PC1's riposte_charges is zeroed when combat ends")
+		_check(pc1_panel._riposte_label.text == "", "PC1's panel label is refreshed to blank, not left showing the stale pre-clear count (got '%s')" % pc1_panel._riposte_label.text)
 
 		print(("CLEAR COMBAT EFFECTS ON COMBAT END TEST PASSED" if _failures == 0 else "CLEAR COMBAT EFFECTS ON COMBAT END TEST FAILED: %d" % _failures))
 		quit(_failures)

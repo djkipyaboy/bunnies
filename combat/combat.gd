@@ -2585,6 +2585,11 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 func _on_combat_ended(winner_is_player: bool) -> void:
 	for c: Combatant in _pcs:
 		c.clear_combat_effects()
+		# clear_combat_effects() zeroes riposte_charges, but nothing else refreshes the panel after
+		# this point — without this, a Skirmisher's "Riposte charges: N" label keeps showing the
+		# pre-clear count over the VICTORY/DEFEAT result overlay (final-review finding, 2026-08-01).
+		if _panels.has(c):
+			(_panels[c] as CombatantPanel).refresh_riposte()
 	_last_result_won = winner_is_player
 	_spin_button.disabled = true
 	_end_turn_button.disabled = true

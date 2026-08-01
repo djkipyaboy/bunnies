@@ -182,6 +182,18 @@ func _build_pc() -> void:
 	_pc = PCController.new()
 	_pc.name = "PC"
 	_pc.global_position = Vector2(320, 300)
+	# town_demo has never been a scene the PC visually "arrives into" from combat (unlike
+	# overworld_demo.gd/dungeon_demo.gd, which place the PC at handoff.return_position) — but as of
+	# the 2026-08-01 debug "Test: Hollow Warden Fight" button, town_demo.tscn CAN now be a combat
+	# return_scene_path for the first time. combat.gd's Continue handler deliberately preserves
+	# return_position/has_return_position (and pending_ground_drops) for the destination scene to
+	# read+clear (see CombatHandoff.clear_combat_data()'s doc comment) — since town doesn't need
+	# either value for its own placement, just clear them here so they don't leak stale state into
+	# whichever scene the player visits NEXT (e.g. walking out to the overworld right after the
+	# debug fight would otherwise spawn the PC at the stale town coordinate).
+	var handoff: Node = _handoff()
+	handoff.clear_return_position()
+	handoff.clear_ground_drops()
 
 	var shape := CollisionShape2D.new()
 	var capsule := CapsuleShape2D.new()
