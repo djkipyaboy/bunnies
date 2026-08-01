@@ -28,9 +28,11 @@ func _process(_delta: float) -> bool:
 		solo.attach_effect(EffectLibrary.make(&"guarded"))
 		solo.attach_effect(EffectLibrary.make(&"taunt"))
 		solo.apply_shield(20, 2)
+		solo.gain_riposte_charges(6)
 		solo.clear_combat_effects()
 		_check(solo.active_effects.is_empty(), "clear_combat_effects wipes every effect, including beneficial ones cleanse() would keep")
 		_check(solo.shield_hp == 0 and solo.shield_turns == 0, "clear_combat_effects also zeroes any residual shield (got %d/%d)" % [solo.shield_hp, solo.shield_turns])
+		_check(solo.riposte_charges == 0, "clear_combat_effects also resets riposte_charges (playtest 2026-08-01: charges leaked across fights, got %d)" % solo.riposte_charges)
 
 		# --- wired into _on_combat_ended() for every _pcs member ---
 		var combat: Combat = _instance as Combat
