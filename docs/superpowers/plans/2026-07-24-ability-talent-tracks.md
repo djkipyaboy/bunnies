@@ -1354,7 +1354,7 @@ func _test_second_wind_row() -> void:
 	c2.max_hp = 100; c2.hp = 10
 	_check(c2.pick_ability_talent(&"ability_l4", &"wind_deeper"), "picks wind_deeper")
 	_check(c2.apply_second_wind(2), "casts Second Wind (deeper)")
-	_check(c2.hp == 50, "wind_deeper: Second Wind heals 40% max HP (10 + 40 = 50, got %d)" % c2.hp)
+	_check(c2.hp == 50, "wind_deeper: Second Wind heals 40%% max HP (10 + 40 = 50, got %d)" % c2.hp)
 
 	var c3: Combatant = _mk_warrior()
 	c3.max_hp = 100; c3.hp = 10
@@ -1379,7 +1379,7 @@ func _test_last_stand_row() -> void:
 	c2.passive_ability_id = &"last_stand"
 	c2.max_hp = 100; c2.hp = 30
 	_check(c2.pick_ability_talent(&"passive", &"stand_deeper"), "picks stand_deeper")
-	_check(is_equal_approx(c2.passive_outgoing_multiplier(), 1.3), "stand_deeper: +30% at 30% HP (got %.3f)" % c2.passive_outgoing_multiplier())
+	_check(is_equal_approx(c2.passive_outgoing_multiplier(), 1.3), "stand_deeper: +30%% at 30%% HP (got %.3f)" % c2.passive_outgoing_multiplier())
 
 	var c3: Combatant = _mk_warrior()
 	c3.passive_ability_id = &"last_stand"
@@ -1395,7 +1395,7 @@ func _test_last_stand_row() -> void:
 	c4.max_hp = 100; c4.hp = 30
 	_check(is_equal_approx(c4.passive_incoming_multiplier(), 1.0), "baseline Last Stand grants no incoming reduction")
 	_check(c4.pick_ability_talent(&"passive", &"stand_guarded"), "picks stand_guarded")
-	_check(is_equal_approx(c4.passive_incoming_multiplier(), 0.9), "stand_guarded: -10% incoming while Last Stand is active (got %.3f)" % c4.passive_incoming_multiplier())
+	_check(is_equal_approx(c4.passive_incoming_multiplier(), 0.9), "stand_guarded: -10%% incoming while Last Stand is active (got %.3f)" % c4.passive_incoming_multiplier())
 	c4.hp = 31
 	_check(is_equal_approx(c4.passive_incoming_multiplier(), 1.0), "stand_guarded: no reduction once Last Stand's own condition drops off")
 
@@ -3041,7 +3041,7 @@ func _test_opportunist_row() -> void:
 	var c2: Combatant = _mk_skirmisher()
 	c2.passive_ability_id = &"opportunist"
 	_check(c2.pick_ability_talent(&"passive", &"opportunist_deeper"), "picks opportunist_deeper")
-	_check(is_equal_approx(c2.passive_outgoing_multiplier(slowed), 1.25), "opportunist_deeper: +25% vs a Slowed defender (got %.3f)" % c2.passive_outgoing_multiplier(slowed))
+	_check(is_equal_approx(c2.passive_outgoing_multiplier(slowed), 1.25), "opportunist_deeper: +25%% vs a Slowed defender (got %.3f)" % c2.passive_outgoing_multiplier(slowed))
 
 	var c3: Combatant = _mk_skirmisher()
 	c3.passive_ability_id = &"opportunist"
@@ -4872,7 +4872,7 @@ func _test_steady_aim_row() -> void:
 	var c2: Combatant = _mk_ranger()
 	c2.passive_ability_id = &"steady_aim"
 	_check(c2.pick_ability_talent(&"passive", &"steady_deeper"), "picks steady_deeper")
-	_check(is_equal_approx(c2.passive_outgoing_multiplier(marked), 1.20), "steady_deeper: +20% vs a Marked defender (got %.3f)" % c2.passive_outgoing_multiplier(marked))
+	_check(is_equal_approx(c2.passive_outgoing_multiplier(marked), 1.20), "steady_deeper: +20%% vs a Marked defender (got %.3f)" % c2.passive_outgoing_multiplier(marked))
 
 	var c3: Combatant = _mk_ranger()
 	c3.passive_ability_id = &"steady_aim"

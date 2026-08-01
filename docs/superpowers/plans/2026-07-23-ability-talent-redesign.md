@@ -1208,6 +1208,18 @@ git commit -m "feat(passives): Warden Deep Roots — -15% incoming DoT damage + 
 
 ---
 
+## ⚠️ SUPERSEDED 2026-07-24 — Tasks 12-17 below replaced
+
+The player reviewed this Task 12 checkpoint and asked for a bigger system: a per-row Ability Talent
+track (6 rows per class — 4 abilities/passive/Ultimate, one point each L5-10, 3 options per row)
+running alongside a separately-cadenced Universal Perk track (same 10 perks below, now picked at
+L2/4/6/8/10 instead of freely across L5-10). See
+`docs/superpowers/specs/2026-07-24-ability-talent-track-redesign-design.md` (supersedes this plan's
+own §5-6 architecture, i.e. everything Tasks 12-17 below were going to build) and
+`docs/superpowers/plans/2026-07-24-ability-talent-tracks.md` (the replacement task breakdown,
+continuing from Task 11 above, which is unaffected and stays shipped). Tasks 12-17 below are kept
+for history only — **do not execute them**.
+
 ## Task 12: 🛑 CONTENT CHECKPOINT — talent perk list (universal + class-flavored)
 
 **This is not a code task.** Present the following proposed perk list to the player and get
