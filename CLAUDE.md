@@ -1910,3 +1910,76 @@ invariant instead of teaching every guard to tolerate a second one. Full 251-fil
 clean. Neither `overworld_demo.gd` nor `dungeon_demo.gd` currently wire `thank_you_note_requested`
 at all, so this exact bug can't fire there today — but the same "signal wired straight to
 `_dialogue_box.open`" shortcut would reintroduce it if a future feature took it again.
+
+**SHIPPED 2026-08-01 — TEAM-UP/RIPOSTE PLAYTEST FOLLOW-UPS + BOSS DEBUG HARNESS, all
+headless-test-green, human playtest still pending.** Direct follow-up to the 2026-07-31 Team-Up!/
+Hollow Warden playtest (memory `team-up-and-boss-playtest-2026-07-31.md`). Brainstormed → spec'd
+(`docs/superpowers/specs/2026-08-01-teamup-riposte-fixes-and-boss-debug-harness-design.md`) →
+planned (`docs/superpowers/plans/2026-08-01-teamup-riposte-fixes-and-boss-debug-harness.md`) → built
+subagent-driven (5 tasks, each implementer + reviewer, 1 task-level fix round, plus an Opus final
+whole-branch review that caught 1 Important + several Minor findings, one fix wave, re-reviewed
+clean — full 274-file headless sweep green throughout):
+- **Riposte-charge leak fixed** — `Combatant.clear_combat_effects()` now also resets
+  `riposte_charges = 0` (it reset `shield_hp`/`shield_turns` but not this), closing the exact gap
+  the 2026-07-31 playtest hit (6 charges lingering from a prior fight, then a real +3 gain read as
+  9 and looked like a math bug).
+- **Riposte Storm rebalanced** — baseline per-charge scaling 15%→20%; the `storm_deeper` talent
+  (which used to grant the old 20%) now grants 30%, so it stays a meaningful upgrade rather than a
+  dead pick once the baseline absorbed its old value.
+- **Team-Up! — undo a lock before the next spin** — `TeamUpMinigame.unlock()`/`can_unlock()`, backed
+  by a `_locked_this_round` tracker cleared every `spin()`: a lock made THIS round can be undone
+  (refunding its token) and shows a distinct cyan-green tint; a lock committed by an EARLIER spin
+  stays permanently held (the Hold & Win point) and shows the original green/disabled state. Found
+  and fixed a real pre-existing test (`test_team_up_panel_e2e.gd`) that had hardcoded the OLD
+  always-disable-on-lock behavior — updated it to assert the new, correct same-round-vs-committed
+  distinction rather than leave a now-intentionally-obsolete assertion in place.
+- **Team-Up! — "Bank Result" (end spins early)** — `TeamUpMinigame.can_end_early()`/`end_early()`
+  let the player stop spinning and resolve whatever's currently on the grid; disabled until at
+  least one spin has happened. **Found via TDD, not guessed:** the plan's own literal `end_early()`
+  snippet was an unguarded `spins_remaining = 0`, which contradicted its own docstring and its own
+  test (calling it pre-spin must be a no-op, but `spins_remaining` starts at `max_spins`, not 0) —
+  the implementer added the `can_end_early()` guard the docstring already implied; the design spec
+  has been corrected to document this rather than leave the disproven rationale in place. **Also
+  found by the final review and fixed same session:** the new button's first placement
+  (`Vector2(380, 402)`) visually overlapped the panel's `_status_label` — repositioned into the
+  existing button row (`Vector2(740, 350)`) and backed by a new pairwise `Rect2.intersects()`
+  regression check over all 7 static panel elements in `tests/test_team_up_panel_center_band.gd`.
+- **Debug harness — "Test: Hollow Warden Fight" button** on the Town Adventuring Board, same
+  permanent-testing-aid precedent as "Level Up to Endgame": takes the party EXACTLY as currently
+  assembled (no forced roster changes, no auto-leveling — press Party Selection first if you want a
+  specific companion like Sunflash in the mix), maxes the party's jackpot meter, and launches a REAL
+  fight against the Hollow Warden trio tagged with the same `&"DungeonFloor4Enemy"` id the real
+  dungeon floor uses — a win here legitimately marks the boss defeated (Treasure Trove/Lost Cat
+  become reachable on a real dungeon visit afterward too). Built specifically to cut the ~30 minutes
+  of walking through dungeon floors 1-3 out of boss-fight playtesting. **Final review caught 1
+  Important bug, fixed same session:** `town_demo.tscn` is the FIRST scene ever used as a combat
+  `return_scene_path`, and unlike `overworld_demo.gd`/`dungeon_demo.gd` it never read+cleared
+  `CombatHandoff.return_position`/`has_return_position`/`pending_ground_drops` — so pressing the
+  debug button, finishing the fight, and then leaving town via `TownExit` would spawn the PC at the
+  STALE town coordinate inside the overworld instead of the correct spawn point. Fixed by giving
+  `town_demo.gd`'s `_build_pc()` the same read-then-clear responsibility every other combat-return
+  destination scene already has (this project's third recurrence of the "new CombatHandoff field/
+  usage only tested through one path" bug class — see memory `test-both-handoff-paths`), with a new
+  end-to-end regression test driving two real scene instances
+  (`tests/test_town_debug_boss_fight_return_position_clear.gd`). Also fixed in the same final-review
+  wave: a missing doc comment on the new signal, and `_on_combat_ended()` not refreshing the
+  Skirmisher's Riposte-charge panel label after `clear_combat_effects()` zeroed it (the result card
+  could show a stale count).
+- **Deliberately NOT touched, player's own call:** scaling the Bonus Meter's charge-per-reel by
+  weapon "speed" (4-reel +1 / 3-reel +1.5 / 2-reel +2) — raised in the same playtest conversation,
+  but the player decided to leave the meter system alone for now, noting it may need tuning later,
+  possibly tied to which weapons are in play. See memory `bonus-meter-gear-stat-idea.md` for the
+  earlier, related deferral.
+- **Verified-by-machine vs your call (§5 hard ceiling):** a full 274-file headless sweep came back
+  completely clean (zero nonzero exits) — notably, `tests/test_adventuring_board_panel.gd`'s
+  previously-documented failure (present since 2026-07-14, referenced in several status entries
+  above) is now confirmed passing 100% clean; it was independently re-verified during this session's
+  final review and its "pre-existing failure" note above is stale as of this ship. **A human has not
+  yet playtested this live** — priority order: (a) press the debug button, win or lose the Hollow
+  Warden fight, then walk out of town to the overworld and confirm the PC spawns at the correct
+  point (this is the live symptom of the fixed return-position bug); (b) in the Team-Up minigame,
+  lock a cell (cyan tint), click it again to confirm it unlocks and refunds the token, then spin and
+  confirm a NEW lock on that same cell now shows the committed green tint and can no longer be
+  undone; (c) press "Bank Result" mid-round and confirm it resolves whatever's currently on the
+  grid; (d) confirm Riposte Storm's damage bonus reads as stronger and a Skirmisher starts a second,
+  separate fight at 0 riposte charges even after building some up in an earlier fight.
