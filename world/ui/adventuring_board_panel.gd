@@ -17,6 +17,7 @@ signal party_selection_pressed
 ## hand-off pattern as party_selection_pressed: this panel never touches Combatant.level itself, it
 ## just tells town_demo.gd to do it.
 signal endgame_level_up_pressed
+signal test_boss_fight_pressed
 
 const PAD: float = 16.0
 const ROW_H: float = 28.0
@@ -37,6 +38,7 @@ var _row_buttons: Array[Button] = []
 var _detail_label: Label
 var _party_selection_button: Button
 var _endgame_level_up_button: Button
+var _test_boss_fight_button: Button
 
 ## Groups entries by category, preserving CURRENT/SIDE/RECAP order within each bucket.
 ## Pure/static so it's unit-testable without building the panel.
@@ -70,6 +72,15 @@ func open_for(entries: Array[QuestBoardEntry]) -> void:
 	_endgame_level_up_button.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
 	_endgame_level_up_button.pressed.connect(func() -> void: endgame_level_up_pressed.emit())
 	add_child(_endgame_level_up_button)
+	y += ROW_H + 6.0
+
+	_test_boss_fight_button = Button.new()
+	_test_boss_fight_button.text = "Test: Hollow Warden Fight"
+	_test_boss_fight_button.position = Vector2(PAD, y)
+	_test_boss_fight_button.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
+	_test_boss_fight_button.tooltip_text = "Debug: launch a real fight vs. the Hollow Warden trio with the current party and a maxed jackpot meter, skipping the dungeon."
+	_test_boss_fight_button.pressed.connect(func() -> void: test_boss_fight_pressed.emit())
+	add_child(_test_boss_fight_button)
 	y += ROW_H + 6.0
 
 	var groups: Dictionary = group_by_category(entries)
@@ -119,3 +130,6 @@ func press_party_selection_for_test() -> void:
 
 func press_endgame_level_up_for_test() -> void:
 	_endgame_level_up_button.pressed.emit()
+
+func press_test_boss_fight_for_test() -> void:
+	_test_boss_fight_button.pressed.emit()

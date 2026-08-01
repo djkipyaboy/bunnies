@@ -285,6 +285,7 @@ func _build_ui() -> void:
 	_board_panel.position = Vector2(500, 150)
 	_board_panel.party_selection_pressed.connect(_on_party_selection_pressed)
 	_board_panel.endgame_level_up_pressed.connect(_on_endgame_level_up_pressed)
+	_board_panel.test_boss_fight_pressed.connect(_on_test_boss_fight_pressed)
 	_board_panel.entry_selected.connect(_on_board_entry_selected)
 	_ui_layer.add_child(_board_panel)
 	_board_panel.close()
@@ -578,6 +579,24 @@ func _on_endgame_level_up_pressed() -> void:
 		_level_to_endgame(c)
 	_handoff().log_event("Party leveled up to Endgame (Level %d)" % Combatant.MAX_LEVEL, &"party")
 	show_message("Party leveled up to Endgame (Level %d)" % Combatant.MAX_LEVEL)
+
+## "Test: Hollow Warden Fight" (2026-08-01 debug harness) — a permanent testing aid, same
+## precedent as "Level Up to Endgame". Takes the party EXACTLY as currently assembled (no forced
+## roster changes, no auto-leveling), maxes the jackpot meter, and launches a real fight against
+## the Hollow Warden trio tagged with the SAME &"DungeonFloor4Enemy" id the real dungeon floor
+## uses — a win here legitimately marks the boss defeated (Treasure Trove/Lost Cat become
+## reachable afterward too). Repeatable any number of times.
+func _on_test_boss_fight_pressed() -> void:
+	_board_panel.close()
+	_pc.set_movement_paused(false)
+	_party_inventory.jackpot_meter = PartyInventory.JACKPOT_CAP
+	var floor4_ids: Array[StringName] = [&"hollow_warden", &"warden_acolyte_lesser_healer", &"warden_acolyte_lesser_curser"]
+	_handoff().log_event("Debug: launching Hollow Warden test fight", &"combat")
+	_handoff().begin_encounter(_pc_combatant, _companions, _party_inventory, _vault, floor4_ids,
+		&"DungeonFloor4Enemy", "res://world/town_demo.tscn", _pc.global_position, _bench,
+		_shop_stock, 0)
+	await _fade_overlay.fade_out()
+	get_tree().change_scene_to_file("res://combat/combat.tscn")
 
 func _on_add_companion_requested(companion: Combatant) -> void:
 	if PartySelectionPanel.party_full(_companions):
