@@ -69,7 +69,12 @@ func _ready() -> void:
 
 	_end_early_button = Button.new()
 	_end_early_button.text = "Bank Result"
-	_end_early_button.position = Vector2(380, 402)
+	# Same row as _spin_button (380,350)/_payline_preview_button (560,350) — the panel is 920px
+	# wide, so there's 200px of room to the right of that row (720-920) after those two 160px
+	# buttons; placing it there keeps it clear of _status_label (60,410)-(860,440) below (review
+	# fix 2026-08-01: the original (380,402) position had the status label's centered text render
+	# directly over the button).
+	_end_early_button.position = Vector2(740, 350)
 	_end_early_button.custom_minimum_size = Vector2(160, 44)
 	_end_early_button.tooltip_text = "Stop spinning now and take whatever the grid currently tallies to."
 	_end_early_button.disabled = true
