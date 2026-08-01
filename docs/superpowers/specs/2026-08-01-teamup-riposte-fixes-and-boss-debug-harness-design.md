@@ -83,9 +83,14 @@ without refunding.
 **Change — `TeamUpMinigame`:**
 - New `var _has_spun: bool = false`, set true at the top of a successful `spin()`.
 - New `func can_end_early() -> bool: return _has_spun and not is_complete()`.
-- New `func end_early() -> void: spins_remaining = 0` (no-op-safe to call redundantly; only meant
-  to be called when `can_end_early()` is true, but doesn't need to guard since setting an already-0
-  value is harmless).
+- New `func end_early() -> void`, guarded on `can_end_early()` before zeroing `spins_remaining`.
+  **Correction (found during implementation, 2026-08-01):** this section originally specified an
+  unguarded `spins_remaining = 0` and claimed it was "harmless" to call before any spin — that was
+  wrong. Before the first spin, `spins_remaining` starts at `p_max_spins` (e.g. 5), not 0, so an
+  unguarded call would silently complete the round from a blank grid. The implementer caught this
+  via TDD (the spec's own test, below, requires a pre-spin `end_early()` to be a no-op) and shipped
+  `if not can_end_early(): return` before the assignment. That guarded version is correct and is
+  what shipped.
 
 **Change — `TeamUpPanel`:**
 - New `_end_early_button: Button`, built in `_ready()` alongside `_spin_button` (e.g. positioned
