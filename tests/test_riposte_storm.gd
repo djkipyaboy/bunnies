@@ -44,7 +44,7 @@ func _init() -> void:
 
 	_check(c.turn_reels.size() == before_reel_count, "commit adds NO reel (self-cast buff)")
 	_check(c.has_effect(&"empowered"), "commit attaches Empowered")
-	_check(is_equal_approx(_empowered_magnitude(c), 1.45), "commit's Empowered magnitude is 1.45 (1.0 + 0.15*3)")
+	_check(is_equal_approx(_empowered_magnitude(c), 1.60), "commit's Empowered magnitude is 1.60 (1.0 + 0.20*3)")
 	_check(c.riposte_charges == 0, "commit reset riposte_charges to 0")
 	var def: AbilityDef = c.find_extra_ability(&"riposte_storm")
 	_check(c.resource_pool.stamina == starting_stamina - def.cost, "commit spent the ability's stamina cost (4)")
@@ -56,7 +56,7 @@ func _init() -> void:
 	var direct_before_stamina: int = direct_c.resource_pool.stamina
 	direct_c.riposte_charges = 10  # above the cap
 	_check(direct_c.fire_riposte_storm(4), "fire_riposte_storm succeeds when affordable")
-	_check(is_equal_approx(_empowered_magnitude(direct_c), 1.75), "fire_riposte_storm caps magnitude at 1.75 (1.0 + 0.15*5), not higher")
+	_check(is_equal_approx(_empowered_magnitude(direct_c), 2.00), "fire_riposte_storm caps magnitude at 2.00 (1.0 + 0.20*5), not higher")
 	_check(direct_c.riposte_charges == 0, "fire_riposte_storm reset riposte_charges to 0")
 	_check(direct_c.resource_pool.stamina == direct_before_stamina - 4, "fire_riposte_storm spent 4 stamina")
 

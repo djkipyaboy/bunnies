@@ -233,7 +233,7 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var t1: AbilityTalentOption = AbilityTalentOption.new()
 					t1.id = &"storm_deeper"; t1.row_id = row_id
 					t1.display_name = "Deeper Storm"
-					t1.description = "Riposte Storm's per-charge scaling increases to +20% (was +15%)."
+					t1.description = "Riposte Storm's per-charge scaling increases to +30% (was +20%)."
 					var t2: AbilityTalentOption = AbilityTalentOption.new()
 					t2.id = &"storm_lasting"; t2.row_id = row_id
 					t2.display_name = "Lasting Storm"

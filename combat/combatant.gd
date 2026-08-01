@@ -1503,13 +1503,14 @@ func apply_quickstep(cost: int) -> bool:
 	return true
 
 ## Skirmisher "Riposte Storm" (L9, ultimate-tier, 3-turn CD): detonates accumulated riposte_charges
-## (built by Evasion, Task 9) as a temporary Empowered on this turn's normal reels — +15% per
-## charge, capped at 5 charges (+75% max). Fires at baseline (no bonus) with 0 charges. Resets
-## charges on use.
+## (built by Evasion, Task 9) as a temporary Empowered on this turn's normal reels — +20% per
+## charge, capped at 5 charges (+100% max). Fires at baseline (no bonus) with 0 charges. Resets
+## charges on use. Baseline bumped 15%->20%, storm_deeper 20%->30%, player-directed rebalance
+## 2026-08-01.
 func fire_riposte_storm(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	var per_charge: float = 0.20 if has_ability_talent(&"storm_deeper") else 0.15
+	var per_charge: float = 0.30 if has_ability_talent(&"storm_deeper") else 0.20
 	var e: Effect = EffectLibrary.make(&"empowered")
 	e.magnitude = 1.0 + per_charge * mini(riposte_charges, 5)
 	e.duration = 2 if has_ability_talent(&"storm_lasting") else 1

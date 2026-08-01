@@ -85,7 +85,7 @@ static func description(id: StringName) -> String:
 		# --- Skirmisher ---
 		&"feint_riposte": return "Self: EVASION (incoming hits become misses) and TAUNT — bait attacks while evasive, 3 turns. Each whiff against you builds a riposte charge."
 		&"quickstep": return "Self: HASTE — +20 initiative for 3 turns (you act earlier)."
-		&"riposte_storm": return "Consumes your riposte charges: a nova reel deals +15% weapon damage per charge (cap 5), then charges reset to 0. Fires at baseline with 0 charges."
+		&"riposte_storm": return "Consumes your riposte charges: a nova reel deals +20% weapon damage per charge (cap 5), then charges reset to 0. Fires at baseline with 0 charges."
 		# --- Chancer ---
 		&"loaded_dice": return "This spin only: adds crit faces to your reels and lights one bonus payline."
 		&"jinx_the_odds": return "Attack reel; on a hit, JINXES the target for 2 turns — its successes downgrade (success→neutral, crit→success)."

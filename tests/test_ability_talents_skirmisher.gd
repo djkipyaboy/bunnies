@@ -155,7 +155,7 @@ func _test_riposte_storm_row() -> void:
 	c2.riposte_charges = 4
 	_check(c2.fire_riposte_storm(4), "fires Riposte Storm (baseline, 4 charges)")
 	var emp: Effect = c2._find_effect(&"empowered")
-	_check(is_equal_approx(emp.magnitude, 1.60), "baseline Riposte Storm: 1.0 + 0.15*4 = 1.60 (got %.3f)" % emp.magnitude)
+	_check(is_equal_approx(emp.magnitude, 1.80), "baseline Riposte Storm: 1.0 + 0.20*4 = 1.80 (got %.3f)" % emp.magnitude)
 	_check(emp.duration == 1, "baseline Riposte Storm: Empowered lasts 1 turn (got %d)" % emp.duration)
 	_check(c2.riposte_charges == 0, "sanity: charges reset to 0 after firing")
 
@@ -164,7 +164,7 @@ func _test_riposte_storm_row() -> void:
 	_check(c3.pick_ability_talent(&"ability_l4", &"storm_deeper"), "picks storm_deeper")
 	_check(c3.fire_riposte_storm(4), "fires Riposte Storm (deeper, 4 charges)")
 	var emp3: Effect = c3._find_effect(&"empowered")
-	_check(is_equal_approx(emp3.magnitude, 1.80), "storm_deeper: 1.0 + 0.20*4 = 1.80 (got %.3f)" % emp3.magnitude)
+	_check(is_equal_approx(emp3.magnitude, 2.20), "storm_deeper: 1.0 + 0.30*4 = 2.20 (got %.3f)" % emp3.magnitude)
 
 	var c4: Combatant = _mk_skirmisher()
 	_check(c4.pick_ability_talent(&"ability_l4", &"storm_lasting"), "picks storm_lasting")
