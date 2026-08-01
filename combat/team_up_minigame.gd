@@ -17,6 +17,9 @@ var _cols: int
 ## Cells locked since the last spin() call — only these can be unlock()'d (player request,
 ## 2026-08-01): a lock committed by an EARLIER spin is permanently held (the Hold & Win point).
 var _locked_this_round: Array[Vector2i] = []
+## True once at least one spin() has actually drawn a grid — end_early() is meaningless (nothing to
+## bank) before that.
+var _has_spun: bool = false
 
 func _init(p_reels: Array[TeamUpReel], p_lock_tokens: int, p_max_spins: int) -> void:
 	reels = p_reels
@@ -38,6 +41,7 @@ func spin() -> bool:
 				grid[c][r] = reels[c].spin()
 	spins_remaining -= 1
 	_locked_this_round.clear()
+	_has_spun = true
 	return true
 
 ## Locks a currently-visible position, freezing it for all remaining spins. Spending a token is
@@ -76,6 +80,18 @@ func unlock(col: int, row: int) -> bool:
 ## no win/lose condition here, only "has the round finished."
 func is_complete() -> bool:
 	return spins_remaining <= 0
+
+## True once the player CAN bank the current grid early — at least one spin has happened, and the
+## round isn't already complete on its own (player request, 2026-08-01).
+func can_end_early() -> bool:
+	return _has_spun and not is_complete()
+
+## Ends the round immediately, whatever the current grid tallies to. Safe to call when
+## can_end_early() is false (a no-op if there's nothing to bank yet, or the round is already over).
+func end_early() -> void:
+	if not can_end_early():
+		return
+	spins_remaining = 0
 
 ## Symbol counts + completed Surge-payline count over the current grid (2026-07-29 spec §4/§5).
 ## Meaningful once is_complete() is true, but callable earlier if TeamUpPanel wants a live preview.

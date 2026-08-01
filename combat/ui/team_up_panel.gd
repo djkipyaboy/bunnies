@@ -36,6 +36,7 @@ var _allies: Array = []
 var _enemies: Array = []
 var _cell_buttons: Array = []   # [col][row] = Button
 var _spin_button: Button
+var _end_early_button: Button
 var _status_label: Label
 var _tally_label: Label
 var _continue_button: Button
@@ -65,6 +66,15 @@ func _ready() -> void:
 	_spin_button.custom_minimum_size = Vector2(160, 44)
 	_spin_button.pressed.connect(_on_spin_pressed)
 	add_child(_spin_button)
+
+	_end_early_button = Button.new()
+	_end_early_button.text = "Bank Result"
+	_end_early_button.position = Vector2(380, 402)
+	_end_early_button.custom_minimum_size = Vector2(160, 44)
+	_end_early_button.tooltip_text = "Stop spinning now and take whatever the grid currently tallies to."
+	_end_early_button.disabled = true
+	_end_early_button.pressed.connect(_on_end_early_pressed)
+	add_child(_end_early_button)
 
 	_status_label = Label.new()
 	_status_label.position = Vector2(60, 410)
@@ -133,6 +143,7 @@ func open_for(config: Dictionary, allies: Array, enemies: Array) -> void:
 	_continue_button.visible = false
 	_tally_label.visible = false
 	_spin_button.disabled = false
+	_end_early_button.disabled = true
 	_resolve_lines = []
 	_clear_payline_preview()
 	_refresh_grid()
@@ -144,6 +155,14 @@ func _on_spin_pressed() -> void:
 		_refresh_grid()
 		if _minigame.is_complete():
 			_resolve()
+
+func _on_end_early_pressed() -> void:
+	if _minigame == null or not _minigame.can_end_early():
+		return
+	_minigame.end_early()
+	_clear_payline_preview()
+	_refresh_grid()
+	_resolve()
 
 ## Cycles this round's payline patterns one at a time over the Team-Up grid (mirrors combat.gd's
 ## own "Paylines" button for the main weapon reels — legibility: one line, not all at once).
@@ -200,6 +219,7 @@ func _refresh_grid() -> void:
 			else:
 				btn.modulate = Color(1, 1, 1)
 	_spin_button.disabled = _minigame.is_complete()
+	_end_early_button.disabled = not _minigame.can_end_early()
 	_status_label.text = "Spins left: %d   Lock tokens left: %d" % [_minigame.spins_remaining, _minigame.lock_tokens_remaining]
 
 func _resolve() -> void:
