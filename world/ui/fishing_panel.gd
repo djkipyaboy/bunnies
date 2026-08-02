@@ -54,7 +54,7 @@ func _ready() -> void:
 func open_for(bucket_configs: Dictionary, party_inventory: PartyInventory, forced_shadows: Array[Dictionary] = []) -> void:
 	_party_inventory = party_inventory
 	_bucket_configs = bucket_configs
-	_shadows = forced_shadows if not forced_shadows.is_empty() else FishingShadowGenerator.generate(WATER_RECT, MIN_SHADOWS, MAX_SHADOWS)
+	_shadows = forced_shadows.duplicate(true) if not forced_shadows.is_empty() else FishingShadowGenerator.generate(WATER_RECT, MIN_SHADOWS, MAX_SHADOWS)
 	_hook_position = Vector2(WATER_RECT.position.x + WATER_RECT.size.x / 2.0, WATER_RECT.position.y + WATER_RECT.size.y / 2.0)
 	_phase = &"targeting"
 	_build_targeting()

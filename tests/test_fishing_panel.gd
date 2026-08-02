@@ -50,6 +50,7 @@ func _initialize() -> void:
 	panel.move_hook_to_for_test(Vector2(100.0, 100.0))
 	panel.press_hook_button_for_test()
 	_check(panel.current_phase_for_test() == &"reel_stop", "pressing Drop Hook while overlapping a shadow transitions to the reel_stop phase")
+	_check(forced_shadows.size() == 2, "open_for() copies forced_shadows -- the hook-drop's internal remove_at() must not mutate the caller's original array")
 
 	# --- Reel-stop phase + resolution + grant, via the deterministic test-only bypass ---
 	# (re-open fresh so this part of the test is independent of the targeting-phase hit above)
