@@ -108,6 +108,7 @@ func _process(_delta: float) -> bool:
 		_check(overworld._pc.movement_paused_for_test(), "opening the Foraging panel pauses PC movement")
 		_check(berries_node.is_queued_for_deletion(), "touching WildBerries queues it for deletion")
 		overworld._pc._tracked.erase(berries_node)
+		overworld._foraging_panel.advance_spin_for_test(ForagingPanel.SPIN_DURATION_SECONDS + 0.05)
 		overworld._foraging_panel.press_bank_for_test()
 		_check(not overworld._foraging_panel.is_open(), "banking the Foraging panel closes it")
 		_check(not overworld._pc.movement_paused_for_test(), "banking the Foraging panel resumes PC movement")

@@ -29,6 +29,7 @@ func _initialize() -> void:
 	_check(demo._foraging_panel.is_open(), "interacting with the Wild Berries node opens the scene's real ForagingPanel")
 	_check(demo._pc.movement_paused_for_test(), "opening the foraging panel pauses PC movement")
 
+	demo._foraging_panel.advance_spin_for_test(ForagingPanel.SPIN_DURATION_SECONDS + 0.05)
 	demo._foraging_panel.press_bank_for_test()
 	await process_frame
 
