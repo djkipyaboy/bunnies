@@ -57,8 +57,10 @@ func _initialize() -> void:
 	panel.open_for(_bucket_configs(), inv, forced_shadows)
 	panel.begin_reel_stop_for_test(&"medium", [_reel([&"critical"]), _reel([&"critical"]), _reel([&"critical"])] as Array[FishingReel])
 	_check(panel.current_phase_for_test() == &"reel_stop", "begin_reel_stop_for_test enters the reel_stop phase directly")
-	_check(panel.reel_label_font_size_for_test(0) == FishingPanel.CRITICAL_FONT_SIZE,
-		"a reel currently showing Critical renders at the smaller CRITICAL_FONT_SIZE (spec: a genuine precision reward)")
+	_check(panel.reel_strip_for_test(0).cell_font_size_for_test(&"current") == ReelStripWidget.SMALL_FONT_SIZE,
+		"a reel currently showing Critical renders its current cell at the smaller SMALL_FONT_SIZE (spec: a genuine precision reward)")
+	_check(panel.reel_strip_for_test(0).cell_text_for_test(&"current") == "Critical",
+		"the strip's current cell shows the actual landed tier name")
 
 	var completed_events: Array = []   # [{"name": String, "quantity": int}]
 	panel.fishing_completed.connect(func(item_name: String, quantity: int) -> void:
@@ -87,8 +89,8 @@ func _initialize() -> void:
 	var inv2: PartyInventory = PartyInventory.new()
 	panel.open_for(_bucket_configs(), inv2, forced_shadows)
 	panel.begin_reel_stop_for_test(&"small", [_reel([&"fail"])] as Array[FishingReel])
-	_check(panel.reel_label_font_size_for_test(0) == FishingPanel.NORMAL_FONT_SIZE,
-		"a reel currently showing Fail renders at the normal (larger) font size, distinct from Critical's")
+	_check(panel.reel_strip_for_test(0).cell_font_size_for_test(&"current") == ReelStripWidget.NORMAL_FONT_SIZE,
+		"a reel currently showing Fail renders its current cell at the normal (larger) font size, distinct from Critical's")
 	panel.press_stop_for_test(0)
 	panel.press_continue_for_test()
 	_check(inv2.materials.is_empty(), "a Fail on a 1-reel fish grants nothing")

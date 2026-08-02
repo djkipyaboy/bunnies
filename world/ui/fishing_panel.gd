@@ -24,11 +24,6 @@ const MAX_SHADOWS: int = 6
 ## [ASSUMPTION] reel composition (spec section 3's own example numbers): 4 Fail, 4 Success,
 ## 2 Critical out of 10 faces, tuned at playtest.
 const REEL_COMPOSITION: Array = [[&"fail", 4], [&"success", 4], [&"critical", 2]]
-## Critical's face renders visibly SMALLER than Fail/Success (spec section 3: "a genuine precision
-## reward, not just a rarer color") -- a font-size difference on the same Label, [ASSUMPTION]
-## exact point sizes, tuned at playtest.
-const NORMAL_FONT_SIZE: int = 20
-const CRITICAL_FONT_SIZE: int = 11
 
 var _party_inventory: PartyInventory
 var _bucket_configs: Dictionary = {}
@@ -40,7 +35,7 @@ var _active_bucket: StringName = &""
 
 var _hook_control: ColorRect
 var _hook_button: Button
-var _reel_labels: Array[Label] = []
+var _reel_strips: Array[ReelStripWidget] = []
 var _stop_buttons: Array[Button] = []
 var _result_label: Label
 var _continue_button: Button
@@ -79,7 +74,7 @@ func _process(delta: float) -> void:
 		_update_hook_position(delta)
 	elif _phase == &"reel_stop":
 		_minigame.advance(delta)
-		_refresh_reel_labels()
+		_refresh_reel_strips()
 
 func _update_hook_position(delta: float) -> void:
 	var input_vector := Vector2(
@@ -164,51 +159,52 @@ func _begin_reel_stop(bucket: StringName, reels: Array[FishingReel]) -> void:
 func _build_reel_stop(reel_count: int) -> void:
 	for child in get_children():
 		child.queue_free()
-	_reel_labels.clear()
+	_reel_strips.clear()
 	_stop_buttons.clear()
 
 	for i in range(reel_count):
-		var label := Label.new()
-		label.position = Vector2(20.0 + i * 90.0, 20.0)
-		label.custom_minimum_size = Vector2(80.0, 30.0)
-		add_child(label)
-		_reel_labels.append(label)
+		var strip := ReelStripWidget.new()
+		strip.position = Vector2(20.0 + i * 100.0, 20.0)
+		add_child(strip)
+		_reel_strips.append(strip)
 
 		var btn := Button.new()
 		btn.text = "Stop"
-		btn.position = Vector2(20.0 + i * 90.0, 60.0)
-		btn.custom_minimum_size = Vector2(80.0, 36.0)
+		btn.position = Vector2(20.0 + i * 100.0, 130.0)
+		btn.custom_minimum_size = Vector2(90.0, 36.0)
 		var col: int = i
 		btn.pressed.connect(func() -> void: _on_stop_pressed(col))
 		add_child(btn)
 		_stop_buttons.append(btn)
 
-	_refresh_reel_labels()
+	_refresh_reel_strips()
 
-func _refresh_reel_labels() -> void:
-	for i in range(_reel_labels.size()):
-		var tier: StringName = _minigame.current_face(i).fishing_tier
-		_reel_labels[i].text = String(tier).capitalize()
-		var font_size: int = CRITICAL_FONT_SIZE if tier == &"critical" else NORMAL_FONT_SIZE
-		_reel_labels[i].add_theme_font_size_override("font_size", font_size)
+func _refresh_reel_strips() -> void:
+	for i in range(_reel_strips.size()):
+		var prev: ReelFace = _minigame.face_at(i, -1)
+		var current: ReelFace = _minigame.face_at(i, 0)
+		var next: ReelFace = _minigame.face_at(i, 1)
+		_reel_strips[i].set_cells(
+			String(prev.fishing_tier).capitalize(), String(current.fishing_tier).capitalize(), String(next.fishing_tier).capitalize(),
+			prev.fishing_tier == &"critical", current.fishing_tier == &"critical", next.fishing_tier == &"critical")
 
 func advance_for_test(delta: float) -> void:
 	if _phase == &"reel_stop":
 		_minigame.advance(delta)
-		_refresh_reel_labels()
+		_refresh_reel_strips()
 
 func press_stop_for_test(col: int) -> void:
 	_stop_buttons[col].pressed.emit()
 
-## Reads back the reel label's currently-applied font size (spec section 3's "Critical renders
-## visibly smaller" requirement) so tests can prove the size actually differs by tier.
-func reel_label_font_size_for_test(col: int) -> int:
-	return _reel_labels[col].get_theme_font_size("font_size")
+## Exposes one reel column's ReelStripWidget directly so tests can read back its cells/font sizes
+## via the widget's own test hooks (2026-08-02 gathering-playtest-fixes spec).
+func reel_strip_for_test(col: int) -> ReelStripWidget:
+	return _reel_strips[col]
 
 func _on_stop_pressed(col: int) -> void:
 	_minigame.stop(col)
 	_stop_buttons[col].disabled = true
-	_refresh_reel_labels()
+	_refresh_reel_strips()
 	if _minigame.all_stopped():
 		_resolve()
 
