@@ -26,6 +26,11 @@ const MAX_SHADOWS: int = 6
 ## [ASSUMPTION] reel composition (spec section 3's own example numbers): 4 Fail, 4 Success,
 ## 2 Critical out of 10 faces, tuned at playtest.
 const REEL_COMPOSITION: Array = [[&"fail", 4], [&"success", 4], [&"critical", 2]]
+## [ASSUMPTION] tier -> color mapping (2026-08-02 gathering-reel-colors-and-sizing spec section 3),
+## placeholder until real reel-face icons exist. Red/Success/Critical per the player's own choice.
+const FAIL_COLOR: Color = Color(0.85, 0.2, 0.2)
+const SUCCESS_COLOR: Color = Color(0.2, 0.8, 0.2)
+const CRITICAL_COLOR: Color = Color(0.3, 0.5, 0.95)
 
 var _party_inventory: PartyInventory
 var _bucket_configs: Dictionary = {}
@@ -37,6 +42,7 @@ var _active_bucket: StringName = &""
 
 var _hook_control: ColorRect
 var _hook_button: Button
+var _miss_label: Label
 var _reel_strips: Array[ReelStripWidget] = []
 var _stop_buttons: Array[Button] = []
 var _result_label: Label
@@ -49,6 +55,7 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, PANEL_H)
 	size = custom_minimum_size
 	visible = false
+	scale = Vector2(2.0, 2.0)
 
 ## Opens a fresh round. [param forced_shadows] empty (every real call site's default) means
 ## "generate a real random layout"; tests pass a deterministic layout instead.
@@ -72,6 +79,9 @@ func current_phase_for_test() -> StringName:
 
 func shadows_for_test() -> Array[Dictionary]:
 	return _shadows
+
+func miss_label_visible_for_test() -> bool:
+	return _miss_label.visible
 
 func _process(delta: float) -> void:
 	if not visible:
@@ -124,6 +134,13 @@ func _build_targeting() -> void:
 	_hook_button.pressed.connect(_on_hook_pressed)
 	add_child(_hook_button)
 
+	_miss_label = Label.new()
+	_miss_label.text = "The hook came up empty — try again!"
+	_miss_label.position = Vector2(WATER_RECT.position.x, WATER_RECT.position.y + WATER_RECT.size.y + 64.0)
+	_miss_label.custom_minimum_size = Vector2(WATER_RECT.size.x, 30.0)
+	_miss_label.visible = false
+	add_child(_miss_label)
+
 func move_hook_to_for_test(pos: Vector2) -> void:
 	_hook_position = pos
 	if _hook_control != null:
@@ -142,6 +159,7 @@ func _on_hook_pressed() -> void:
 			hooked_index = i
 			break
 	if hooked_index == -1:
+		_miss_label.visible = true
 		return
 	var bucket: StringName = _shadows[hooked_index]["size_bucket"]
 	var reel_count: int = FishingShadowGenerator.reel_count_for_bucket(bucket)
@@ -167,6 +185,11 @@ func _build_reel_stop(reel_count: int) -> void:
 		child.queue_free()
 	_reel_strips.clear()
 	_stop_buttons.clear()
+	# queue_free() is deferred, not synchronous -- without this, a stale _miss_label reference
+	# left visible=true from a prior miss would still read as visible here even though the whole
+	# targeting phase (which owns it) has just been torn down.
+	if _miss_label != null:
+		_miss_label.visible = false
 
 	for i in range(reel_count):
 		var strip := ReelStripWidget.new()
@@ -192,7 +215,15 @@ func _refresh_reel_strips() -> void:
 		var next: ReelFace = _minigame.face_at(i, 1)
 		_reel_strips[i].set_cells(
 			String(prev.fishing_tier).capitalize(), String(current.fishing_tier).capitalize(), String(next.fishing_tier).capitalize(),
-			prev.fishing_tier == &"critical", current.fishing_tier == &"critical", next.fishing_tier == &"critical")
+			prev.fishing_tier == &"critical", current.fishing_tier == &"critical", next.fishing_tier == &"critical",
+			_color_for_fishing_tier(prev.fishing_tier), _color_for_fishing_tier(current.fishing_tier), _color_for_fishing_tier(next.fishing_tier))
+
+static func _color_for_fishing_tier(tier: StringName) -> Color:
+	match tier:
+		&"fail": return FAIL_COLOR
+		&"success": return SUCCESS_COLOR
+		&"critical": return CRITICAL_COLOR
+		_: return Color.WHITE
 
 func advance_for_test(delta: float) -> void:
 	if _phase == &"reel_stop":

@@ -29,6 +29,7 @@ func _initialize() -> void:
 	var panel: FishingPanel = FishingPanel.new()
 	get_root().add_child(panel)
 	await process_frame
+	_check(panel.scale == Vector2(2.0, 2.0), "the panel is scaled 2x for legibility (spec section 4)")
 
 	# --- Targeting phase, with a forced deterministic shadow layout ---
 	var forced_shadows: Array[Dictionary] = [
@@ -45,12 +46,14 @@ func _initialize() -> void:
 	panel.move_hook_to_for_test(Vector2(0.0, 0.0))
 	panel.press_hook_button_for_test()
 	_check(panel.current_phase_for_test() == &"targeting", "pressing Drop Hook while not overlapping any shadow stays in targeting phase")
+	_check(panel.miss_label_visible_for_test(), "a real miss shows the 'hook came up empty' feedback label")
 
 	# A hit: move onto the small shadow exactly, drop the hook.
 	panel.move_hook_to_for_test(Vector2(100.0, 100.0))
 	panel.press_hook_button_for_test()
 	_check(panel.current_phase_for_test() == &"reel_stop", "pressing Drop Hook while overlapping a shadow transitions to the reel_stop phase")
 	_check(forced_shadows.size() == 2, "open_for() copies forced_shadows -- the hook-drop's internal remove_at() must not mutate the caller's original array")
+	_check(not panel.miss_label_visible_for_test(), "a successful hook-drop clears the miss label (the whole targeting phase is torn down)")
 
 	# --- Reel-stop phase + resolution + grant, via the deterministic test-only bypass ---
 	# (re-open fresh so this part of the test is independent of the targeting-phase hit above)
@@ -61,6 +64,7 @@ func _initialize() -> void:
 		"a reel currently showing Critical renders its current cell at the smaller SMALL_FONT_SIZE (spec: a genuine precision reward)")
 	_check(panel.reel_strip_for_test(0).cell_text_for_test(&"current") == "Critical",
 		"the strip's current cell shows the actual landed tier name")
+	_check(panel.reel_strip_for_test(0).cell_color_for_test(&"current") == FishingPanel.CRITICAL_COLOR, "a reel currently showing Critical renders its current cell in the Critical color")
 
 	var completed_events: Array = []   # [{"name": String, "quantity": int}]
 	panel.fishing_completed.connect(func(item_name: String, quantity: int) -> void:
@@ -96,6 +100,7 @@ func _initialize() -> void:
 	panel.begin_reel_stop_for_test(&"small", [_reel([&"fail"])] as Array[FishingReel])
 	_check(panel.reel_strip_for_test(0).cell_font_size_for_test(&"current") == ReelStripWidget.NORMAL_FONT_SIZE,
 		"a reel currently showing Fail renders its current cell at the normal (larger) font size, distinct from Critical's")
+	_check(panel.reel_strip_for_test(0).cell_color_for_test(&"current") == FishingPanel.FAIL_COLOR, "a reel currently showing Fail renders its current cell in the Fail color")
 	panel.press_stop_for_test(0)
 	panel.press_continue_for_test()
 	_check(inv2.materials.is_empty(), "a Fail on a 1-reel fish grants nothing")
@@ -116,6 +121,11 @@ func _initialize() -> void:
 	_check(inv3.materials.size() == 1 and inv3.materials[0].quantity == 1, "a plain 2-of-3 catch grants the base quantity with no multiplier")
 	_check(log_lines[2] == "Fishing: [Success, Success, Fail] — Success! Caught: Prize Bass x1",
 		"a plain catch's event-log line reads Success (no Critical) with no bonus note, got: %s" % log_lines[2])
+
+	_check(FishingPanel._color_for_fishing_tier(&"fail") == FishingPanel.FAIL_COLOR, "fail maps to FAIL_COLOR")
+	_check(FishingPanel._color_for_fishing_tier(&"success") == FishingPanel.SUCCESS_COLOR, "success maps to SUCCESS_COLOR")
+	_check(FishingPanel._color_for_fishing_tier(&"critical") == FishingPanel.CRITICAL_COLOR, "critical maps to CRITICAL_COLOR")
+	_check(FishingPanel._color_for_fishing_tier(&"not_a_real_tier") == Color.WHITE, "an unrecognized tier falls back to white rather than erroring")
 
 	panel.free()
 	quit()
