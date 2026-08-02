@@ -2123,3 +2123,66 @@ remain future specs, not decomposed). Planned (`docs/superpowers/plans/2026-08-0
   and confirm a catch on each of the three shadow sizes grants the right material/quantity, with an
   all-Critical catch showing the quality bonus. Playtest both Foraging and Fishing together per your
   own request to hold off until both were done.
+
+**SHIPPED 2026-08-02 — GATHERING MINI-GAME PLAYTEST FIXES (visual reels + Fishing log detail +
+more nodes), all headless-test-green, human playtest still pending.** Direct follow-up from the
+first human playtest of both gathering mini-games (notes above): a shared visual reel widget for
+both, richer Fishing event-log detail, and two more overworld node placements. Spec'd
+(`docs/superpowers/specs/2026-08-02-gathering-playtest-fixes-design.md`) → planned
+(`docs/superpowers/plans/2026-08-02-gathering-playtest-fixes.md`, 6 tasks) → built subagent-driven,
+directly on `main`:
+- **`ReelStripWidget` (new, `world/ui/reel_strip_widget.gd`)** — a shared, domain-agnostic 3-cell
+  (previous/current/next) reel display, reused by both mini-games. Deliberately carries no
+  Fishing-specific "critical" concept — just a generic "render this cell smaller" flag per cell —
+  so Foraging (which has no critical tier) uses the identical widget.
+- **`FishingMinigame.face_at(col, offset)`** (new, purely additive) — reads a neighbor face with
+  wraparound in both directions, so the panel can show a real 3-cell window into each reel's actual
+  strip instead of just the single current face. `FishingPanel` now shows a `ReelStripWidget` per
+  reel column; Critical renders smaller across all 3 visible cells (not just when centered), so a
+  player can see one coming a beat early and time toward it — a direct, positive side effect of
+  showing the whole window the player specifically asked for.
+- **Foraging gets a "physical reel" too** — `ForagingMinigame` (the pure resolution model) is
+  completely untouched; `ForagingPanel` plays a fixed-duration (`[ASSUMPTION]` 0.6s) presentation-only
+  spin over a `ReelStripWidget`, cycling through a fixed display order of the 4 tiers and landing on
+  whatever the model already picked. The model's actual instant, random pick never changes — the spin
+  only decides how long the reveal takes. Shake/Bank are both guarded INSIDE their handlers (not just
+  via `disabled`) against mid-spin presses, since a test-hook press bypasses `disabled` entirely.
+- **Fishing's event log gains one combined line per attempt** — per-reel tiers, a verdict
+  (Failed/Success/Critical Success mapped straight from the existing `resolve()` outcome), and the
+  catch info only when something was actually caught. `FishingPanel.fishing_closed` (already
+  unconditional on close, catch or miss) now carries the built line; `overworld_demo.gd`'s handler
+  split changed so a new `_on_fishing_closed` owns both the log write and resuming movement, while
+  `_on_fishing_completed` stays catch-only (pickup label).
+- **Two more overworld gathering nodes** — `WildBerries2` (Foraging) and `FishingSpot2` (Fishing),
+  independently verified clear of every existing collider/entity by direct arithmetic against the
+  actual collider rects, not just eyeballed.
+- **This is the THIRD time this project has hit the "one task's own mandated change silently/loudly
+  breaks a sibling test file" bug class** (see memory `silent-script-error-exits-zero-gotcha`, now
+  updated to document the recurrence) — Task 5's mid-spin no-op guard broke two pre-existing,
+  out-of-scope tests: `tests/test_overworld_demo_foraging.gd` (which actually HUNG the process, never
+  reaching its own `quit()`) and `tests/test_overworld_demo_npcs.gd` (3 silent `FAIL` lines, since
+  that file's own bookkeeping never sets a nonzero exit code — a known quirk it shares with
+  `test_adventuring_board_panel.gd`). Both were caught and fixed within Task 5 itself this time
+  (confirmed via direct reproduction, not guessed), rather than left for a later review to find.
+- **Final whole-branch review caught 2 more real gaps, fixed same session**: no end-to-end test
+  proved the new Fishing log line actually reached `CombatHandoff.event_log_entries` through the real
+  scene wiring (only the string-building logic itself was tested, not the wiring that carries it) —
+  fixed with new assertions in the real-scene wiring test, specifically covering the miss case since
+  writing a log line on a miss is genuinely new behavior this pass introduced. And Foraging's Shake
+  button showed blank text on a fresh panel and STALE (previous round's) shake-count text for the
+  whole spin duration on every re-open, since the button's text only ever updated at landing, not at
+  spin-start — fixed, plus two small folded-in hardening fixes (a silent `find() == -1` fallback in
+  the tier-lookup, and a missing `_pending_log_line` reset mirroring the guard its sibling field
+  already had).
+- **Parked, not fixed (judged lowest value/cost this session, noted for a future pass)**: the 5-reel
+  (large-bucket) column layout now clears the panel edge by only 10px and no test has ever rendered a
+  5-reel round — worth a human eyeball on a large-fish catch specifically, and worth deriving the
+  column spacing from `ReelStripWidget.CELL_W` instead of a bare magic number later; a few `.uid`
+  hygiene/cosmetic-asymmetry notes.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full ~287-file headless sweep came back
+  clean throughout the whole build (re-verified after every task and both fix waves), including
+  explicitly reading the FULL printed output (not just exit codes) of the two files now known to never
+  set a nonzero exit code on failure. **A human has not yet playtested this live** — specifically
+  check whether the 3-cell strip actually reads as a spinning reel rather than three stacked words,
+  whether Critical's ~half-size rendering is legible enough to act on a beat early, and hook a large
+  (5-reel) fish specifically since no test has ever rendered that layout.
