@@ -28,5 +28,18 @@ func _initialize() -> void:
 	_check(widget.cell_font_size_for_test(&"next") == ReelStripWidget.NORMAL_FONT_SIZE, "next cell stays normal size when only current is marked small")
 	_check(widget.cell_text_for_test(&"current") == "Bumper Crop", "text updates correctly on a second set_cells() call")
 
+	# --- Per-cell color ---
+	widget.set_cells("Fail", "Success", "Critical", false, false, false, Color.RED, Color.GREEN, Color.BLUE)
+	_check(widget.cell_color_for_test(&"prev") == Color.RED, "prev cell color set correctly")
+	_check(widget.cell_color_for_test(&"current") == Color.GREEN, "current cell color set correctly")
+	_check(widget.cell_color_for_test(&"next") == Color.BLUE, "next cell color set correctly")
+
+	# A call with no color arguments defaults every cell to plain white (matches the pre-color
+	# appearance -- no caller is forced to opt in).
+	widget.set_cells("Meager", "Modest", "Bountiful")
+	_check(widget.cell_color_for_test(&"prev") == Color.WHITE, "prev cell defaults to white when no color is given")
+	_check(widget.cell_color_for_test(&"current") == Color.WHITE, "current cell defaults to white when no color is given (no more hardcoded gold tint)")
+	_check(widget.cell_color_for_test(&"next") == Color.WHITE, "next cell defaults to white when no color is given")
+
 	widget.free()
 	quit()
