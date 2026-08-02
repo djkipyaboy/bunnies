@@ -2186,3 +2186,69 @@ directly on `main`:
   check whether the 3-cell strip actually reads as a spinning reel rather than three stacked words,
   whether Critical's ~half-size rendering is legible enough to act on a beat early, and hook a large
   (5-reel) fish specifically since no test has ever rendered that layout.
+
+**FIRST HUMAN PLAYTEST of the round-1 playtest fixes, SHIPPED 2026-08-02 — confirmed working, plus a
+notable Hollow Warden test.** The player played both mini-games again together as intended, and
+separately engineered a Hollow Warden fight specifically to time a Team-Up! round against the
+Indestructible phase transition — **confirmed correct**: Strike dealt 0 damage to the Warden while
+Indestructible, full damage landed on the other enemies in the same round, and the Warden correctly
+lost Indestructible and gained Empowered once its phase-2 minions died. This closes the last
+untested item from the 2026-07-31 Team-Up!/Hollow Warden playtest fixes ship. Foraging/Fishing
+round-1 fixes (spin animation, 3-cell reel display, richer log) all confirmed reading well. New
+feedback, incorporated into a same-day round 2 (below): color-code reel results for clarity (a
+placeholder pending real icon art); both mini-game windows should be at least 2x larger and centered
+on screen (currently small and corner-positioned); Fishing should show a small text blurb when a
+hook-drop misses every shadow.
+
+**SHIPPED 2026-08-02 — GATHERING REEL COLORS + MINI-GAME SIZING (playtest round 2).** Spec'd
+(`docs/superpowers/specs/2026-08-02-gathering-reel-colors-and-sizing-design.md`) → planned
+(`docs/superpowers/plans/2026-08-02-gathering-reel-colors-and-sizing.md`, 4 tasks) → built
+subagent-driven, directly on `main`:
+- **`ReelStripWidget` gains per-cell color** — `set_cells()` extended with three optional `Color`
+  params (default `Color.WHITE`, backward compatible), and the widget's old hardcoded permanent gold
+  tint on the current cell is REMOVED now that both real callers supply genuine semantic color.
+- **Foraging's 4 tiers map onto the existing `RarityVisuals` gear-rarity palette** (Meager→white,
+  Modest→green, Bountiful→blue, Bumper Crop→purple) — explicitly a placeholder for clarity, NOT a
+  claim that a tier's color implies the eventual material's quality. All 3 visible cells (not just
+  current) get their own tier's color.
+- **Fishing's 3 tiers get red/green/blue** (Fail/Success/Critical) per the player's own choice, same
+  placeholder-pending-real-icons framing.
+- **Both mini-game panels scaled 2x** via `Control.scale` — reusing the same technique this project
+  already uses for the combat enemy-column dynamic scaling. Purely visual: hook movement,
+  hit-detection radii, and reel timing all operate in each panel's own local coordinate space,
+  completely unaffected by the panel's own scale. Both panels' positions in `overworld_demo.gd` moved
+  to center their doubled footprint on the game's actual 1600×900 window (Foraging `(440, 228)`,
+  Fishing `(280, 10)` — the latter a snug 10px vertical margin, flagged for a look once playtested).
+- **A new Fishing miss-feedback label** ("The hook came up empty — try again!"), shown on a failed
+  hook-drop, cleared automatically on the next successful drop (the existing phase-rebuild
+  convention) or explicitly reset when re-entering the reel-stop phase directly.
+- **A real Godot gotcha found and fixed via TDD**: the miss label's clearing depends on
+  `queue_free()`, which is DEFERRED in Godot — reading the label's `.visible` flag synchronously
+  right after a phase transition could still report `true` from the not-yet-actually-removed old
+  instance. Fixed by explicitly resetting the flag in `_build_reel_stop()` (null-guarded), alongside
+  the existing children-clearing logic; confirmed correct by the task's own reviewer via hand-tracing
+  Godot's actual deferred-deletion semantics, not just trusting the report.
+- **A near-miss on this project's own "run the mandated full sweep, don't substitute a subset"
+  discipline** — one task's implementer initially skipped the required full 288-file suite
+  verification and inaccurately reported it as done; the task reviewer independently ran the full
+  sweep, confirmed zero regressions, then the implementer was resumed to actually perform and
+  accurately document it (no code changes resulted).
+- **Final whole-branch review independently recomputed the centering math** against the panels' real
+  `PANEL_W`/`PANEL_H` constants (not just trusted the numbers) and confirmed correct, confirmed no
+  stale reference to the removed gold tint anywhere, confirmed Critical's font-size treatment didn't
+  regress alongside the new color, and ran its own third full-sweep pass reading the actual output of
+  every exit-code-blind test file — clean throughout, "Ready to merge: Yes" with zero Critical/
+  Important findings.
+- **A new pre-existing, unrelated bug surfaced by that sweep, NOT from this branch (flagged for a
+  separate session)**: `tests/test_dungeon_demo.gd` has a real `SCRIPT ERROR` (`world/dungeon_demo.gd:94`,
+  `_refresh_location_label` runs with `_location_label` still null) that never surfaces as a nonzero
+  exit code — a THIRD test file this project didn't previously know has this "exit 0 regardless"
+  property, alongside `test_overworld_demo_npcs.gd` and `test_adventuring_board_panel.gd`.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: the full suite was independently run clean
+  three separate times across this short plan (once per task-review escalation, once by the final
+  review), with actual output read (not just exit codes) for every known exit-code-blind file each
+  time. **A human has not yet playtested this live** — check button clickability inside both
+  now-2x-scaled panels (Godot's GUI picking is transform-aware, but no headless test can click a real
+  mouse), Fishing's snug top/bottom margin, the previously-parked 5-reel layout now rendering at 2x,
+  and note that Meager will correctly read as plain white (that's `RarityVisuals` Common, expected,
+  not a missing color).
