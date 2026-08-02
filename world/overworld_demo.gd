@@ -307,10 +307,7 @@ func _build_ui() -> void:
 	_fishing_panel = FishingPanel.new()
 	_fishing_panel.position = Vector2(140, 60)
 	_fishing_panel.fishing_completed.connect(_on_fishing_completed)
-	# fishing_closed fires unconditionally on close (catch OR miss) -- this is the ONE place
-	# guaranteed to resume PC movement; _on_fishing_completed's own resume call is now redundant
-	# on the catch path but harmless (idempotent).
-	_fishing_panel.fishing_closed.connect(func() -> void: _pc.set_movement_paused(false))
+	_fishing_panel.fishing_closed.connect(_on_fishing_closed)
 	ui.add_child(_fishing_panel)
 
 	# Top-left pickup confirmation (player request 2026-07-11) — same top-left placement/style
@@ -593,11 +590,18 @@ func _on_fishing_requested(bucket_configs: Dictionary) -> void:
 	_fishing_panel.open_for(bucket_configs, _party_inventory)
 	_pc.set_movement_paused(true)
 
-## A completed catch shows the same top-left pickup label the other gathering flows use, and
-## resumes PC movement -- mirrors _on_foraging_completed's existing pattern.
+## A completed catch shows the same top-left pickup label the other gathering flows use.
+## Resuming movement and writing the event log both now happen via _on_fishing_closed instead
+## (2026-08-02 gathering-playtest-fixes spec section 4), since that signal fires on a miss too --
+## this one is catch-only.
 func _on_fishing_completed(item_name: String, quantity: int) -> void:
 	_pickup_debug_label.text = "Caught: %s x%d" % [item_name, quantity]
-	_handoff().log_event("Caught: %s x%d" % [item_name, quantity], &"loot")
+
+## Fires unconditionally when the panel closes, catch or miss, carrying the full combined
+## per-attempt log line built in FishingPanel._resolve() -- the ONE place that writes the Fishing
+## event-log entry and the ONE place guaranteed to resume PC movement.
+func _on_fishing_closed(log_line: String) -> void:
+	_handoff().log_event(log_line, &"loot")
 	_pc.set_movement_paused(false)
 
 ## Opens the "?" encounter's choice panel (player direction 2026-07-12) and pauses PC movement —

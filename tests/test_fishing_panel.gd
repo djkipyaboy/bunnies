@@ -66,7 +66,10 @@ func _initialize() -> void:
 	panel.fishing_completed.connect(func(item_name: String, quantity: int) -> void:
 		completed_events.append({"name": item_name, "quantity": quantity}))
 	var closed_count: Array = [0]
-	panel.fishing_closed.connect(func() -> void: closed_count[0] += 1)
+	var log_lines: Array[String] = []
+	panel.fishing_closed.connect(func(log_line: String) -> void:
+		closed_count[0] += 1
+		log_lines.append(log_line))
 
 	panel.advance_for_test(1.0)   # prove ticking doesn't crash; the rigged reels are all-critical regardless of index
 	panel.press_stop_for_test(0)
@@ -82,6 +85,8 @@ func _initialize() -> void:
 	_check(completed_events.size() == 1 and completed_events[0]["name"] == "Freshwater Fish", "fishing_completed fires with the caught item's display name")
 	_check(not panel.is_open(), "pressing Continue after a catch closes the panel")
 	_check(closed_count[0] == 1, "fishing_closed also fires on a catch (the unconditional close signal)")
+	_check(log_lines[0] == "Fishing: [Critical, Critical, Critical] — Critical Success! Caught: Freshwater Fish x4 (bonus quality)",
+		"the all-Critical catch's event-log line matches the exact confirmed format, got: %s" % log_lines[0])
 
 	# --- A no-catch case grants nothing and does not emit fishing_completed, but fishing_closed
 	# still fires -- this is the fix for the Critical bug where a miss left the panel closing
@@ -96,6 +101,21 @@ func _initialize() -> void:
 	_check(inv2.materials.is_empty(), "a Fail on a 1-reel fish grants nothing")
 	_check(completed_events.size() == 1, "fishing_completed does not fire again on a no-catch round")
 	_check(closed_count[0] == 2, "fishing_closed fires exactly once for the no-catch round even though fishing_completed does not fire")
+	_check(log_lines[1] == "Fishing: [Fail] — Failed. The fish got away.",
+		"the no-catch round's event-log line matches the exact confirmed format, got: %s" % log_lines[1])
+
+	# --- A plain catch (2 of 3 positive) confirms the "Success" verdict, no bonus note, and
+	# quantity_multiplier 1 -- the middle case between a miss and an all-Critical bonus.
+	var inv3: PartyInventory = PartyInventory.new()
+	panel.open_for(_bucket_configs(), inv3, forced_shadows)
+	panel.begin_reel_stop_for_test(&"large", [_reel([&"success"]), _reel([&"success"]), _reel([&"fail"])] as Array[FishingReel])
+	panel.press_stop_for_test(0)
+	panel.press_stop_for_test(1)
+	panel.press_stop_for_test(2)
+	panel.press_continue_for_test()
+	_check(inv3.materials.size() == 1 and inv3.materials[0].quantity == 1, "a plain 2-of-3 catch grants the base quantity with no multiplier")
+	_check(log_lines[2] == "Fishing: [Success, Success, Fail] — Success! Caught: Prize Bass x1",
+		"a plain catch's event-log line reads Success (no Critical) with no bonus note, got: %s" % log_lines[2])
 
 	panel.free()
 	quit()

@@ -8,9 +8,11 @@ extends Panel
 ## different content (a movable hook + shadows vs. a row of reel displays vs. a result message).
 
 signal fishing_completed(item_name: String, quantity: int)
-## Fires unconditionally when the panel closes, catch or miss -- the ONE signal callers should use
-## to resume PC movement (fishing_completed is informational-only and does not fire on a miss).
-signal fishing_closed
+## Fires unconditionally when the panel closes, catch or miss, carrying the full combined
+## event-log line for this attempt (2026-08-02 gathering-playtest-fixes spec section 4) -- the ONE
+## signal callers should use both to write the Fishing event-log entry and to resume PC movement
+## (fishing_completed is informational-only and does not fire on a miss).
+signal fishing_closed(log_line: String)
 
 const PANEL_W: float = 520.0
 const PANEL_H: float = 440.0
@@ -41,6 +43,7 @@ var _result_label: Label
 var _continue_button: Button
 var _pending_item_name: String = ""
 var _pending_quantity: int = 0
+var _pending_log_line: String = ""
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, PANEL_H)
@@ -211,6 +214,15 @@ func _on_stop_pressed(col: int) -> void:
 func _resolve() -> void:
 	var outcome: Dictionary = _minigame.resolve()
 	_phase = &"result"
+
+	var tier_names: Array[String] = []
+	for i in range(_minigame.reels.size()):
+		tier_names.append(String(_minigame.current_face(i).fishing_tier).capitalize())
+	var verdict: String = "Failed"
+	if outcome["caught"]:
+		verdict = "Critical Success" if int(outcome["quality_tier"]) > 0 else "Success"
+	var log_line: String = "Fishing: [%s] — %s" % [", ".join(tier_names), verdict]
+
 	if outcome["caught"]:
 		var config: Dictionary = _bucket_configs.get(_active_bucket, {})
 		var m := CraftingMaterial.new()
@@ -221,11 +233,16 @@ func _resolve() -> void:
 		_party_inventory.give_material(m)
 		_pending_item_name = m.display_name
 		_pending_quantity = m.quantity
+		var bonus_note: String = " (bonus quality)" if m.quality_tier > 0 else ""
+		log_line += "! Caught: %s x%d%s" % [m.display_name, m.quantity, bonus_note]
 		_build_result("You caught a %s! (x%d)" % [m.display_name, m.quantity])
 	else:
 		_pending_item_name = ""
 		_pending_quantity = 0
+		log_line += ". The fish got away."
 		_build_result("The fish got away.")
+
+	_pending_log_line = log_line
 
 func _build_result(text: String) -> void:
 	for child in get_children():
@@ -253,4 +270,4 @@ func _on_continue_pressed() -> void:
 	if _pending_item_name != "":
 		fishing_completed.emit(_pending_item_name, _pending_quantity)
 		_pending_item_name = ""   # also prevents a double-press from re-emitting
-	fishing_closed.emit()
+	fishing_closed.emit(_pending_log_line)
