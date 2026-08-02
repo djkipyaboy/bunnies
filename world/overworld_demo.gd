@@ -44,6 +44,7 @@ var _jackpot_bar: ProgressBar
 var _jackpot_caption: Label
 var _random_encounter_panel: RandomEncounterPanel
 var _foraging_panel: ForagingPanel
+var _fishing_panel: FishingPanel
 var _event_log_panel: EventLogPanel
 
 var _pc_combatant: Combatant
@@ -303,6 +304,11 @@ func _build_ui() -> void:
 	_foraging_panel.foraging_completed.connect(_on_foraging_completed)
 	ui.add_child(_foraging_panel)
 
+	_fishing_panel = FishingPanel.new()
+	_fishing_panel.position = Vector2(140, 60)
+	_fishing_panel.fishing_completed.connect(_on_fishing_completed)
+	ui.add_child(_fishing_panel)
+
 	# Top-left pickup confirmation (player request 2026-07-11) — same top-left placement/style
 	# convention as the encounter message, but yellow and its own line so both can be visible at
 	# once without one overwriting the other.
@@ -445,13 +451,19 @@ func _build_npcs() -> void:
 		_world.add_child(berries)
 
 	if not _handoff().is_defeated(&"FishingSpot"):
-		var fish := GatheringNode.new()
+		var fish := FishingSpot.new()
 		fish.name = "FishingSpot"
-		fish.material_type = &"fish_meat"
-		fish.material_display_name = "Freshwater Fish"
-		fish.quantity = 1
+		fish.small_material_type = &"fish_small"
+		fish.small_material_display_name = "Minnow"
+		fish.small_quantity = 1
+		fish.medium_material_type = &"fish_medium"
+		fish.medium_material_display_name = "Freshwater Fish"
+		fish.medium_quantity = 1
+		fish.large_material_type = &"fish_large"
+		fish.large_material_display_name = "Prize Bass"
+		fish.large_quantity = 1
 		fish.global_position = Vector2(560, 340)
-		fish.foraging_requested.connect(_on_foraging_requested)
+		fish.fishing_requested.connect(_on_fishing_requested)
 		_world.add_child(fish)
 
 	# Slay-the-Spire-style "?" random encounter (player direction 2026-07-12) — one authored
@@ -571,6 +583,19 @@ func _on_foraging_completed(item_name: String, quantity: int) -> void:
 	_handoff().log_event("Gathered: %s x%d" % [item_name, quantity], &"loot")
 	_pc.set_movement_paused(false)
 
+## Opens the Fishing mini-game panel (2026-08-01 gathering-profession-minigames spec section 3) and
+## pauses PC movement -- mirrors _on_foraging_requested's existing pattern.
+func _on_fishing_requested(bucket_configs: Dictionary) -> void:
+	_fishing_panel.open_for(bucket_configs, _party_inventory)
+	_pc.set_movement_paused(true)
+
+## A completed catch shows the same top-left pickup label the other gathering flows use, and
+## resumes PC movement -- mirrors _on_foraging_completed's existing pattern.
+func _on_fishing_completed(item_name: String, quantity: int) -> void:
+	_pickup_debug_label.text = "Caught: %s x%d" % [item_name, quantity]
+	_handoff().log_event("Caught: %s x%d" % [item_name, quantity], &"loot")
+	_pc.set_movement_paused(false)
+
 ## Opens the "?" encounter's choice panel (player direction 2026-07-12) and pauses PC movement —
 ## mirrors _on_dialogue_requested/_on_board_opened's existing pattern.
 func _on_encounter_triggered(encounter: RandomEncounter) -> void:
@@ -583,7 +608,7 @@ func _on_random_encounter_resolved() -> void:
 	_pc.set_movement_paused(false)
 
 func _toggle_inventory() -> void:
-	if _random_encounter_panel.is_open() or _foraging_panel.is_open() or _talent_panel.visible:
+	if _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible:
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -596,7 +621,7 @@ func _toggle_inventory() -> void:
 ## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
 ## different starting tab.
 func _toggle_stats() -> void:
-	if _random_encounter_panel.is_open() or _foraging_panel.is_open() or _talent_panel.visible:
+	if _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible:
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -608,7 +633,7 @@ func _toggle_stats() -> void:
 ## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
 ## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
 func _toggle_talents() -> void:
-	if _random_encounter_panel.is_open() or _foraging_panel.is_open() or _inventory_panel.visible:
+	if _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _inventory_panel.visible:
 		return
 	if _talent_panel.visible:
 		_talent_panel.close()
@@ -621,7 +646,7 @@ func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
 	_jackpot_bar.value = _party_inventory.jackpot_meter
-	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _talent_panel.visible:
+	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible:
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
@@ -668,7 +693,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_talents"):
 		_toggle_talents()
 		return
-	if _inventory_panel.visible or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _talent_panel.visible:
+	if _inventory_panel.visible or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible:
 		return
 	if not event.is_action_pressed("interact"):
 		return
