@@ -467,6 +467,36 @@ func _build_npcs() -> void:
 		fish.fishing_requested.connect(_on_fishing_requested)
 		_world.add_child(fish)
 
+	# A second Foraging node and a second Fishing node (2026-08-02 gathering-playtest-fixes spec
+	# section 5, player-requested for better playtesting) -- positions verified clear of every
+	# collider/NPC in this file (trees/river/mountain/village/enemies/pickups/other gathering
+	# nodes) by direct inspection before being placed.
+	if not _handoff().is_defeated(&"WildBerries2"):
+		var berries2 := GatheringNode.new()
+		berries2.name = "WildBerries2"
+		berries2.material_type = &"forage_herb"
+		berries2.material_display_name = "Wild Berries"
+		berries2.quantity = 1
+		berries2.global_position = Vector2(420, 450)
+		berries2.foraging_requested.connect(_on_foraging_requested)
+		_world.add_child(berries2)
+
+	if not _handoff().is_defeated(&"FishingSpot2"):
+		var fish2 := FishingSpot.new()
+		fish2.name = "FishingSpot2"
+		fish2.small_material_type = &"fish_small"
+		fish2.small_material_display_name = "Minnow"
+		fish2.small_quantity = 1
+		fish2.medium_material_type = &"fish_medium"
+		fish2.medium_material_display_name = "Freshwater Fish"
+		fish2.medium_quantity = 1
+		fish2.large_material_type = &"fish_large"
+		fish2.large_material_display_name = "Prize Bass"
+		fish2.large_quantity = 1
+		fish2.global_position = Vector2(680, 500)
+		fish2.fishing_requested.connect(_on_fishing_requested)
+		_world.add_child(fish2)
+
 	# Slay-the-Spire-style "?" random encounter (player direction 2026-07-12) — one authored
 	# example (bandit_ambush) for this playtest. Positioned clear of every collider/other NPC.
 	if not _handoff().is_defeated(&"BanditAmbush"):
