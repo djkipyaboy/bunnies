@@ -300,12 +300,12 @@ func _build_ui() -> void:
 	_random_encounter_panel.close()
 
 	_foraging_panel = ForagingPanel.new()
-	_foraging_panel.position = Vector2(140, 60)
+	_foraging_panel.position = Vector2(440, 228)
 	_foraging_panel.foraging_completed.connect(_on_foraging_completed)
 	ui.add_child(_foraging_panel)
 
 	_fishing_panel = FishingPanel.new()
-	_fishing_panel.position = Vector2(140, 60)
+	_fishing_panel.position = Vector2(280, 10)
 	_fishing_panel.fishing_completed.connect(_on_fishing_completed)
 	_fishing_panel.fishing_closed.connect(_on_fishing_closed)
 	ui.add_child(_fishing_panel)
