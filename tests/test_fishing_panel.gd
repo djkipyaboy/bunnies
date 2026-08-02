@@ -63,6 +63,8 @@ func _initialize() -> void:
 	var completed_events: Array = []   # [{"name": String, "quantity": int}]
 	panel.fishing_completed.connect(func(item_name: String, quantity: int) -> void:
 		completed_events.append({"name": item_name, "quantity": quantity}))
+	var closed_count: Array = [0]
+	panel.fishing_closed.connect(func() -> void: closed_count[0] += 1)
 
 	panel.advance_for_test(1.0)   # prove ticking doesn't crash; the rigged reels are all-critical regardless of index
 	panel.press_stop_for_test(0)
@@ -77,8 +79,11 @@ func _initialize() -> void:
 	_check(m.quality_tier == 1, "an all-Critical catch stamps quality_tier == 1")
 	_check(completed_events.size() == 1 and completed_events[0]["name"] == "Freshwater Fish", "fishing_completed fires with the caught item's display name")
 	_check(not panel.is_open(), "pressing Continue after a catch closes the panel")
+	_check(closed_count[0] == 1, "fishing_closed also fires on a catch (the unconditional close signal)")
 
-	# --- A no-catch case grants nothing and does not emit fishing_completed ---
+	# --- A no-catch case grants nothing and does not emit fishing_completed, but fishing_closed
+	# still fires -- this is the fix for the Critical bug where a miss left the panel closing
+	# with no signal to resume PC movement on.
 	var inv2: PartyInventory = PartyInventory.new()
 	panel.open_for(_bucket_configs(), inv2, forced_shadows)
 	panel.begin_reel_stop_for_test(&"small", [_reel([&"fail"])] as Array[FishingReel])
@@ -88,6 +93,7 @@ func _initialize() -> void:
 	panel.press_continue_for_test()
 	_check(inv2.materials.is_empty(), "a Fail on a 1-reel fish grants nothing")
 	_check(completed_events.size() == 1, "fishing_completed does not fire again on a no-catch round")
+	_check(closed_count[0] == 2, "fishing_closed fires exactly once for the no-catch round even though fishing_completed does not fire")
 
 	panel.free()
 	quit()

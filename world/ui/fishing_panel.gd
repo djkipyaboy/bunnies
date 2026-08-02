@@ -8,6 +8,9 @@ extends Panel
 ## different content (a movable hook + shadows vs. a row of reel displays vs. a result message).
 
 signal fishing_completed(item_name: String, quantity: int)
+## Fires unconditionally when the panel closes, catch or miss -- the ONE signal callers should use
+## to resume PC movement (fishing_completed is informational-only and does not fire on a miss).
+signal fishing_closed
 
 const PANEL_W: float = 520.0
 const PANEL_H: float = 440.0
@@ -129,6 +132,8 @@ func press_hook_button_for_test() -> void:
 	_hook_button.pressed.emit()
 
 func _on_hook_pressed() -> void:
+	if _phase != &"targeting":
+		return
 	var hooked_index: int = -1
 	for i in range(_shadows.size()):
 		var shadow: Dictionary = _shadows[i]
@@ -138,7 +143,6 @@ func _on_hook_pressed() -> void:
 	if hooked_index == -1:
 		return
 	var bucket: StringName = _shadows[hooked_index]["size_bucket"]
-	_shadows.remove_at(hooked_index)
 	var reel_count: int = FishingShadowGenerator.reel_count_for_bucket(bucket)
 	var reels: Array[FishingReel] = []
 	for i in range(reel_count):
@@ -252,3 +256,5 @@ func _on_continue_pressed() -> void:
 	visible = false
 	if _pending_item_name != "":
 		fishing_completed.emit(_pending_item_name, _pending_quantity)
+		_pending_item_name = ""   # also prevents a double-press from re-emitting
+	fishing_closed.emit()

@@ -307,6 +307,10 @@ func _build_ui() -> void:
 	_fishing_panel = FishingPanel.new()
 	_fishing_panel.position = Vector2(140, 60)
 	_fishing_panel.fishing_completed.connect(_on_fishing_completed)
+	# fishing_closed fires unconditionally on close (catch OR miss) -- this is the ONE place
+	# guaranteed to resume PC movement; _on_fishing_completed's own resume call is now redundant
+	# on the catch path but harmless (idempotent).
+	_fishing_panel.fishing_closed.connect(func() -> void: _pc.set_movement_paused(false))
 	ui.add_child(_fishing_panel)
 
 	# Top-left pickup confirmation (player request 2026-07-11) — same top-left placement/style

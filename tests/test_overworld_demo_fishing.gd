@@ -30,6 +30,8 @@ func _initialize() -> void:
 	var spot: FishingSpot = demo.get_node("World/FishingSpot")
 	_check(spot != null, "the real overworld scene places a FishingSpot named FishingSpot")
 
+	var captured_bucket_configs: Dictionary = {}
+	spot.fishing_requested.connect(func(bucket_configs: Dictionary) -> void: captured_bucket_configs = bucket_configs)
 	spot.interact()
 	await process_frame
 
@@ -61,6 +63,23 @@ func _initialize() -> void:
 	_check(demo._party_inventory.materials.size() == 1, "the catch grants the material into the scene's real PartyInventory")
 	var m: CraftingMaterial = demo._party_inventory.materials[0]
 	_check(m.quality_tier == 1, "the all-Critical catch stamps quality_tier == 1 on the real granted material")
+
+	# Regression: a MISS used to never emit fishing_completed, so PC movement was never resumed --
+	# a permanent softlock (2026-08-01 final review Critical finding). The real FishingSpot node has
+	# already queue_free()'d itself (deferred, and an `await process_frame` already elapsed above),
+	# so it can't be re-interacted with here -- instead, drive the scene's real, already-wired
+	# FishingPanel instance directly (its fishing_closed/fishing_completed connections to
+	# demo._on_fishing_completed and the movement-pause lambda are the exact real wiring, identical
+	# to what a second real FishingSpot trigger would exercise) into a guaranteed miss.
+	demo._pc.set_movement_paused(true)
+	demo._fishing_panel.open_for(captured_bucket_configs, demo._party_inventory)
+	_check(demo._fishing_panel.is_open(), "re-opening the real panel starts a fresh round")
+	demo._fishing_panel.begin_reel_stop_for_test(&"small", [_reel([&"fail"])] as Array[FishingReel])
+	demo._fishing_panel.press_stop_for_test(0)
+	demo._fishing_panel.press_continue_for_test()
+	await process_frame
+	_check(not demo._fishing_panel.is_open(), "pressing Continue after a miss closes the panel")
+	_check(not demo._pc.movement_paused_for_test(), "closing the panel after a MISS also resumes PC movement (the Critical-bug regression)")
 
 	demo.queue_free()
 	await process_frame
