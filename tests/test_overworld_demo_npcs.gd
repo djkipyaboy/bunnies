@@ -58,7 +58,6 @@ func _process(_delta: float) -> bool:
 		_check(wanderer_node != null, "friendly Villager exists as a child of _world")
 		_check(berries_node != null, "the Foraging GatheringNode (WildBerries) exists as a child of _world")
 		_check(fish_node != null, "the Fishing GatheringNode (FishingSpot) exists as a child of _world")
-		_check(berries_node.party_inventory == overworld._party_inventory, "WildBerries.party_inventory wired to the scene's live PartyInventory")
 		_check(ferret_node != null and ferret_node.enemy_ids == [&"ferret"], "OverworldFerret is placed with the ferret roster (2026-07-12 encounter variety)")
 		_check(stoat_node != null and stoat_node.enemy_ids == [&"stoat"], "OverworldStoat is placed with the stoat roster (2026-07-12 encounter variety)")
 		_check(encounter_node != null and encounter_node.encounter_id == &"bandit_ambush", "the BanditAmbush RandomEncounterNode is placed (2026-07-12 '?' encounters)")
@@ -93,15 +92,25 @@ func _process(_delta: float) -> bool:
 		overworld._pc._tracked.erase(reward_node)
 
 		# --- GatheringNode (WildBerries): force it into reach, drive one real _process() frame,
-		# confirm the Material lands in _party_inventory and the node frees itself. ---
+		# confirm it hands off to the scene's real ForagingPanel instead of granting anything
+		# directly (2026-08-01 "Shake the Bush" mini-game rework -- GatheringNode.interact() now
+		# only marks itself defeated + frees + emits foraging_requested; the driving scene's
+		# _on_foraging_requested opens _foraging_panel and pauses movement. The full Shake/Bank
+		# grant flow is already covered end-to-end by tests/test_overworld_demo_foraging.gd -- this
+		# file's job is just confirming WildBerries is wired into that hand-off like every other
+		# NPC here, and that it still self-defeats/frees on interact like before). Bank immediately
+		# after to close the panel + resume movement, since both _process()/_unhandled_input() below
+		# early-return while ANY panel (including this one) is open -- leaving it open would silently
+		# break the double-fire regression section right after this one. ---
 		overworld._pc._tracked.append(berries_node)
 		overworld._process(0.016)
-		_check(overworld._party_inventory.materials.size() == 1, "touching WildBerries gives one Material into _party_inventory")
-		_check(overworld._party_inventory.materials[0].material_type == &"forage_herb", "the granted Material carries WildBerries' material_type")
+		_check(overworld._foraging_panel.is_open(), "touching WildBerries opens the scene's real ForagingPanel")
+		_check(overworld._pc.movement_paused_for_test(), "opening the Foraging panel pauses PC movement")
 		_check(berries_node.is_queued_for_deletion(), "touching WildBerries queues it for deletion")
-		_check(overworld._pickup_debug_label.text.find("Wild Berries") != -1, "pickup debug label mentions the gathered material's name")
-		_check(_combat_handoff.event_log_entries.has({"line": "Gathered: Wild Berries x1", "category": &"loot"}), "gathering WildBerries logs 'Gathered: <name> x<qty>' tagged loot")
 		overworld._pc._tracked.erase(berries_node)
+		overworld._foraging_panel.press_bank_for_test()
+		_check(not overworld._foraging_panel.is_open(), "banking the Foraging panel closes it")
+		_check(not overworld._pc.movement_paused_for_test(), "banking the Foraging panel resumes PC movement")
 
 		# --- Regression (2026-07-11 final review, Important finding): a same-frame interact
 		# keypress must NOT double-fire an auto_trigger target alongside _process's own
