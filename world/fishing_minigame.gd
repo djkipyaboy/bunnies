@@ -40,6 +40,14 @@ func advance(delta: float) -> void:
 func current_face(col: int) -> ReelFace:
 	return reels[col].faces[_current_indices[col]]
 
+## The face at [param col]'s current index + [param offset], wrapping in both directions.
+## offset=-1/0/+1 gives previous/current/next for a 3-cell reel-strip display (2026-08-02
+## gathering-playtest-fixes spec section 2). Read-only -- does not affect resolve().
+func face_at(col: int, offset: int) -> ReelFace:
+	var size: int = reels[col].faces.size()
+	var index: int = ((_current_indices[col] + offset) % size + size) % size
+	return reels[col].faces[index]
+
 func is_stopped(col: int) -> bool:
 	return _stopped[col]
 
