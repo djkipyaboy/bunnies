@@ -49,6 +49,15 @@ enum ResultTier {
 @export var team_up_symbol: StringName = &""
 
 # ---------------------------------------------------------------------------
+# Fishing-reel field
+# ---------------------------------------------------------------------------
+
+## Which of the 3 Fishing tiers (Fail/Success/Critical) this face carries -- a FishingReel-only
+## field, following this file's own "nullable fields serve multiple reel kinds" precedent
+## (2026-08-01 gathering-profession-minigames spec section 3). Empty on every other reel's faces.
+@export var fishing_tier: StringName = &""
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
