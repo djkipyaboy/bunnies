@@ -2040,3 +2040,86 @@ on `main` (player's explicit choice this session, no worktree):
   Fishing catch).
 - **Next up**: the Fishing plan (claw-machine targeting + manual-stop multi-reel catch, per the same
   locked spec's §3) — not started yet.
+
+**SHIPPED 2026-08-02 — FISHING MINI-GAME (claw-machine targeting + manual-stop catch), all
+headless-test-green, human playtest still pending.** Second and final plan off the 2026-08-01
+gathering-profession-minigames spec — this closes out both professions in scope (Salvaging/Cooking
+remain future specs, not decomposed). Planned (`docs/superpowers/plans/2026-08-01-fishing-minigame.md`,
+6 tasks) → built subagent-driven, directly on `main` (same convention as Foraging):
+- **`FishingReel`/`ReelFace.fishing_tier`** (new) — a fourth `Reel` sibling
+  (`InitiativeReel`/`ActionReel`/`TeamUpReel`/`FishingReel`), faces carrying a Fail/Success/Critical
+  tier instead of result_tier/team_up_symbol/digit.
+- **`FishingShadowGenerator` (new, `world/fishing_shadow_generator.gd`)** — pure/static shadow-layout
+  math mirroring `Wander`'s "caller supplies randomness" pattern: a deterministic `make_shadow()` core
+  plus a `generate()` convenience wrapper that supplies real randomness for the panel's real call sites.
+  Small/Medium/Large size buckets map to 1/3/5 reels.
+- **`FishingMinigame` (new, `world/fishing_minigame.gd`)** — the core resolution model, and this
+  project's first `Reel` consumer that does NOT call `spin()`: `advance(delta)` drives continuous
+  per-reel rotation, `stop(col)` freezes and returns whatever face is showing at that instant. **Locked
+  design rule (player-approved during brainstorming):** a 1-reel fish has NO quantity-only bonus tier —
+  a plain Success win is baseline-only; only an all-Critical result grants the full quantity+quality
+  bonus at 1 reel. 3-/5-reel fish DO have a separate "all positive, not all critical" quantity-only
+  tier. The final review independently traced every ladder case by hand and confirmed the `total > 1`
+  guard holds correctly end to end.
+- **`FishingSpot` (new, `world/fishing_spot.gd`)** — a hand-off `Interactable` (mirrors
+  `RandomEncounterNode`'s shape, not `GatheringNode`'s old self-contained-resolution one), carrying one
+  material/quantity config per shadow-size bucket (placeholder content: Minnow/Freshwater Fish/Prize
+  Bass).
+- **`FishingPanel` (new, `world/ui/fishing_panel.gd`)** — the view. Targeting phase: a random shadow
+  layout (count + sizes fresh every attempt), the player moves a hook via the game's normal movement
+  keys (reusing `PCController.movement_velocity()` directly, not a reimplementation) and drops it with
+  a button; overlapping a shadow always hooks it. Reel-stop phase: continuous rotation, manual per-reel
+  stop, Critical rendered at a genuinely smaller font size than Fail/Success (a precision reward, not
+  just a color difference) — locked in by a font-size-reading test hook, not just eyeballed.
+- **`overworld_demo.gd` wiring** — replaces the placeholder `GatheringNode`-based "FishingSpot" (which
+  had been temporarily running the Foraging Shake-the-Bush flow since that plan shipped) with a real
+  `FishingSpot`, adds `FishingPanel` construction, and extends all five existing modal-panel guard
+  checks to include `_fishing_panel.is_open()` alongside `_foraging_panel.is_open()`.
+- **This task's own mandated node-type swap broke a pre-existing, out-of-scope test file a second
+  time** — `tests/test_overworld_demo_npcs.gd` still read the "FishingSpot" node as a `GatheringNode`;
+  swapping it to a real `FishingSpot` threw a type-mismatch `SCRIPT ERROR` that silently aborted 28 of
+  ~39 assertions while the file still exited 0. This is the identical bug class the Foraging plan's
+  final review caught (see `silent-script-error-exits-zero-gotcha` in project memory) — caught and
+  fixed within Task 6 itself this time (retyped the variable, corrected the check label, audited the
+  rest of the block for any other now-stale GatheringNode-shaped assertion — none found), rather than
+  waiting for the final review to catch it again.
+- **Final whole-branch review caught 1 real Critical bug, fixed same session**: a missed catch (no
+  catch on the reel-stop resolve) never resumed PC movement — `_on_continue_pressed()` only emitted the
+  catch-only `fishing_completed` signal, which was the ONLY thing that ever unpaused movement in
+  `overworld_demo.gd`. With the shipped 4-fail/4-success/2-critical composition, a miss happens roughly
+  32-40% of the time across all three fish sizes — the single most common non-happy path in the whole
+  feature, and the green test suite had been actively locking the buggy behavior in (a no-catch test
+  case existed but never checked movement state). Fixed by adding an unconditional `signal
+  fishing_closed` that fires on every close regardless of catch/miss, with a new regression test in the
+  real-scene wiring test (not just the panel-level one, since the movement-pause contract lives in
+  `overworld_demo.gd`) proving a miss correctly resumes movement. Bundled into the same fix: a missing
+  phase guard on `_on_hook_pressed()` (a same-frame double-click on the deferred-`queue_free()`'d Drop
+  Hook button could hook a second shadow and silently discard the round just started) and clearing
+  `_pending_item_name` after emit (prevents a double-emitted catch signal from a same-frame double-press
+  on Continue).
+- **Also found, confirmed pre-existing and out of scope, NOT fixed (flagged for a separate session)**:
+  `PartyInventory.give_material()` stacks by `material_type` only and silently drops the incoming
+  item's `quality_tier` when merging into an existing stack of the same type — this arrived with the
+  earlier Foraging plan (which introduced `quality_tier`), not this one. Currently invisible (nothing
+  reads `quality_tier` yet), but Fishing is the second feature to depend on it surviving the grant,
+  making it more reachable. Worth a dedicated look before crafting/cooking start consuming quality for
+  real.
+- **Parked, not fixed (judged lowest value/cost this session, noted for a future playtest-fix pass)**:
+  shadows are drawn as squares but hit-tested as circles (a large shadow's visible corners extend past
+  its hit-circle radius — a legibility gap, not a correctness bug); fishing tier display names use raw
+  internal ids ("Fail"/"Success"/"Critical") instead of the spec's proposed flavor names ("Slipped the
+  Hook"/"Landed"/"Lunker" — the spec itself calls this non-blocking); a stale test-label rationale
+  referencing a since-deleted `remove_at()` call; test-hook footguns around freed nodes across phase
+  transitions; a misconfigured/missing bucket config would fail silently (not reachable today, both
+  registries currently use identical bucket keys only by convention).
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 284-file headless sweep came back
+  clean throughout the whole build (re-verified after every task, both fix waves, and the final
+  review), including a targeted `SCRIPT ERROR` grep every time — the specific failure class this
+  session's own Task 6 and final-review findings both were. **A human has not yet playtested this
+  live** — walk up to the fishing spot in `overworld_demo.tscn`, confirm the hook moves with the normal
+  movement keys and drops correctly on a shadow, confirm the reel-stop timing/manual-stop feel (the
+  rotation speed is a pure `[ASSUMPTION]` placeholder, tune by feel), confirm Critical's smaller face
+  reads as a real precision target, confirm a miss no longer freezes movement (the just-fixed bug),
+  and confirm a catch on each of the three shadow sizes grants the right material/quantity, with an
+  all-Critical catch showing the quality bonus. Playtest both Foraging and Fishing together per your
+  own request to hold off until both were done.
