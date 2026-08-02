@@ -1983,3 +1983,60 @@ clean — full 274-file headless sweep green throughout):
   undone; (c) press "Bank Result" mid-round and confirm it resolves whatever's currently on the
   grid; (d) confirm Riposte Storm's damage bonus reads as stronger and a Skirmisher starts a second,
   separate fight at 0 riposte charges even after building some up in an earlier fight.
+
+**SHIPPED 2026-08-01 — FORAGING MINI-GAME ("Shake the Bush"), all headless-test-green, human
+playtest still pending.** First of two plans off a new spec covering the two gathering professions
+(design-bible 27-crafting.md §11 names four eventual profession mini-games — Foraging, Salvaging,
+Fishing, Cooking; this pass covers Foraging only, Fishing is a separate follow-up plan, Salvaging/
+Cooking remain future specs). Brainstormed → spec'd
+(`docs/superpowers/specs/2026-08-01-gathering-profession-minigames-design.md`) → planned
+(`docs/superpowers/plans/2026-08-01-foraging-minigame.md`, 4 tasks) → built subagent-driven, directly
+on `main` (player's explicit choice this session, no worktree):
+- **`ForagingMinigame` (new, `world/foraging_minigame.gd`)** — a pure model (mirrors `TeamUpMinigame`'s
+  resolver/view split) holding one evolving outcome tier (`[ASSUMPTION]` 4 tiers: Meager/Modest ×1,
+  Bountiful ×2, Bumper Crop ×2 + quality bonus). `shake()` draws a genuinely fresh random tier — can
+  land WORSE than the current one, no one-way-improvement ratchet — spending one of `[ASSUMPTION]` 3
+  starting shakes; `bank()` locks in whatever's currently shown, legal at any shake count including 0.
+- **`CraftingMaterial.quality_tier: int`** (new field, default 0) — a minimal, undesigned-content hook
+  (mirrors how `Combatant.loot_table` shipped before real loot tables existed) so a Bumper Crop bank is
+  visibly different in the inventory now, even with no real rarity content/tuning behind it yet.
+- **`ForagingPanel` (new, `world/ui/foraging_panel.gd`)** — the view, mirroring `RandomEncounterPanel`'s
+  pre-built-by-the-scene/`open_for()` convention; the only thing that touches `PartyInventory`/
+  `CraftingMaterial`. No cancel button — Bank is the only way to close it.
+- **`GatheringNode` reshaped** from a self-contained-resolution `Interactable` (like `RewardPickup`) into
+  a hand-off-to-the-driving-scene one (like `RandomEncounterNode`): `interact()` now marks itself
+  defeated + emits `foraging_requested(material_type, material_display_name, quantity)` + frees itself,
+  instead of granting a material directly — the old `party_inventory` field and `material_gathered`
+  signal are gone outright, not deprecated.
+- **`overworld_demo.gd` wiring** — constructs `ForagingPanel` alongside the existing
+  `RandomEncounterPanel`, rewires both `GatheringNode` placements (Wild Berries, and the node still
+  literally named `"FishingSpot"` — a known, documented intermediate state until the Fishing follow-up
+  plan replaces that specific placement with a real `FishingSpot` class), and adds
+  `_foraging_panel.is_open()` to all five existing modal-panel guard checks (Inventory/Stats/Talents/
+  dialogue/interact) so Foraging can't stack with any of them — this project's own documented bug class
+  (e.g. the 2026-07-27 Thank You Note dialogue/inventory deadlock).
+- **Final whole-branch review caught 1 Critical bug, fixed same session**: Task 3's brief named only
+  one existing test file needing an update for the removed `GatheringNode` API — it missed a second
+  consumer, `tests/test_overworld_demo_npcs.gd`, which still read the removed `party_inventory` field.
+  The resulting script error aborted the rest of that `_process()` frame **silently** (the script still
+  printed its success line and exited 0), killing ~23 pre-existing, unrelated assertions (ferret/stoat
+  rosters, `OverworldEnemy`↔`CombatHandoff` wiring, Villager dialogue, `RewardPickup` coverage, and the
+  2026-07-11 same-frame-interact double-fire regression test) while the sweep read as clean — the exact
+  "exits 0 but a mid-frame error silently skipped everything after it" failure mode this project has hit
+  before. Fixed by removing the stale reference and replacing the obsolete WildBerries assertions with
+  ones matching the new hand-off flow; re-verified all 39 real checks in that file actually execute (not
+  just that the file exits 0). Also fixed: 2 production `.uid` companion files were untracked.
+- **Also found, confirmed unrelated, NOT fixed (flagged for a separate session)**: `test_dungeon_demo.gd`
+  has a pre-existing `SCRIPT ERROR` (`world/dungeon_demo.gd`'s `_refresh_location_label`, null
+  `_location_label`) — confirmed untouched by any of this plan's work, a genuine but out-of-scope bug.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 278-file headless sweep came back clean
+  (re-run twice — once mid-Task-4 after a backgrounded sweep died silently and had to be redone in the
+  foreground, once after the final-review fix wave), including a targeted `SCRIPT ERROR` grep across
+  every log (the specific class of failure this session's own Critical finding was). **A human has not
+  yet playtested this live** — touch the Wild Berries node in `overworld_demo.tscn`, confirm the
+  Shake/Bank flow reads as a real press-your-luck choice (a shake can visibly make the result worse),
+  confirm a Bumper Crop bank shows the bonus note, and confirm the temporarily-Foraging-flavored
+  `"FishingSpot"` node isn't mistaken for a bug (it's the next plan's job to replace it with a real
+  Fishing catch).
+- **Next up**: the Fishing plan (claw-machine targeting + manual-stop multi-reel catch, per the same
+  locked spec's §3) — not started yet.
