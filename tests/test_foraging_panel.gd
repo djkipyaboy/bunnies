@@ -22,6 +22,8 @@ func _initialize() -> void:
 	get_root().add_child(panel)
 	await process_frame
 
+	_check(panel.scale == Vector2(2.0, 2.0), "the panel is scaled 2x for legibility (spec section 4)")
+
 	panel.open_for(&"forage_herb", "Wild Berries", 1, inv)
 	_check(panel.visible, "open_for shows the panel")
 	_check(panel.is_open(), "is_open() reflects visible")
@@ -34,6 +36,8 @@ func _initialize() -> void:
 	_check(not panel.is_spinning_for_test(), "advancing past the full spin duration lands the spin")
 	_check(panel.reel_strip_for_test().cell_text_for_test(&"current") == panel.current_tier_name_for_test(),
 		"the landed strip shows the tier the model actually picked, not a coincidence of timing")
+	_check(panel.reel_strip_for_test().cell_color_for_test(&"current") == ForagingPanel._color_for_tier_name(panel.current_tier_name_for_test()),
+		"the landed strip's current cell color matches the tier's mapped RarityVisuals color")
 
 	# Prove the landing genuinely tracks the model's pick (not always the same visual index) by
 	# rigging two DIFFERENT single-tier pools and confirming each lands on ITS OWN tier.
@@ -99,6 +103,12 @@ func _initialize() -> void:
 	var bumper_material: CraftingMaterial = inv2.materials[0]
 	_check(bumper_material.quantity == 6, "a x2 Bumper Crop bank on a base quantity of 3 grants 6 (3 * 2)")
 	_check(bumper_material.quality_tier == 1, "a Bumper Crop bank stamps quality_tier == 1 onto the granted material")
+
+	_check(ForagingPanel._color_for_tier_name("Meager") == RarityVisuals.color(RarityVisuals.Rarity.COMMON), "Meager maps to the Common (white) color")
+	_check(ForagingPanel._color_for_tier_name("Modest") == RarityVisuals.color(RarityVisuals.Rarity.UNCOMMON), "Modest maps to the Uncommon (green) color")
+	_check(ForagingPanel._color_for_tier_name("Bountiful") == RarityVisuals.color(RarityVisuals.Rarity.RARE), "Bountiful maps to the Rare (blue) color")
+	_check(ForagingPanel._color_for_tier_name("Bumper Crop") == RarityVisuals.color(RarityVisuals.Rarity.EPIC), "Bumper Crop maps to the Epic (purple) color")
+	_check(ForagingPanel._color_for_tier_name("Not A Real Tier") == Color.WHITE, "an unrecognized tier name falls back to white rather than erroring")
 
 	panel.free()
 	quit()

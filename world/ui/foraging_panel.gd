@@ -58,6 +58,7 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, PANEL_H)
 	size = custom_minimum_size
 	visible = false
+	scale = Vector2(2.0, 2.0)
 
 	_reel_strip = ReelStripWidget.new()
 	_reel_strip.position = Vector2(PAD, REEL_STRIP_TOP)
@@ -131,11 +132,27 @@ func _land_spin() -> void:
 	_bank_button.disabled = false
 	_refresh()
 
+## [ASSUMPTION] tier -> RarityVisuals color mapping (2026-08-02 gathering-reel-colors-and-sizing
+## spec section 2), purely for playtest clarity until real reel-face icons exist -- NOT a claim
+## that a tier's color implies its material's quality.
+static func _color_for_tier_name(tier_name: String) -> Color:
+	match tier_name:
+		"Meager": return RarityVisuals.color(RarityVisuals.Rarity.COMMON)
+		"Modest": return RarityVisuals.color(RarityVisuals.Rarity.UNCOMMON)
+		"Bountiful": return RarityVisuals.color(RarityVisuals.Rarity.RARE)
+		"Bumper Crop": return RarityVisuals.color(RarityVisuals.Rarity.EPIC)
+		_: return Color.WHITE
+
 func _refresh_spin_visual() -> void:
 	var order_size: int = TIER_DISPLAY_ORDER.size()
 	var prev_index: int = (_spin_visual_index - 1 + order_size) % order_size
 	var next_index: int = (_spin_visual_index + 1) % order_size
-	_reel_strip.set_cells(TIER_DISPLAY_ORDER[prev_index], TIER_DISPLAY_ORDER[_spin_visual_index], TIER_DISPLAY_ORDER[next_index])
+	var prev_name: String = TIER_DISPLAY_ORDER[prev_index]
+	var current_name: String = TIER_DISPLAY_ORDER[_spin_visual_index]
+	var next_name: String = TIER_DISPLAY_ORDER[next_index]
+	_reel_strip.set_cells(prev_name, current_name, next_name,
+		false, false, false,
+		_color_for_tier_name(prev_name), _color_for_tier_name(current_name), _color_for_tier_name(next_name))
 
 func _on_shake_pressed() -> void:
 	if _spinning:
