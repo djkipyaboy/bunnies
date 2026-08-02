@@ -63,6 +63,8 @@ func _initialize() -> void:
 	_check(demo._party_inventory.materials.size() == 1, "the catch grants the material into the scene's real PartyInventory")
 	var m: CraftingMaterial = demo._party_inventory.materials[0]
 	_check(m.quality_tier == 1, "the all-Critical catch stamps quality_tier == 1 on the real granted material")
+	_check(combat_handoff.event_log_entries.size() == 1 and String(combat_handoff.event_log_entries[0]["line"]).begins_with("Fishing: ["),
+		"a real catch writes exactly ONE combined Fishing line into the event log (not zero, not a duplicate)")
 
 	# Regression: a MISS used to never emit fishing_completed, so PC movement was never resumed --
 	# a permanent softlock (2026-08-01 final review Critical finding). The real FishingSpot node has
@@ -80,6 +82,8 @@ func _initialize() -> void:
 	await process_frame
 	_check(not demo._fishing_panel.is_open(), "pressing Continue after a miss closes the panel")
 	_check(not demo._pc.movement_paused_for_test(), "closing the panel after a MISS also resumes PC movement (the Critical-bug regression)")
+	_check(combat_handoff.event_log_entries.size() == 2 and String(combat_handoff.event_log_entries[1]["line"]).ends_with("The fish got away."),
+		"a MISS also writes its own log line into the event log -- new behavior this pass introduced")
 
 	demo.queue_free()
 	await process_frame

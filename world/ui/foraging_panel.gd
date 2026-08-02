@@ -110,6 +110,7 @@ func _start_spin() -> void:
 	_shake_button.disabled = true
 	_bank_button.disabled = true
 	_result_label.text = ""   # clear any stale result text from a previous round while this one spins
+	_shake_button.text = "Shake Again (%d left)" % _minigame.shakes_remaining
 	_refresh_spin_visual()
 
 func _advance_spin(delta: float) -> void:
@@ -125,7 +126,8 @@ func _advance_spin(delta: float) -> void:
 
 func _land_spin() -> void:
 	_spinning = false
-	_spin_visual_index = TIER_DISPLAY_ORDER.find(String(_minigame.current_tier["name"]))
+	var landed: int = TIER_DISPLAY_ORDER.find(String(_minigame.current_tier["name"]))
+	_spin_visual_index = landed if landed >= 0 else _spin_visual_index
 	_bank_button.disabled = false
 	_refresh()
 
