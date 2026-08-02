@@ -16,3 +16,9 @@ extends Resource
 @export var display_name: String = ""
 @export var material_type: StringName = &""
 @export var quantity: int = 1
+
+## Set by a gathering mini-game's bonus outcome (2026-08-01 gathering-profession-minigames spec
+## sections 2/3) -- 0 = no bonus. Undesigned content: nothing downstream interprets different
+## nonzero values differently yet (mirrors how Combatant.loot_table shipped as a hook before real
+## loot tables existed) -- that belongs to the deferred materials/items pass.
+@export var quality_tier: int = 0
