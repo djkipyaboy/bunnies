@@ -58,6 +58,19 @@ enum ResultTier {
 @export var fishing_tier: StringName = &""
 
 # ---------------------------------------------------------------------------
+# Bonus-reel fields (Salvaging's Tempering Reels / Cooking's Second Helping)
+# ---------------------------------------------------------------------------
+
+## Which kind of bonus this BonusReel face grants — e.g. &"stat_value", &"amplify_primary",
+## &"amplify_secondary", &"bonus_tertiary", &"baseline", &"bonus_quantity" (2026-08-02
+## salvaging-and-cooking professions design section 6). Empty on every other reel's faces.
+@export var bonus_mode: StringName = &""
+
+## The amount tied to bonus_mode (a stat-point delta, an amplify amount, or an extra-quantity
+## count). 0 on every other reel's faces.
+@export var bonus_magnitude: int = 0
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
