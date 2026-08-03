@@ -65,5 +65,34 @@ func _init() -> void:
 	var tempered: Gear = SalvageSystem.craft(Gear.Slot.CHEST, RarityVisuals.Rarity.COMMON, bonus_inv, delta)
 	_check(tempered.stat_bonuses.vigor == 1 + 5, "a passed bonus_stats delta is ADDED onto the recipe's deterministic base (1 + 5 = 6, got %d)" % tempered.stat_bonuses.vigor)
 
+	# --- CHARM_2 normalization (RecipeLibrary's yield/cost table has no CHARM_2 entry, only CHARM) ---
+	var charm2_inv: PartyInventory = PartyInventory.new()
+	var charm2_item: Gear = Gear.new()
+	charm2_item.slot = Gear.Slot.CHARM_2
+	charm2_item.rarity = RarityVisuals.Rarity.UNCOMMON
+	charm2_inv.gear.append(charm2_item)
+	var charm2_granted: CraftingMaterial = SalvageSystem.break_down(charm2_item, charm2_inv)
+	_check(charm2_granted.quantity == RecipeLibrary.salvage_yield_for_slot(Gear.Slot.CHARM), "break_down() normalizes CHARM_2 -> CHARM for the yield lookup instead of yielding 0 (got %d)" % charm2_granted.quantity)
+
+	_check(SalvageSystem.can_craft(Gear.Slot.CHARM_2, RarityVisuals.Rarity.UNCOMMON, charm2_inv), "can_craft() normalizes CHARM_2 -> CHARM for the cost lookup")
+	var charm2_crafted: Gear = SalvageSystem.craft(Gear.Slot.CHARM_2, RarityVisuals.Rarity.UNCOMMON, charm2_inv)
+	_check(charm2_crafted != null, "craft() can build into the CHARM_2 slot")
+	_check(charm2_crafted.slot == Gear.Slot.CHARM_2, "the crafted Gear's own .slot preserves CHARM_2 (not normalized away on the output)")
+
+	# --- craft() must not lose Scrap when the Bag is full (try_give_gear fails) ---
+	var full_inv: PartyInventory = PartyInventory.new()
+	for i in range(full_inv.bag_capacity()):
+		full_inv.gear.append(Gear.new())
+	var full_scrap: CraftingMaterial = CraftingMaterial.new()
+	full_scrap.material_type = &"salvage_scrap"
+	full_scrap.rarity = RarityVisuals.Rarity.COMMON
+	full_scrap.quantity = 3
+	full_inv.give_material(full_scrap)
+	_check(not full_inv.can_add_to_bag(), "test setup: the Bag is genuinely full before craft() is called")
+	var full_bag_result: Gear = SalvageSystem.craft(Gear.Slot.CHEST, RarityVisuals.Rarity.COMMON, full_inv)
+	_check(full_bag_result == null, "craft() returns null when the Bag is full even though Scrap is sufficient")
+	_check(full_scrap.quantity == 3, "craft() did NOT spend the Scrap when the Bag-full grant failed (still 3)")
+	_check(full_inv.gear.size() == full_inv.bag_capacity(), "no phantom Gear was added to the already-full Bag")
+
 	print("ok SalvageSystem smoke test complete")
 	quit()

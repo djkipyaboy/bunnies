@@ -12,7 +12,10 @@ const SCRAP_MATERIAL_TYPE: StringName = &"salvage_scrap"
 ## actually unequipped/in the Bag before calling -- mirrors the existing Discard flow's own contract.
 static func break_down(gear_item: Gear, inventory: PartyInventory) -> CraftingMaterial:
 	inventory.gear.erase(gear_item)
-	var yield_amount: int = RecipeLibrary.salvage_yield_for_slot(gear_item.slot)
+	# RecipeLibrary's yield/cost table has no CHARM_2 entry -- normalize the same way
+	# build_crafted_gear() already does, without altering gear_item.slot itself.
+	var lookup_slot: int = Gear.Slot.CHARM if gear_item.slot == Gear.Slot.CHARM_2 else gear_item.slot
+	var yield_amount: int = RecipeLibrary.salvage_yield_for_slot(lookup_slot)
 	var m: CraftingMaterial = CraftingMaterial.new()
 	m.material_type = SCRAP_MATERIAL_TYPE
 	m.display_name = "Salvage Scrap"
@@ -28,7 +31,10 @@ static func break_down(gear_item: Gear, inventory: PartyInventory) -> CraftingMa
 
 ## Whether the party owns enough Scrap of [param rarity] to afford [param slot]'s recipe.
 static func can_craft(slot: int, rarity: int, inventory: PartyInventory) -> bool:
-	var cost: int = RecipeLibrary.craft_cost_for_slot(slot)
+	# Normalize CHARM_2 -> CHARM for the cost lookup only (mirrors build_crafted_gear()) -- the
+	# caller's own slot value is never touched here.
+	var lookup_slot: int = Gear.Slot.CHARM if slot == Gear.Slot.CHARM_2 else slot
+	var cost: int = RecipeLibrary.craft_cost_for_slot(lookup_slot)
 	if cost <= 0:
 		return false
 	for m: CraftingMaterial in inventory.materials:
@@ -38,21 +44,27 @@ static func can_craft(slot: int, rarity: int, inventory: PartyInventory) -> bool
 
 ## Crafts [param slot] at [param rarity]: consumes Scrap, adds [param bonus_stats] (Tempering Reels'
 ## resolve() output, or null to skip it) on top of the recipe's deterministic base, and grants the
-## result via try_give_gear (capacity-gated, like loot/shop). Returns null (grants nothing, consumes
-## nothing) when can_craft() would be false.
+## result via try_give_gear (capacity-gated, like loot/shop). Returns null and leaves BOTH the Bag
+## and the Scrap stack untouched whenever the craft can't fully complete -- either because
+## can_craft() is false, or because the Bag is full when it comes time to actually grant the result
+## (Scrap must never be spent for nothing -- build the Gear and attempt the grant BEFORE touching
+## the Scrap stack, so a failed try_give_gear() has nothing left to refund).
 static func craft(slot: int, rarity: int, inventory: PartyInventory, bonus_stats: Stats = null) -> Gear:
 	if not can_craft(slot, rarity, inventory):
 		return null
-	var cost: int = RecipeLibrary.craft_cost_for_slot(slot)
+	# Normalize CHARM_2 -> CHARM for the cost lookup only -- build_crafted_gear() below preserves
+	# the caller's original `slot` (CHARM_2 included) on the output Gear itself, unchanged.
+	var lookup_slot: int = Gear.Slot.CHARM if slot == Gear.Slot.CHARM_2 else slot
+	var cost: int = RecipeLibrary.craft_cost_for_slot(lookup_slot)
+	var g: Gear = RecipeLibrary.build_crafted_gear(slot, rarity)
+	if bonus_stats != null:
+		g.stat_bonuses = g.stat_bonuses.plus(bonus_stats)
+	if not inventory.try_give_gear(g):
+		return null
 	for m: CraftingMaterial in inventory.materials:
 		if m.material_type == SCRAP_MATERIAL_TYPE and m.rarity == rarity:
 			m.quantity -= cost
 			if m.quantity <= 0:
 				inventory.materials.erase(m)
 			break
-	var g: Gear = RecipeLibrary.build_crafted_gear(slot, rarity)
-	if bonus_stats != null:
-		g.stat_bonuses = g.stat_bonuses.plus(bonus_stats)
-	if not inventory.try_give_gear(g):
-		return null
 	return g
