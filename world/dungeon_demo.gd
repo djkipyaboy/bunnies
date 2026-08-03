@@ -42,6 +42,7 @@ var _dungeon_exit: SceneExit
 var _interact_prompt: InteractPrompt
 var _inventory_panel: InventoryMenuPanel
 var _talent_panel: TalentMenuPanel
+var _professions_panel: ProfessionsMenuPanel
 var _event_log_panel: EventLogPanel
 var _pickup_debug_label: Label
 var _amber_label: Label
@@ -286,6 +287,11 @@ func _build_ui() -> void:
 	_talent_panel.hide()
 	ui.add_child(_talent_panel)
 
+	_professions_panel = ProfessionsMenuPanel.new()
+	_professions_panel.position = Vector2(140, 60)
+	_professions_panel.hide()
+	ui.add_child(_professions_panel)
+
 	_pickup_debug_label = Label.new()
 	_pickup_debug_label.name = "PickupDebugLabel"
 	_pickup_debug_label.position = Vector2(16, 70)
@@ -481,7 +487,7 @@ func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
 	_jackpot_bar.value = _party_inventory.jackpot_meter
-	if _inventory_panel.visible or _talent_panel.visible:
+	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
@@ -525,7 +531,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_talents"):
 		_toggle_talents()
 		return
-	if _inventory_panel.visible or _talent_panel.visible:
+	if event.is_action_pressed("toggle_professions"):
+		_toggle_professions()
+		return
+	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open():
 		return
 	if not event.is_action_pressed("interact"):
 		return
@@ -534,7 +543,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		target.interact()
 
 func _toggle_inventory() -> void:
-	if _talent_panel.visible:
+	if _talent_panel.visible or _professions_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -544,7 +553,7 @@ func _toggle_inventory() -> void:
 		_pc.set_movement_paused(true)
 
 func _toggle_stats() -> void:
-	if _talent_panel.visible:
+	if _talent_panel.visible or _professions_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -556,11 +565,23 @@ func _toggle_stats() -> void:
 ## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
 ## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
 func _toggle_talents() -> void:
-	if _inventory_panel.visible:
+	if _inventory_panel.visible or _professions_panel.is_open():
 		return
 	if _talent_panel.visible:
 		_talent_panel.close()
 		_pc.set_movement_paused(false)
 	else:
 		_talent_panel.open_for(_pc_combatant, _companions, false)   # dungeon = not a safe zone, respec unavailable
+		_pc.set_movement_paused(true)
+
+## Professions (2026-08-02 salvaging-and-cooking professions design section 5) -- bound to 'P'. Same
+## toggle semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents().
+func _toggle_professions() -> void:
+	if _talent_panel.visible or _inventory_panel.visible:
+		return
+	if _professions_panel.is_open():
+		_professions_panel.close()
+		_pc.set_movement_paused(false)
+	else:
+		_professions_panel.open_for(_party_inventory)
 		_pc.set_movement_paused(true)

@@ -81,11 +81,13 @@ func take_weapon(w: Weapon) -> void:
 func give_weapon(w: Weapon) -> void:
 	weapons.append(w)
 
-## Adds a gathered/salvaged CraftingMaterial, stacking onto an existing entry of the same
-## material_type rather than growing the array unbounded (design-bible 27-crafting.md §11 "stacking").
+## Adds a gathered/salvaged CraftingMaterial, stacking onto an existing entry that matches on
+## material_type, rarity, AND quality_tier (2026-08-02 salvaging-and-cooking professions design
+## section 2.3) — a Common Scrap stack and a Rare Scrap stack, or a Bumper-Crop-tagged berry stack
+## and a plain one, stay distinct rows instead of silently colliding and losing information.
 func give_material(m: CraftingMaterial) -> void:
 	for existing: CraftingMaterial in materials:
-		if existing is CraftingMaterial and existing.material_type == m.material_type:
+		if existing is CraftingMaterial and existing.material_type == m.material_type and existing.rarity == m.rarity and existing.quality_tier == m.quality_tier:
 			existing.quantity += m.quantity
 			return
 	materials.append(m)

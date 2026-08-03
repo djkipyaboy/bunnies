@@ -32,8 +32,30 @@ func _init() -> void:
 
 	panel.switch_tab_for_test(&"materials")   # re-render with the now-populated inventory
 	_check(panel.list_row_count_for_test() == 2, "a populated Materials tab shows one row per material")
-	_check(panel.list_row_text_for_test(0) == "Wild Berries x3", "the Materials tab shows name and quantity")
-	_check(panel.list_row_text_for_test(1) == "Freshwater Fish x1", "the Materials tab shows every gathered material")
+	_check(panel.list_row_text_for_test(0) == "Wild Berries (Common) x3", "the Materials tab shows name, rarity, and quantity")
+	_check(panel.list_row_text_for_test(1) == "Freshwater Fish (Common) x1", "the Materials tab shows every gathered material")
+
+	# --- Regression (final-review finding, 2026-08-02): two different-rarity stacks of the SAME
+	# material_type (e.g. Salvaging's Scrap, which always shares one display_name across all 5
+	# rarities) must render with visibly different row text -- otherwise they're indistinguishable
+	# even though craft cost is rarity-specific.
+	var common_scrap: CraftingMaterial = CraftingMaterial.new()
+	common_scrap.display_name = "Salvage Scrap"
+	common_scrap.material_type = &"salvage_scrap"
+	common_scrap.rarity = RarityVisuals.Rarity.COMMON
+	common_scrap.quantity = 2
+	var rare_scrap: CraftingMaterial = CraftingMaterial.new()
+	rare_scrap.display_name = "Salvage Scrap"
+	rare_scrap.material_type = &"salvage_scrap"
+	rare_scrap.rarity = RarityVisuals.Rarity.RARE
+	rare_scrap.quantity = 5
+	inv.materials = [common_scrap, rare_scrap]
+	panel.switch_tab_for_test(&"materials")
+	_check(panel.list_row_text_for_test(0) == "Salvage Scrap (Common) x2", "Common Scrap shows its rarity in the row text")
+	_check(panel.list_row_text_for_test(1) == "Salvage Scrap (Rare) x5", "Rare Scrap shows a DIFFERENT rarity in the row text")
+	_check(panel.list_row_text_for_test(0) != panel.list_row_text_for_test(1), "two different-rarity stacks of the same material_type render distinctly")
+
+	inv.materials = [berries, fish]   # restore for the rest of this test
 
 	# --- Quest Items tab: currently always empty (no quest system exists yet) — a working shell. ---
 	panel.switch_tab_for_test(&"quest")
