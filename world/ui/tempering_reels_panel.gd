@@ -17,7 +17,6 @@ var _minigame: TemperingReelsMinigame
 var _reel_strips: Array[ReelStripWidget] = []
 var _stop_buttons: Array[Button] = []
 var _confirm_button: Button
-var _result_label: Label
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, PANEL_H)
@@ -80,16 +79,21 @@ func _refresh_reel_strips() -> void:
 			false, false, false,
 			Color.WHITE, Color.WHITE, Color.WHITE)
 
+## Shortened to fit ReelStripWidget's CELL_W (90px) at NORMAL_FONT_SIZE (final-review finding,
+## 2026-08-02: the original longer strings, e.g. "Amplify 2nd (+2)", measured ~157px -- nearly double
+## the cell width -- and visibly overflowed into the next reel column since Tempering Reels was the
+## widget's first multi-column caller with long face text). Placeholder-clarity wording, not final
+## art, matching the gathering mini-games' own color-coding precedent.
 static func _label_for_face(face: ReelFace) -> String:
 	match face.bonus_mode:
 		&"stat_value":
 			return "+%d" % face.bonus_magnitude
 		&"amplify_primary":
-			return "Amplify (+%d)" % face.bonus_magnitude
+			return "▲1st +%d" % face.bonus_magnitude
 		&"amplify_secondary":
-			return "Amplify 2nd (+%d)" % face.bonus_magnitude
+			return "▲2nd +%d" % face.bonus_magnitude
 		&"bonus_tertiary":
-			return "Bonus (+%d)" % face.bonus_magnitude
+			return "★+%d" % face.bonus_magnitude
 		_:
 			return ""
 
@@ -120,6 +124,12 @@ func advance_for_test(delta: float) -> void:
 
 func press_stop_for_test(col: int) -> void:
 	_stop_buttons[col].pressed.emit()
+
+## Exposes one reel column's ReelStripWidget directly so tests can read back its cells/font sizes
+## via the widget's own test hooks -- mirrors FishingPanel.reel_strip_for_test() (2026-08-02
+## gathering-playtest-fixes spec precedent).
+func reel_strip_for_test(col: int) -> ReelStripWidget:
+	return _reel_strips[col]
 
 func press_confirm_for_test() -> void:
 	_confirm_button.pressed.emit()

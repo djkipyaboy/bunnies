@@ -41,5 +41,12 @@ func _initialize() -> void:
 	_check(widget.cell_color_for_test(&"current") == Color.WHITE, "current cell defaults to white when no color is given (no more hardcoded gold tint)")
 	_check(widget.cell_color_for_test(&"next") == Color.WHITE, "next cell defaults to white when no color is given")
 
+	# --- clip_text structural backstop (final-review finding, 2026-08-02) ---
+	# Set unconditionally regardless of caller/text, so a long label from any future caller can't
+	# visually bleed into the next reel column even if that caller forgets to keep its own text short.
+	_check(widget.cell_clips_text_for_test(&"prev"), "prev cell clips text")
+	_check(widget.cell_clips_text_for_test(&"current"), "current cell clips text")
+	_check(widget.cell_clips_text_for_test(&"next"), "next cell clips text")
+
 	widget.free()
 	quit()

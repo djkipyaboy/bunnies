@@ -18,6 +18,11 @@ static func make_default(composition: Array) -> BonusReel:
 		var mode: StringName = entry[0]
 		var magnitude: int = entry[1]
 		var count: int = entry[2]
+		# Structural guardrail (final-review finding, 2026-08-02): TemperingReelsMinigame's whole
+		# "opting in is never worse than skipping" guarantee depends on every BonusReel face being
+		# >= 0 -- make that an assertion here, not just a convention any future composition (e.g.
+		# Cooking's reuse of this class) has to remember to honor by hand.
+		assert(magnitude >= 0, "BonusReel faces must never be negative — the never-worse-than-skipping invariant depends on this")
 		for i in range(count):
 			var face: ReelFace = ReelFace.new()
 			face.bonus_mode = mode

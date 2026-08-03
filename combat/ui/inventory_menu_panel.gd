@@ -721,13 +721,21 @@ func _build_materials_panel() -> void:
 
 ## A selectable Button row for the Materials tab (unlike Quest's plain read-only Labels) — Discard
 ## (Task 7) needs something to select.
+## Includes the material's rarity in the row text (final-review finding, 2026-08-02
+## salvaging-and-cooking professions review): Salvaging's stacking key is
+## (material_type, rarity, quality_tier), and every rarity of Scrap shares the identical
+## "Salvage Scrap" display_name -- without the rarity shown here, a party holding Common/Uncommon/
+## Rare Scrap saw three identical-looking "Salvage Scrap x N" rows with no way to tell them apart,
+## even though craft cost is rarity-specific. Also tints by rarity color, matching how Gear rows in
+## this same panel's Bag tab already do (slot_display_color()).
 func _build_material_row(index: int, m: CraftingMaterial) -> void:
 	var btn := Button.new()
-	btn.text = "%s x%d" % [m.display_name, m.quantity]
+	btn.text = "%s (%s) x%d" % [m.display_name, RarityVisuals.display_name(m.rarity), m.quantity]
 	if _selected_material == m:
 		btn.text += "  ✓"
 	btn.position = Vector2(PAD, GRID_TOP + float(index) * (SLOT_H + SLOT_GAP))
 	btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, SLOT_H)
+	btn.modulate = RarityVisuals.color(m.rarity)
 	btn.pressed.connect(_on_material_pressed.bind(m))
 	add_child(btn)
 	_list_labels.append(btn)

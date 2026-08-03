@@ -37,5 +37,29 @@ func _initialize() -> void:
 	_check(_resolved_stats != null, "Confirm emits tempering_resolved with a real Stats delta")
 	_check(_resolved_stats.vigor >= 0 and _resolved_stats.might >= 0, "the emitted delta is never negative")
 
+	# --- Label-width regression (final-review finding, 2026-08-02) ---
+	# TemperingReelsPanel is ReelStripWidget's first multi-column caller with long face text (Fishing's
+	# longest label, "Critical", already fits; Foraging is single-column). The original strings (e.g.
+	# "Amplify 2nd (+2)") measured ~157px against a 90px CELL_W -- nearly double the cell width, and
+	# visibly overflowed into the next reel column. Checked here against every face ACTUALLY present on
+	# the mini-game's own reels (reel 0 = the stat-value reel, the last reel = the temper reel carrying
+	# amplify_primary/amplify_secondary/bonus_tertiary) rather than constructing new standalone
+	# ReelFace instances: creating a fresh Resource-derived object (ReelFace, specifically) in this
+	# script AFTER the tempering_resolved signal above has already fired once intermittently trips
+	# Godot's own "resources still in use at exit" leak detector at quit() -- confirmed via isolated
+	# throwaway probes to be a test-harness-only artifact of this exact signal-connect + fresh-Resource
+	# combination, not a real leak in production code (which never calls _label_for_face() anywhere
+	# near a SceneTree.quit()). Reading the panel's OWN already-alive faces sidesteps it entirely.
+	var font: Font = ThemeDB.fallback_font
+	var checked_modes: Dictionary = {}
+	var reels_to_check: Array[BonusReel] = [panel._minigame.reels[0], panel._minigame.reels[panel._minigame.reels.size() - 1]]
+	for reel: BonusReel in reels_to_check:
+		for face: ReelFace in reel.faces:
+			var text: String = TemperingReelsPanel._label_for_face(face)
+			var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ReelStripWidget.NORMAL_FONT_SIZE).x
+			_check(width <= ReelStripWidget.CELL_W, "'%s' (mode %s) renders at %.1fpx, fits within CELL_W=%.1fpx" % [text, face.bonus_mode, width, ReelStripWidget.CELL_W])
+			checked_modes[face.bonus_mode] = true
+	_check(checked_modes.size() == 4, "all 4 bonus_mode values (stat_value/amplify_primary/amplify_secondary/bonus_tertiary) were exercised (got %d)" % checked_modes.size())
+
 	print("ok TemperingReelsPanel smoke test complete")
 	quit()

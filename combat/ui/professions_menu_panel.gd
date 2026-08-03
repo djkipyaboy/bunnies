@@ -10,6 +10,8 @@ extends Panel
 const PAD: float = 12.0
 const PANEL_W: float = 420.0
 const ROW_H: float = 26.0
+const MAX_VISIBLE_BREAKDOWN_ROWS: int = 12   # sane cap so a large Bag (20+ Gear items) can't push the
+                                              # Craft section off-panel or overlap it (final-review finding)
 
 var _inventory: PartyInventory
 var _tempering_panel: TemperingReelsPanel
@@ -18,6 +20,18 @@ var _breakdown_selected_index: int = -1
 var _craft_slot: int = -1
 var _craft_rarity: int = -1
 var _use_tempering: bool = false
+
+## Y position immediately below the Break Down section's last built control (its confirm button, or
+## an overflow note if the list was capped) -- computed fresh every _rebuild() and used to place the
+## Craft section dynamically instead of a hardcoded offset (final-review finding: a 300.0 constant let
+## a long Break Down list visually collide with/escape past the Craft section).
+var _breakdown_section_bottom: float = 0.0
+
+## Set on a failed Craft attempt (Bag full at the moment SalvageSystem.craft() actually runs) so the
+## player gets feedback instead of the item silently vanishing (final-review finding). Cleared on
+## reselect/re-open/successful craft, mirroring InventoryMenuPanel's _equip_reject_message convention.
+var _craft_message: String = ""
+var _craft_message_label: Label
 
 ## Snapshot of the slot/rarity a pending Tempering Reels mini-game will resolve into, captured the
 ## instant it opens. _on_tempering_resolved() reads ONLY these, never the live _craft_slot/
@@ -56,6 +70,7 @@ func open_for(inventory: PartyInventory) -> void:
 	_craft_slot = -1
 	_craft_rarity = -1
 	_use_tempering = false
+	_craft_message = ""
 	_rebuild()
 	visible = true
 
@@ -79,7 +94,16 @@ func _rebuild() -> void:
 	add_child(title)
 
 	_build_breakdown_section()
-	_build_craft_section()
+	var craft_top: float = _breakdown_section_bottom + PAD
+	_build_craft_section(craft_top)
+
+	# Panel grows/shrinks to fit both sections -- fixes the 300.0-hardcoded craft_top that used to let
+	# a long Break Down list visually collide with (or escape past) the Craft section (final-review
+	# finding). The Craft section's own height is fixed (header/slots/rarities/toggle/confirm/message
+	# rows), so the only variable is craft_top.
+	var total_h: float = craft_top + ROW_H * 6.0 + PAD
+	custom_minimum_size = Vector2(PANEL_W, total_h)
+	size = custom_minimum_size
 
 func _build_breakdown_section() -> void:
 	var header := Label.new()
@@ -87,7 +111,8 @@ func _build_breakdown_section() -> void:
 	header.position = Vector2(PAD, PAD + ROW_H)
 	add_child(header)
 
-	for i in range(_inventory.gear.size()):
+	var visible_count: int = mini(_inventory.gear.size(), MAX_VISIBLE_BREAKDOWN_ROWS)
+	for i in range(visible_count):
 		var g: Gear = _inventory.gear[i]
 		var btn := Button.new()
 		btn.text = "%s (%s)" % [g.display_name, RarityVisuals.display_name(g.rarity)]
@@ -100,7 +125,15 @@ func _build_breakdown_section() -> void:
 		add_child(btn)
 		_breakdown_buttons.append(btn)
 
-	var breakdown_top: float = PAD + ROW_H * 2.0 + float(_inventory.gear.size()) * ROW_H + 8.0
+	var next_row_top: float = PAD + ROW_H * 2.0 + float(visible_count) * ROW_H
+	if _inventory.gear.size() > MAX_VISIBLE_BREAKDOWN_ROWS:
+		var overflow_label := Label.new()
+		overflow_label.text = "+%d more (salvage some to see the rest)" % (_inventory.gear.size() - MAX_VISIBLE_BREAKDOWN_ROWS)
+		overflow_label.position = Vector2(PAD, next_row_top)
+		add_child(overflow_label)
+		next_row_top += ROW_H
+
+	var breakdown_top: float = next_row_top + 8.0
 	_breakdown_confirm_button = Button.new()
 	_breakdown_confirm_button.text = "Salvage"
 	_breakdown_confirm_button.disabled = _breakdown_selected_index == -1
@@ -108,6 +141,8 @@ func _build_breakdown_section() -> void:
 	_breakdown_confirm_button.custom_minimum_size = Vector2(150.0, ROW_H)
 	_breakdown_confirm_button.pressed.connect(_on_breakdown_confirm_pressed)
 	add_child(_breakdown_confirm_button)
+
+	_breakdown_section_bottom = breakdown_top + ROW_H
 
 func _on_breakdown_item_pressed(index: int) -> void:
 	_breakdown_selected_index = index
@@ -121,8 +156,7 @@ func _on_breakdown_confirm_pressed() -> void:
 	_breakdown_selected_index = -1
 	_rebuild()
 
-func _build_craft_section() -> void:
-	var craft_top: float = 300.0
+func _build_craft_section(craft_top: float) -> void:
 	var header := Label.new()
 	header.text = "Craft"
 	header.position = Vector2(PAD, craft_top)
@@ -178,21 +212,51 @@ func _build_craft_section() -> void:
 	_craft_confirm_button.pressed.connect(_on_craft_confirm_pressed)
 	add_child(_craft_confirm_button)
 
+	# Message row (final-review finding): explains why Craft is disabled ("Insufficient Scrap" /
+	# "Bag full"), or reports the outcome of a just-attempted craft that failed for a reason the
+	# player couldn't see coming (a Bag that filled up while a Tempering Reels mini-game was still
+	# pending). Mirrors ShopPanel's _reject_label / InventoryMenuPanel's _equip_reject_message.
+	var message: String = _craft_message if _craft_message != "" else _craft_disabled_reason()
+	if message != "":
+		_craft_message_label = Label.new()
+		_craft_message_label.text = message
+		_craft_message_label.modulate = Color(1.0, 0.4, 0.4)
+		_craft_message_label.position = Vector2(PAD, craft_top + ROW_H * 5.0)
+		add_child(_craft_message_label)
+
 func _on_craft_slot_pressed(slot: int) -> void:
 	_craft_slot = slot
+	_craft_message = ""
 	_rebuild()
 
 func _on_craft_rarity_pressed(rarity: int) -> void:
 	_craft_rarity = rarity
+	_craft_message = ""
 	_rebuild()
 
 func _on_tempering_toggled(pressed: bool) -> void:
 	_use_tempering = pressed
+	_craft_message = ""
 
+## Whether the recipe/rarity currently staged can actually be crafted right now -- both the Scrap
+## cost (SalvageSystem.can_craft) AND Bag capacity (final-review finding: this used to only check
+## Scrap, so a full Bag rendered the Craft button enabled and pressing it silently did nothing).
 func _can_confirm_craft() -> bool:
 	if _craft_slot == -1 or _craft_rarity == -1:
 		return false
-	return SalvageSystem.can_craft(_craft_slot, _craft_rarity, _inventory)
+	return SalvageSystem.can_craft(_craft_slot, _craft_rarity, _inventory) and _inventory.can_add_to_bag()
+
+## Live "why can't I craft this" reason for the message row -- "" once a slot+rarity are chosen and
+## craftable. Distinct from _craft_message (which reports a past attempt's outcome) so the two never
+## fight over which text to show; _build_craft_section() prefers _craft_message when it's set.
+func _craft_disabled_reason() -> String:
+	if _craft_slot == -1 or _craft_rarity == -1:
+		return ""
+	if not SalvageSystem.can_craft(_craft_slot, _craft_rarity, _inventory):
+		return "Insufficient Scrap"
+	if not _inventory.can_add_to_bag():
+		return "Bag full"
+	return ""
 
 func _on_craft_confirm_pressed() -> void:
 	if _tempering_panel != null and _tempering_panel.is_open():
@@ -222,14 +286,23 @@ func _on_craft_confirm_pressed() -> void:
 		# never here -- rebuild so the craft-section controls visibly disable while it's pending.
 		_rebuild()
 	else:
-		SalvageSystem.craft(_craft_slot, _craft_rarity, _inventory)
+		# SalvageSystem.craft() returns null (and spends NOTHING) when the Bag fills up between this
+		# button being enabled and this press actually running -- surface that instead of silently
+		# discarding the attempt (final-review finding).
+		var g: Gear = SalvageSystem.craft(_craft_slot, _craft_rarity, _inventory)
+		_craft_message = "" if g != null else "Bag full -- nothing was crafted."
 		_craft_slot = -1
 		_craft_rarity = -1
 		_use_tempering = false
 		_rebuild()
 
 func _on_tempering_resolved(bonus_stats: Stats) -> void:
-	SalvageSystem.craft(_pending_craft_slot, _pending_craft_rarity, _inventory, bonus_stats)
+	# A null result here means the Bag filled up (via some other action) WHILE the mini-game was open
+	# -- the whole played-out spin is otherwise discarded with zero feedback (final-review finding:
+	# this is the worse of the two silent-failure paths, since the player just finished playing a
+	# mini-game for nothing).
+	var g: Gear = SalvageSystem.craft(_pending_craft_slot, _pending_craft_rarity, _inventory, bonus_stats)
+	_craft_message = "" if g != null else "Bag full -- the crafted item was lost."
 	_pending_craft_slot = -1
 	_pending_craft_rarity = -1
 	_craft_slot = -1
@@ -262,3 +335,11 @@ func press_craft_confirm_for_test() -> void:
 
 func tempering_panel_for_test() -> TemperingReelsPanel:
 	return _tempering_panel
+
+## The currently-shown Craft message-row text (a live disabled-reason, or a past attempt's outcome),
+## or "" if nothing is showing.
+func craft_message_for_test() -> String:
+	return _craft_message if _craft_message != "" else _craft_disabled_reason()
+
+func breakdown_row_count_for_test() -> int:
+	return _breakdown_buttons.size()

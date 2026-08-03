@@ -32,17 +32,22 @@ func _init() -> void:
 	_check(worst_result.vigor >= 0 and worst_result.might >= 0 and worst_result.focus >= 0, "resolve() never returns a negative delta on any stat")
 
 	# Over many independent instances, confirm the primary stat-slot reel can land its zero-delta
-	# face (proving "baseline-or-better", not "always a forced bonus").
+	# face (proving "baseline-or-better", not "always a forced bonus"). Final-review finding
+	# (2026-08-02): the original check (`r.vigor == 0 or (r.vigor > 0 and r.vigor <= 3)`) is nearly
+	# tautological -- true for almost any value 0-3 -- and never actually proved the zero face was
+	# observed. Fixed to check the primary stat-slot reel's OWN landed face directly (col 0's
+	# bonus_magnitude), not the post-resolve() Stats delta (which can also pick up a nonzero
+	# contribution from the temper reel's amplify_primary face on col 2, decoupling "did col 0 land
+	# zero" from "is worst_result.vigor == 0").
 	var saw_zero_primary: bool = false
 	for i in range(30):
 		var trial: TemperingReelsMinigame = TemperingReelsMinigame.new(&"vigor", &"might", &"focus", 1)
 		for c in range(trial.reels.size()):
 			trial.advance(10.0)  # far more than one tick, lands somewhere without needing many calls
 			trial.stop(c)
-		var r: Stats = trial.resolve()
-		if r.vigor == 0 or (r.vigor > 0 and r.vigor <= 3):
+		if trial.current_face(0).bonus_magnitude == 0:
 			saw_zero_primary = true
-	_check(saw_zero_primary, "across many trials, resolve() produces small deltas (the stat-slot reel is a small bounded bonus, not unbounded)")
+	_check(saw_zero_primary, "across many trials, the primary stat-slot reel (col 0) is directly observed landing its zero-delta face")
 
 	# The temper reel's three modes all resolve into the right target stat.
 	var single_reroll: TemperingReelsMinigame = TemperingReelsMinigame.new(&"vigor", &"might", &"focus", 1)

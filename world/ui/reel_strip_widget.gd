@@ -35,6 +35,12 @@ func _make_cell_label(y: float) -> Label:
 	label.custom_minimum_size = Vector2(CELL_W, CELL_H)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	# Structural backstop against a long caller-supplied label overflowing into the next reel column
+	# (final-review finding, 2026-08-02 salvaging-and-cooking professions review -- Tempering Reels was
+	# the first multi-column caller with long face text; Fishing/Foraging's own labels already fit, so
+	# this is a no-op for them). Callers should still keep labels short -- see
+	# TemperingReelsPanel._label_for_face() for the actual fix that made its labels fit CELL_W.
+	label.clip_text = true
 	return label
 
 ## Updates all three cells at once. [param prev_small]/[param current_small]/[param next_small] are
@@ -70,6 +76,15 @@ func cell_font_size_for_test(position: StringName) -> int:
 		&"current": return _current_label.get_theme_font_size("font_size")
 		&"next": return _next_label.get_theme_font_size("font_size")
 		_: return 0
+
+## Confirms the clip_text structural backstop (final-review finding, 2026-08-02) is actually set,
+## regardless of which caller/label text is in play.
+func cell_clips_text_for_test(position: StringName) -> bool:
+	match position:
+		&"prev": return _prev_label.clip_text
+		&"current": return _current_label.clip_text
+		&"next": return _next_label.clip_text
+		_: return false
 
 func cell_color_for_test(position: StringName) -> Color:
 	match position:

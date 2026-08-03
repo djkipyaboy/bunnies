@@ -132,5 +132,106 @@ func _initialize() -> void:
 	_check(inv.gear.size() == gear_count_before_repress + 1, "resolving after the repeated press still grants exactly one Gear (the Cloak item)")
 	_check(inv.gear[inv.gear.size() - 1].slot == Gear.Slot.CLOAK, "the granted Gear is the Cloak item that was staged")
 
+	# --- Regression (final-review finding, 2026-08-02): a full Bag must disable Craft with a
+	# visible message instead of silently rendering Craft as pressable and doing nothing.
+	var full_inv: PartyInventory = PartyInventory.new()
+	var full_scrap: CraftingMaterial = CraftingMaterial.new()
+	full_scrap.material_type = &"salvage_scrap"
+	full_scrap.rarity = RarityVisuals.Rarity.COMMON
+	full_scrap.quantity = 10
+	full_inv.give_material(full_scrap)
+	for i in range(full_inv.bag_capacity()):
+		var filler: Gear = Gear.new()
+		filler.display_name = "Filler %d" % i
+		filler.slot = Gear.Slot.HEADWEAR
+		filler.rarity = RarityVisuals.Rarity.COMMON
+		full_inv.gear.append(filler)
+	_check(not full_inv.can_add_to_bag(), "test setup: the Bag is genuinely full")
+
+	var full_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(full_panel)
+	await process_frame
+	full_panel.open_for(full_inv)
+	full_panel.select_craft_slot_for_test(Gear.Slot.HANDS)
+	full_panel.select_craft_rarity_for_test(RarityVisuals.Rarity.COMMON)
+	_check(not full_panel.can_confirm_craft_for_test(), "Craft is disabled when the Bag is full even though Scrap is sufficient")
+	_check(full_panel.craft_message_for_test() == "Bag full", "the message row explains WHY Craft is disabled ('Bag full', not 'Insufficient Scrap')")
+
+	var gear_count_before_disabled_press: int = full_inv.gear.size()
+	full_panel.press_craft_confirm_for_test()
+	_check(full_inv.gear.size() == gear_count_before_disabled_press, "pressing Craft while disabled by Bag-full is a genuine no-op")
+
+	# --- Regression (final-review finding, 2026-08-02): if the Bag fills up (via some unrelated
+	# action) WHILE a Tempering Reels mini-game is still open, resolving it must show a message
+	# instead of silently discarding the whole played-out result -- this is the worse of the two
+	# silent-failure paths, since the player just finished playing a mini-game for nothing.
+	var mid_inv: PartyInventory = PartyInventory.new()
+	var mid_scrap: CraftingMaterial = CraftingMaterial.new()
+	mid_scrap.material_type = &"salvage_scrap"
+	mid_scrap.rarity = RarityVisuals.Rarity.RARE
+	mid_scrap.quantity = 10
+	mid_inv.give_material(mid_scrap)
+
+	var mid_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(mid_panel)
+	await process_frame
+	mid_panel.open_for(mid_inv)
+	mid_panel.select_craft_slot_for_test(Gear.Slot.CHEST)
+	mid_panel.select_craft_rarity_for_test(RarityVisuals.Rarity.RARE)
+	mid_panel.toggle_tempering_for_test()
+	mid_panel.press_craft_confirm_for_test()
+	_check(mid_panel.tempering_panel_for_test().is_open(), "the mini-game opens while the Bag still has room")
+
+	# Fill the Bag to capacity WHILE the mini-game is still open/unresolved.
+	for i in range(mid_inv.bag_capacity()):
+		var filler2: Gear = Gear.new()
+		filler2.display_name = "Filler %d" % i
+		filler2.slot = Gear.Slot.HANDS
+		filler2.rarity = RarityVisuals.Rarity.COMMON
+		mid_inv.gear.append(filler2)
+	var gear_count_before_resolve: int = mid_inv.gear.size()
+
+	for i in range(mid_panel.tempering_panel_for_test().reel_count_for_test()):
+		mid_panel.tempering_panel_for_test().press_stop_for_test(i)
+	mid_panel.tempering_panel_for_test().press_confirm_for_test()
+
+	_check(mid_inv.gear.size() == gear_count_before_resolve, "the crafted item is NOT granted when the Bag is full at resolve time")
+	_check(not mid_panel.tempering_panel_for_test().is_open(), "the mini-game panel still closes even though the craft it resolves into fails")
+	_check(mid_panel.craft_message_for_test() == "Bag full -- the crafted item was lost.", "resolving Tempering Reels into a full Bag shows a message instead of silently discarding the result")
+
+	# --- Layout regression (final-review finding, 2026-08-02): a long Break Down list (15+ Gear
+	# items -- easily reachable via loot/the general store) must not visually collide with the
+	# Craft section. Mirrors tests/test_team_up_panel_center_band.gd's pairwise Rect2.intersects()
+	# regression style.
+	var big_inv: PartyInventory = PartyInventory.new()
+	for i in range(15):
+		var junk: Gear = Gear.new()
+		junk.display_name = "Junk %d" % i
+		junk.slot = Gear.Slot.HEADWEAR
+		junk.rarity = RarityVisuals.Rarity.COMMON
+		big_inv.gear.append(junk)
+
+	var big_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(big_panel)
+	await process_frame
+	big_panel.open_for(big_inv)
+
+	_check(big_panel.breakdown_row_count_for_test() == ProfessionsMenuPanel.MAX_VISIBLE_BREAKDOWN_ROWS,
+		"the Break Down list caps its visible rows even with 15 Gear items owned (got %d)" % big_panel.breakdown_row_count_for_test())
+
+	var craft_slot_rect: Rect2 = Rect2(
+		big_panel._slot_buttons[Gear.Slot.HEADWEAR].position,
+		big_panel._slot_buttons[Gear.Slot.HEADWEAR].custom_minimum_size)
+	var craft_rarity_rect: Rect2 = Rect2(
+		big_panel._rarity_buttons[RarityVisuals.Rarity.COMMON].position,
+		big_panel._rarity_buttons[RarityVisuals.Rarity.COMMON].custom_minimum_size)
+	var last_breakdown_row: Button = big_panel._breakdown_buttons[big_panel._breakdown_buttons.size() - 1]
+	var last_row_rect: Rect2 = Rect2(last_breakdown_row.position, last_breakdown_row.custom_minimum_size)
+	var confirm_rect: Rect2 = Rect2(big_panel._breakdown_confirm_button.position, big_panel._breakdown_confirm_button.custom_minimum_size)
+
+	_check(not last_row_rect.intersects(craft_slot_rect), "the last visible Break Down row does not overlap the Craft section's slot row")
+	_check(not last_row_rect.intersects(craft_rarity_rect), "the last visible Break Down row does not overlap the Craft section's rarity row")
+	_check(not confirm_rect.intersects(craft_slot_rect), "the Salvage confirm button does not overlap the Craft section's slot row")
+
 	print("ok ProfessionsMenuPanel (Salvaging) smoke test complete")
 	quit()
