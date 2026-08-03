@@ -116,6 +116,44 @@ func _initialize() -> void:
 	stack_inv.give_material(fish)
 	_check(stack_inv.materials.size() == 2, "a different material_type adds a second, separate entry")
 
+	# --- rarity-aware stacking (2026-08-02 salvaging-and-cooking professions design section 2.3) ---
+	var rarity_inv: PartyInventory = PartyInventory.new()
+	var common_scrap: CraftingMaterial = CraftingMaterial.new()
+	common_scrap.material_type = &"salvage_scrap"
+	common_scrap.rarity = RarityVisuals.Rarity.COMMON
+	common_scrap.quantity = 1
+	rarity_inv.give_material(common_scrap)
+
+	var rare_scrap: CraftingMaterial = CraftingMaterial.new()
+	rare_scrap.material_type = &"salvage_scrap"
+	rare_scrap.rarity = RarityVisuals.Rarity.RARE
+	rare_scrap.quantity = 3
+	rarity_inv.give_material(rare_scrap)
+	_check(rarity_inv.materials.size() == 2, "a different rarity of the same material_type stays a SEPARATE stack (got %d)" % rarity_inv.materials.size())
+
+	var more_common_scrap: CraftingMaterial = CraftingMaterial.new()
+	more_common_scrap.material_type = &"salvage_scrap"
+	more_common_scrap.rarity = RarityVisuals.Rarity.COMMON
+	more_common_scrap.quantity = 2
+	rarity_inv.give_material(more_common_scrap)
+	_check(rarity_inv.materials.size() == 2, "a matching (type, rarity) still merges into the existing stack (got %d entries)" % rarity_inv.materials.size())
+	_check(common_scrap.quantity == 3, "the matching stack's quantity grew by the merged amount (1 + 2 = 3, got %d)" % common_scrap.quantity)
+
+	var bumper_berries: CraftingMaterial = CraftingMaterial.new()
+	bumper_berries.material_type = &"wild_berries"
+	bumper_berries.rarity = RarityVisuals.Rarity.COMMON
+	bumper_berries.quality_tier = 1
+	bumper_berries.quantity = 4
+	rarity_inv.give_material(bumper_berries)
+	var plain_berries: CraftingMaterial = CraftingMaterial.new()
+	plain_berries.material_type = &"wild_berries"
+	plain_berries.rarity = RarityVisuals.Rarity.COMMON
+	plain_berries.quality_tier = 0
+	plain_berries.quantity = 2
+	rarity_inv.give_material(plain_berries)
+	_check(rarity_inv.materials.size() == 4, "a different quality_tier of the same (type, rarity) also stays separate (got %d entries)" % rarity_inv.materials.size())
+	_check(bumper_berries.quantity == 4, "the bumper-quality stack is untouched by the plain-quality grant")
+
 	# --- items (2026-07-14 combat items menu): give_item()/find_item()/consume_item() ---
 	var potion_inv: PartyInventory = PartyInventory.new()
 	var potion1: ConsumableItem = ConsumableItem.new()

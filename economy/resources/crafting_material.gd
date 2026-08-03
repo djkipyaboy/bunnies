@@ -22,3 +22,8 @@ extends Resource
 ## nonzero values differently yet (mirrors how Combatant.loot_table shipped as a hook before real
 ## loot tables existed) -- that belongs to the deferred materials/items pass.
 @export var quality_tier: int = 0
+
+## Set by Salvaging (2026-08-02 salvaging-and-cooking professions design section 2.1) — mirrors the
+## salvaged Gear's own rarity. Defaults COMMON so every pre-existing gathered material (which never
+## sets this) is unaffected.
+@export var rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON
