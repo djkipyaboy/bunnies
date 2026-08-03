@@ -43,5 +43,31 @@ func _initialize() -> void:
 	_check(not scene._inventory_panel.visible, "_toggle_inventory() is a no-op while Professions is open")
 	scene._toggle_professions()
 
+	# Regression (task-8 review finding): _process()'s auto-trigger firing poll must be gated on
+	# the Professions panel too, not just _unhandled_input()'s interact-key dispatch -- this project
+	# hit and fixed the identical bug class 2026-07-13 ("Encounter started" logged 23 times because
+	# a per-frame auto-trigger poll wasn't gated on every open modal). Reuses the real, already-
+	# placed WildBerries GatheringNode (auto_trigger = true) instead of constructing a synthetic
+	# interactable, mirroring tests/test_overworld_demo_npcs.gd's established
+	# force-into-_tracked-then-drive-a-real-_process()-frame technique.
+	scene._auto_trigger_armed = true
+	var berries_node: GatheringNode = scene._world.get_node("WildBerries")
+	scene._pc._tracked.append(berries_node)
+
+	scene._toggle_professions()
+	_check(scene._professions_panel.is_open(), "Professions opened, ahead of the auto-trigger gate check")
+	scene._process(0.016)
+	_check(not scene._foraging_panel.is_open(), "the armed WildBerries auto-trigger does NOT fire while Professions is open")
+	_check(not berries_node.is_queued_for_deletion(), "WildBerries is still alive -- untouched by _process() while Professions is open")
+
+	scene._toggle_professions()
+	_check(not scene._professions_panel.is_open(), "Professions closed")
+	scene._process(0.016)
+	_check(scene._foraging_panel.is_open(), "closing Professions lets the very next _process() tick fire the still-armed auto-trigger (sanity check the gate isn't permanently blocking)")
+	scene._pc._tracked.erase(berries_node)
+	scene._foraging_panel.advance_spin_for_test(ForagingPanel.SPIN_DURATION_SECONDS + 0.05)
+	scene._foraging_panel.press_bank_for_test()
+	_check(not scene._foraging_panel.is_open(), "banking the Foraging panel closes it, cleaning up after the regression check")
+
 	print("ok overworld_demo Professions wiring smoke test complete")
 	quit()

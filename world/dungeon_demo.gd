@@ -487,7 +487,7 @@ func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
 	_jackpot_bar.value = _party_inventory.jackpot_meter
-	if _inventory_panel.visible or _talent_panel.visible:
+	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return

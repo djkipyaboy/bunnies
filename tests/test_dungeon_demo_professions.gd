@@ -43,5 +43,37 @@ func _initialize() -> void:
 	_check(not scene._inventory_panel.visible, "_toggle_inventory() is a no-op while Professions is open")
 	scene._toggle_professions()
 
+	# Regression (task-8 review finding): _process()'s auto-trigger firing poll must be gated on
+	# the Professions panel too, not just _unhandled_input()'s interact-key dispatch -- this project
+	# hit and fixed the identical bug class 2026-07-13 ("Encounter started" logged 23 times because
+	# a per-frame auto-trigger poll wasn't gated on every open modal). Uses a minimal synthetic
+	# Interactable (auto_trigger = true) rather than a real dungeon OverworldEnemy, since driving a
+	# real enemy's interact() awaits a fade then calls change_scene_to_file() -- exactly what
+	# tests/test_overworld_demo_npcs.gd's own doc comment says to avoid inside a test's SceneTree.
+	scene._auto_trigger_armed = true
+	var probe := Interactable.new()
+	probe.name = "AutoTriggerAssertionProbe"
+	probe.auto_trigger = true
+	# Placed exactly on the PC so it strictly wins Interactable.nearest() over whatever the
+	# dungeon's own real fixtures (e.g. the entrance Stairs) may already be tracking from physics
+	# overlap during the two awaited process_frame calls above.
+	probe.global_position = scene._pc.global_position
+	scene._floors[scene._current_floor].add_child(probe)
+	scene._pc._tracked.append(probe)
+	var fired: Array = [false]
+	probe.interacted.connect(func() -> void: fired[0] = true)
+
+	scene._toggle_professions()
+	_check(scene._professions_panel.is_open(), "Professions opened, ahead of the auto-trigger gate check")
+	scene._process(0.016)
+	_check(not fired[0], "the armed auto-trigger probe does NOT fire while Professions is open")
+
+	scene._toggle_professions()
+	_check(not scene._professions_panel.is_open(), "Professions closed")
+	scene._process(0.016)
+	_check(fired[0], "closing Professions lets the very next _process() tick fire the still-armed auto-trigger (sanity check the gate isn't permanently blocking)")
+	scene._pc._tracked.erase(probe)
+	probe.queue_free()
+
 	print("ok dungeon_demo Professions wiring smoke test complete")
 	quit()
