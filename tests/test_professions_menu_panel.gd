@@ -67,5 +67,70 @@ func _initialize() -> void:
 	_check(inv.gear.size() == 2, "confirming the Tempering Reels result finally grants the crafted Chest")
 	_check(inv.gear[1].slot == Gear.Slot.CHEST, "the granted Gear is the Chest that was staged")
 
+	# --- Regression (task-7 review, 2026-08-02): toggling Tempering Reels OFF while its mini-game
+	# is still open, then re-pressing Craft, must NOT double-grant or corrupt the pending resolution.
+	# Before the fix, this took the deterministic branch a second time (granting a second item
+	# immediately) and then resolved the original mini-game with the meanwhile-reset (-1, -1)
+	# _craft_slot/_craft_rarity.
+	var scrap4: CraftingMaterial = CraftingMaterial.new()
+	scrap4.material_type = &"salvage_scrap"
+	scrap4.rarity = RarityVisuals.Rarity.COMMON
+	scrap4.quantity = 5
+	inv.give_material(scrap4)
+
+	panel.select_craft_slot_for_test(Gear.Slot.HANDS)
+	panel.select_craft_rarity_for_test(RarityVisuals.Rarity.COMMON)
+	panel.toggle_tempering_for_test() # ON
+	panel.press_craft_confirm_for_test()
+	_check(panel.tempering_panel_for_test().is_open(), "opening Tempering for the Hands craft leaves its mini-game open")
+
+	var gear_count_before_retoggle: int = inv.gear.size()
+	var common_scrap_qty_before_retoggle: int = 0
+	for m: CraftingMaterial in inv.materials:
+		if m.material_type == &"salvage_scrap" and m.rarity == RarityVisuals.Rarity.COMMON:
+			common_scrap_qty_before_retoggle = m.quantity
+
+	panel.toggle_tempering_for_test() # OFF, while the mini-game panel is still open
+	panel.press_craft_confirm_for_test()
+	_check(inv.gear.size() == gear_count_before_retoggle, "re-pressing Craft after toggling Tempering off mid-mini-game must NOT grant a second item")
+	var common_scrap_qty_after_retoggle: int = 0
+	for m: CraftingMaterial in inv.materials:
+		if m.material_type == &"salvage_scrap" and m.rarity == RarityVisuals.Rarity.COMMON:
+			common_scrap_qty_after_retoggle = m.quantity
+	_check(common_scrap_qty_after_retoggle == common_scrap_qty_before_retoggle, "the re-press must NOT consume Scrap either -- the guard makes it a full no-op")
+	_check(panel.tempering_panel_for_test().is_open(), "the original mini-game is still open/resolvable, untouched by the toggle-off re-press")
+
+	for i in range(panel.tempering_panel_for_test().reel_count_for_test()):
+		panel.tempering_panel_for_test().press_stop_for_test(i)
+	panel.tempering_panel_for_test().press_confirm_for_test()
+	_check(inv.gear.size() == gear_count_before_retoggle + 1, "resolving the ORIGINAL mini-game still grants exactly one Gear (the Hands item)")
+	_check(inv.gear[inv.gear.size() - 1].slot == Gear.Slot.HANDS, "the granted Gear is the Hands item that was originally staged, not corrupted by the meanwhile-reset _craft_slot/_craft_rarity")
+
+	# --- Regression, safe case (kept alongside the unsafe one above): a repeated Craft press while
+	# Tempering Reels stays toggled ON must ALSO be a no-op -- confirms the same guard covers both
+	# the "toggle it off" and "just mash the button" ways to re-press Craft mid-mini-game.
+	var scrap5: CraftingMaterial = CraftingMaterial.new()
+	scrap5.material_type = &"salvage_scrap"
+	scrap5.rarity = RarityVisuals.Rarity.RARE
+	scrap5.quantity = 10
+	inv.give_material(scrap5)
+
+	panel.select_craft_slot_for_test(Gear.Slot.CLOAK)
+	panel.select_craft_rarity_for_test(RarityVisuals.Rarity.RARE)
+	panel.toggle_tempering_for_test() # ON (was left OFF by the previous scenario's resolution)
+	panel.press_craft_confirm_for_test()
+	_check(panel.tempering_panel_for_test().is_open(), "opening Tempering for the Cloak craft leaves its mini-game open")
+
+	var gear_count_before_repress: int = inv.gear.size()
+	panel.press_craft_confirm_for_test() # re-press, toggle still ON, mini-game still open
+	_check(inv.gear.size() == gear_count_before_repress, "re-pressing Craft with Tempering still ON while its mini-game is open must also be a no-op")
+	_check(panel.tempering_panel_for_test().is_open(), "the mini-game is still open after the repeated press")
+
+	for i in range(panel.tempering_panel_for_test().reel_count_for_test()):
+		panel.tempering_panel_for_test().press_stop_for_test(i)
+	panel.tempering_panel_for_test().press_confirm_for_test()
+	_check(inv.gear.size() == gear_count_before_repress + 1, "resolving after the repeated press still grants exactly one Gear (the Cloak item)")
+	_check(inv.gear[inv.gear.size() - 1].slot == Gear.Slot.CLOAK, "the granted Gear is the Cloak item that was staged")
+
 	print("ok ProfessionsMenuPanel (Salvaging) smoke test complete")
 	quit()

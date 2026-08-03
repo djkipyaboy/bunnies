@@ -19,6 +19,17 @@ var _craft_slot: int = -1
 var _craft_rarity: int = -1
 var _use_tempering: bool = false
 
+## Snapshot of the slot/rarity a pending Tempering Reels mini-game will resolve into, captured the
+## instant it opens. _on_tempering_resolved() reads ONLY these, never the live _craft_slot/
+## _craft_rarity -- those can otherwise be mutated after the mini-game opens (re-picking a slot/
+## rarity, toggling "Use Tempering Reels" off) with no relation to the item actually staged for the
+## still-open mini-game. Found by task-7 review (2026-08-02): without this snapshot, toggling
+## Tempering off then re-pressing Craft would immediately grant a second item via the deterministic
+## branch, then later resolving the original (still-open) mini-game would read the RESET (-1, -1)
+## _craft_slot/_craft_rarity and pass corrupted params into SalvageSystem.craft().
+var _pending_craft_slot: int = -1
+var _pending_craft_rarity: int = -1
+
 var _breakdown_buttons: Array[Button] = []
 var _breakdown_confirm_button: Button
 var _slot_buttons: Dictionary = {}     # int (Gear.Slot) -> Button
@@ -117,6 +128,14 @@ func _build_craft_section() -> void:
 	header.position = Vector2(PAD, craft_top)
 	add_child(header)
 
+	# While a Tempering Reels mini-game is pending resolution, every craft-selection control is
+	# disabled for a real player -- re-picking a slot/rarity or toggling the mini-game off mid-spin
+	# must not be possible to attempt at all. This is UX-level defense in depth; the actual
+	# correctness guarantee lives in the _pending_craft_slot/_pending_craft_rarity snapshot and the
+	# re-press guard in _on_craft_confirm_pressed(), since a `_for_test()` hook emits a signal
+	# directly and bypasses Button.disabled entirely (see tests/test_professions_menu_panel.gd).
+	var tempering_pending: bool = _tempering_panel != null and _tempering_panel.is_open()
+
 	for i in range(ARMOR_SLOTS.size()):
 		var slot: int = ARMOR_SLOTS[i]
 		var btn := Button.new()
@@ -125,6 +144,7 @@ func _build_craft_section() -> void:
 			btn.text += "  ✓"
 		btn.position = Vector2(PAD + float(i) * 80.0, craft_top + ROW_H)
 		btn.custom_minimum_size = Vector2(76.0, ROW_H)
+		btn.disabled = tempering_pending
 		btn.pressed.connect(func() -> void: _on_craft_slot_pressed(slot))
 		add_child(btn)
 		_slot_buttons[slot] = btn
@@ -137,6 +157,7 @@ func _build_craft_section() -> void:
 			btn.text += "  ✓"
 		btn.position = Vector2(PAD + float(i) * 80.0, craft_top + ROW_H * 2.0)
 		btn.custom_minimum_size = Vector2(76.0, ROW_H)
+		btn.disabled = tempering_pending
 		btn.pressed.connect(func() -> void: _on_craft_rarity_pressed(rarity))
 		add_child(btn)
 		_rarity_buttons[rarity] = btn
@@ -145,12 +166,13 @@ func _build_craft_section() -> void:
 	_tempering_toggle.text = "Use Tempering Reels"
 	_tempering_toggle.button_pressed = _use_tempering
 	_tempering_toggle.position = Vector2(PAD, craft_top + ROW_H * 3.0)
+	_tempering_toggle.disabled = tempering_pending
 	_tempering_toggle.toggled.connect(_on_tempering_toggled)
 	add_child(_tempering_toggle)
 
 	_craft_confirm_button = Button.new()
 	_craft_confirm_button.text = "Craft"
-	_craft_confirm_button.disabled = not _can_confirm_craft()
+	_craft_confirm_button.disabled = tempering_pending or not _can_confirm_craft()
 	_craft_confirm_button.position = Vector2(PAD, craft_top + ROW_H * 4.0)
 	_craft_confirm_button.custom_minimum_size = Vector2(150.0, ROW_H)
 	_craft_confirm_button.pressed.connect(_on_craft_confirm_pressed)
@@ -173,18 +195,32 @@ func _can_confirm_craft() -> bool:
 	return SalvageSystem.can_craft(_craft_slot, _craft_rarity, _inventory)
 
 func _on_craft_confirm_pressed() -> void:
+	if _tempering_panel != null and _tempering_panel.is_open():
+		# A mini-game is already pending resolution -- ignore a stray re-press. This guard lives in
+		# the handler itself, not just via Button.disabled (which _build_craft_section() also sets),
+		# because a `_for_test()` hook emits `pressed`/`toggled` directly and bypasses `.disabled`
+		# entirely -- mirrors ForagingPanel's own mid-spin Shake/Bank guard. Without this, toggling
+		# "Use Tempering Reels" off and re-pressing Craft while the original mini-game was still open
+		# would fall into the deterministic branch below and grant a SECOND item immediately, on top
+		# of whatever the still-open mini-game later grants (task-7 review finding, 2026-08-02).
+		return
 	if not _can_confirm_craft():
 		return
 	if _use_tempering:
+		# Snapshot the target slot/rarity now -- _on_tempering_resolved() reads these, never the
+		# live _craft_slot/_craft_rarity, so a later mutation of those fields (which the guard above
+		# can no longer fully prevent from happening pre-emptively via a test hook) can never corrupt
+		# which item this mini-game resolves into.
+		_pending_craft_slot = _craft_slot
+		_pending_craft_rarity = _craft_rarity
 		var stat_count: int = RecipeLibrary.stat_slot_count_for_rarity(_craft_rarity)
 		var primary: StringName = RecipeLibrary.primary_stat_for_slot(_craft_slot)
 		var secondary: StringName = RecipeLibrary.secondary_stat_for_slot(_craft_slot)
 		var tertiary: StringName = RecipeLibrary.tertiary_stat_for_slot(_craft_slot)
 		_tempering_panel.open_for(primary, secondary, tertiary, stat_count)
-		# NOTE: the recipe's Scrap cost/slot/rarity are consumed only once the mini-game resolves
-		# (_on_tempering_resolved) -- staging the mini-game must not spend materials twice if the
-		# player somehow re-presses Craft while it's open, so the confirm button stays disabled
-		# under the panel until then (the tempering panel visually covers it).
+		# The recipe's Scrap cost is consumed only once the mini-game resolves (_on_tempering_resolved),
+		# never here -- rebuild so the craft-section controls visibly disable while it's pending.
+		_rebuild()
 	else:
 		SalvageSystem.craft(_craft_slot, _craft_rarity, _inventory)
 		_craft_slot = -1
@@ -193,7 +229,9 @@ func _on_craft_confirm_pressed() -> void:
 		_rebuild()
 
 func _on_tempering_resolved(bonus_stats: Stats) -> void:
-	SalvageSystem.craft(_craft_slot, _craft_rarity, _inventory, bonus_stats)
+	SalvageSystem.craft(_pending_craft_slot, _pending_craft_rarity, _inventory, bonus_stats)
+	_pending_craft_slot = -1
+	_pending_craft_rarity = -1
 	_craft_slot = -1
 	_craft_rarity = -1
 	_use_tempering = false
