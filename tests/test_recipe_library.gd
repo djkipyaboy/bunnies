@@ -42,5 +42,26 @@ func _init() -> void:
 	_check(RecipeLibrary.stat_slot_count_for_rarity(RarityVisuals.Rarity.RARE) == 1, "Rare has 1 stat slot (fewer than Uncommon -- it trades the 2nd for a reel-affix slot, per RarityVisuals)")
 	_check(RecipeLibrary.stat_slot_count_for_rarity(RarityVisuals.Rarity.LEGENDARY) == 2, "Legendary has 2 stat slots")
 
-	print("ok RecipeLibrary armor recipes smoke test complete")
+	var cooking: Array[Dictionary] = RecipeLibrary.cooking_recipes()
+	_check(cooking.size() == 2, "exactly 2 cooking recipes (got %d)" % cooking.size())
+
+	var jam: Dictionary = RecipeLibrary.find_cooking_recipe(&"wildberry_jam")
+	_check(not jam.is_empty(), "wildberry_jam recipe exists")
+	_check(jam["input_material_types"] == ([&"forage_herb"] as Array[StringName]), "Wildberry Jam consumes Wild Berries (material_type &\"forage_herb\", the real shipped Foraging key)")
+	_check(jam["input_quantity"] == 2, "Wildberry Jam consumes 2 Wild Berries")
+	_check(jam["output_item_type"] == &"wildberry_jam", "Wildberry Jam's output item_type")
+	_check(int(jam["heal_by_rarity"][RarityVisuals.Rarity.COMMON]) == 15, "Wildberry Jam heals 15 at Common")
+	_check(int(jam["heal_by_rarity"][RarityVisuals.Rarity.LEGENDARY]) == 35, "Wildberry Jam heals 35 at Legendary")
+	_check(int(jam["bonus_reel_count"]) == 1, "Wildberry Jam's Second Helping uses 1 reel by default")
+
+	var fish: Dictionary = RecipeLibrary.find_cooking_recipe(&"roasted_fish")
+	_check(not fish.is_empty(), "roasted_fish recipe exists")
+	_check(fish["input_material_types"] == ([&"fish_small", &"fish_medium", &"fish_large"] as Array[StringName]), "Roasted Fish accepts any of the 3 real shipped fish material_types")
+	_check(fish["input_quantity"] == 1, "Roasted Fish consumes 1 fish")
+	_check(int(fish["heal_by_rarity"][RarityVisuals.Rarity.COMMON]) == 20, "Roasted Fish heals 20 at Common")
+	_check(int(fish["heal_by_rarity"][RarityVisuals.Rarity.LEGENDARY]) == 40, "Roasted Fish heals 40 at Legendary")
+
+	_check(RecipeLibrary.find_cooking_recipe(&"nonexistent").is_empty(), "an unknown recipe id returns an empty Dictionary")
+
+	print("ok RecipeLibrary smoke test complete")
 	quit()

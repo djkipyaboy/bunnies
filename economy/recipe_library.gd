@@ -120,3 +120,48 @@ static func tertiary_stat_for_slot(slot: int) -> StringName:
 ## needing to know RarityVisuals exists.
 static func stat_slot_count_for_rarity(rarity: int) -> int:
 	return RarityVisuals.max_stat_affixes(rarity)
+
+## Cooking's 2 recipes (2026-08-02 salvaging-and-cooking professions design section 4). Input
+## material_type keys are the REAL ones already shipped by Foraging/Fishing (world/overworld_demo.gd)
+## — Wild Berries = &"forage_herb"; the 3 fish sizes = &"fish_small"/&"fish_medium"/&"fish_large".
+## bonus_reel_count is recipe-authored so a future recipe can use more than 1 Second Helping reel
+## without any engine change (design section 6.2).
+static func cooking_recipes() -> Array[Dictionary]:
+	return [
+		{
+			"id": &"wildberry_jam",
+			"display_name": "Wildberry Jam",
+			"input_material_types": [&"forage_herb"] as Array[StringName],
+			"input_quantity": 2,
+			"output_item_type": &"wildberry_jam",
+			"heal_by_rarity": {
+				RarityVisuals.Rarity.COMMON: 15,
+				RarityVisuals.Rarity.UNCOMMON: 20,
+				RarityVisuals.Rarity.RARE: 25,
+				RarityVisuals.Rarity.EPIC: 30,
+				RarityVisuals.Rarity.LEGENDARY: 35,
+			},
+			"bonus_reel_count": 1,
+		},
+		{
+			"id": &"roasted_fish",
+			"display_name": "Roasted Fish",
+			"input_material_types": [&"fish_small", &"fish_medium", &"fish_large"] as Array[StringName],
+			"input_quantity": 1,
+			"output_item_type": &"roasted_fish",
+			"heal_by_rarity": {
+				RarityVisuals.Rarity.COMMON: 20,
+				RarityVisuals.Rarity.UNCOMMON: 25,
+				RarityVisuals.Rarity.RARE: 30,
+				RarityVisuals.Rarity.EPIC: 35,
+				RarityVisuals.Rarity.LEGENDARY: 40,
+			},
+			"bonus_reel_count": 1,
+		},
+	]
+
+static func find_cooking_recipe(id: StringName) -> Dictionary:
+	for r: Dictionary in cooking_recipes():
+		if r["id"] == id:
+			return r
+	return {}
