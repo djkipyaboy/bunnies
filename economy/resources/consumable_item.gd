@@ -10,3 +10,7 @@ extends Resource
 @export var quantity: int = 1
 @export var heal_amount: int = 0
 @export var effect_type: StringName = &"heal"
+## Set by Cooking (2026-08-02 salvaging-and-cooking professions design section 2.2) — mirrors the
+## consumed material's rarity. Defaults COMMON so Healing Potion (the only pre-existing consumer) is
+## unaffected.
+@export var rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON

@@ -14,4 +14,9 @@ func _init() -> void:
 	item.effect_type = &"cleanse"
 	_check(item.effect_type == &"cleanse", "effect_type is settable")
 
+	var item2: ConsumableItem = ConsumableItem.new()
+	_check(item2.rarity == RarityVisuals.Rarity.COMMON, "rarity defaults to COMMON")
+	item2.rarity = RarityVisuals.Rarity.RARE
+	_check(item2.rarity == RarityVisuals.Rarity.RARE, "rarity is settable")
+
 	quit()

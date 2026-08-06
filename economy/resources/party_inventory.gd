@@ -57,10 +57,12 @@ func try_give_weapon(w: Weapon) -> bool:
 	return true
 
 ## Merging into an existing stack never grows bag_count(), so it always succeeds regardless of
-## capacity — only a genuinely new stack entry is capacity-gated.
+## capacity — only a genuinely new stack entry is capacity-gated. Merges on (item_type, rarity)
+## (2026-08-02 salvaging-and-cooking professions design section 2.3) so Cooking's rarity-tagged food
+## stacks separately per rarity instead of colliding.
 func try_give_item(item: ConsumableItem) -> bool:
 	for existing: ConsumableItem in items:
-		if existing.item_type == item.item_type:
+		if existing.item_type == item.item_type and existing.rarity == item.rarity:
 			existing.quantity += item.quantity
 			return true
 	if not can_add_to_bag():
@@ -92,28 +94,28 @@ func give_material(m: CraftingMaterial) -> void:
 			return
 	materials.append(m)
 
-## Stacks onto an existing entry of the same item_type, mirrors give_material(). items is already
-## typed Array[ConsumableItem], so (unlike give_material's materials: Array[Resource]) no runtime
-## `is` check is needed.
+## Stacks onto an existing entry matching (item_type, rarity), mirrors give_material().
 func give_item(item: ConsumableItem) -> void:
 	for existing: ConsumableItem in items:
-		if existing.item_type == item.item_type:
+		if existing.item_type == item.item_type and existing.rarity == item.rarity:
 			existing.quantity += item.quantity
 			return
 	items.append(item)
 
-## Returns the entry for item_type, or null if the party doesn't own one.
-func find_item(item_type: StringName) -> ConsumableItem:
+## Returns the entry for (item_type, rarity), or null if the party doesn't own one. [param rarity]
+## defaults to COMMON so every pre-existing rarity-less call site (Healing Potion, which is always
+## COMMON) keeps working unchanged.
+func find_item(item_type: StringName, rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON) -> ConsumableItem:
 	for item: ConsumableItem in items:
-		if item.item_type == item_type:
+		if item.item_type == item_type and item.rarity == rarity:
 			return item
 	return null
 
-## Decrements the matching entry's quantity by 1; removes the entry entirely once it hits 0. No-op
-## if the party doesn't own one (defensive — should never be called that way).
-func consume_item(item_type: StringName) -> void:
+## Decrements the matching (item_type, rarity) entry's quantity by 1; removes the entry entirely once
+## it hits 0. No-op if the party doesn't own one.
+func consume_item(item_type: StringName, rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON) -> void:
 	for i in range(items.size()):
-		if items[i].item_type == item_type:
+		if items[i].item_type == item_type and items[i].rarity == rarity:
 			items[i].quantity -= 1
 			if items[i].quantity <= 0:
 				items.remove_at(i)

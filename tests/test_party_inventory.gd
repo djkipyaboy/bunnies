@@ -183,6 +183,37 @@ func _initialize() -> void:
 	potion_inv.consume_item(&"healing_potion")
 	_check(potion_inv.items.is_empty(), "consume_item() no-ops safely when the item_type isn't owned")
 
+	# --- rarity-aware item stacking (2026-08-02 salvaging-and-cooking professions design section 2.3) ---
+	var food_inv: PartyInventory = PartyInventory.new()
+	var common_jam: ConsumableItem = ConsumableItem.new()
+	common_jam.item_type = &"wildberry_jam"
+	common_jam.rarity = RarityVisuals.Rarity.COMMON
+	common_jam.quantity = 1
+	food_inv.give_item(common_jam)
+
+	var rare_jam: ConsumableItem = ConsumableItem.new()
+	rare_jam.item_type = &"wildberry_jam"
+	rare_jam.rarity = RarityVisuals.Rarity.RARE
+	rare_jam.quantity = 1
+	food_inv.give_item(rare_jam)
+	_check(food_inv.items.size() == 2, "a different rarity of the same item_type stays a SEPARATE stack (got %d)" % food_inv.items.size())
+
+	var more_common_jam: ConsumableItem = ConsumableItem.new()
+	more_common_jam.item_type = &"wildberry_jam"
+	more_common_jam.rarity = RarityVisuals.Rarity.COMMON
+	more_common_jam.quantity = 2
+	food_inv.give_item(more_common_jam)
+	_check(food_inv.items.size() == 2, "a matching (item_type, rarity) still merges (got %d entries)" % food_inv.items.size())
+	_check(common_jam.quantity == 3, "the matching stack's quantity grew by the merged amount (1 + 2 = 3, got %d)" % common_jam.quantity)
+
+	_check(food_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON) == common_jam, "find_item(type, rarity) returns the matching rarity's stack")
+	_check(food_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.RARE) == rare_jam, "find_item(type, rarity) distinguishes rarities of the same type")
+	_check(food_inv.find_item(&"wildberry_jam") == common_jam, "find_item(type) with no rarity arg defaults to COMMON, matching the pre-existing (rarity-less) call convention")
+
+	food_inv.consume_item(&"wildberry_jam", RarityVisuals.Rarity.RARE)
+	_check(food_inv.items.size() == 1, "consume_item(type, rarity) removes only the targeted rarity's stack once it hits 0")
+	_check(food_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON) == common_jam, "the untouched Common stack survives")
+
 	# --- quest_items (2026-07-18 lock-and-key design): give_quest_item()/has_quest_item()/
 	# consume_quest_item() ---
 	var quest_inv: PartyInventory = PartyInventory.new()
