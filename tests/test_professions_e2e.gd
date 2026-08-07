@@ -109,6 +109,7 @@ func _initialize() -> void:
 	panel.select_cooking_rarity_for_test(RarityVisuals.Rarity.COMMON)
 	panel.toggle_second_helping_for_test()
 	panel.press_cook_confirm_for_test()
+	panel.second_helping_panel_for_test().advance_spin_for_test(SecondHelpingPanel.SPIN_DURATION_SECONDS + 0.05)
 	panel.second_helping_panel_for_test().press_bank_for_test()
 	var jam: ConsumableItem = inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON)
 	_check(jam != null, "Wildberry Jam was cooked through the full Cook -> Second Helping loop")

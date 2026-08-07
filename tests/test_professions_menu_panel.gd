@@ -270,6 +270,7 @@ func _initialize() -> void:
 	cook_panel.press_cook_confirm_for_test()
 	_check(cook_panel.second_helping_panel_for_test().is_open(), "confirming Cook with Second Helping toggled on opens the mini-game instead of granting immediately")
 
+	cook_panel.second_helping_panel_for_test().advance_spin_for_test(SecondHelpingPanel.SPIN_DURATION_SECONDS + 0.05)
 	cook_panel.second_helping_panel_for_test().press_bank_for_test()
 	var final_jam: ConsumableItem = cook_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON)
 	_check(final_jam != null and final_jam.quantity >= 2, "banking the Second Helping result grants at least the deterministic quantity (base 1 from the first cook + at least 1 more from the second, plus any bonus)")
@@ -296,6 +297,7 @@ func _initialize() -> void:
 	_check(jam_qty_after_retoggle == jam_qty_before_retoggle, "re-pressing Cook after toggling Second Helping off mid-mini-game must NOT grant a second dish")
 	_check(cook_panel.second_helping_panel_for_test().is_open(), "the original mini-game is still open/resolvable, untouched by the toggle-off re-press")
 
+	cook_panel.second_helping_panel_for_test().advance_spin_for_test(SecondHelpingPanel.SPIN_DURATION_SECONDS + 0.05)
 	cook_panel.second_helping_panel_for_test().press_bank_for_test()
 	var jam_qty_after_resolve: int = cook_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON).quantity
 	_check(jam_qty_after_resolve > jam_qty_before_retoggle, "resolving the ORIGINAL mini-game still grants the Jam, not corrupted by the meanwhile-reset recipe/rarity")
