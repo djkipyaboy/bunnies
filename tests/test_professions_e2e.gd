@@ -111,10 +111,15 @@ func _initialize() -> void:
 	var quantity_before: int = jam.quantity
 	plan.commit()
 	# PartyInventory.consume_item() documents removing the (item_type, rarity) entry entirely once its
-	# quantity hits 0 -- Second Helping's bank-with-zero-rerolls path (used above) yields no bonus
-	# quantity, so quantity_before is exactly 1 here and the stack is fully consumed, not left at 0;
-	# find_item() correctly returns null in that case. The plan's own literal snippet assumed a
-	# still-present entry with quantity_before - 1 > 0, which doesn't hold for a 1-unit stack.
+	# quantity hits 0. Banking above (with zero rerolls spent) is NOT deterministic:
+	# SecondHelpingMinigame draws a genuinely random face per reel at construction time
+	# (world/second_helping_minigame.gd's _init()/_draw(), each BonusReel shuffled by
+	# BonusReel.make_default()) -- for Wildberry Jam's 1-reel recipe there's roughly a 25% chance the
+	# banked bonus_quantity is 1 (quantity_before == 2), otherwise it's 0 (quantity_before == 1, and
+	# consuming the last unit removes the entry entirely, so find_item() correctly returns null). The
+	# plan's own literal snippet assumed a still-present entry with quantity_before - 1 > 0, which only
+	# holds in the (bonus == 1) case -- read quantity_before fresh below and treat a null find_item()
+	# result as 0 so this assertion is correct regardless of which outcome this run actually drew.
 	var remaining: ConsumableItem = inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON)
 	var remaining_qty: int = remaining.quantity if remaining != null else 0
 	_check(remaining_qty == quantity_before - 1, "commit() consumes exactly 1 unit of the staged (type, rarity) stack")
