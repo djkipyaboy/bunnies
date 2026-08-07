@@ -53,6 +53,27 @@ func _init() -> void:
 	bonus_inv.give_material(more_berries)
 	var bonus_jam: ConsumableItem = CookingSystem.cook(&"wildberry_jam", RarityVisuals.Rarity.EPIC, bonus_inv, 2)
 	_check(bonus_jam.quantity == 3, "bonus_quantity=2 grants 1 (base) + 2 (bonus) = 3 units (got %d)" % bonus_jam.quantity)
+	_check(more_berries.quantity == 0, "cooking consumed all bonus berries")
+
+	# cook() must not consume materials when the Bag is full (Bag already at capacity, genuinely new item_type/rarity).
+	var full_inv: PartyInventory = PartyInventory.new()
+	# Deliberately fill the Bag to reach capacity
+	for i in range(20):  # BASE_BAG_CAPACITY = 20, so this reaches the base capacity
+		var dummy_gear: Gear = Gear.new()
+		dummy_gear.slot = Gear.Slot.HEADWEAR
+		dummy_gear.rarity = RarityVisuals.Rarity.COMMON
+		dummy_gear.display_name = "Dummy %d" % i
+		if not full_inv.try_give_gear(dummy_gear):
+			break
+	var full_materials: CraftingMaterial = CraftingMaterial.new()
+	full_materials.material_type = &"forage_herb"
+	full_materials.rarity = RarityVisuals.Rarity.COMMON
+	full_materials.quantity = 2
+	full_inv.give_material(full_materials)
+	_check(not full_inv.can_add_to_bag(), "Bag is truly at capacity")
+	var failed_cook: ConsumableItem = CookingSystem.cook(&"wildberry_jam", RarityVisuals.Rarity.COMMON, full_inv)
+	_check(failed_cook == null, "cook() returns null when the Bag is full")
+	_check(full_materials.quantity == 2, "materials are completely untouched when cook() fails due to full Bag (not consumed)")
 
 	print("ok CookingSystem smoke test complete")
 	quit()

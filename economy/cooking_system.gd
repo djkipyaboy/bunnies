@@ -24,7 +24,7 @@ static func _matching_stack(recipe: Dictionary, rarity: int, inventory: PartyInv
 ## Cooks [param recipe_id] at [param rarity]: consumes the matching input material stack, grants
 ## `1 + bonus_quantity` units of the recipe's output ConsumableItem at [param rarity] (Second
 ## Helping's bonus, or 0 to skip it), via try_give_item (capacity-gated, like loot/shop). Returns
-## null (grants nothing, consumes nothing) when can_cook() would be false.
+## null (grants nothing, consumes nothing) when can_cook() would be false or the Bag is full.
 static func cook(recipe_id: StringName, rarity: int, inventory: PartyInventory, bonus_quantity: int = 0) -> ConsumableItem:
 	var recipe: Dictionary = RecipeLibrary.find_cooking_recipe(recipe_id)
 	if recipe.is_empty():
@@ -32,9 +32,6 @@ static func cook(recipe_id: StringName, rarity: int, inventory: PartyInventory, 
 	var stack: CraftingMaterial = _matching_stack(recipe, rarity, inventory)
 	if stack == null:
 		return null
-	stack.quantity -= int(recipe["input_quantity"])
-	if stack.quantity <= 0:
-		inventory.materials.erase(stack)
 
 	var item: ConsumableItem = ConsumableItem.new()
 	item.item_type = recipe["output_item_type"]
@@ -47,6 +44,12 @@ static func cook(recipe_id: StringName, rarity: int, inventory: PartyInventory, 
 
 	if not inventory.try_give_item(item):
 		return null
+
+	# Only mutate the material stack AFTER try_give_item() succeeds
+	stack.quantity -= int(recipe["input_quantity"])
+	if stack.quantity <= 0:
+		inventory.materials.erase(stack)
+
 	# try_give_item() may have merged into a pre-existing stack rather than appending `item` itself
 	# -- return whichever ConsumableItem instance now actually holds this (type, rarity) stack,
 	# mirroring SalvageSystem.break_down()'s identical re-lookup.
