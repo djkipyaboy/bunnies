@@ -21,6 +21,11 @@ func _init() -> void:
 	_check(panel.is_open(), "open_for() shows the panel")
 	_check(panel.reel_count_for_test() == 1, "reel_count is respected (got %d)" % panel.reel_count_for_test())
 
+	# Verify cell text is actually rendered (not null from missing add_child())
+	var first_strip: ReelStripWidget = panel._reel_strips[0]
+	var cell_text: String = first_strip.cell_text_for_test(&"current")
+	_check(cell_text != "", "ReelStripWidget cell text is rendered (not blank)")
+
 	panel.press_bank_for_test()
 	_check(not panel.is_open(), "Bank closes the panel")
 	_check(_resolved_bonus >= 0, "Bank emits second_helping_resolved with a non-negative bonus quantity")

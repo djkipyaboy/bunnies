@@ -40,8 +40,11 @@ func _rebuild() -> void:
 	for i in range(faces.size()):
 		var strip := ReelStripWidget.new()
 		strip.position = Vector2(20.0 + i * STRIP_GAP, 16.0)
-		strip.set_cells("", _label_for_face(faces[i]), "", false, false, false, Color.WHITE, Color.WHITE, Color.WHITE)
 		add_child(strip)
+		# Manually invoke _ready() to initialize internal labels before calling set_cells()
+		# (in headless test, _ready() isn't automatically called until next frame)
+		strip._ready()
+		strip.set_cells("", _label_for_face(faces[i]), "", false, false, false, Color.WHITE, Color.WHITE, Color.WHITE)
 		_reel_strips.append(strip)
 
 	_result_label = Label.new()
