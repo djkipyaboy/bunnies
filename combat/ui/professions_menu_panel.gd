@@ -14,6 +14,8 @@ const PANEL_W: float = 420.0
 const ROW_H: float = 26.0
 const MAX_VISIBLE_BREAKDOWN_ROWS: int = 12   # sane cap so a large Bag (20+ Gear items) can't push the
                                               # Craft section off-panel or overlap it (final-review finding)
+const MAX_VISIBLE_STRIP_MATERIAL_ROWS: int = 5
+const MAX_VISIBLE_STRIP_GEAR_ROWS: int = 5
 const TAB_ROW: Array = [
 	[&"salvaging", "Salvaging"],
 	[&"cooking", "Cooking"],
@@ -52,6 +54,8 @@ var _craft_message_label: Label
 ## _craft_slot/_craft_rarity and pass corrupted params into SalvageSystem.craft().
 var _pending_craft_slot: int = -1
 var _pending_craft_rarity: int = -1
+
+var _inventory_strip_row_count: int = 0
 
 var _breakdown_buttons: Array[Button] = []
 var _breakdown_confirm_button: Button
@@ -188,7 +192,9 @@ func _rebuild() -> void:
 		# let a long Break Down list visually collide with (or escape past) the Craft section
 		# (final-review finding). The Craft section's own height is fixed (header/slots/rarities/
 		# toggle/confirm/message rows), so the only variable is craft_top.
-		var total_h: float = craft_top + ROW_H * 6.0 + PAD
+		var craft_bottom: float = craft_top + ROW_H * 6.0
+		var strip_bottom: float = _build_inventory_strip(craft_bottom + PAD)
+		var total_h: float = strip_bottom + PAD
 		custom_minimum_size = Vector2(PANEL_W, total_h)
 		size = custom_minimum_size
 	else:
@@ -198,7 +204,8 @@ func _rebuild() -> void:
 		add_child(title2)
 
 		var cooking_bottom: float = _build_cooking_section(content_top + ROW_H)
-		var total_h2: float = cooking_bottom + PAD
+		var strip_bottom2: float = _build_inventory_strip(cooking_bottom + PAD)
+		var total_h2: float = strip_bottom2 + PAD
 		custom_minimum_size = Vector2(PANEL_W, total_h2)
 		size = custom_minimum_size
 
@@ -357,6 +364,71 @@ func _build_craft_section(craft_top: float) -> void:
 		_craft_message_label.modulate = Color(1.0, 0.4, 0.4)
 		_craft_message_label.position = Vector2(PAD, craft_top + ROW_H * 5.0)
 		add_child(_craft_message_label)
+
+## Compact, READ-ONLY inventory view embedded at the bottom of both tabs (2026-08-07
+## professions-playtest-fixes plan Task 2) -- plain Labels, no selection/interaction, deliberately
+## NOT a re-render of InventoryMenuPanel's full grid (this is a narrower, simpler view by design,
+## per CLAUDE.md's YAGNI guidance). Returns the Y position immediately below the strip so callers
+## can size the panel dynamically, mirroring _breakdown_section_bottom's convention.
+func _build_inventory_strip(top: float) -> float:
+	_inventory_strip_row_count = 0
+	var y: float = top
+
+	var header := Label.new()
+	header.text = "Your Materials & Gear"
+	header.position = Vector2(PAD, y)
+	add_child(header)
+	y += ROW_H
+
+	var mat_header := Label.new()
+	mat_header.text = "Materials"
+	mat_header.modulate = Color(0.7, 0.7, 0.7)
+	mat_header.position = Vector2(PAD, y)
+	add_child(mat_header)
+	y += ROW_H
+
+	var visible_materials: int = mini(_inventory.materials.size(), MAX_VISIBLE_STRIP_MATERIAL_ROWS)
+	for i in range(visible_materials):
+		var m: CraftingMaterial = _inventory.materials[i]
+		var label := Label.new()
+		label.text = "%s (%s) x%d" % [m.display_name, RarityVisuals.display_name(m.rarity), m.quantity]
+		label.modulate = RarityVisuals.color(m.rarity)
+		label.position = Vector2(PAD + 8.0, y)
+		add_child(label)
+		y += ROW_H
+		_inventory_strip_row_count += 1
+	if _inventory.materials.size() > MAX_VISIBLE_STRIP_MATERIAL_ROWS:
+		var overflow := Label.new()
+		overflow.text = "+%d more materials" % (_inventory.materials.size() - MAX_VISIBLE_STRIP_MATERIAL_ROWS)
+		overflow.position = Vector2(PAD + 8.0, y)
+		add_child(overflow)
+		y += ROW_H
+
+	var gear_header := Label.new()
+	gear_header.text = "Gear (Bag)"
+	gear_header.modulate = Color(0.7, 0.7, 0.7)
+	gear_header.position = Vector2(PAD, y)
+	add_child(gear_header)
+	y += ROW_H
+
+	var visible_gear: int = mini(_inventory.gear.size(), MAX_VISIBLE_STRIP_GEAR_ROWS)
+	for i in range(visible_gear):
+		var g: Gear = _inventory.gear[i]
+		var label := Label.new()
+		label.text = "%s (%s)" % [g.display_name, RarityVisuals.display_name(g.rarity)]
+		label.modulate = RarityVisuals.color(g.rarity)
+		label.position = Vector2(PAD + 8.0, y)
+		add_child(label)
+		y += ROW_H
+		_inventory_strip_row_count += 1
+	if _inventory.gear.size() > MAX_VISIBLE_STRIP_GEAR_ROWS:
+		var overflow2 := Label.new()
+		overflow2.text = "+%d more gear" % (_inventory.gear.size() - MAX_VISIBLE_STRIP_GEAR_ROWS)
+		overflow2.position = Vector2(PAD + 8.0, y)
+		add_child(overflow2)
+		y += ROW_H
+
+	return y
 
 func _on_craft_slot_pressed(slot: int) -> void:
 	_craft_slot = slot
@@ -683,3 +755,6 @@ func second_helping_panel_for_test() -> SecondHelpingPanel:
 ## or "" if nothing is showing. Mirrors craft_message_for_test().
 func cook_message_for_test() -> String:
 	return _cook_message if _cook_message != "" else _cook_disabled_reason()
+
+func inventory_strip_row_count_for_test() -> int:
+	return _inventory_strip_row_count

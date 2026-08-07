@@ -354,5 +354,28 @@ func _initialize() -> void:
 	_check(ProfessionsMenuPanel.slot_label(Gear.Slot.HANDS) == "Hands", "slot_label maps HANDS to the bare slot name")
 	_check(ProfessionsMenuPanel.slot_label(Gear.Slot.CHARM) == "Charm", "slot_label maps CHARM to the bare slot name")
 
+	# Task 2 (2026-08-07 professions-playtest-fixes): an embedded read-only inventory strip shows
+	# the party's current Materials + Gear so the player doesn't have to open Inventory separately
+	# to see what they have to work with while Professions is open.
+	var strip_inv: PartyInventory = PartyInventory.new()
+	var scrap: CraftingMaterial = CraftingMaterial.new()
+	scrap.material_type = &"salvage_scrap"
+	scrap.display_name = "Salvage Scrap"
+	scrap.rarity = RarityVisuals.Rarity.COMMON
+	scrap.quantity = 3
+	strip_inv.materials = [scrap]
+	var cloak: Gear = Gear.new()
+	cloak.display_name = "Traveler's Cloak"
+	cloak.slot = Gear.Slot.CLOAK
+	cloak.rarity = RarityVisuals.Rarity.UNCOMMON
+	strip_inv.gear = [cloak]
+
+	var strip_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(strip_panel)
+	await process_frame
+	strip_panel.open_for(strip_inv)
+	_check(strip_panel.inventory_strip_row_count_for_test() == 2, "inventory strip shows 1 material row + 1 gear row (got %d)" % strip_panel.inventory_strip_row_count_for_test())
+	strip_panel.queue_free()
+
 	print("ok ProfessionsMenuPanel (Salvaging + Cooking) smoke test complete")
 	quit()
