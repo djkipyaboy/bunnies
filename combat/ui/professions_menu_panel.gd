@@ -63,6 +63,24 @@ var _craft_confirm_button: Button
 const ARMOR_SLOTS: Array[int] = [Gear.Slot.HEADWEAR, Gear.Slot.CLOAK, Gear.Slot.CHEST, Gear.Slot.HANDS, Gear.Slot.CHARM]
 const RARITIES: Array[int] = [RarityVisuals.Rarity.COMMON, RarityVisuals.Rarity.UNCOMMON, RarityVisuals.Rarity.RARE, RarityVisuals.Rarity.EPIC, RarityVisuals.Rarity.LEGENDARY]
 
+## Bare slot display names for the Craft slot-selection buttons and their tooltips (Task 1,
+## 2026-08-07 professions-playtest-fixes). Deliberately NOT the crafted item's own display_name
+## ("Handcrafted Headwear") -- that string is too long for a compact button and reads like an
+## already-crafted item rather than a slot to pick. No shared Gear.Slot -> String helper exists
+## elsewhere (InventoryMenuPanel.SLOT_NAMES is indexed by paperdoll position, not Gear.Slot value,
+## and has a duplicate "Charm" entry for the two Charm boxes -- not a fit here), so this stays a
+## small lookup local to this file.
+const SLOT_LABELS: Dictionary = {
+	Gear.Slot.HEADWEAR: "Headwear",
+	Gear.Slot.CLOAK: "Cloak",
+	Gear.Slot.CHEST: "Chest",
+	Gear.Slot.HANDS: "Hands",
+	Gear.Slot.CHARM: "Charm",
+}
+
+static func slot_label(slot: int) -> String:
+	return SLOT_LABELS.get(slot, "?")
+
 ## --- Cooking section state (task 7) ---
 
 var _cooking_recipe_id: StringName = &""
@@ -90,6 +108,7 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, 480.0)
 	size = custom_minimum_size
 	visible = false
+	scale = Vector2(2.0, 2.0)
 
 	_tempering_panel = TemperingReelsPanel.new()
 	_tempering_panel.position = Vector2(PANEL_W + 20.0, 0.0)
@@ -273,11 +292,11 @@ func _build_craft_section(craft_top: float) -> void:
 	for i in range(ARMOR_SLOTS.size()):
 		var slot: int = ARMOR_SLOTS[i]
 		var btn := Button.new()
-		btn.text = RecipeLibrary.build_crafted_gear(slot, RarityVisuals.Rarity.COMMON).display_name
+		btn.text = slot_label(slot)
 		if slot == _craft_slot:
 			btn.text += "  ✓"
-		btn.position = Vector2(PAD + float(i) * 80.0, craft_top + ROW_H)
-		btn.custom_minimum_size = Vector2(76.0, ROW_H)
+		btn.position = Vector2(PAD + float(i) * 92.0, craft_top + ROW_H)
+		btn.custom_minimum_size = Vector2(88.0, ROW_H)
 		btn.disabled = tempering_pending
 		btn.pressed.connect(func() -> void: _on_craft_slot_pressed(slot))
 		add_child(btn)

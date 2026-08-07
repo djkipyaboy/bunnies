@@ -344,5 +344,15 @@ func _initialize() -> void:
 	full_cook_panel.press_cook_confirm_for_test()
 	_check(existing_jam.quantity == 2, "confirming Cook merges into the existing stack even though the Bag is full")
 
+	# Task 1 (2026-08-07 professions-playtest-fixes): Craft slot buttons must show the bare slot
+	# name, not the full crafted-item display name -- "Handcrafted Headwear" doesn't fit the
+	# button's width and was the actual cause of the visible overlap bug. This also doubles as the
+	# discoverability fix: a slot button reading "Headwear" is unambiguously a slot choice.
+	_check(ProfessionsMenuPanel.slot_label(Gear.Slot.HEADWEAR) == "Headwear", "slot_label maps HEADWEAR to the bare slot name")
+	_check(ProfessionsMenuPanel.slot_label(Gear.Slot.CLOAK) == "Cloak", "slot_label maps CLOAK to the bare slot name")
+	_check(ProfessionsMenuPanel.slot_label(Gear.Slot.CHEST) == "Chest", "slot_label maps CHEST to the bare slot name")
+	_check(ProfessionsMenuPanel.slot_label(Gear.Slot.HANDS) == "Hands", "slot_label maps HANDS to the bare slot name")
+	_check(ProfessionsMenuPanel.slot_label(Gear.Slot.CHARM) == "Charm", "slot_label maps CHARM to the bare slot name")
+
 	print("ok ProfessionsMenuPanel (Salvaging + Cooking) smoke test complete")
 	quit()

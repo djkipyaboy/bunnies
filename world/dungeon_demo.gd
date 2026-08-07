@@ -288,7 +288,12 @@ func _build_ui() -> void:
 	ui.add_child(_talent_panel)
 
 	_professions_panel = ProfessionsMenuPanel.new()
-	_professions_panel.position = Vector2(140, 60)
+	# Horizontally centered for the panel's un-doubled 420px width scaled 2x (800 - 420 = 380);
+	# vertically anchored near the top rather than centered, since ProfessionsMenuPanel's height
+	# grows dynamically with Bag contents (up to a bounded worst case, see MAX_VISIBLE_* caps) and a
+	# true vertical center would push a tall panel off the top of the 900px window (2026-08-07
+	# professions-playtest-fixes plan Task 1).
+	_professions_panel.position = Vector2(380, 20)
 	_professions_panel.hide()
 	ui.add_child(_professions_panel)
 
