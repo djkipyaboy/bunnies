@@ -52,7 +52,23 @@ func _initialize() -> void:
 	# every reel-based mini-game shows which slot actually counts, without needing per-mini-game UI.
 	_check(widget.left_arrow_text_for_test() == "▶", "left arrow points inward at the center cell")
 	_check(widget.right_arrow_text_for_test() == "◀", "right arrow points inward at the center cell")
-	_check(widget.arrows_flank_center_cell_for_test(), "both arrows sit outside the strip's own cell column, at the center cell's vertical position")
+	_check(widget.arrows_flank_center_cell_for_test(), "both arrows sit inside the strip's own cell column, near its left/right edges, at the center cell's vertical position")
+
+	# Task 4 fix round 1: prove two adjacent columns at the real STRIP_GAP=100 spacing used by
+	# FishingPanel/TemperingReelsPanel/SecondHelpingPanel don't have overlapping arrow footprints --
+	# this is the actual scenario the original outside-the-column placement broke.
+	var col_a := ReelStripWidget.new()
+	var col_b := ReelStripWidget.new()
+	get_root().add_child(col_a)
+	get_root().add_child(col_b)
+	await process_frame
+	col_a.position = Vector2(0.0, 0.0)
+	col_b.position = Vector2(100.0, 0.0)
+	var col_a_right_arrow_max_x: float = col_a.position.x + col_a.right_arrow_x_for_test() + ReelStripWidget.ARROW_W
+	var col_b_left_arrow_min_x: float = col_b.position.x + col_b.left_arrow_x_for_test()
+	_check(col_a_right_arrow_max_x <= col_b_left_arrow_min_x, "adjacent columns at real STRIP_GAP=100 spacing have non-overlapping arrow footprints (col A right arrow ends at %.1f, col B left arrow starts at %.1f)" % [col_a_right_arrow_max_x, col_b_left_arrow_min_x])
+	col_a.free()
+	col_b.free()
 
 	widget.free()
 	quit()

@@ -11,6 +11,7 @@ const CELL_W: float = 90.0
 const CELL_H: float = 30.0
 const NORMAL_FONT_SIZE: int = 20
 const SMALL_FONT_SIZE: int = 11
+const ARROW_W: float = 12.0
 
 var _prev_label: Label
 var _current_label: Label
@@ -31,22 +32,28 @@ func _ready() -> void:
 	_next_label = _make_cell_label(CELL_H * 2.0)
 	add_child(_next_label)
 
-	# Task 4 (2026-08-07 professions-playtest-fixes): arrows flanking the center cell mark it as
-	# "the slot that resolves" -- added here (not per-mini-game) so every ReelStripWidget consumer
-	# gets this for free. Positioned just outside the strip's own CELL_W column, vertically aligned
-	# with the current/center cell.
+	# Task 4 (2026-08-07 professions-playtest-fixes), fix round 1: arrows sit INSIDE the strip's own
+	# CELL_W column, near its left/right edges, rather than protruding outside it. The original
+	# outside-the-column placement overlapped the NEXT column's arrow in every real multi-reel caller
+	# (Fishing/Tempering Reels/Second Helping all space columns exactly 100px apart with CELL_W=90 --
+	# only a 10px gap, and each arrow protruded 18px). Placing them inside guarantees zero cross-column
+	# overlap regardless of caller spacing, since nothing rendered by this widget now extends past its
+	# own [0, CELL_W] bounds. Short cell text (single words like "Fail"/"Bumper"/"Baseline") centered in
+	# CELL_W leaves comfortable margin at both edges for a 12px-wide arrow.
 	_left_arrow = Label.new()
 	_left_arrow.text = "▶"
-	_left_arrow.position = Vector2(-18.0, CELL_H)
-	_left_arrow.custom_minimum_size = Vector2(16.0, CELL_H)
+	_left_arrow.position = Vector2(2.0, CELL_H)
+	_left_arrow.custom_minimum_size = Vector2(ARROW_W, CELL_H)
+	_left_arrow.add_theme_font_size_override("font_size", SMALL_FONT_SIZE)
 	_left_arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_left_arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_left_arrow)
 
 	_right_arrow = Label.new()
 	_right_arrow.text = "◀"
-	_right_arrow.position = Vector2(CELL_W + 2.0, CELL_H)
-	_right_arrow.custom_minimum_size = Vector2(16.0, CELL_H)
+	_right_arrow.position = Vector2(CELL_W - ARROW_W - 2.0, CELL_H)
+	_right_arrow.custom_minimum_size = Vector2(ARROW_W, CELL_H)
+	_right_arrow.add_theme_font_size_override("font_size", SMALL_FONT_SIZE)
 	_right_arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_right_arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	add_child(_right_arrow)
@@ -121,12 +128,19 @@ func left_arrow_text_for_test() -> String:
 func right_arrow_text_for_test() -> String:
 	return _right_arrow.text
 
-## Confirms both arrows sit outside the strip's own CELL_W-wide cell column and at the current
-## cell's vertical band (CELL_H to CELL_H*2) -- proving they flank the center cell rather than
-## floating somewhere unrelated.
+func left_arrow_x_for_test() -> float:
+	return _left_arrow.position.x
+
+func right_arrow_x_for_test() -> float:
+	return _right_arrow.position.x
+
+## Confirms both arrows sit near the strip's own left/right edges (not the center, not outside the
+## [0, CELL_W] column) and at the current cell's vertical band (CELL_H) -- proving they flank the
+## center cell from within the column, per Task 4 fix round 1's redesign.
 func arrows_flank_center_cell_for_test() -> bool:
-	var left_outside: bool = _left_arrow.position.x + _left_arrow.custom_minimum_size.x <= 0.0
-	var right_outside: bool = _right_arrow.position.x >= CELL_W
+	var left_near_left_edge: bool = _left_arrow.position.x < CELL_W / 2.0
+	var right_near_right_edge: bool = _right_arrow.position.x + _right_arrow.custom_minimum_size.x > CELL_W / 2.0
+	var both_inside_column: bool = _left_arrow.position.x >= 0.0 and (_right_arrow.position.x + _right_arrow.custom_minimum_size.x) <= CELL_W
 	var left_aligned: bool = is_equal_approx(_left_arrow.position.y, CELL_H)
 	var right_aligned: bool = is_equal_approx(_right_arrow.position.y, CELL_H)
-	return left_outside and right_outside and left_aligned and right_aligned
+	return left_near_left_edge and right_near_right_edge and both_inside_column and left_aligned and right_aligned
