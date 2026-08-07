@@ -1465,11 +1465,11 @@ func _on_items_pressed() -> void:
 ## One item-menu row pressed: dispatch to MainPhasePlan.toggle_item() — mutual exclusion with
 ## ability/extra/Ultimate is model-enforced there, never policed here (mirrors
 ## _on_ability_menu_ability_pressed()'s own division of labor).
-func _on_item_menu_item_pressed(item_type: StringName) -> void:
+func _on_item_menu_item_pressed(item_type: StringName, rarity: RarityVisuals.Rarity) -> void:
 	if not _awaiting_player_spin or _plan == null:
 		return
 	var before: String = _staged_state_key()
-	_plan.toggle_item(item_type)
+	_plan.toggle_item(item_type, rarity)
 	if _staged_state_key() != before:
 		_item_menu.hide()
 	else:
@@ -1531,7 +1531,7 @@ func _on_team_up_completed(log_lines: Array[String]) -> void:
 ## Fingerprint of the plan's staged-ability/item state — compared around a toggle to detect
 ## "something actually changed" (drives the close-on-successful-toggle rule for both menus).
 func _staged_state_key() -> String:
-	return "%s|%s|%s" % [str(_plan.ability_staged), String(_plan.staged_extra_ability_id), String(_plan.staged_item_type)]
+	return "%s|%s|%s|%d" % [str(_plan.ability_staged), String(_plan.staged_extra_ability_id), String(_plan.staged_item_type), _plan.staged_item_rarity]
 
 ## Stages/un-stages the Sticky-Wild Ultimate (toggle). Consumes nothing — commit happens on SPIN.
 func _on_ultimate_pressed() -> void:
@@ -1596,7 +1596,7 @@ func _refresh_main1_preview() -> void:
 	# Abilities — legible with the menu closed.
 	var staged_item_name: String = ""
 	if _plan.staged_item_type != &"":
-		var item: ConsumableItem = _party_inventory.find_item(_plan.staged_item_type) if _party_inventory != null else null
+		var item: ConsumableItem = _party_inventory.find_item(_plan.staged_item_type, _plan.staged_item_rarity) if _party_inventory != null else null
 		staged_item_name = item.display_name if item != null else ""
 	if staged_item_name != "":
 		_items_button.text = "Items: %s ✓" % staged_item_name

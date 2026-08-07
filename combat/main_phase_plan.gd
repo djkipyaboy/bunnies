@@ -62,6 +62,11 @@ var selected_fate_type: DamageType = null
 ## slot (2026-07-14 combat items menu spec §4).
 var staged_item_type: StringName = &""
 
+## Which rarity of staged_item_type is staged — meaningful only alongside a non-empty
+## staged_item_type (2026-08-02 salvaging-and-cooking professions design section 2.4). Defaults
+## COMMON, matching every pre-existing item (Healing Potion is always COMMON).
+var staged_item_rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON
+
 ## The party's shared inventory, so item staging can check/consume without a separate reference
 ## threaded through every call site. Null for a standalone (non-handoff) combat.tscn launch or an
 ## enemy's turn — can_stage_item() always returns false when null.
@@ -248,19 +253,19 @@ func toggle_ultimate() -> void:
 			staged_extra_ability_id = &""  # e.g. staging Wildcard Gamble un-stages an armed Loaded Dice
 		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
 
-## True iff the party owns at least one of item_type. Un-staging (passing the already-staged type to
-## toggle_item) is always allowed, same convention as every other stage/un-stage pair here.
-func can_stage_item(item_type: StringName) -> bool:
+## True iff the party owns at least one of (item_type, rarity). Un-staging is always allowed.
+func can_stage_item(item_type: StringName, rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON) -> bool:
 	if party_inventory == null:
 		return false
-	var item: ConsumableItem = party_inventory.find_item(item_type)
+	var item: ConsumableItem = party_inventory.find_item(item_type, rarity)
 	return item != null and item.quantity > 0
 
-func toggle_item(item_type: StringName) -> void:
-	if staged_item_type == item_type:
+func toggle_item(item_type: StringName, rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON) -> void:
+	if staged_item_type == item_type and staged_item_rarity == rarity:
 		staged_item_type = &""
-	elif can_stage_item(item_type):
+	elif can_stage_item(item_type, rarity):
 		staged_item_type = item_type
+		staged_item_rarity = rarity
 		ability_staged = false
 		staged_extra_ability_id = &""
 		fire_ultimate_staged = false
@@ -481,10 +486,10 @@ func commit() -> void:
 	if selected_fate_type != null and fire_ultimate_staged and ultimate_id == &"big_bang":
 		combatant.convert_turn_reels_to(selected_fate_type)
 	if staged_item_type != &"" and party_inventory != null:
-		var item: ConsumableItem = party_inventory.find_item(staged_item_type)
+		var item: ConsumableItem = party_inventory.find_item(staged_item_type, staged_item_rarity)
 		if item != null:
 			var reel: ActionReel = ActionReel.make_item_use(combatant.weapon_type())
 			combatant.turn_reels.append(reel)
 			combatant.item_use_reel = reel
 			combatant.pending_item_base_heal = item.heal_amount
-			party_inventory.consume_item(staged_item_type)
+			party_inventory.consume_item(staged_item_type, staged_item_rarity)

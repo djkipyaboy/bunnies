@@ -1,12 +1,15 @@
 class_name ItemMenuPanel
 extends Panel
 
-## Non-modal floating item menu (2026-07-14 combat items menu design §6): one row per distinct
-## consumable item type the party currently owns, each a stage/un-stage toggle. Mirrors
-## AbilityMenuPanel's shape, minus the affordability/cooldown states abilities need — every listed
-## item is stageable by definition of being owned with quantity > 0.
+## Non-modal floating item menu (2026-07-14 combat items menu design §6, extended 2026-08-02
+## salvaging-and-cooking professions design section 2.4): one row per distinct (item_type, rarity)
+## stack the party currently owns, each a stage/un-stage toggle. Two rarities of the same item_type
+## (e.g. Common and Rare Wildberry Jam) render as two separate rows, since they're genuinely
+## different stacks once ConsumableItem carries rarity. Mirrors AbilityMenuPanel's shape, minus the
+## affordability/cooldown states abilities need — every listed item is stageable by definition of
+## being owned with quantity > 0.
 
-signal item_pressed(item_type: StringName)
+signal item_pressed(item_type: StringName, rarity: RarityVisuals.Rarity)
 
 const PAD: float = 12.0
 const TITLE_H: float = 26.0
@@ -20,22 +23,22 @@ const PANEL_W: float = PAD * 2.0 + BTN_W + 12.0 + INFO_W
 
 const COLOR_STAGED := Color(0.6, 1.0, 0.6)
 
-var _row_types: Array[StringName] = []
-var _row_buttons: Dictionary = {}  # StringName -> Button
+var _row_keys: Array[Dictionary] = []   # each {"item_type": StringName, "rarity": RarityVisuals.Rarity}
+var _row_buttons: Dictionary = {}  # "<item_type>_<rarity int>" -> Button
 var _close_button: Button
 
-## Rebuilds the menu for [param inventory]'s currently-owned item types + [param plan]'s staged
-## state, then shows it. Rows are never cached — rebuilt on every open, same convention as
-## AbilityMenuPanel.open_for().
+## Rebuilds the menu for [param inventory]'s currently-owned (item_type, rarity) stacks + [param
+## plan]'s staged state, then shows it. Rows are never cached — rebuilt on every open, same
+## convention as AbilityMenuPanel.open_for().
 func open_for(plan: MainPhasePlan, inventory: PartyInventory, ally_target: Combatant) -> void:
 	for child in get_children():
 		child.queue_free()
-	_row_types.clear()
+	_row_keys.clear()
 	_row_buttons.clear()
 	if plan == null or inventory == null:
 		return
 	for item: ConsumableItem in inventory.items:
-		_row_types.append(item.item_type)
+		_row_keys.append({"item_type": item.item_type, "rarity": item.rarity})
 
 	var title := Label.new()
 	title.text = "Items — stage one for this turn (press it again to un-stage)"
@@ -54,28 +57,30 @@ func open_for(plan: MainPhasePlan, inventory: PartyInventory, ally_target: Comba
 	add_child(_close_button)
 
 	var top: float = PAD + TITLE_H
-	for i: int in range(_row_types.size()):
-		_build_row(_row_types[i], inventory, plan, top + float(i) * ROW_H, ally_target)
+	for i: int in range(_row_keys.size()):
+		var key: Dictionary = _row_keys[i]
+		_build_row(key["item_type"], key["rarity"], inventory, plan, top + float(i) * ROW_H, ally_target)
 
-	custom_minimum_size = Vector2(PANEL_W, top + float(_row_types.size()) * ROW_H + PAD)
+	custom_minimum_size = Vector2(PANEL_W, top + float(_row_keys.size()) * ROW_H + PAD)
 	size = custom_minimum_size
 	show()
 
-## One row: a toggle Button (name + owned quantity) and an info Label (what it does).
-func _build_row(item_type: StringName, inventory: PartyInventory, plan: MainPhasePlan, y: float, ally_target: Combatant) -> void:
-	var item: ConsumableItem = inventory.find_item(item_type)
-	var staged: bool = plan.staged_item_type == item_type
+## One row: a toggle Button (name + owned quantity + rarity tag) and an info Label (what it does).
+func _build_row(item_type: StringName, rarity: RarityVisuals.Rarity, inventory: PartyInventory, plan: MainPhasePlan, y: float, ally_target: Combatant) -> void:
+	var item: ConsumableItem = inventory.find_item(item_type, rarity)
+	var staged: bool = plan.staged_item_type == item_type and plan.staged_item_rarity == rarity
+	var row_key: String = "%s_%d" % [item_type, rarity]
 
 	var btn := Button.new()
-	btn.text = "%s x%d" % [item.display_name, item.quantity]
+	btn.text = "%s (%s) x%d" % [item.display_name, RarityVisuals.display_name(rarity), item.quantity]
 	btn.position = Vector2(PAD, y)
 	btn.custom_minimum_size = Vector2(BTN_W, ROW_H - 10.0)
 	if staged:
 		btn.text += "  ✓"
 		btn.modulate = COLOR_STAGED
-	btn.pressed.connect(func() -> void: item_pressed.emit(item_type))
+	btn.pressed.connect(func() -> void: item_pressed.emit(item_type, rarity))
 	add_child(btn)
-	_row_buttons[item_type] = btn
+	_row_buttons[row_key] = btn
 
 	var info := Label.new()
 	info.text = "Heals %s for %d HP (90%% success / 10%% critical success ×1.5)." % [ally_target.display_name if ally_target != null else "your target", item.heal_amount]
@@ -85,13 +90,14 @@ func _build_row(item_type: StringName, inventory: PartyInventory, plan: MainPhas
 	info.add_theme_font_size_override("font_size", 13)
 	add_child(info)
 
-## The item_type ids currently rendered as rows (test hook).
-func row_types() -> Array[StringName]:
-	return _row_types.duplicate()
+## The (item_type, rarity) pairs currently rendered as rows (test hook).
+func row_types() -> Array[Dictionary]:
+	return _row_keys.duplicate()
 
-## Presses row [param item_type]'s button programmatically (headless test hook — emits like a real click).
-func press_row_for_test(item_type: StringName) -> void:
-	var btn: Button = _row_buttons.get(item_type, null)
+## Presses the row matching (item_type, rarity) programmatically (headless test hook — emits like a
+## real click). [param rarity] defaults to COMMON, matching every pre-existing single-rarity item.
+func press_row_for_test(item_type: StringName, rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON) -> void:
+	var btn: Button = _row_buttons.get("%s_%d" % [item_type, rarity], null)
 	if btn != null:
 		btn.pressed.emit()
 
