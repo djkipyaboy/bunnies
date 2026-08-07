@@ -186,8 +186,7 @@ static func slot_display_text(item: Resource) -> String:
 		return "%s (%s) x%d" % [ci.display_name, RarityVisuals.display_name(ci.rarity), ci.quantity]
 	return "?"
 
-## The rarity color to render an item's label in (neutral gray when empty or a Consumable, which
-## has no rarity).
+## The rarity color to render an item's label in (neutral gray only when the slot is empty).
 static func slot_display_color(item: Resource) -> Color:
 	if item == null:
 		return Color(0.6, 0.6, 0.6)
@@ -196,7 +195,7 @@ static func slot_display_color(item: Resource) -> Color:
 	if item is Weapon:
 		return RarityVisuals.color((item as Weapon).rarity)
 	if item is ConsumableItem:
-		return Color(0.6, 0.6, 0.6)
+		return RarityVisuals.color((item as ConsumableItem).rarity)
 	return Color.WHITE
 
 ## Combined display list for a Bag/Vault-shaped container's Gear + Weapon (+ Consumable, Bag-tab
