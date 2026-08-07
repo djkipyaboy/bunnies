@@ -12,16 +12,17 @@ var _resolved_bonus: int = -1
 func _on_resolved(bonus_quantity: int) -> void:
 	_resolved_bonus = bonus_quantity
 
-func _init() -> void:
+func _initialize() -> void:
 	var panel: SecondHelpingPanel = SecondHelpingPanel.new()
 	get_root().add_child(panel)
 	panel.second_helping_resolved.connect(_on_resolved)
+	await process_frame
 
 	panel.open_for(1)
 	_check(panel.is_open(), "open_for() shows the panel")
 	_check(panel.reel_count_for_test() == 1, "reel_count is respected (got %d)" % panel.reel_count_for_test())
 
-	# Verify cell text is actually rendered (not null from missing add_child())
+	# Verify cell text is actually rendered (tree has processed, so _ready() has been called)
 	var first_strip: ReelStripWidget = panel._reel_strips[0]
 	var cell_text: String = first_strip.cell_text_for_test(&"current")
 	_check(cell_text != "", "ReelStripWidget cell text is rendered (not blank)")
