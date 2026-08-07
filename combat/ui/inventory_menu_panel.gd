@@ -182,7 +182,8 @@ static func slot_display_text(item: Resource) -> String:
 	if item is Weapon:
 		return (item as Weapon).display_name
 	if item is ConsumableItem:
-		return "%s x%d" % [(item as ConsumableItem).display_name, (item as ConsumableItem).quantity]
+		var ci: ConsumableItem = item as ConsumableItem
+		return "%s (%s) x%d" % [ci.display_name, RarityVisuals.display_name(ci.rarity), ci.quantity]
 	return "?"
 
 ## The rarity color to render an item's label in (neutral gray when empty or a Consumable, which
@@ -1014,6 +1015,7 @@ func _confirm_discard_bag_item() -> void:
 		dropped.item_type = item.item_type
 		dropped.heal_amount = item.heal_amount
 		dropped.effect_type = item.effect_type
+		dropped.rarity = item.rarity
 		dropped.quantity = qty
 		if item.quantity <= 0:
 			_party_inventory.items.erase(item)
@@ -1275,7 +1277,7 @@ func _on_use_confirm_pressed() -> void:
 	if _use_pending_item == null or _use_target == null or not ConsumableEffects.has_effect(_use_pending_item, _use_target):
 		return
 	_use_result_message = ConsumableEffects.apply(_use_pending_item, _use_target)
-	_party_inventory.consume_item(_use_pending_item.item_type)
+	_party_inventory.consume_item(_use_pending_item.item_type, _use_pending_item.rarity)
 	_use_pending_item = null
 	_use_target = null
 	_rebuild()

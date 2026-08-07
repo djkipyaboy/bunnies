@@ -125,5 +125,39 @@ func _initialize() -> void:
 	_check(remaining_qty == quantity_before - 1, "commit() consumes exactly 1 unit of the staged (type, rarity) stack")
 	_check(c.item_use_reel != null and c.pending_item_base_heal == jam.heal_amount, "commit() wires the Item Reel + pending heal exactly like Healing Potion's existing path")
 
+	# --- Rare-rarity leg (final-review finding, 2026-08-02): the two findings that hid through 8 task
+	# reviews (InventoryMenuPanel's out-of-combat consume_item()/discard-duplicate missing the rarity
+	# arg) are specifically in the seam where a non-Common ConsumableItem flows through combat's Item
+	# Reel plumbing. That plumbing (MainPhasePlan/ItemMenuPanel/combat.gd) is already rarity-aware --
+	# this leg proves a Rare dish stages/consumes correctly through it, and stays a genuinely separate
+	# stack from the Common Jam cooked above (findings #1/#2 were about the out-of-combat UI, not this
+	# plumbing, but this is the exact seam a regression there would eventually surface through too).
+	var rare_berries: CraftingMaterial = CraftingMaterial.new()
+	rare_berries.material_type = &"forage_herb"
+	rare_berries.rarity = RarityVisuals.Rarity.RARE
+	rare_berries.quantity = 2
+	inv.give_material(rare_berries)
+	var rare_jam: ConsumableItem = CookingSystem.cook(&"wildberry_jam", RarityVisuals.Rarity.RARE, inv)
+	_check(rare_jam != null, "cooking Wildberry Jam at RARE directly via CookingSystem.cook() succeeds")
+
+	var common_jam_before_rare: ConsumableItem = inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON)
+	var common_qty_before_rare: int = common_jam_before_rare.quantity if common_jam_before_rare != null else 0
+	_check(rare_jam != common_jam_before_rare, "the Rare Jam is a genuinely separate PartyInventory.items entry from the earlier Common one")
+	_check(common_jam_before_rare == null or common_jam_before_rare.quantity == common_qty_before_rare, "the pre-existing Common Jam stack (if any remains) is untouched by cooking the Rare one")
+
+	_check(plan.can_stage_item(&"wildberry_jam", RarityVisuals.Rarity.RARE), "the Rare Jam is stageable via MainPhasePlan.can_stage_item() at RARE specifically")
+	plan.toggle_item(&"wildberry_jam", RarityVisuals.Rarity.RARE)
+	_check(plan.staged_item_type == &"wildberry_jam" and plan.staged_item_rarity == RarityVisuals.Rarity.RARE, "staging the Rare Jam sets staged_item_rarity == RARE (not COMMON)")
+
+	var rare_qty_before: int = rare_jam.quantity
+	plan.commit()
+	var rare_after: ConsumableItem = inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.RARE)
+	var rare_qty_after: int = rare_after.quantity if rare_after != null else 0
+	_check(rare_qty_after == rare_qty_before - 1, "commit() consumes exactly 1 unit from the RARE stack specifically")
+
+	var common_jam_after: ConsumableItem = inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON)
+	var common_qty_after: int = common_jam_after.quantity if common_jam_after != null else 0
+	_check(common_qty_after == common_qty_before_rare, "consuming the RARE stack leaves the Common stack's quantity completely untouched")
+
 	print(("ok" if _failures == 0 else "FAIL") + " Salvaging + Cooking professions end-to-end smoke test complete")
 	quit(_failures)

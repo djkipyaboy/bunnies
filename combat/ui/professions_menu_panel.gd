@@ -168,7 +168,17 @@ func _rebuild() -> void:
 		custom_minimum_size = Vector2(PANEL_W, total_h2)
 		size = custom_minimum_size
 
+## Whether either profession mini-game is currently pending resolution (final-review finding,
+## 2026-08-02): switching tabs while Tempering Reels/Second Helping is open leaves the OTHER
+## section (whichever one doesn't own the mini-game) built instead, so its resolve handler's
+## Bag-full feedback message has nowhere to render -- the grant/consequence still happens
+## correctly, only the failure feedback is lost. Mirrors the craft/cook controls' own
+## tempering_pending/second_helping_pending guards.
+func _mini_game_pending() -> bool:
+	return (_tempering_panel != null and _tempering_panel.is_open()) or (_second_helping_panel != null and _second_helping_panel.is_open())
+
 func _build_tab_row() -> void:
+	var mini_game_pending: bool = _mini_game_pending()
 	for i in range(TAB_ROW.size()):
 		var section_id: StringName = TAB_ROW[i][0]
 		var label: String = TAB_ROW[i][1]
@@ -178,12 +188,19 @@ func _build_tab_row() -> void:
 		btn.custom_minimum_size = Vector2(96.0, ROW_H)
 		if _active_section == section_id:
 			btn.modulate = Color(0.6, 1.0, 0.6)
+		btn.disabled = mini_game_pending
 		btn.pressed.connect(func() -> void: _on_tab_pressed(section_id))
 		add_child(btn)
 		_tab_buttons[section_id] = btn
 
 func _on_tab_pressed(section_id: StringName) -> void:
 	if section_id == _active_section:
+		return
+	# Defense-in-depth mirroring _on_craft_confirm_pressed()/_on_cook_confirm_pressed()'s own
+	# mid-mini-game re-press guards: a `_for_test()` hook emits `pressed` directly and bypasses
+	# Button.disabled entirely, so the real correctness guarantee lives here, not just in the
+	# disabled state _build_tab_row() sets above.
+	if _mini_game_pending():
 		return
 	_active_section = section_id
 	_rebuild()

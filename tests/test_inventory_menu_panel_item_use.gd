@@ -41,7 +41,7 @@ func _init() -> void:
 		if child is Button and (child as Button).text.begins_with("Healing Potion"):
 			found_button = child
 	_check(found_button != null, "the Bag grid renders a button for the owned potion")
-	_check(found_button.text == "Healing Potion x3", "the potion's grid button shows name and quantity")
+	_check(found_button.text == "Healing Potion (Common) x3", "the potion's grid button shows name, rarity, and quantity (final-review finding, 2026-08-02: matches ItemMenuPanel's existing rarity-aware label convention)")
 	_check(found_button.tooltip_text.find("Heals your target for 30 HP") != -1, "the potion's tooltip states its effect (got '%s')" % found_button.tooltip_text)
 	_check(found_button.tooltip_text.find("vs ") == -1, "a Consumable's tooltip has no bogus Gear/Weapon compare line (got '%s')" % found_button.tooltip_text)
 

@@ -1597,7 +1597,7 @@ func _refresh_main1_preview() -> void:
 	var staged_item_name: String = ""
 	if _plan.staged_item_type != &"":
 		var item: ConsumableItem = _party_inventory.find_item(_plan.staged_item_type, _plan.staged_item_rarity) if _party_inventory != null else null
-		staged_item_name = item.display_name if item != null else ""
+		staged_item_name = "%s (%s)" % [item.display_name, RarityVisuals.display_name(item.rarity)] if item != null else ""
 	if staged_item_name != "":
 		_items_button.text = "Items: %s ✓" % staged_item_name
 		_items_button.modulate = Color(0.6, 1.0, 0.6)
