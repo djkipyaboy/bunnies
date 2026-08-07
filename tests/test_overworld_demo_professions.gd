@@ -69,5 +69,29 @@ func _initialize() -> void:
 	scene._foraging_panel.press_bank_for_test()
 	_check(not scene._foraging_panel.is_open(), "banking the Foraging panel closes it, cleaning up after the regression check")
 
+	# Task 8 (2026-08-07 professions-playtest-fixes): none of the four panel toggles should be able
+	# to open on top of a live dialogue -- town_demo.gd's identical functions already guard on this;
+	# overworld_demo.gd's did not. Reuses the real friendly Villager already placed by
+	# overworld_demo.gd's _build_npcs() (mirrors tests/test_overworld_demo_npcs.gd's own technique
+	# for opening a real dialogue via _on_dialogue_requested).
+	var wanderer: Villager = scene._world.get_node("OverworldWanderer")
+	scene._on_dialogue_requested(wanderer.dialogue, wanderer)
+	_check(scene._dialogue_box.is_open(), "dialogue is open, ahead of the guard check")
+
+	scene._toggle_professions()
+	_check(not scene._professions_panel.is_open(), "_toggle_professions() is a no-op while dialogue is open")
+	scene._toggle_inventory()
+	_check(not scene._inventory_panel.visible, "_toggle_inventory() is a no-op while dialogue is open")
+	scene._toggle_stats()
+	_check(not scene._inventory_panel.visible, "_toggle_stats() is a no-op while dialogue is open")
+	scene._toggle_talents()
+	_check(not scene._talent_panel.visible, "_toggle_talents() is a no-op while dialogue is open")
+
+	scene._dialogue_box.close()
+	_check(not scene._dialogue_box.is_open(), "dialogue closed, sanity check ahead of the re-enable check")
+	scene._toggle_professions()
+	_check(scene._professions_panel.is_open(), "_toggle_professions() works again once dialogue is closed")
+	scene._toggle_professions()
+
 	print("ok overworld_demo Professions wiring smoke test complete")
 	quit()
