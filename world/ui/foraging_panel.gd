@@ -33,10 +33,20 @@ const PANEL_H: float = 222.0
 
 ## Fixed display order for the 4 tiers, matching ForagingMinigame.TIERS's own order exactly.
 const TIER_DISPLAY_ORDER: Array[String] = ["Meager", "Modest", "Bountiful", "Bumper Crop"]
+## Short labels for the reel-FACE cells only (Task 10, 2026-08-07 professions-playtest-fixes) --
+## "Bumper Crop" doesn't fit ReelStripWidget's CELL_W. Every other display path (the result
+## description in _refresh(), current_tier_name_for_test()) keeps reading the tier's real, full
+## "name" field untouched -- only the 3 set_cells() arguments in _refresh_spin_visual() use this.
+const REEL_FACE_LABEL: Dictionary = {
+	"Bumper Crop": "Bumper",
+}
 ## [ASSUMPTION] spin duration/visual tick rate (2026-08-02 gathering-playtest-fixes spec section 8),
 ## tuned at playtest.
 const SPIN_DURATION_SECONDS: float = 0.6
 const SPIN_TICK_SECONDS: float = 0.08
+
+static func _reel_face_label(tier_name: String) -> String:
+	return REEL_FACE_LABEL.get(tier_name, tier_name)
 
 var _minigame: ForagingMinigame
 var _material_type: StringName
@@ -150,7 +160,7 @@ func _refresh_spin_visual() -> void:
 	var prev_name: String = TIER_DISPLAY_ORDER[prev_index]
 	var current_name: String = TIER_DISPLAY_ORDER[_spin_visual_index]
 	var next_name: String = TIER_DISPLAY_ORDER[next_index]
-	_reel_strip.set_cells(prev_name, current_name, next_name,
+	_reel_strip.set_cells(_reel_face_label(prev_name), _reel_face_label(current_name), _reel_face_label(next_name),
 		false, false, false,
 		_color_for_tier_name(prev_name), _color_for_tier_name(current_name), _color_for_tier_name(next_name))
 

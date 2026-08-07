@@ -110,5 +110,18 @@ func _initialize() -> void:
 	_check(ForagingPanel._color_for_tier_name("Bumper Crop") == RarityVisuals.color(RarityVisuals.Rarity.EPIC), "Bumper Crop maps to the Epic (purple) color")
 	_check(ForagingPanel._color_for_tier_name("Not A Real Tier") == Color.WHITE, "an unrecognized tier name falls back to white rather than erroring")
 
+	# Task 10 (2026-08-07 professions-playtest-fixes): "Bumper Crop" is too long to fit
+	# ReelStripWidget's CELL_W, so the reel FACE specifically shows the shortened "Bumper" --
+	# everything else (the result description, current_tier_name_for_test()) keeps the full name.
+	var task10_panel: ForagingPanel = ForagingPanel.new()
+	get_root().add_child(task10_panel)
+	await process_frame
+	var bumper_tiers: Array[Dictionary] = [{"name": "Bumper Crop", "quantity_multiplier": 2, "quality_bonus": 1}]
+	task10_panel.open_for(&"forage_herb", "Wild Berries", 1, PartyInventory.new(), bumper_tiers)
+	task10_panel.advance_spin_for_test(ForagingPanel.SPIN_DURATION_SECONDS + 0.05)
+	_check(task10_panel.current_tier_name_for_test() == "Bumper Crop", "the underlying tier's full name is untouched")
+	_check(task10_panel.reel_strip_for_test().cell_text_for_test(&"current") == "Bumper", "the reel-face CELL specifically shows the shortened \"Bumper\", not the full \"Bumper Crop\"")
+	task10_panel.queue_free()
+
 	panel.free()
 	quit()
