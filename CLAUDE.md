@@ -2252,3 +2252,68 @@ subagent-driven, directly on `main`:
   mouse), Fishing's snug top/bottom margin, the previously-parked 5-reel layout now rendering at 2x,
   and note that Meager will correctly read as plain white (that's `RarityVisuals` Common, expected,
   not a missing color).
+
+**SHIPPED 2026-08-06 — SALVAGING + COOKING PROFESSIONS (with opt-in bonus mini-games), merged to
+`main`, human playtest still pending.** Closes out all four professions named in
+`docs/design-bible/27-crafting.md` §11 — Foraging/Fishing shipped 2026-08-01/02 (above), this ships
+the remaining two. Brainstormed → spec'd
+(`docs/superpowers/specs/2026-08-02-salvaging-and-cooking-professions-design.md`) → planned
+(`docs/superpowers/plans/2026-08-02-salvaging-professions-foundation.md` +
+`2026-08-02-cooking-profession.md`) → built in an isolated worktree
+(`worktree-salvaging-and-cooking-professions`), merged via `371c189`, with 2 rounds of final-review
+fixes (`6962cf2`, `3a947fa`):
+- **Salvaging** — Break Down any unequipped Bag Gear into rarity-tagged `&"salvage_scrap"`
+  `CraftingMaterial` (yield 1/2/3/1/1 by slot, `[ASSUMPTION]`); Craft consumes Scrap 1:1 into new
+  armor via a new `RecipeLibrary` (mirrors `ShopLibrary`/`EnemyLibrary`'s static-registry
+  convention), reusing the shop's existing per-slot stat progression under new "Handcrafted" display
+  names. Weapons are never salvageable.
+- **Cooking** — 2 recipes (Wildberry Jam from 2 Wild Berries, Roasted Fish from 1 fish of any
+  Fishing catch type) producing healing consumables whose rarity mirrors the consumed material's
+  rarity, reusing the existing `ConsumableItem`/`ConsumableEffects` heal machinery untouched.
+- **`BonusReel`** (new) — a 5th `Reel` subclass (alongside Initiative/Action/TeamUp/Fishing, per
+  CLAUDE.md §2's "one dedicated subclass per genuinely distinct face-data shape" rule), carrying
+  `bonus_mode`/`bonus_magnitude` on `ReelFace`, shared by both new mini-games since their face shape
+  is identical. Like `FishingReel`, it has no `spin()` override — both mini-games read `faces[]`
+  directly.
+- **Tempering Reels** (Salvaging's opt-in mini-game, offered before confirming a Craft) — reuses
+  Fishing's exact manual-stop mechanic (`advance(delta)`/`stop(col)`); N+1 reels (N =
+  `RarityVisuals.max_stat_affixes(rarity)`) let the player beat the deterministic craft stats,
+  never fall below them (every face is baseline-or-better, matching the Item Reel's "never worse
+  than skipping" convention).
+- **Second Helping** (Cooking's opt-in mini-game) — mirrors `ForagingMinigame`'s spin/reroll/bank
+  shape (exactly 1 reroll, not Foraging's pool of 3, per player direction); extra quantity only,
+  never below the deterministic yield.
+- **`ProfessionsMenuPanel`** (new, `combat/ui/professions_menu_panel.gd`, `P` hotkey — confirmed
+  unused in the input map) — Salvaging + Cooking sections, wired into town/overworld/dungeon with
+  this project's standard modal-guard convention (pauses PC movement, mutually exclusive with every
+  other panel, including a guard against a stray Craft re-press mid-mini-game).
+- **Rarity-aware stacking fix (closes a pre-existing, previously-flagged bug)** —
+  `PartyInventory.give_material()`/`give_item()`/`try_give_item()` merge keys became
+  `(type, rarity, quality_tier)` for materials and `(item_type, rarity)` for consumables — the
+  Fishing ship notes had already flagged that a same-`material_type` merge silently dropped the
+  incoming stack's `quality_tier`; fixed here while the function was already being touched for
+  rarity.
+- **Combat's Item Reel plumbing made rarity-aware** — cooked food can now exist as two
+  simultaneous same-`item_type`-different-rarity stacks (impossible for the sole pre-existing
+  consumer, Healing Potion, which stays Common-only), so `PartyInventory.find_item`/`consume_item`
+  gained a `rarity` param, `MainPhasePlan` gained `staged_item_rarity` alongside
+  `staged_item_type`, and `ItemMenuPanel` keys its rows by a compound `"%s_%d" % [item_type,
+  rarity]` string (mirroring `InventoryMenuPanel._slot_buttons`'s existing compound-key
+  convention) — so both rarities of the same food show and stage independently.
+- **`tests/test_professions_e2e.gd`** — this project's standard closing whole-feature smoke test
+  (see [[test-both-handoff-paths]]/memory `silent-script-error-exits-zero-gotcha` for why this
+  project always adds one — cross-task wiring gaps have repeatedly survived individual task review
+  until an end-to-end test caught them).
+- **Final-review gaps closed same session (`3a947fa`)**: rarity-aware out-of-combat item
+  use/discard, a mini-game-pending tab-lock gap in `ProfessionsMenuPanel`, and added e2e rarity
+  coverage.
+- **Verified-by-machine vs your call (§5 hard ceiling)**: a full 302-file headless sweep was
+  re-run 2026-08-07 to confirm nothing regressed since the merge — clean throughout except the
+  pre-existing, unrelated, already-documented `tests/test_dungeon_demo.gd` `SCRIPT ERROR`
+  (`_refresh_location_label` running with `_location_label` still null), confirmed identical, not
+  touched by this work. **CLAUDE.md's own status section had gone unupdated for ~25 commits of this
+  work** before this entry — a housekeeping gap worth watching for going forward. **A human has not
+  yet playtested this live** — launch `town_demo.tscn`, cook both recipes (with and without Second
+  Helping), confirm food shows correctly in `InventoryMenuPanel`'s Bag tab at the right rarity, and
+  confirm it's usable both via the out-of-combat Use flow and inside a real `combat.tscn` fight via
+  the Items menu; also playtest Salvaging's Break Down/Craft/Tempering Reels flow end to end.
