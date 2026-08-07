@@ -85,6 +85,48 @@ const SLOT_LABELS: Dictionary = {
 static func slot_label(slot: int) -> String:
 	return SLOT_LABELS.get(slot, "?")
 
+## Display names for Cooking's raw material_type ids, for tooltip text only -- the real display
+## name normally only exists on a live CraftingMaterial instance (set at gathering time in
+## overworld_demo.gd), so a recipe with none of that material owned yet still needs a name to show.
+## Deliberately a small local table (only 4 ids exist across both recipes) rather than a shared
+## registry -- YAGNI per CLAUDE.md §7 until a 3rd gathering profession needs the same lookup.
+const MATERIAL_DISPLAY_NAMES: Dictionary = {
+	&"forage_herb": "Wild Berries",
+	&"fish_small": "Minnow",
+	&"fish_medium": "Freshwater Fish",
+	&"fish_large": "Prize Bass",
+}
+
+## Human-readable "1x Minnow, Freshwater Fish, or Prize Bass" style join of a cooking recipe's
+## accepted input material_types.
+static func _material_names_joined(material_types: Array) -> String:
+	var names: Array[String] = []
+	for t: StringName in material_types:
+		names.append(MATERIAL_DISPLAY_NAMES.get(t, String(t)))
+	if names.size() == 1:
+		return names[0]
+	if names.size() == 2:
+		return "%s or %s" % [names[0], names[1]]
+	var head: String = ", ".join(names.slice(0, names.size() - 1))
+	return "%s, or %s" % [head, names[names.size() - 1]]
+
+func _craft_slot_tooltip(slot: int) -> String:
+	if _craft_rarity == -1:
+		return "Select a rarity to see the Scrap cost."
+	return "Costs %d Salvage Scrap (%s)." % [RecipeLibrary.craft_cost_for_slot(slot), RarityVisuals.display_name(_craft_rarity)]
+
+func _craft_rarity_tooltip(rarity: int) -> String:
+	if _craft_slot == -1:
+		return "Select a slot to see the Scrap cost."
+	return "Costs %d Salvage Scrap (%s)." % [RecipeLibrary.craft_cost_for_slot(_craft_slot), RarityVisuals.display_name(rarity)]
+
+static func _cooking_recipe_tooltip(recipe_id: StringName) -> String:
+	var recipe: Dictionary = RecipeLibrary.find_cooking_recipe(recipe_id)
+	if recipe.is_empty():
+		return ""
+	var names: String = _material_names_joined(recipe["input_material_types"])
+	return "Requires %dx %s (any one rarity)." % [int(recipe["input_quantity"]), names]
+
 ## --- Cooking section state (task 7) ---
 
 var _cooking_recipe_id: StringName = &""
@@ -317,6 +359,7 @@ func _build_craft_section(craft_top: float) -> void:
 		btn.text = slot_label(slot)
 		if slot == _craft_slot:
 			btn.text += "  ✓"
+		btn.tooltip_text = _craft_slot_tooltip(slot)
 		btn.position = Vector2(PAD + float(i) * 92.0, craft_top + ROW_H)
 		btn.custom_minimum_size = Vector2(88.0, ROW_H)
 		btn.disabled = tempering_pending
@@ -330,6 +373,7 @@ func _build_craft_section(craft_top: float) -> void:
 		btn.text = RarityVisuals.display_name(rarity)
 		if rarity == _craft_rarity:
 			btn.text += "  ✓"
+		btn.tooltip_text = _craft_rarity_tooltip(rarity)
 		btn.position = Vector2(PAD + float(i) * 80.0, craft_top + ROW_H * 2.0)
 		btn.custom_minimum_size = Vector2(76.0, ROW_H)
 		btn.disabled = tempering_pending
@@ -543,6 +587,7 @@ func _build_cooking_section(top: float) -> float:
 		btn.text = recipe["display_name"]
 		if recipe_id == _cooking_recipe_id:
 			btn.text += "  ✓"
+		btn.tooltip_text = _cooking_recipe_tooltip(recipe_id)
 		btn.position = Vector2(PAD, top + ROW_H + float(i) * ROW_H)
 		btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
 		btn.disabled = second_helping_pending
@@ -758,3 +803,12 @@ func cook_message_for_test() -> String:
 
 func inventory_strip_row_count_for_test() -> int:
 	return _inventory_strip_row_count
+
+func craft_slot_tooltip_for_test(slot: int) -> String:
+	return _slot_buttons[slot].tooltip_text
+
+func craft_rarity_tooltip_for_test(rarity: int) -> String:
+	return _rarity_buttons[rarity].tooltip_text
+
+func cooking_recipe_tooltip_for_test(recipe_id: StringName) -> String:
+	return _recipe_buttons[recipe_id].tooltip_text

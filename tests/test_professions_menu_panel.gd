@@ -377,5 +377,28 @@ func _initialize() -> void:
 	_check(strip_panel.inventory_strip_row_count_for_test() == 2, "inventory strip shows 1 material row + 1 gear row (got %d)" % strip_panel.inventory_strip_row_count_for_test())
 	strip_panel.queue_free()
 
+	# Task 3 (2026-08-07 professions-playtest-fixes): hover tooltips show each recipe's actual
+	# required inputs so the player doesn't have to guess or check the design doc.
+	var tooltip_inv: PartyInventory = PartyInventory.new()
+	var tooltip_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(tooltip_panel)
+	await process_frame
+	tooltip_panel.open_for(tooltip_inv)
+
+	# Before any rarity is picked, the slot tooltip is a generic prompt rather than a wrong number.
+	_check(tooltip_panel.craft_slot_tooltip_for_test(Gear.Slot.CHEST).find("rarity") != -1, "Chest slot tooltip prompts for a rarity before one is picked")
+
+	tooltip_panel.select_craft_rarity_for_test(RarityVisuals.Rarity.RARE)
+	_check(tooltip_panel.craft_slot_tooltip_for_test(Gear.Slot.CHEST) == "Costs 3 Salvage Scrap (Rare).", "Chest slot tooltip shows the correct Scrap cost once a rarity is picked (got: %s)" % tooltip_panel.craft_slot_tooltip_for_test(Gear.Slot.CHEST))
+	_check(tooltip_panel.craft_rarity_tooltip_for_test(RarityVisuals.Rarity.RARE).find("Select a slot") != -1, "Rarity tooltip prompts for a slot before one is picked")
+
+	tooltip_panel.select_craft_slot_for_test(Gear.Slot.CLOAK)
+	_check(tooltip_panel.craft_rarity_tooltip_for_test(RarityVisuals.Rarity.EPIC) == "Costs 2 Salvage Scrap (Epic).", "Cloak rarity tooltip shows the correct Scrap cost once a slot is picked (got: %s)" % tooltip_panel.craft_rarity_tooltip_for_test(RarityVisuals.Rarity.EPIC))
+
+	tooltip_panel.switch_to_cooking_for_test()
+	_check(tooltip_panel.cooking_recipe_tooltip_for_test(&"wildberry_jam") == "Requires 2x Wild Berries (any one rarity).", "Wildberry Jam tooltip shows its real material requirement (got: %s)" % tooltip_panel.cooking_recipe_tooltip_for_test(&"wildberry_jam"))
+	_check(tooltip_panel.cooking_recipe_tooltip_for_test(&"roasted_fish") == "Requires 1x Minnow, Freshwater Fish, or Prize Bass (any one rarity).", "Roasted Fish tooltip shows its real material requirement (got: %s)" % tooltip_panel.cooking_recipe_tooltip_for_test(&"roasted_fish"))
+	tooltip_panel.queue_free()
+
 	print("ok ProfessionsMenuPanel (Salvaging + Cooking) smoke test complete")
 	quit()
