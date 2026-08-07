@@ -366,6 +366,7 @@ func _build_inventory_demo() -> void:
 	_professions_panel.position = Vector2(380, 20)
 	_professions_panel.hide()
 	_ui_layer.add_child(_professions_panel)
+	_professions_panel.set_log_fn(func(line: String) -> void: _handoff().log_event(line, _handoff().CATEGORY_CRAFTING))
 
 	_vendor_prompt_panel = VendorPromptPanel.new()
 	_vendor_prompt_panel.hide()

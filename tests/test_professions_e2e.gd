@@ -86,6 +86,22 @@ func _initialize() -> void:
 			new_chest = g
 	_check(new_chest != null, "a new Chest piece was crafted through the full Salvage -> Tempering Reels -> Craft loop")
 
+	# Task 5 (2026-08-07 professions-playtest-fixes): the Break Down + Craft actions just performed
+	# above went through the REAL _professions_panel from town_demo.tscn, which town_demo.gd now
+	# wires to the real CombatHandoff.log_event -- proving this here (rather than only via
+	# set_log_fn_for_test on a standalone panel) is what actually confirms the production wiring,
+	# not just the panel's own internal Callable-invocation logic. This test extends SceneTree, so
+	# (per the established convention in test_bench_survives_combat.gd/test_shop_stock_survives_
+	# combat.gd) the bare `CombatHandoff` identifier doesn't compile here -- fetch the autoload node
+	# explicitly, confirmed empirically (RED: "Compile Error: Identifier not found: CombatHandoff")
+	# before switching to this pattern.
+	var combat_handoff: Node = get_root().get_node("CombatHandoff")
+	var crafting_entries: int = 0
+	for entry: Dictionary in combat_handoff.event_log_entries:
+		if entry["category"] == combat_handoff.CATEGORY_CRAFTING:
+			crafting_entries += 1
+	_check(crafting_entries >= 2, "the real town_demo.tscn scene's Professions panel logged both the Break Down and the Craft to CombatHandoff (got %d Crafting entries)" % crafting_entries)
+
 	# Cook Wildberry Jam with Second Helping, then use it via the SAME item-staging path Healing
 	# Potion already uses (MainPhasePlan.toggle_item / PartyInventory.find_item/consume_item).
 	panel.switch_to_cooking_for_test()

@@ -400,5 +400,33 @@ func _initialize() -> void:
 	_check(tooltip_panel.cooking_recipe_tooltip_for_test(&"roasted_fish") == "Requires 1x Minnow, Freshwater Fish, or Prize Bass (any one rarity).", "Roasted Fish tooltip shows its real material requirement (got: %s)" % tooltip_panel.cooking_recipe_tooltip_for_test(&"roasted_fish"))
 	tooltip_panel.queue_free()
 
+	# Task 5 (2026-08-07 professions-playtest-fixes): Break Down / Craft / Cook each report one
+	# line through whatever log_fn the panel wires up, tagged CATEGORY_CRAFTING.
+	var logged: Array = []
+	var log_inv: PartyInventory = PartyInventory.new()
+	var log_cloak: Gear = Gear.new()
+	log_cloak.display_name = "Traveler's Cloak"
+	log_cloak.slot = Gear.Slot.CLOAK
+	log_cloak.rarity = RarityVisuals.Rarity.UNCOMMON
+	log_inv.gear = [log_cloak]
+
+	var log_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(log_panel)
+	await process_frame
+	log_panel.set_log_fn_for_test(func(line: String) -> void: logged.append(line))
+	log_panel.open_for(log_inv)
+
+	log_panel.select_breakdown_item_for_test(0)
+	log_panel.press_breakdown_confirm_for_test()
+	_check(logged.size() == 1, "Break Down logs exactly one line (got %d)" % logged.size())
+	_check(logged[0].find("Traveler's Cloak") != -1 and logged[0].find("Salvage Scrap") != -1, "the logged Break Down line names both the salvaged item and the material it produced (got: %s)" % (logged[0] if logged.size() > 0 else "<none>"))
+
+	log_panel.select_craft_slot_for_test(Gear.Slot.CLOAK)
+	log_panel.select_craft_rarity_for_test(RarityVisuals.Rarity.UNCOMMON)
+	log_panel.press_craft_confirm_for_test()
+	_check(logged.size() == 2, "Craft logs exactly one more line (got %d total)" % logged.size())
+	_check(logged[1].find("Handcrafted Cloak") != -1, "the logged Craft line names the crafted item (got: %s)" % (logged[1] if logged.size() > 1 else "<none>"))
+	log_panel.queue_free()
+
 	print("ok ProfessionsMenuPanel (Salvaging + Cooking) smoke test complete")
 	quit()

@@ -63,6 +63,9 @@ func _initialize() -> void:
 	_check(CombatHandoff.is_gate_unlocked(&"never_unlocked") == false, "a gate never marked reads false")
 	CombatHandoff.mark_gate_unlocked(&"dungeon_floor3_to_4_gate")
 	_check(CombatHandoff.is_gate_unlocked(&"dungeon_floor3_to_4_gate") == true, "a marked gate reads true")
+	# Task 5 (2026-08-07 professions-playtest-fixes): Salvaging/Cooking get their own event-log
+	# category, separate from Loot/Combat/Party, per the player's own request.
+	_check(CombatHandoff.CATEGORY_CRAFTING == &"crafting", "CombatHandoff exposes a Crafting category")
 	CombatHandoff.mark_gate_unlocked(&"dungeon_floor3_to_4_gate")
 	var gate_count: int = 0
 	for id: StringName in CombatHandoff.unlocked_gate_ids:

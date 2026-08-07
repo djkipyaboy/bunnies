@@ -25,7 +25,7 @@ const MAX_ENTRIES: int = 50
 ## Tab order: &"" (empty key) = All, no filter. One Button per entry, built left-to-right in
 ## TAB_ROW order — mirrors InventoryMenuPanel's own TAB_ROW convention.
 const TAB_ROW: Array = [
-	[&"", "All"], [&"loot", "Loot"], [&"combat", "Combat"], [&"party", "Party"],
+	[&"", "All"], [&"loot", "Loot"], [&"combat", "Combat"], [&"party", "Party"], [&"crafting", "Crafting"],
 ]
 
 var _log_box: RichTextLabel

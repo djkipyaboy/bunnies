@@ -78,6 +78,7 @@ const MAX_EVENT_LOG_LINES: int = 50
 const CATEGORY_LOOT: StringName = &"loot"
 const CATEGORY_COMBAT: StringName = &"combat"
 const CATEGORY_PARTY: StringName = &"party"
+const CATEGORY_CRAFTING: StringName = &"crafting"
 
 signal event_logged(line: String, category: StringName)
 

@@ -10,7 +10,9 @@ const SCRAP_MATERIAL_TYPE: StringName = &"salvage_scrap"
 ## Consumes [param gear_item] from [param inventory]'s Bag and grants Scrap at its rarity. Returns
 ## the granted (or merged-into) CraftingMaterial. Caller is responsible for confirming gear_item is
 ## actually unequipped/in the Bag before calling -- mirrors the existing Discard flow's own contract.
-static func break_down(gear_item: Gear, inventory: PartyInventory) -> CraftingMaterial:
+static func break_down(gear_item: Gear, inventory: PartyInventory, log_fn: Callable = Callable()) -> CraftingMaterial:
+	var gear_name: String = gear_item.display_name
+	var gear_rarity: int = gear_item.rarity
 	inventory.gear.erase(gear_item)
 	# RecipeLibrary's yield/cost table has no CHARM_2 entry -- normalize the same way
 	# build_crafted_gear() already does, without altering gear_item.slot itself.
@@ -19,15 +21,19 @@ static func break_down(gear_item: Gear, inventory: PartyInventory) -> CraftingMa
 	var m: CraftingMaterial = CraftingMaterial.new()
 	m.material_type = SCRAP_MATERIAL_TYPE
 	m.display_name = "Salvage Scrap"
-	m.rarity = gear_item.rarity
+	m.rarity = gear_rarity
 	m.quantity = yield_amount
 	inventory.give_material(m)
 	# give_material() may have merged into a pre-existing stack rather than appending `m` itself --
 	# return whichever CraftingMaterial instance now actually holds this rarity's stack.
+	var result: CraftingMaterial = m
 	for existing: CraftingMaterial in inventory.materials:
-		if existing.material_type == SCRAP_MATERIAL_TYPE and existing.rarity == gear_item.rarity:
-			return existing
-	return m
+		if existing.material_type == SCRAP_MATERIAL_TYPE and existing.rarity == gear_rarity:
+			result = existing
+			break
+	if log_fn.is_valid():
+		log_fn.call("Salvaged %s → %dx Salvage Scrap (%s)." % [gear_name, yield_amount, RarityVisuals.display_name(gear_rarity)])
+	return result
 
 ## Whether the party owns enough Scrap of [param rarity] to afford [param slot]'s recipe.
 static func can_craft(slot: int, rarity: int, inventory: PartyInventory) -> bool:
@@ -49,7 +55,7 @@ static func can_craft(slot: int, rarity: int, inventory: PartyInventory) -> bool
 ## can_craft() is false, or because the Bag is full when it comes time to actually grant the result
 ## (Scrap must never be spent for nothing -- build the Gear and attempt the grant BEFORE touching
 ## the Scrap stack, so a failed try_give_gear() has nothing left to refund).
-static func craft(slot: int, rarity: int, inventory: PartyInventory, bonus_stats: Stats = null) -> Gear:
+static func craft(slot: int, rarity: int, inventory: PartyInventory, bonus_stats: Stats = null, log_fn: Callable = Callable()) -> Gear:
 	if not can_craft(slot, rarity, inventory):
 		return null
 	# Normalize CHARM_2 -> CHARM for the cost lookup only -- build_crafted_gear() below preserves
@@ -67,4 +73,6 @@ static func craft(slot: int, rarity: int, inventory: PartyInventory, bonus_stats
 			if m.quantity <= 0:
 				inventory.materials.erase(m)
 			break
+	if log_fn.is_valid():
+		log_fn.call("Crafted %s (%s)." % [g.display_name, RarityVisuals.display_name(rarity)])
 	return g

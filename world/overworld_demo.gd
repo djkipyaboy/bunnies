@@ -297,6 +297,7 @@ func _build_ui() -> void:
 	_professions_panel.position = Vector2(380, 20)
 	_professions_panel.hide()
 	ui.add_child(_professions_panel)
+	_professions_panel.set_log_fn(func(line: String) -> void: _handoff().log_event(line, _handoff().CATEGORY_CRAFTING))
 
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)

@@ -21,6 +21,15 @@ const TAB_ROW: Array = [
 	[&"cooking", "Cooking"],
 ]
 
+## Invoked with (line: String) on a successful Break Down/Craft/Cook, tagged CATEGORY_CRAFTING by
+## whoever wires this up (town_demo.gd/overworld_demo.gd/dungeon_demo.gd, Task 6). An invalid
+## (default) Callable means "don't log" -- keeps this panel usable in isolation/tests with zero
+## CombatHandoff dependency, mirroring SalvageSystem/CookingSystem's own log_fn convention.
+var _log_fn: Callable = Callable()
+
+func set_log_fn(fn: Callable) -> void:
+	_log_fn = fn
+
 var _inventory: PartyInventory
 var _tempering_panel: TemperingReelsPanel
 var _second_helping_panel: SecondHelpingPanel
@@ -335,7 +344,7 @@ func _on_breakdown_confirm_pressed() -> void:
 	if _breakdown_selected_index == -1 or _breakdown_selected_index >= _inventory.gear.size():
 		return
 	var g: Gear = _inventory.gear[_breakdown_selected_index]
-	SalvageSystem.break_down(g, _inventory)
+	SalvageSystem.break_down(g, _inventory, _log_fn)
 	_breakdown_selected_index = -1
 	_rebuild()
 
@@ -539,7 +548,7 @@ func _on_craft_confirm_pressed() -> void:
 		# SalvageSystem.craft() returns null (and spends NOTHING) when the Bag fills up between this
 		# button being enabled and this press actually running -- surface that instead of silently
 		# discarding the attempt (final-review finding).
-		var g: Gear = SalvageSystem.craft(_craft_slot, _craft_rarity, _inventory)
+		var g: Gear = SalvageSystem.craft(_craft_slot, _craft_rarity, _inventory, null, _log_fn)
 		_craft_message = "" if g != null else "Bag full -- nothing was crafted."
 		_craft_slot = -1
 		_craft_rarity = -1
@@ -551,7 +560,7 @@ func _on_tempering_resolved(bonus_stats: Stats) -> void:
 	# -- the whole played-out spin is otherwise discarded with zero feedback (final-review finding:
 	# this is the worse of the two silent-failure paths, since the player just finished playing a
 	# mini-game for nothing).
-	var g: Gear = SalvageSystem.craft(_pending_craft_slot, _pending_craft_rarity, _inventory, bonus_stats)
+	var g: Gear = SalvageSystem.craft(_pending_craft_slot, _pending_craft_rarity, _inventory, bonus_stats, _log_fn)
 	_craft_message = "" if g != null else "Bag full -- the crafted item was lost."
 	_pending_craft_slot = -1
 	_pending_craft_rarity = -1
@@ -715,7 +724,7 @@ func _on_cook_confirm_pressed() -> void:
 		# CookingSystem.cook() returns null (and consumes NOTHING) when the Bag fills up between this
 		# button being enabled and this press actually running -- surface that instead of silently
 		# discarding the attempt (mirrors _on_craft_confirm_pressed()'s identical convention).
-		var item: ConsumableItem = CookingSystem.cook(_cooking_recipe_id, _cooking_rarity, _inventory)
+		var item: ConsumableItem = CookingSystem.cook(_cooking_recipe_id, _cooking_rarity, _inventory, 0, _log_fn)
 		_cook_message = "" if item != null else "Bag full -- nothing was cooked."
 		_cooking_recipe_id = &""
 		_cooking_rarity = -1
@@ -726,7 +735,7 @@ func _on_second_helping_resolved(bonus_quantity: int) -> void:
 	# A null result here means the Bag filled up (via some other action) WHILE the mini-game was open
 	# -- mirrors _on_tempering_resolved()'s identical "the whole played-out mini-game would otherwise
 	# be discarded with zero feedback" rationale.
-	var item: ConsumableItem = CookingSystem.cook(_pending_cook_recipe_id, _pending_cook_rarity, _inventory, bonus_quantity)
+	var item: ConsumableItem = CookingSystem.cook(_pending_cook_recipe_id, _pending_cook_rarity, _inventory, bonus_quantity, _log_fn)
 	_cook_message = "" if item != null else "Bag full -- the cooked dish was lost."
 	_pending_cook_recipe_id = &""
 	_pending_cook_rarity = -1
@@ -812,3 +821,6 @@ func craft_rarity_tooltip_for_test(rarity: int) -> String:
 
 func cooking_recipe_tooltip_for_test(recipe_id: StringName) -> String:
 	return _recipe_buttons[recipe_id].tooltip_text
+
+func set_log_fn_for_test(fn: Callable) -> void:
+	set_log_fn(fn)
