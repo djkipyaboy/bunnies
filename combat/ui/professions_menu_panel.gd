@@ -111,12 +111,27 @@ func _ready() -> void:
 	scale = Vector2(2.0, 2.0)
 
 	_tempering_panel = TemperingReelsPanel.new()
-	_tempering_panel.position = Vector2(PANEL_W + 20.0, 0.0)
+	_tempering_panel.top_level = true
+	_tempering_panel.scale = Vector2(2.0, 2.0)
+	# Screen-centered on the 1600x900 window, independent of this panel's own position/scale --
+	# TemperingReelsPanel.PANEL_W=420/PANEL_H=220 scaled 2x = 840x440; (1600-840)/2=380, (900-440)/2=230.
+	# top_level=true makes this ignore ProfessionsMenuPanel's own scale/position entirely (Task 1
+	# fix round 1, 2026-08-07 professions-playtest-fixes) -- without it, being a plain child of a
+	# 2x-scaled parent cumulatively double-scales this panel and pushes its 2nd reel column off the
+	# right edge of the window.
+	_tempering_panel.position = Vector2(380.0, 230.0)
 	_tempering_panel.tempering_resolved.connect(_on_tempering_resolved)
 	add_child(_tempering_panel)
 
 	_second_helping_panel = SecondHelpingPanel.new()
-	_second_helping_panel.position = Vector2(PANEL_W + 20.0, 240.0)
+	_second_helping_panel.top_level = true
+	_second_helping_panel.scale = Vector2(2.0, 2.0)
+	# Screen-centered on the 1600x900 window, independent of this panel's own position/scale --
+	# SecondHelpingPanel.PANEL_W=320/PANEL_H=160 scaled 2x = 640x320; (1600-640)/2=480, (900-320)/2=290.
+	# Same top_level rationale as _tempering_panel above -- without it, the cumulative 2x scale from
+	# being a plain child pushed the Bank button (the ONLY way to close this mini-game) entirely off
+	# the 1600px window, a genuine soft-lock.
+	_second_helping_panel.position = Vector2(480.0, 290.0)
 	_second_helping_panel.second_helping_resolved.connect(_on_second_helping_resolved)
 	add_child(_second_helping_panel)
 
