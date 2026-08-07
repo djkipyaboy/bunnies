@@ -2,19 +2,28 @@ class_name ProfessionsMenuPanel
 extends Panel
 
 ## Non-modal floating professions menu (2026-08-02 salvaging-and-cooking professions design section
-## 5). This task builds ONLY the Salvaging section (Break Down / Craft) -- the Cooking plan adds a
-## second section + a tab selector on top of this file. Built the same way as
-## InventoryMenuPanel/TalentMenuPanel: manually positioned child Controls, no .tscn, _for_test()
-## hooks that drive it programmatically.
+## 5). Two sections behind a tab selector: Salvaging (Break Down / Craft) and Cooking. Built the
+## same way as InventoryMenuPanel/TalentMenuPanel: manually positioned child Controls, no .tscn,
+## _for_test() hooks that drive it programmatically. The Cooking section (task 7) applies the exact
+## same hardening the Salvaging section's own final review already required (bag-full feedback, a
+## mid-mini-game re-press guard) rather than the leaner shape the plan's own literal Step 3 snippet
+## showed -- see the Cooking-section comments below for the specific parallels.
 
 const PAD: float = 12.0
 const PANEL_W: float = 420.0
 const ROW_H: float = 26.0
 const MAX_VISIBLE_BREAKDOWN_ROWS: int = 12   # sane cap so a large Bag (20+ Gear items) can't push the
                                               # Craft section off-panel or overlap it (final-review finding)
+const TAB_ROW: Array = [
+	[&"salvaging", "Salvaging"],
+	[&"cooking", "Cooking"],
+]
 
 var _inventory: PartyInventory
 var _tempering_panel: TemperingReelsPanel
+var _second_helping_panel: SecondHelpingPanel
+var _active_section: StringName = &"salvaging"
+var _tab_buttons: Dictionary = {}   # StringName -> Button
 
 var _breakdown_selected_index: int = -1
 var _craft_slot: int = -1
@@ -54,6 +63,29 @@ var _craft_confirm_button: Button
 const ARMOR_SLOTS: Array[int] = [Gear.Slot.HEADWEAR, Gear.Slot.CLOAK, Gear.Slot.CHEST, Gear.Slot.HANDS, Gear.Slot.CHARM]
 const RARITIES: Array[int] = [RarityVisuals.Rarity.COMMON, RarityVisuals.Rarity.UNCOMMON, RarityVisuals.Rarity.RARE, RarityVisuals.Rarity.EPIC, RarityVisuals.Rarity.LEGENDARY]
 
+## --- Cooking section state (task 7) ---
+
+var _cooking_recipe_id: StringName = &""
+var _cooking_rarity: int = -1
+var _use_second_helping: bool = false
+
+## Mirrors _craft_message/_craft_message_label's exact convention: a failed-attempt outcome shown
+## until the next reselect/toggle/reopen, distinct from the live "why is Cook disabled" reason.
+var _cook_message: String = ""
+var _cook_message_label: Label
+
+## Mirrors _pending_craft_slot/_pending_craft_rarity's exact snapshot-guard convention -- see the
+## doc comment on those fields above for the full rationale (toggling Second Helping off then
+## re-pressing Cook while the mini-game is still open must not double-grant or resolve into a
+## meanwhile-reset recipe/rarity).
+var _pending_cook_recipe_id: StringName = &""
+var _pending_cook_rarity: int = -1
+
+var _recipe_buttons: Dictionary = {}          # StringName (recipe id) -> Button
+var _cooking_rarity_buttons: Dictionary = {}  # int (RarityVisuals.Rarity) -> Button
+var _second_helping_toggle: CheckBox
+var _cook_confirm_button: Button
+
 func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, 480.0)
 	size = custom_minimum_size
@@ -64,13 +96,23 @@ func _ready() -> void:
 	_tempering_panel.tempering_resolved.connect(_on_tempering_resolved)
 	add_child(_tempering_panel)
 
+	_second_helping_panel = SecondHelpingPanel.new()
+	_second_helping_panel.position = Vector2(PANEL_W + 20.0, 240.0)
+	_second_helping_panel.second_helping_resolved.connect(_on_second_helping_resolved)
+	add_child(_second_helping_panel)
+
 func open_for(inventory: PartyInventory) -> void:
 	_inventory = inventory
+	_active_section = &"salvaging"
 	_breakdown_selected_index = -1
 	_craft_slot = -1
 	_craft_rarity = -1
 	_use_tempering = false
 	_craft_message = ""
+	_cooking_recipe_id = &""
+	_cooking_rarity = -1
+	_use_second_helping = false
+	_cook_message = ""
 	_rebuild()
 	visible = true
 
@@ -82,33 +124,74 @@ func close() -> void:
 
 func _rebuild() -> void:
 	for child in get_children():
-		if child != _tempering_panel:
+		if child != _tempering_panel and child != _second_helping_panel:
 			child.queue_free()
 	_breakdown_buttons.clear()
 	_slot_buttons.clear()
 	_rarity_buttons.clear()
+	_recipe_buttons.clear()
+	_cooking_rarity_buttons.clear()
+	_tab_buttons.clear()
 
-	var title := Label.new()
-	title.text = "Salvaging"
-	title.position = Vector2(PAD, PAD)
-	add_child(title)
+	_build_tab_row()
 
-	_build_breakdown_section()
-	var craft_top: float = _breakdown_section_bottom + PAD
-	_build_craft_section(craft_top)
+	# Everything below the tab row is shifted down by one row + PAD compared to this file's
+	# pre-task-7 layout (which started its title at bare PAD) -- content_top is that shifted base,
+	# so every existing Salvaging position expression below is unchanged relative to IT.
+	var content_top: float = PAD + ROW_H + PAD
 
-	# Panel grows/shrinks to fit both sections -- fixes the 300.0-hardcoded craft_top that used to let
-	# a long Break Down list visually collide with (or escape past) the Craft section (final-review
-	# finding). The Craft section's own height is fixed (header/slots/rarities/toggle/confirm/message
-	# rows), so the only variable is craft_top.
-	var total_h: float = craft_top + ROW_H * 6.0 + PAD
-	custom_minimum_size = Vector2(PANEL_W, total_h)
-	size = custom_minimum_size
+	if _active_section == &"salvaging":
+		var title := Label.new()
+		title.text = "Salvaging"
+		title.position = Vector2(PAD, content_top)
+		add_child(title)
 
-func _build_breakdown_section() -> void:
+		_build_breakdown_section(content_top + ROW_H)
+		var craft_top: float = _breakdown_section_bottom + PAD
+		_build_craft_section(craft_top)
+
+		# Panel grows/shrinks to fit both sections -- fixes the 300.0-hardcoded craft_top that used to
+		# let a long Break Down list visually collide with (or escape past) the Craft section
+		# (final-review finding). The Craft section's own height is fixed (header/slots/rarities/
+		# toggle/confirm/message rows), so the only variable is craft_top.
+		var total_h: float = craft_top + ROW_H * 6.0 + PAD
+		custom_minimum_size = Vector2(PANEL_W, total_h)
+		size = custom_minimum_size
+	else:
+		var title2 := Label.new()
+		title2.text = "Cooking"
+		title2.position = Vector2(PAD, content_top)
+		add_child(title2)
+
+		var cooking_bottom: float = _build_cooking_section(content_top + ROW_H)
+		var total_h2: float = cooking_bottom + PAD
+		custom_minimum_size = Vector2(PANEL_W, total_h2)
+		size = custom_minimum_size
+
+func _build_tab_row() -> void:
+	for i in range(TAB_ROW.size()):
+		var section_id: StringName = TAB_ROW[i][0]
+		var label: String = TAB_ROW[i][1]
+		var btn := Button.new()
+		btn.text = label
+		btn.position = Vector2(PAD + float(i) * 100.0, PAD)
+		btn.custom_minimum_size = Vector2(96.0, ROW_H)
+		if _active_section == section_id:
+			btn.modulate = Color(0.6, 1.0, 0.6)
+		btn.pressed.connect(func() -> void: _on_tab_pressed(section_id))
+		add_child(btn)
+		_tab_buttons[section_id] = btn
+
+func _on_tab_pressed(section_id: StringName) -> void:
+	if section_id == _active_section:
+		return
+	_active_section = section_id
+	_rebuild()
+
+func _build_breakdown_section(top: float) -> void:
 	var header := Label.new()
 	header.text = "Break Down"
-	header.position = Vector2(PAD, PAD + ROW_H)
+	header.position = Vector2(PAD, top)
 	add_child(header)
 
 	var visible_count: int = mini(_inventory.gear.size(), MAX_VISIBLE_BREAKDOWN_ROWS)
@@ -116,7 +199,7 @@ func _build_breakdown_section() -> void:
 		var g: Gear = _inventory.gear[i]
 		var btn := Button.new()
 		btn.text = "%s (%s)" % [g.display_name, RarityVisuals.display_name(g.rarity)]
-		btn.position = Vector2(PAD, PAD + ROW_H * 2.0 + float(i) * ROW_H)
+		btn.position = Vector2(PAD, top + ROW_H + float(i) * ROW_H)
 		btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
 		if i == _breakdown_selected_index:
 			btn.text += "  ✓"
@@ -125,7 +208,7 @@ func _build_breakdown_section() -> void:
 		add_child(btn)
 		_breakdown_buttons.append(btn)
 
-	var next_row_top: float = PAD + ROW_H * 2.0 + float(visible_count) * ROW_H
+	var next_row_top: float = top + ROW_H + float(visible_count) * ROW_H
 	if _inventory.gear.size() > MAX_VISIBLE_BREAKDOWN_ROWS:
 		var overflow_label := Label.new()
 		overflow_label.text = "+%d more (salvage some to see the rest)" % (_inventory.gear.size() - MAX_VISIBLE_BREAKDOWN_ROWS)
@@ -310,6 +393,180 @@ func _on_tempering_resolved(bonus_stats: Stats) -> void:
 	_use_tempering = false
 	_rebuild()
 
+## --- Cooking section (task 7) ---
+
+## Builds the Cook header/recipe-select/rarity-select/toggle/confirm/message rows starting at [param
+## top], mirroring _build_craft_section()'s exact shape. Returns the Y position immediately below the
+## message row so _rebuild() can size the panel dynamically instead of a hardcoded constant (same
+## reasoning as _breakdown_section_bottom -- Cooking's recipe list can only grow as new recipes are
+## authored, so a hardcoded height would eventually collide the same way the old craft_top did).
+func _build_cooking_section(top: float) -> float:
+	var header := Label.new()
+	header.text = "Cook"
+	header.position = Vector2(PAD, top)
+	add_child(header)
+
+	# Mirrors _build_craft_section()'s tempering_pending guard exactly -- while Second Helping's
+	# mini-game is pending resolution, every cooking-selection control disables for a real player. The
+	# actual correctness guarantee is the _pending_cook_recipe_id/_pending_cook_rarity snapshot + the
+	# re-press guard in _on_cook_confirm_pressed(), since a _for_test() hook bypasses Button.disabled.
+	var second_helping_pending: bool = _second_helping_panel != null and _second_helping_panel.is_open()
+
+	var recipes: Array[Dictionary] = RecipeLibrary.cooking_recipes()
+	for i in range(recipes.size()):
+		var recipe: Dictionary = recipes[i]
+		var recipe_id: StringName = recipe["id"]
+		var btn := Button.new()
+		btn.text = recipe["display_name"]
+		if recipe_id == _cooking_recipe_id:
+			btn.text += "  ✓"
+		btn.position = Vector2(PAD, top + ROW_H + float(i) * ROW_H)
+		btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
+		btn.disabled = second_helping_pending
+		btn.pressed.connect(func() -> void: _on_cooking_recipe_pressed(recipe_id))
+		add_child(btn)
+		_recipe_buttons[recipe_id] = btn
+
+	var rarity_top: float = top + ROW_H + float(recipes.size()) * ROW_H + 8.0
+	for i in range(RARITIES.size()):
+		var rarity: int = RARITIES[i]
+		var btn := Button.new()
+		btn.text = RarityVisuals.display_name(rarity)
+		if rarity == _cooking_rarity:
+			btn.text += "  ✓"
+		btn.position = Vector2(PAD + float(i) * 80.0, rarity_top)
+		btn.custom_minimum_size = Vector2(76.0, ROW_H)
+		btn.disabled = second_helping_pending
+		btn.pressed.connect(func() -> void: _on_cooking_rarity_pressed(rarity))
+		add_child(btn)
+		_cooking_rarity_buttons[rarity] = btn
+
+	_second_helping_toggle = CheckBox.new()
+	_second_helping_toggle.text = "Use Second Helping"
+	_second_helping_toggle.button_pressed = _use_second_helping
+	_second_helping_toggle.position = Vector2(PAD, rarity_top + ROW_H)
+	_second_helping_toggle.disabled = second_helping_pending
+	_second_helping_toggle.toggled.connect(_on_second_helping_toggled)
+	add_child(_second_helping_toggle)
+
+	_cook_confirm_button = Button.new()
+	_cook_confirm_button.text = "Cook"
+	_cook_confirm_button.disabled = second_helping_pending or not _can_confirm_cook()
+	_cook_confirm_button.position = Vector2(PAD, rarity_top + ROW_H * 2.0)
+	_cook_confirm_button.custom_minimum_size = Vector2(150.0, ROW_H)
+	_cook_confirm_button.pressed.connect(_on_cook_confirm_pressed)
+	add_child(_cook_confirm_button)
+
+	# Message row -- mirrors _build_craft_section()'s identical convention (ShopPanel/
+	# InventoryMenuPanel's reject-message precedent).
+	var message_top: float = rarity_top + ROW_H * 3.0
+	var message: String = _cook_message if _cook_message != "" else _cook_disabled_reason()
+	if message != "":
+		_cook_message_label = Label.new()
+		_cook_message_label.text = message
+		_cook_message_label.modulate = Color(1.0, 0.4, 0.4)
+		_cook_message_label.position = Vector2(PAD, message_top)
+		add_child(_cook_message_label)
+
+	return message_top + ROW_H
+
+func _on_cooking_recipe_pressed(recipe_id: StringName) -> void:
+	_cooking_recipe_id = recipe_id
+	_cook_message = ""
+	_rebuild()
+
+func _on_cooking_rarity_pressed(rarity: int) -> void:
+	_cooking_rarity = rarity
+	_cook_message = ""
+	_rebuild()
+
+func _on_second_helping_toggled(pressed: bool) -> void:
+	_use_second_helping = pressed
+	_cook_message = ""
+
+## Whether the recipe/rarity currently staged can actually be cooked right now -- both the input-
+## material cost (CookingSystem.can_cook) AND Bag room (_cook_has_bag_room). Judgment call (task 7,
+## flagged in the report): the brief's own literal snippet only checked CookingSystem.can_cook(),
+## which mirrors the exact "Craft renders as pressable and silently does nothing on a full Bag" bug
+## the Salvaging section's own final review already found and fixed for Craft -- Cook grants a
+## ConsumableItem via the identically-capacity-gated try_give_item(), so the same failure mode is
+## reachable here too.
+func _can_confirm_cook() -> bool:
+	if _cooking_recipe_id == &"" or _cooking_rarity == -1:
+		return false
+	return CookingSystem.can_cook(_cooking_recipe_id, _cooking_rarity, _inventory) and _cook_has_bag_room()
+
+## Cooking's output merges into an existing (item_type, rarity) ConsumableItem stack via
+## PartyInventory.try_give_item() regardless of Bag capacity -- unlike Craft, whose Gear is always a
+## brand-new object and therefore ALWAYS capacity-gated. So Bag-full only actually blocks a Cook
+## attempt the FIRST time the party cooks a given recipe at a given rarity (no pre-existing stack to
+## merge into yet); once a stack exists, cooking more of the same dish/rarity never needs bag room.
+func _cook_has_bag_room() -> bool:
+	var recipe: Dictionary = RecipeLibrary.find_cooking_recipe(_cooking_recipe_id)
+	if recipe.is_empty():
+		return false
+	if _inventory.find_item(recipe["output_item_type"], _cooking_rarity) != null:
+		return true
+	return _inventory.can_add_to_bag()
+
+## Live "why can't I cook this" reason for the message row -- mirrors _craft_disabled_reason()'s
+## exact shape/precedence (a past attempt's outcome, via _cook_message, always wins over this).
+func _cook_disabled_reason() -> String:
+	if _cooking_recipe_id == &"" or _cooking_rarity == -1:
+		return ""
+	if not CookingSystem.can_cook(_cooking_recipe_id, _cooking_rarity, _inventory):
+		return "Insufficient ingredients"
+	if not _cook_has_bag_room():
+		return "Bag full"
+	return ""
+
+func _on_cook_confirm_pressed() -> void:
+	if _second_helping_panel != null and _second_helping_panel.is_open():
+		# Mirrors _on_craft_confirm_pressed()'s mid-mini-game re-press guard exactly -- see that
+		# function's doc comment for the full rationale. Without this, toggling "Use Second Helping"
+		# off and re-pressing Cook while the original mini-game was still open would fall into the
+		# deterministic branch below and grant a SECOND dish immediately, on top of whatever the
+		# still-open mini-game later grants.
+		return
+	if not _can_confirm_cook():
+		return
+	if _use_second_helping:
+		# Snapshot the target recipe/rarity now -- _on_second_helping_resolved() reads ONLY these,
+		# never the live _cooking_recipe_id/_cooking_rarity, so a later mutation of those fields can
+		# never corrupt which dish this mini-game resolves into (mirrors _pending_craft_slot/
+		# _pending_craft_rarity's identical snapshot rationale).
+		_pending_cook_recipe_id = _cooking_recipe_id
+		_pending_cook_rarity = _cooking_rarity
+		var recipe: Dictionary = RecipeLibrary.find_cooking_recipe(_cooking_recipe_id)
+		_second_helping_panel.open_for(int(recipe["bonus_reel_count"]))
+		# The recipe's input material is only consumed once the mini-game resolves
+		# (_on_second_helping_resolved), never here -- rebuild so the cooking-section controls
+		# visibly disable while it's pending.
+		_rebuild()
+	else:
+		# CookingSystem.cook() returns null (and consumes NOTHING) when the Bag fills up between this
+		# button being enabled and this press actually running -- surface that instead of silently
+		# discarding the attempt (mirrors _on_craft_confirm_pressed()'s identical convention).
+		var item: ConsumableItem = CookingSystem.cook(_cooking_recipe_id, _cooking_rarity, _inventory)
+		_cook_message = "" if item != null else "Bag full -- nothing was cooked."
+		_cooking_recipe_id = &""
+		_cooking_rarity = -1
+		_use_second_helping = false
+		_rebuild()
+
+func _on_second_helping_resolved(bonus_quantity: int) -> void:
+	# A null result here means the Bag filled up (via some other action) WHILE the mini-game was open
+	# -- mirrors _on_tempering_resolved()'s identical "the whole played-out mini-game would otherwise
+	# be discarded with zero feedback" rationale.
+	var item: ConsumableItem = CookingSystem.cook(_pending_cook_recipe_id, _pending_cook_rarity, _inventory, bonus_quantity)
+	_cook_message = "" if item != null else "Bag full -- the cooked dish was lost."
+	_pending_cook_recipe_id = &""
+	_pending_cook_rarity = -1
+	_cooking_recipe_id = &""
+	_cooking_rarity = -1
+	_use_second_helping = false
+	_rebuild()
+
 ## --- Headless test hooks ---
 
 func select_breakdown_item_for_test(index: int) -> void:
@@ -343,3 +600,35 @@ func craft_message_for_test() -> String:
 
 func breakdown_row_count_for_test() -> int:
 	return _breakdown_buttons.size()
+
+func switch_to_cooking_for_test() -> void:
+	_tab_buttons[&"cooking"].pressed.emit()
+
+func switch_to_salvaging_for_test() -> void:
+	_tab_buttons[&"salvaging"].pressed.emit()
+
+func active_section_for_test() -> StringName:
+	return _active_section
+
+func select_cooking_recipe_for_test(recipe_id: StringName) -> void:
+	_recipe_buttons[recipe_id].pressed.emit()
+
+func select_cooking_rarity_for_test(rarity: int) -> void:
+	_cooking_rarity_buttons[rarity].pressed.emit()
+
+func toggle_second_helping_for_test() -> void:
+	_second_helping_toggle.toggled.emit(not _use_second_helping)
+
+func can_confirm_cook_for_test() -> bool:
+	return _can_confirm_cook()
+
+func press_cook_confirm_for_test() -> void:
+	_cook_confirm_button.pressed.emit()
+
+func second_helping_panel_for_test() -> SecondHelpingPanel:
+	return _second_helping_panel
+
+## The currently-shown Cook message-row text (a live disabled-reason, or a past attempt's outcome),
+## or "" if nothing is showing. Mirrors craft_message_for_test().
+func cook_message_for_test() -> String:
+	return _cook_message if _cook_message != "" else _cook_disabled_reason()

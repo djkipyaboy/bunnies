@@ -233,5 +233,116 @@ func _initialize() -> void:
 	_check(not last_row_rect.intersects(craft_rarity_rect), "the last visible Break Down row does not overlap the Craft section's rarity row")
 	_check(not confirm_rect.intersects(craft_slot_rect), "the Salvage confirm button does not overlap the Craft section's slot row")
 
-	print("ok ProfessionsMenuPanel (Salvaging) smoke test complete")
+	# --- Cooking section (task 7) ---
+	var cook_inv: PartyInventory = PartyInventory.new()
+	var berries: CraftingMaterial = CraftingMaterial.new()
+	berries.material_type = &"forage_herb"
+	berries.rarity = RarityVisuals.Rarity.COMMON
+	berries.quantity = 2
+	cook_inv.give_material(berries)
+
+	var cook_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(cook_panel)
+	await process_frame
+
+	cook_panel.open_for(cook_inv)
+	_check(cook_panel.active_section_for_test() == &"salvaging", "open_for() always resets to the Salvaging tab")
+
+	cook_panel.switch_to_cooking_for_test()
+	_check(cook_panel.active_section_for_test() == &"cooking", "switch_to_cooking_for_test() switches the active tab")
+
+	cook_panel.select_cooking_recipe_for_test(&"wildberry_jam")
+	cook_panel.select_cooking_rarity_for_test(RarityVisuals.Rarity.COMMON)
+	_check(cook_panel.can_confirm_cook_for_test(), "can cook Wildberry Jam with 2 Common Wild Berries owned")
+
+	cook_panel.press_cook_confirm_for_test()
+	_check(cook_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON) != null, "confirming Cook (no Second Helping) grants the deterministic Jam")
+	_check(not cook_panel.second_helping_panel_for_test().is_open(), "the Second Helping panel never opened since it wasn't toggled on")
+
+	var more_berries: CraftingMaterial = CraftingMaterial.new()
+	more_berries.material_type = &"forage_herb"
+	more_berries.rarity = RarityVisuals.Rarity.COMMON
+	more_berries.quantity = 2
+	cook_inv.give_material(more_berries)
+	cook_panel.select_cooking_recipe_for_test(&"wildberry_jam")
+	cook_panel.select_cooking_rarity_for_test(RarityVisuals.Rarity.COMMON)
+	cook_panel.toggle_second_helping_for_test()
+	cook_panel.press_cook_confirm_for_test()
+	_check(cook_panel.second_helping_panel_for_test().is_open(), "confirming Cook with Second Helping toggled on opens the mini-game instead of granting immediately")
+
+	cook_panel.second_helping_panel_for_test().press_bank_for_test()
+	var final_jam: ConsumableItem = cook_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON)
+	_check(final_jam != null and final_jam.quantity >= 2, "banking the Second Helping result grants at least the deterministic quantity (base 1 from the first cook + at least 1 more from the second, plus any bonus)")
+
+	# --- Regression (mirrors the Salvaging re-press guard, task 7): toggling Second Helping OFF while
+	# its mini-game is still open, then re-pressing Cook, must NOT double-grant or corrupt the pending
+	# resolution.
+	var more_berries2: CraftingMaterial = CraftingMaterial.new()
+	more_berries2.material_type = &"forage_herb"
+	more_berries2.rarity = RarityVisuals.Rarity.COMMON
+	more_berries2.quantity = 2
+	cook_inv.give_material(more_berries2)
+
+	cook_panel.select_cooking_recipe_for_test(&"wildberry_jam")
+	cook_panel.select_cooking_rarity_for_test(RarityVisuals.Rarity.COMMON)
+	cook_panel.toggle_second_helping_for_test() # ON
+	cook_panel.press_cook_confirm_for_test()
+	_check(cook_panel.second_helping_panel_for_test().is_open(), "opening Second Helping for another Jam cook leaves its mini-game open")
+
+	var jam_qty_before_retoggle: int = cook_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON).quantity
+	cook_panel.toggle_second_helping_for_test() # OFF, while the mini-game panel is still open
+	cook_panel.press_cook_confirm_for_test()
+	var jam_qty_after_retoggle: int = cook_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON).quantity
+	_check(jam_qty_after_retoggle == jam_qty_before_retoggle, "re-pressing Cook after toggling Second Helping off mid-mini-game must NOT grant a second dish")
+	_check(cook_panel.second_helping_panel_for_test().is_open(), "the original mini-game is still open/resolvable, untouched by the toggle-off re-press")
+
+	cook_panel.second_helping_panel_for_test().press_bank_for_test()
+	var jam_qty_after_resolve: int = cook_inv.find_item(&"wildberry_jam", RarityVisuals.Rarity.COMMON).quantity
+	_check(jam_qty_after_resolve > jam_qty_before_retoggle, "resolving the ORIGINAL mini-game still grants the Jam, not corrupted by the meanwhile-reset recipe/rarity")
+
+	# --- Regression (task 7, mirrors the Salvaging "Bag full disables Craft" finding): a full Bag
+	# must disable Cook with a visible message when the party has no pre-existing stack of the output
+	# dish/rarity to merge into (a genuinely new stack would need bag room).
+	var full_cook_inv: PartyInventory = PartyInventory.new()
+	var full_cook_berries: CraftingMaterial = CraftingMaterial.new()
+	full_cook_berries.material_type = &"forage_herb"
+	full_cook_berries.rarity = RarityVisuals.Rarity.COMMON
+	full_cook_berries.quantity = 10
+	full_cook_inv.give_material(full_cook_berries)
+	for i in range(full_cook_inv.bag_capacity()):
+		var cook_filler: Gear = Gear.new()
+		cook_filler.display_name = "Filler %d" % i
+		cook_filler.slot = Gear.Slot.HEADWEAR
+		cook_filler.rarity = RarityVisuals.Rarity.COMMON
+		full_cook_inv.gear.append(cook_filler)
+	_check(not full_cook_inv.can_add_to_bag(), "test setup: the Bag is genuinely full")
+
+	var full_cook_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(full_cook_panel)
+	await process_frame
+	full_cook_panel.open_for(full_cook_inv)
+	full_cook_panel.switch_to_cooking_for_test()
+	full_cook_panel.select_cooking_recipe_for_test(&"wildberry_jam")
+	full_cook_panel.select_cooking_rarity_for_test(RarityVisuals.Rarity.COMMON)
+	_check(not full_cook_panel.can_confirm_cook_for_test(), "Cook is disabled when the Bag is full and no matching Jam stack already exists to merge into")
+	_check(full_cook_panel.cook_message_for_test() == "Bag full", "the message row explains WHY Cook is disabled ('Bag full', not 'Insufficient ingredients')")
+
+	var items_count_before_disabled_press: int = full_cook_inv.items.size()
+	full_cook_panel.press_cook_confirm_for_test()
+	_check(full_cook_inv.items.size() == items_count_before_disabled_press, "pressing Cook while disabled by Bag-full is a genuine no-op")
+
+	# --- Regression (task 7): a full Bag must NOT block cooking more of a dish/rarity the party
+	# already holds a stack of, since try_give_item() merges into an existing stack regardless of
+	# capacity.
+	var existing_jam: ConsumableItem = ConsumableItem.new()
+	existing_jam.item_type = &"wildberry_jam"
+	existing_jam.display_name = "Wildberry Jam"
+	existing_jam.rarity = RarityVisuals.Rarity.COMMON
+	existing_jam.quantity = 1
+	full_cook_inv.items.append(existing_jam)
+	_check(full_cook_panel.can_confirm_cook_for_test(), "Cook is enabled on a full Bag once the party already holds a matching Jam stack to merge into")
+	full_cook_panel.press_cook_confirm_for_test()
+	_check(existing_jam.quantity == 2, "confirming Cook merges into the existing stack even though the Bag is full")
+
+	print("ok ProfessionsMenuPanel (Salvaging + Cooking) smoke test complete")
 	quit()
