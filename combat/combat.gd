@@ -2504,7 +2504,8 @@ func _finish_spin() -> void:
 		var amount: int = ceili(_attacker.pending_item_base_heal * (1.5 if crit else 1.0))
 		_ally_target.heal(amount)
 		var tier_text: String = " — CRITICAL SUCCESS!" if crit else ""
-		_log("  ✚ %s uses an item%s — %s heals %d HP (%d/%d)." % [_attacker.display_name, tier_text, _ally_target.display_name, amount, _ally_target.hp, _ally_target.max_hp])
+		var item_name: String = _attacker.pending_item_name if _attacker.pending_item_name != "" else "an item"
+		_log("  ✚ %s uses %s%s — %s heals %d HP (%d/%d)." % [_attacker.display_name, item_name, tier_text, _ally_target.display_name, amount, _ally_target.hp, _ally_target.max_hp])
 		if _panels.has(_ally_target):
 			(_panels[_ally_target] as CombatantPanel).refresh_status()
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin

@@ -492,4 +492,5 @@ func commit() -> void:
 			combatant.turn_reels.append(reel)
 			combatant.item_use_reel = reel
 			combatant.pending_item_base_heal = item.heal_amount
+			combatant.pending_item_name = item.display_name
 			party_inventory.consume_item(staged_item_type, staged_item_rarity)

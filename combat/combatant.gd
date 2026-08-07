@@ -290,6 +290,11 @@ var item_use_reel: ActionReel = null
 ## The staged item's un-multiplied heal amount, read alongside item_use_reel once the reel resolves.
 var pending_item_base_heal: int = 0
 
+## The staged item's display name (Task 7, 2026-08-07 professions-playtest-fixes), read alongside
+## item_use_reel/pending_item_base_heal once the reel resolves -- lets the combat log name the
+## actual item used instead of the generic "uses an item" it printed before this field existed.
+var pending_item_name: String = ""
+
 ## Skirmisher Riposte Storm (Task 18) charge count: +1 per weapon-attack reel an enemy spins
 ## against this combatant while Evasion is active (spec 2026-07-01 §4). Reset to 0 on use.
 var riposte_charges: int = 0
@@ -1236,6 +1241,7 @@ func begin_turn() -> void:
 	rallying_cry_reel = null  # Warden: clear last turn's recorded Rallying Cry reel
 	item_use_reel = null      # clear last turn's recorded item-use reel (2026-07-16 design)
 	pending_item_base_heal = 0
+	pending_item_name = ""
 
 ## Splices one extra [param type]-typed reel onto THIS turn (additive, never overwrites the weapon).
 ## Spends [param cost] Stamina and respects the [param cap]-reel band ceiling. Returns false (and

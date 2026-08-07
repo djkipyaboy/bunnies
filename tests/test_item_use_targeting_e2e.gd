@@ -118,6 +118,7 @@ func _run_scenario(rig_tier: ReelFace.ResultTier, expect_crit: bool) -> void:
 	# accumulated rendered content regardless of how it was added.
 	var log_text: String = inst._log_box.get_parsed_text()
 	_check(log_text.find("Item Reel") != -1, "the combat log identifies the item reel's own line distinctly (log tail: '%s')" % log_text.substr(maxi(0, log_text.length() - 300)))
+	_check(log_text.find("uses an item") == -1, "the combat log no longer uses the generic \"uses an item\" phrasing")
 
 	var expected_amount: int = ceili(20.0 * (1.5 if expect_crit else 1.0))
 	_check(companion.hp == 10 + expected_amount, "companion healed for the expected amount (%d, got hp=%d)" % [expected_amount, companion.hp])
