@@ -48,5 +48,11 @@ func _initialize() -> void:
 	_check(widget.cell_clips_text_for_test(&"current"), "current cell clips text")
 	_check(widget.cell_clips_text_for_test(&"next"), "next cell clips text")
 
+	# Task 4 (2026-08-07 professions-playtest-fixes): small arrow markers flank the CENTER cell so
+	# every reel-based mini-game shows which slot actually counts, without needing per-mini-game UI.
+	_check(widget.left_arrow_text_for_test() == "▶", "left arrow points inward at the center cell")
+	_check(widget.right_arrow_text_for_test() == "◀", "right arrow points inward at the center cell")
+	_check(widget.arrows_flank_center_cell_for_test(), "both arrows sit outside the strip's own cell column, at the center cell's vertical position")
+
 	widget.free()
 	quit()

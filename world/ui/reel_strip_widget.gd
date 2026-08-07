@@ -15,6 +15,8 @@ const SMALL_FONT_SIZE: int = 11
 var _prev_label: Label
 var _current_label: Label
 var _next_label: Label
+var _left_arrow: Label
+var _right_arrow: Label
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(CELL_W, CELL_H * 3.0)
@@ -28,6 +30,26 @@ func _ready() -> void:
 
 	_next_label = _make_cell_label(CELL_H * 2.0)
 	add_child(_next_label)
+
+	# Task 4 (2026-08-07 professions-playtest-fixes): arrows flanking the center cell mark it as
+	# "the slot that resolves" -- added here (not per-mini-game) so every ReelStripWidget consumer
+	# gets this for free. Positioned just outside the strip's own CELL_W column, vertically aligned
+	# with the current/center cell.
+	_left_arrow = Label.new()
+	_left_arrow.text = "▶"
+	_left_arrow.position = Vector2(-18.0, CELL_H)
+	_left_arrow.custom_minimum_size = Vector2(16.0, CELL_H)
+	_left_arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_left_arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	add_child(_left_arrow)
+
+	_right_arrow = Label.new()
+	_right_arrow.text = "◀"
+	_right_arrow.position = Vector2(CELL_W + 2.0, CELL_H)
+	_right_arrow.custom_minimum_size = Vector2(16.0, CELL_H)
+	_right_arrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_right_arrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	add_child(_right_arrow)
 
 func _make_cell_label(y: float) -> Label:
 	var label := Label.new()
@@ -92,3 +114,19 @@ func cell_color_for_test(position: StringName) -> Color:
 		&"current": return _current_label.get_theme_color("font_color")
 		&"next": return _next_label.get_theme_color("font_color")
 		_: return Color.WHITE
+
+func left_arrow_text_for_test() -> String:
+	return _left_arrow.text
+
+func right_arrow_text_for_test() -> String:
+	return _right_arrow.text
+
+## Confirms both arrows sit outside the strip's own CELL_W-wide cell column and at the current
+## cell's vertical band (CELL_H to CELL_H*2) -- proving they flank the center cell rather than
+## floating somewhere unrelated.
+func arrows_flank_center_cell_for_test() -> bool:
+	var left_outside: bool = _left_arrow.position.x + _left_arrow.custom_minimum_size.x <= 0.0
+	var right_outside: bool = _right_arrow.position.x >= CELL_W
+	var left_aligned: bool = is_equal_approx(_left_arrow.position.y, CELL_H)
+	var right_aligned: bool = is_equal_approx(_right_arrow.position.y, CELL_H)
+	return left_outside and right_outside and left_aligned and right_aligned
