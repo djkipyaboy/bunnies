@@ -56,7 +56,11 @@ func _initialize() -> void:
 	await process_frame
 	bumper_panel.open_for(&"forage_herb", "Wild Berries", 1, inv, bumper_only)
 	_land(bumper_panel)
-	_check(bumper_panel.reel_strip_for_test().cell_text_for_test(&"current") == "Bumper Crop", "a rigged Bumper Crop-only pool lands the strip on Bumper Crop (a DIFFERENT tier than the previous case)")
+	# Cell text is the Task 10 (2026-08-07 professions-playtest-fixes) shortened reel-face label
+	# ("Bumper", not "Bumper Crop") -- this pre-existing assertion predates that shortening and was
+	# left stale (still checking the full name) when Task 10 landed. current_tier_name_for_test()
+	# elsewhere in this file already proves the underlying tier's full name is untouched.
+	_check(bumper_panel.reel_strip_for_test().cell_text_for_test(&"current") == "Bumper", "a rigged Bumper Crop-only pool lands the strip on the shortened \"Bumper\" cell label (a DIFFERENT tier than the previous case)")
 	bumper_panel.free()
 
 	# --- Button disabling through the spin, and mid-spin presses are no-ops ---
