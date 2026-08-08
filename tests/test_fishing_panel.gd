@@ -92,6 +92,19 @@ func _initialize() -> void:
 	_check(log_lines[0] == "Fishing: [Critical, Critical, Critical] — Critical Success! Caught: Freshwater Fish x4 (bonus quality)",
 		"the all-Critical catch's event-log line matches the exact confirmed format, got: %s" % log_lines[0])
 
+	# Task 4 (2026-08-08 professions-playtest-round2): the result screen must keep the landed reel
+	# strips visible (not tear them down) so the player can see what each reel actually landed on
+	# alongside the catch/miss text, and the button reads "Finished" instead of "Continue".
+	var review_inv: PartyInventory = PartyInventory.new()
+	panel.open_for(_bucket_configs(), review_inv, forced_shadows)
+	panel.begin_reel_stop_for_test(&"small", [_reel([&"success"])] as Array[FishingReel])
+	panel.press_stop_for_test(0)
+	_check(panel.current_phase_for_test() == &"result", "stopping the only reel resolves straight into the result phase")
+	_check(panel.reel_strip_for_test(0).cell_text_for_test(&"current") == "Success", "the landed reel strip is still readable on the result screen, not torn down")
+	_check(panel._continue_button.text == "Finished", "the result screen's button reads 'Finished'")
+	panel.press_continue_for_test()
+	_check(not panel.is_open(), "pressing Finished still closes the panel")
+
 	# --- A no-catch case grants nothing and does not emit fishing_completed, but fishing_closed
 	# still fires -- this is the fix for the Critical bug where a miss left the panel closing
 	# with no signal to resume PC movement on.

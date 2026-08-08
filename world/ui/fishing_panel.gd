@@ -279,19 +279,22 @@ func _resolve() -> void:
 	_pending_log_line = log_line
 
 func _build_result(text: String) -> void:
-	for child in get_children():
-		child.queue_free()
-
+	# Deliberately does NOT free existing children (2026-08-08 professions-playtest-round2 plan
+	# Task 4) -- the landed reel strips and their now-disabled Stop buttons (every Stop button is
+	# already disabled by the time this runs; _on_stop_pressed() disables its own button the instant
+	# it's pressed, and all_stopped() only becomes true once every column has been pressed) stay
+	# visible so the player can see exactly what each reel landed on, instead of the result text
+	# instantly replacing them.
 	_result_label = Label.new()
 	_result_label.text = text
-	_result_label.position = Vector2(20.0, 20.0)
+	_result_label.position = Vector2(20.0, 180.0)
 	_result_label.custom_minimum_size = Vector2(PANEL_W - 40.0, 60.0)
 	_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_result_label)
 
 	_continue_button = Button.new()
-	_continue_button.text = "Continue"
-	_continue_button.position = Vector2(20.0, 90.0)
+	_continue_button.text = "Finished"
+	_continue_button.position = Vector2(20.0, 220.0)
 	_continue_button.custom_minimum_size = Vector2(150.0, 40.0)
 	_continue_button.pressed.connect(_on_continue_pressed)
 	add_child(_continue_button)
