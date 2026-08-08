@@ -16,6 +16,7 @@ const MAX_VISIBLE_BREAKDOWN_ROWS: int = 12   # sane cap so a large Bag (20+ Gear
                                               # Craft section off-panel or overlap it (final-review finding)
 const MAX_VISIBLE_STRIP_MATERIAL_ROWS: int = 5
 const MAX_VISIBLE_STRIP_GEAR_ROWS: int = 5
+const MAX_VISIBLE_STRIP_ITEM_ROWS: int = 5
 const TAB_ROW: Array = [
 	[&"salvaging", "Salvaging"],
 	[&"cooking", "Cooking"],
@@ -65,6 +66,12 @@ var _pending_craft_slot: int = -1
 var _pending_craft_rarity: int = -1
 
 var _inventory_strip_row_count: int = 0
+
+## Every content-row Label the strip currently renders (materials/gear/consumables -- NOT the
+## section headers like "Materials"/"Gear (Bag)") -- lets tests assert on which specific items show,
+## not just a row count that could hide a "right count, wrong items" bug (2026-08-08
+## professions-playtest-round2 plan Task 2).
+var _inventory_strip_value_labels: Array[Label] = []
 
 var _breakdown_buttons: Array[Button] = []
 var _breakdown_confirm_button: Button
@@ -135,6 +142,27 @@ static func _cooking_recipe_tooltip(recipe_id: StringName) -> String:
 		return ""
 	var names: String = _material_names_joined(recipe["input_material_types"])
 	return "Requires %dx %s (any one rarity)." % [int(recipe["input_quantity"]), names]
+
+## Material types any Cooking recipe accepts as input, derived from RecipeLibrary directly (not a
+## second hardcoded table) so a future recipe's ingredient shows up in the Cooking tab's inventory
+## strip automatically (2026-08-08 professions-playtest-round2 plan Task 2).
+static func _cooking_relevant_material_types() -> Array[StringName]:
+	var types: Array[StringName] = []
+	for recipe: Dictionary in RecipeLibrary.cooking_recipes():
+		for t: StringName in recipe["input_material_types"]:
+			if not types.has(t):
+				types.append(t)
+	return types
+
+## Item types any Cooking recipe can produce, derived from RecipeLibrary directly -- mirrors
+## _cooking_relevant_material_types()'s exact reasoning.
+static func _cooking_relevant_item_types() -> Array[StringName]:
+	var types: Array[StringName] = []
+	for recipe: Dictionary in RecipeLibrary.cooking_recipes():
+		var t: StringName = recipe["output_item_type"]
+		if not types.has(t):
+			types.append(t)
+	return types
 
 ## --- Cooking section state (task 7) ---
 
@@ -244,7 +272,7 @@ func _rebuild() -> void:
 		# (final-review finding). The Craft section's own height is fixed (header/slots/rarities/
 		# toggle/confirm/message rows), so the only variable is craft_top.
 		var craft_bottom: float = craft_top + ROW_H * 6.0
-		var strip_bottom: float = _build_inventory_strip(craft_bottom + PAD)
+		var strip_bottom: float = _build_inventory_strip(craft_bottom + PAD, &"salvaging")
 		var total_h: float = strip_bottom + PAD
 		custom_minimum_size = Vector2(PANEL_W, total_h)
 		size = custom_minimum_size
@@ -255,7 +283,7 @@ func _rebuild() -> void:
 		add_child(title2)
 
 		var cooking_bottom: float = _build_cooking_section(content_top + ROW_H)
-		var strip_bottom2: float = _build_inventory_strip(cooking_bottom + PAD)
+		var strip_bottom2: float = _build_inventory_strip(cooking_bottom + PAD, &"cooking")
 		var total_h2: float = strip_bottom2 + PAD
 		custom_minimum_size = Vector2(PANEL_W, total_h2)
 		size = custom_minimum_size
@@ -434,19 +462,35 @@ func _build_craft_section(craft_top: float) -> void:
 		add_child(_craft_message_label)
 
 ## Compact, READ-ONLY inventory view embedded at the bottom of both tabs (2026-08-07
-## professions-playtest-fixes plan Task 2) -- plain Labels, no selection/interaction, deliberately
-## NOT a re-render of InventoryMenuPanel's full grid (this is a narrower, simpler view by design,
-## per CLAUDE.md's YAGNI guidance). Returns the Y position immediately below the strip so callers
-## can size the panel dynamically, mirroring _breakdown_section_bottom's convention.
-func _build_inventory_strip(top: float) -> float:
+## professions-playtest-fixes plan Task 2; scoped per-profession + a Consumables section added
+## 2026-08-08 professions-playtest-round2 plan Task 2) -- plain Labels, no selection/interaction,
+## deliberately NOT a re-render of InventoryMenuPanel's full grid (this is a narrower, simpler view
+## by design, per CLAUDE.md's YAGNI guidance). [param section] scopes which rows are relevant:
+## Salvaging shows only Scrap materials + all Bag Gear (Salvaging can target any Gear item);
+## Cooking shows only its own ingredient materials + a Consumables section for the food it can
+## produce, and drops Gear entirely (irrelevant to cooking). Returns the Y position immediately
+## below the strip so callers can size the panel dynamically, mirroring _breakdown_section_bottom's
+## convention.
+func _build_inventory_strip(top: float, section: StringName) -> float:
 	_inventory_strip_row_count = 0
+	_inventory_strip_value_labels.clear()
 	var y: float = top
 
 	var header := Label.new()
-	header.text = "Your Materials & Gear"
+	header.text = "Your Materials & Gear" if section == &"salvaging" else "Your Ingredients & Food"
 	header.position = Vector2(PAD, y)
 	add_child(header)
 	y += ROW_H
+
+	var relevant_material_types: Array[StringName] = []
+	if section == &"salvaging":
+		relevant_material_types.append(SalvageSystem.SCRAP_MATERIAL_TYPE)
+	else:
+		relevant_material_types = _cooking_relevant_material_types()
+	var relevant_materials: Array[CraftingMaterial] = []
+	for m: CraftingMaterial in _inventory.materials:
+		if relevant_material_types.has(m.material_type):
+			relevant_materials.append(m)
 
 	var mat_header := Label.new()
 	mat_header.text = "Materials"
@@ -455,46 +499,80 @@ func _build_inventory_strip(top: float) -> float:
 	add_child(mat_header)
 	y += ROW_H
 
-	var visible_materials: int = mini(_inventory.materials.size(), MAX_VISIBLE_STRIP_MATERIAL_ROWS)
+	var visible_materials: int = mini(relevant_materials.size(), MAX_VISIBLE_STRIP_MATERIAL_ROWS)
 	for i in range(visible_materials):
-		var m: CraftingMaterial = _inventory.materials[i]
+		var m: CraftingMaterial = relevant_materials[i]
 		var label := Label.new()
 		label.text = "%s (%s) x%d" % [m.display_name, RarityVisuals.display_name(m.rarity), m.quantity]
 		label.modulate = RarityVisuals.color(m.rarity)
 		label.position = Vector2(PAD + 8.0, y)
 		add_child(label)
+		_inventory_strip_value_labels.append(label)
 		y += ROW_H
 		_inventory_strip_row_count += 1
-	if _inventory.materials.size() > MAX_VISIBLE_STRIP_MATERIAL_ROWS:
+	if relevant_materials.size() > MAX_VISIBLE_STRIP_MATERIAL_ROWS:
 		var overflow := Label.new()
-		overflow.text = "+%d more materials" % (_inventory.materials.size() - MAX_VISIBLE_STRIP_MATERIAL_ROWS)
+		overflow.text = "+%d more materials" % (relevant_materials.size() - MAX_VISIBLE_STRIP_MATERIAL_ROWS)
 		overflow.position = Vector2(PAD + 8.0, y)
 		add_child(overflow)
 		y += ROW_H
 
-	var gear_header := Label.new()
-	gear_header.text = "Gear (Bag)"
-	gear_header.modulate = Color(0.7, 0.7, 0.7)
-	gear_header.position = Vector2(PAD, y)
-	add_child(gear_header)
-	y += ROW_H
+	if section == &"salvaging":
+		var gear_header := Label.new()
+		gear_header.text = "Gear (Bag)"
+		gear_header.modulate = Color(0.7, 0.7, 0.7)
+		gear_header.position = Vector2(PAD, y)
+		add_child(gear_header)
+		y += ROW_H
 
-	var visible_gear: int = mini(_inventory.gear.size(), MAX_VISIBLE_STRIP_GEAR_ROWS)
-	for i in range(visible_gear):
-		var g: Gear = _inventory.gear[i]
-		var label := Label.new()
-		label.text = "%s (%s)" % [g.display_name, RarityVisuals.display_name(g.rarity)]
-		label.modulate = RarityVisuals.color(g.rarity)
-		label.position = Vector2(PAD + 8.0, y)
-		add_child(label)
+		var visible_gear: int = mini(_inventory.gear.size(), MAX_VISIBLE_STRIP_GEAR_ROWS)
+		for i in range(visible_gear):
+			var g: Gear = _inventory.gear[i]
+			var label2 := Label.new()
+			label2.text = "%s (%s)" % [g.display_name, RarityVisuals.display_name(g.rarity)]
+			label2.modulate = RarityVisuals.color(g.rarity)
+			label2.position = Vector2(PAD + 8.0, y)
+			add_child(label2)
+			_inventory_strip_value_labels.append(label2)
+			y += ROW_H
+			_inventory_strip_row_count += 1
+		if _inventory.gear.size() > MAX_VISIBLE_STRIP_GEAR_ROWS:
+			var overflow2 := Label.new()
+			overflow2.text = "+%d more gear" % (_inventory.gear.size() - MAX_VISIBLE_STRIP_GEAR_ROWS)
+			overflow2.position = Vector2(PAD + 8.0, y)
+			add_child(overflow2)
+			y += ROW_H
+	else:
+		var relevant_item_types: Array[StringName] = _cooking_relevant_item_types()
+		var relevant_items: Array[ConsumableItem] = []
+		for it: ConsumableItem in _inventory.items:
+			if relevant_item_types.has(it.item_type):
+				relevant_items.append(it)
+
+		var food_header := Label.new()
+		food_header.text = "Consumables"
+		food_header.modulate = Color(0.7, 0.7, 0.7)
+		food_header.position = Vector2(PAD, y)
+		add_child(food_header)
 		y += ROW_H
-		_inventory_strip_row_count += 1
-	if _inventory.gear.size() > MAX_VISIBLE_STRIP_GEAR_ROWS:
-		var overflow2 := Label.new()
-		overflow2.text = "+%d more gear" % (_inventory.gear.size() - MAX_VISIBLE_STRIP_GEAR_ROWS)
-		overflow2.position = Vector2(PAD + 8.0, y)
-		add_child(overflow2)
-		y += ROW_H
+
+		var visible_items: int = mini(relevant_items.size(), MAX_VISIBLE_STRIP_ITEM_ROWS)
+		for i in range(visible_items):
+			var it2: ConsumableItem = relevant_items[i]
+			var label3 := Label.new()
+			label3.text = "%s (%s) x%d" % [it2.display_name, RarityVisuals.display_name(it2.rarity), it2.quantity]
+			label3.modulate = RarityVisuals.color(it2.rarity)
+			label3.position = Vector2(PAD + 8.0, y)
+			add_child(label3)
+			_inventory_strip_value_labels.append(label3)
+			y += ROW_H
+			_inventory_strip_row_count += 1
+		if relevant_items.size() > MAX_VISIBLE_STRIP_ITEM_ROWS:
+			var overflow3 := Label.new()
+			overflow3.text = "+%d more consumables" % (relevant_items.size() - MAX_VISIBLE_STRIP_ITEM_ROWS)
+			overflow3.position = Vector2(PAD + 8.0, y)
+			add_child(overflow3)
+			y += ROW_H
 
 	return y
 
@@ -827,6 +905,12 @@ func cook_message_for_test() -> String:
 
 func inventory_strip_row_count_for_test() -> int:
 	return _inventory_strip_row_count
+
+func inventory_strip_text_for_test() -> String:
+	var parts: Array[String] = []
+	for l: Label in _inventory_strip_value_labels:
+		parts.append(l.text)
+	return "\n".join(parts)
 
 func craft_slot_tooltip_for_test(slot: int) -> String:
 	return _slot_buttons[slot].tooltip_text

@@ -469,5 +469,57 @@ func _initialize() -> void:
 	_check(center_panel.position == expected_cooking_pos, "switching to the Cooking tab re-centers for its own (different) height (got %s, want %s)" % [center_panel.position, expected_cooking_pos])
 	center_panel.queue_free()
 
+	# Task 2 (2026-08-08 professions-playtest-round2): the embedded strip is scoped per profession --
+	# Salvaging shows only Scrap materials (not Foraging/Fishing ingredients) + all Bag Gear; Cooking
+	# shows only its own ingredient materials + the food it can produce, and drops Gear entirely.
+	var scoped_inv: PartyInventory = PartyInventory.new()
+	var scrap3: CraftingMaterial = CraftingMaterial.new()
+	scrap3.material_type = &"salvage_scrap"
+	scrap3.display_name = "Salvage Scrap"
+	scrap3.rarity = RarityVisuals.Rarity.COMMON
+	scrap3.quantity = 2
+	var berries2: CraftingMaterial = CraftingMaterial.new()
+	berries2.material_type = &"forage_herb"
+	berries2.display_name = "Wild Berries"
+	berries2.rarity = RarityVisuals.Rarity.COMMON
+	berries2.quantity = 5
+	scoped_inv.materials = [scrap3, berries2]
+	var scoped_gear: Gear = Gear.new()
+	scoped_gear.display_name = "Old Boots"
+	scoped_gear.slot = Gear.Slot.HANDS
+	scoped_gear.rarity = RarityVisuals.Rarity.COMMON
+	scoped_inv.gear = [scoped_gear]
+	var jam_item: ConsumableItem = ConsumableItem.new()
+	jam_item.item_type = &"wildberry_jam"
+	jam_item.display_name = "Wildberry Jam"
+	jam_item.rarity = RarityVisuals.Rarity.COMMON
+	jam_item.quantity = 1
+	var potion_item: ConsumableItem = ConsumableItem.new()
+	potion_item.item_type = &"healing_potion"
+	potion_item.display_name = "Healing Potion"
+	potion_item.rarity = RarityVisuals.Rarity.COMMON
+	potion_item.quantity = 1
+	scoped_inv.items = [jam_item, potion_item]
+
+	var scoped_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(scoped_panel)
+	await process_frame
+	scoped_panel.open_for(scoped_inv)
+	var salvaging_strip_text: String = scoped_panel.inventory_strip_text_for_test()
+	_check(salvaging_strip_text.find("Salvage Scrap") != -1, "Salvaging strip shows Scrap")
+	_check(salvaging_strip_text.find("Old Boots") != -1, "Salvaging strip shows all Bag Gear")
+	_check(salvaging_strip_text.find("Wild Berries") == -1, "Salvaging strip hides Foraging/Fishing materials")
+	_check(scoped_panel.inventory_strip_row_count_for_test() == 2, "Salvaging strip shows only Scrap (1) + Gear (1), hiding Wild Berries (got %d)" % scoped_panel.inventory_strip_row_count_for_test())
+
+	scoped_panel.switch_to_cooking_for_test()
+	var cooking_strip_text: String = scoped_panel.inventory_strip_text_for_test()
+	_check(cooking_strip_text.find("Wild Berries") != -1, "Cooking strip shows its own ingredient materials")
+	_check(cooking_strip_text.find("Wildberry Jam") != -1, "Cooking strip shows the food it can produce")
+	_check(cooking_strip_text.find("Salvage Scrap") == -1, "Cooking strip hides Salvaging's Scrap")
+	_check(cooking_strip_text.find("Old Boots") == -1, "Cooking strip drops the Gear section entirely")
+	_check(cooking_strip_text.find("Healing Potion") == -1, "Cooking strip hides consumables it can't itself produce")
+	_check(scoped_panel.inventory_strip_row_count_for_test() == 2, "Cooking strip shows only Wild Berries (1) + Wildberry Jam (1) (got %d)" % scoped_panel.inventory_strip_row_count_for_test())
+	scoped_panel.queue_free()
+
 	print("ok ProfessionsMenuPanel (Salvaging + Cooking) smoke test complete")
 	quit()
