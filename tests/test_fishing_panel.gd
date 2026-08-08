@@ -95,15 +95,24 @@ func _initialize() -> void:
 	# Task 4 (2026-08-08 professions-playtest-round2): the result screen must keep the landed reel
 	# strips visible (not tear them down) so the player can see what each reel actually landed on
 	# alongside the catch/miss text, and the button reads "Finished" instead of "Continue".
-	var review_inv: PartyInventory = PartyInventory.new()
-	panel.open_for(_bucket_configs(), review_inv, forced_shadows)
-	panel.begin_reel_stop_for_test(&"small", [_reel([&"success"])] as Array[FishingReel])
-	panel.press_stop_for_test(0)
-	_check(panel.current_phase_for_test() == &"result", "stopping the only reel resolves straight into the result phase")
-	_check(panel.reel_strip_for_test(0).cell_text_for_test(&"current") == "Success", "the landed reel strip is still readable on the result screen, not torn down")
-	_check(panel._continue_button.text == "Finished", "the result screen's button reads 'Finished'")
-	panel.press_continue_for_test()
-	_check(not panel.is_open(), "pressing Finished still closes the panel")
+	# Use a SEPARATE panel instance with its own local listeners to avoid polluting the shared
+	# completed_events/closed_count/log_lines arrays that later pre-existing test assertions depend on.
+	var task4_panel: FishingPanel = FishingPanel.new()
+	get_root().add_child(task4_panel)
+	await process_frame
+	var task4_inv: PartyInventory = PartyInventory.new()
+	var task4_closed: Array = [0]
+	task4_panel.fishing_closed.connect(func(_log_line: String) -> void: task4_closed[0] += 1)
+	task4_panel.open_for(_bucket_configs(), task4_inv, forced_shadows)
+	task4_panel.begin_reel_stop_for_test(&"small", [_reel([&"success"])] as Array[FishingReel])
+	task4_panel.press_stop_for_test(0)
+	_check(task4_panel.current_phase_for_test() == &"result", "stopping the only reel resolves straight into the result phase")
+	_check(task4_panel.reel_strip_for_test(0).cell_text_for_test(&"current") == "Success", "the landed reel strip is still readable on the result screen, not torn down")
+	_check(task4_panel._continue_button.text == "Finished", "the result screen's button reads 'Finished'")
+	task4_panel.press_continue_for_test()
+	_check(not task4_panel.is_open(), "pressing Finished still closes the panel")
+	_check(task4_closed[0] == 1, "the separate panel's fishing_closed fired once (verifying no cross-contamination with shared arrays)")
+	task4_panel.free()
 
 	# --- A no-catch case grants nothing and does not emit fishing_completed, but fishing_closed
 	# still fires -- this is the fix for the Critical bug where a miss left the panel closing
