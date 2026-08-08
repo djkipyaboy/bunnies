@@ -10,7 +10,7 @@ extends Panel
 ## showed -- see the Cooking-section comments below for the specific parallels.
 
 const PAD: float = 12.0
-const PANEL_W: float = 420.0
+const PANEL_W: float = 460.0
 const ROW_H: float = 26.0
 const MAX_VISIBLE_BREAKDOWN_ROWS: int = 12   # sane cap so a large Bag (20+ Gear items) can't push the
                                               # Craft section off-panel or overlap it (final-review finding)
@@ -260,6 +260,21 @@ func _rebuild() -> void:
 		custom_minimum_size = Vector2(PANEL_W, total_h2)
 		size = custom_minimum_size
 
+	_recenter_on_viewport()
+
+## Recomputes this panel's own screen position so it stays centered on the viewport regardless of
+## which tab/section is active or how tall its content currently is (2026-08-08
+## professions-playtest-round2 plan Task 1) -- ProfessionsMenuPanel is the only menu panel in this
+## codebase whose height changes at runtime (Salvaging/Cooking sections differ, and either can grow
+## with a long Break Down list or a visible message row), so unlike the mini-game panels' fixed
+## hardcoded centering, this one recomputes on every _rebuild() instead of relying on a caller to
+## set position once.
+func _recenter_on_viewport() -> void:
+	if not is_inside_tree():
+		return
+	var vp: Vector2 = get_viewport_rect().size
+	position = ((vp - size * scale) / 2.0).round()
+
 ## Whether either profession mini-game is currently pending resolution (final-review finding,
 ## 2026-08-02): switching tabs while Tempering Reels/Second Helping is open leaves the OTHER
 ## section (whichever one doesn't own the mini-game) built instead, so its resolve handler's
@@ -369,8 +384,8 @@ func _build_craft_section(craft_top: float) -> void:
 		if slot == _craft_slot:
 			btn.text += "  ✓"
 		btn.tooltip_text = _craft_slot_tooltip(slot)
-		btn.position = Vector2(PAD + float(i) * 92.0, craft_top + ROW_H)
-		btn.custom_minimum_size = Vector2(88.0, ROW_H)
+		btn.position = Vector2(PAD + float(i) * 84.0, craft_top + ROW_H)
+		btn.custom_minimum_size = Vector2(80.0, ROW_H)
 		btn.disabled = tempering_pending
 		btn.pressed.connect(func() -> void: _on_craft_slot_pressed(slot))
 		add_child(btn)
@@ -383,8 +398,8 @@ func _build_craft_section(craft_top: float) -> void:
 		if rarity == _craft_rarity:
 			btn.text += "  ✓"
 		btn.tooltip_text = _craft_rarity_tooltip(rarity)
-		btn.position = Vector2(PAD + float(i) * 80.0, craft_top + ROW_H * 2.0)
-		btn.custom_minimum_size = Vector2(76.0, ROW_H)
+		btn.position = Vector2(PAD + float(i) * 84.0, craft_top + ROW_H * 2.0)
+		btn.custom_minimum_size = Vector2(80.0, ROW_H)
 		btn.disabled = tempering_pending
 		btn.pressed.connect(func() -> void: _on_craft_rarity_pressed(rarity))
 		add_child(btn)
@@ -611,8 +626,8 @@ func _build_cooking_section(top: float) -> float:
 		btn.text = RarityVisuals.display_name(rarity)
 		if rarity == _cooking_rarity:
 			btn.text += "  ✓"
-		btn.position = Vector2(PAD + float(i) * 80.0, rarity_top)
-		btn.custom_minimum_size = Vector2(76.0, ROW_H)
+		btn.position = Vector2(PAD + float(i) * 84.0, rarity_top)
+		btn.custom_minimum_size = Vector2(80.0, ROW_H)
 		btn.disabled = second_helping_pending
 		btn.pressed.connect(func() -> void: _on_cooking_rarity_pressed(rarity))
 		add_child(btn)

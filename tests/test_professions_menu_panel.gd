@@ -430,5 +430,44 @@ func _initialize() -> void:
 	_check(logged[1].find("Handcrafted Cloak") != -1, "the logged Craft line names the crafted item (got: %s)" % (logged[1] if logged.size() > 1 else "<none>"))
 	log_panel.queue_free()
 
+	# Task 1 (2026-08-08 professions-playtest-round2): the 5 Craft slot buttons and both rarity rows
+	# (Craft's and Cooking's) must fit within PANEL_W -- the actual overflow bug the first playtest
+	# found (Charm's slot button extended past the panel's right edge, and "Uncommon"/"Legendary"
+	# overflowed their 76px-wide rarity buttons).
+	var fit_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(fit_panel)
+	await process_frame
+	fit_panel.open_for(PartyInventory.new())
+	for slot: int in fit_panel._slot_buttons:
+		var b: Button = fit_panel._slot_buttons[slot]
+		_check(b.position.x + b.custom_minimum_size.x <= ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD,
+			"slot button for slot %d stays within the panel's right edge (right edge at %f, panel inner edge at %f)" % [slot, b.position.x + b.custom_minimum_size.x, ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD])
+	for rarity: int in fit_panel._rarity_buttons:
+		var rb: Button = fit_panel._rarity_buttons[rarity]
+		_check(rb.position.x + rb.custom_minimum_size.x <= ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD,
+			"craft rarity button for rarity %d stays within the panel's right edge" % rarity)
+
+	fit_panel.switch_to_cooking_for_test()
+	for rarity2: int in fit_panel._cooking_rarity_buttons:
+		var crb: Button = fit_panel._cooking_rarity_buttons[rarity2]
+		_check(crb.position.x + crb.custom_minimum_size.x <= ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD,
+			"cooking rarity button for rarity %d stays within the panel's right edge" % rarity2)
+	fit_panel.queue_free()
+
+	# The panel recenters itself on the viewport after every rebuild, tracking its own actual
+	# (dynamic) size -- not a hardcoded screen position that assumes a fixed height.
+	var center_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	get_root().add_child(center_panel)
+	await process_frame
+	center_panel.open_for(PartyInventory.new())
+	var vp: Vector2 = center_panel.get_viewport_rect().size
+	var expected_salvaging_pos: Vector2 = ((vp - center_panel.size * center_panel.scale) / 2.0).round()
+	_check(center_panel.position == expected_salvaging_pos, "the Salvaging tab centers itself on the viewport using its own actual size (got %s, want %s)" % [center_panel.position, expected_salvaging_pos])
+
+	center_panel.switch_to_cooking_for_test()
+	var expected_cooking_pos: Vector2 = ((vp - center_panel.size * center_panel.scale) / 2.0).round()
+	_check(center_panel.position == expected_cooking_pos, "switching to the Cooking tab re-centers for its own (different) height (got %s, want %s)" % [center_panel.position, expected_cooking_pos])
+	center_panel.queue_free()
+
 	print("ok ProfessionsMenuPanel (Salvaging + Cooking) smoke test complete")
 	quit()
