@@ -2317,3 +2317,54 @@ fixes (`6962cf2`, `3a947fa`):
   Helping), confirm food shows correctly in `InventoryMenuPanel`'s Bag tab at the right rarity, and
   confirm it's usable both via the out-of-combat Use flow and inside a real `combat.tscn` fight via
   the Items menu; also playtest Salvaging's Break Down/Craft/Tempering Reels flow end to end.
+
+**SHIPPED 2026-08-08 — SALVAGING/COOKING PLAYTEST ROUND 2, human-playtested and confirmed working
+across the board.** The first live playtest of the 2026-08-06 Salvaging/Cooking ship (above) surfaced
+6 UI issues, all fixed via the full brainstorm → spec → plan → subagent-driven-development cycle
+(spec `docs/superpowers/specs/2026-08-08-professions-playtest-round2-design.md`, plan
+`docs/superpowers/plans/2026-08-08-professions-playtest-round2.md`, 6 tasks + a final whole-branch
+review + a full 302-file regression sweep):
+- **`ProfessionsMenuPanel` button overflow + true centering** — the panel's own first playtest-fix
+  attempt (widening Craft slot buttons to fit "Headwear") had never re-checked that width against the
+  panel's own fixed size, so the Charm slot button extended past the panel's right edge, and the
+  Craft/Cooking rarity rows ("Uncommon"/"Legendary") were untouched and still overflowing. Fixed with
+  `PANEL_W` widened to 540, uniform 100px-wide/104px-spaced buttons across all three rows, and a new
+  `_recenter_on_viewport()` that recomputes the panel's screen position after every rebuild (floored
+  at `TOP_MARGIN = 20.0` so an over-tall panel — e.g. a real Bag with 4+ Gear items — never gets
+  pushed off the top of the screen, which the **final whole-branch review caught as a Critical bug**
+  in the first fix attempt: unconditional centering made the Cooking tab completely unreachable).
+  Also swapped the "✓" text-suffix selection indicator for a color-tint (matching `_build_tab_row()`'s
+  existing convention) so a selected button's text length can never re-introduce the overflow — the
+  final review caught this too (the "✓" suffix was why "Headwear" newly overlapped "Cloak", a
+  regression the first fix attempt introduced while only half-fixing the original overflow).
+- **Profession-scoped inventory strip** — the embedded read-only strip (2026-08-07's Task 2) used to
+  show the party's ENTIRE Materials list + all Gear on both tabs; now Salvaging shows only Scrap +
+  Gear, and Cooking shows only its own ingredient materials (derived live from
+  `RecipeLibrary.cooking_recipes()`, not a second hardcoded list) plus a new **Consumables** section
+  listing the food Cooking can actually produce — closing the specific gap the player raised
+  mid-review ("the crafting panel does not show the consumable items that it creates").
+- **`SecondHelpingPanel`** — its new spin animation (2026-08-07's Task 9) had the result text and
+  Reroll/Bank buttons rendering directly on top of the reel strip; fixed by growing `PANEL_H` and
+  moving both below the strip's bottom edge, mirroring `ForagingPanel`'s already-correct spacing.
+- **`FishingPanel`** result screen now keeps the landed reel strips visible (previously torn down
+  instantly) so the player can see what each reel actually landed on, and its close button reads
+  "Finished" instead of "Continue".
+- **`EventLogPanel`** widened from 380→432px so its 5-tab row (a "Crafting" tab was added
+  2026-08-07 without re-checking the row's total footprint) fits inside the panel.
+- **Final whole-branch review + fix wave (both real, not routine)**: the review measured actual
+  rendered button/panel geometry by hand (not just reading the diff) and found the first Task 1 fix
+  attempt's own regression tests were structurally incapable of catching either defect — the
+  centering test compared the implementation's formula to itself, and the overflow tests checked
+  `custom_minimum_size` (a floor) instead of real rendered `size.x`. One fix wave replaced both test
+  styles (a realistic-inventory + absolute-position assertion for centering; real-rendered-width +
+  adjacent-button non-overlap checks, in both selected and unselected states, for the button rows) —
+  re-review confirmed both fixes hold with zero new breakage.
+- **A genuinely unrelated flaky test found during the final regression sweep, fixed same session**:
+  `tests/test_foraging_panel.gd` had a ~25%-chance intermittent `FAIL` dating back to 2026-08-07's
+  Task 10 (which shortened the Foraging reel-face cell's "Bumper Crop" display to "Bumper") — one
+  assertion compared the displayed (shortened) cell text against the tier's raw, un-shortened name
+  using a REAL random draw, so it only failed on the ~1-in-4 runs that happened to land on Bumper
+  Crop. Fixed and confirmed clean across 10 independent re-runs.
+- **Human-playtested and confirmed working across the board** — Professions panel centering/overflow,
+  Second Helping's layout, Fishing's result screen + reel visibility, the Event Log's 5 tabs, and the
+  per-profession inventory strip scoping all read correctly in a live `overworld_demo.tscn` session.
