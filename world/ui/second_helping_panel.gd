@@ -10,8 +10,13 @@ extends Panel
 signal second_helping_resolved(bonus_quantity: int)
 
 const PANEL_W: float = 320.0
-const PANEL_H: float = 160.0
+const PANEL_H: float = 190.0
 const STRIP_GAP: float = 100.0
+## Below the reel strip's bottom edge (16.0 top + ReelStripWidget.CELL_H * 3.0 = 106.0) -- the first
+## playtest found the result text and buttons overlapping the strip when they lived inside that
+## range (2026-08-08 professions-playtest-round2 plan Task 3).
+const RESULT_LABEL_TOP: float = 114.0
+const BUTTONS_TOP: float = 150.0
 ## [ASSUMPTION] spin duration/tick rate, matching ForagingPanel's own placeholder numbers exactly
 ## (2026-08-07 professions-playtest-fixes plan Task 9) -- tuned at playtest like everything else.
 const SPIN_DURATION_SECONDS: float = 0.6
@@ -65,18 +70,18 @@ func _rebuild() -> void:
 		_reel_strips.append(strip)
 
 	_result_label = Label.new()
-	_result_label.position = Vector2(20.0, 70.0)
+	_result_label.position = Vector2(20.0, RESULT_LABEL_TOP)
 	add_child(_result_label)
 
 	_reroll_button = Button.new()
-	_reroll_button.position = Vector2(20.0, 100.0)
+	_reroll_button.position = Vector2(20.0, BUTTONS_TOP)
 	_reroll_button.custom_minimum_size = Vector2(140.0, 32.0)
 	_reroll_button.pressed.connect(_on_reroll_pressed)
 	add_child(_reroll_button)
 
 	_bank_button = Button.new()
 	_bank_button.text = "Bank"
-	_bank_button.position = Vector2(170.0, 100.0)
+	_bank_button.position = Vector2(170.0, BUTTONS_TOP)
 	_bank_button.custom_minimum_size = Vector2(100.0, 32.0)
 	_bank_button.pressed.connect(_on_bank_pressed)
 	add_child(_bank_button)

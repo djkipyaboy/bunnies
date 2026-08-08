@@ -210,11 +210,12 @@ func _ready() -> void:
 	_second_helping_panel.top_level = true
 	_second_helping_panel.scale = Vector2(2.0, 2.0)
 	# Screen-centered on the 1600x900 window, independent of this panel's own position/scale --
-	# SecondHelpingPanel.PANEL_W=320/PANEL_H=160 scaled 2x = 640x320; (1600-640)/2=480, (900-320)/2=290.
-	# Same top_level rationale as _tempering_panel above -- without it, the cumulative 2x scale from
-	# being a plain child pushed the Bank button (the ONLY way to close this mini-game) entirely off
-	# the 1600px window, a genuine soft-lock.
-	_second_helping_panel.position = Vector2(480.0, 290.0)
+	# SecondHelpingPanel.PANEL_W=320/PANEL_H=190 scaled 2x = 640x380 (2026-08-08
+	# professions-playtest-round2 plan Task 3 grew PANEL_H from 160 to fix an internal layout
+	# overlap); (1600-640)/2=480, (900-380)/2=260. Same top_level rationale as _tempering_panel above
+	# -- without it, the cumulative 2x scale from being a plain child pushed the Bank button (the
+	# ONLY way to close this mini-game) entirely off the 1600px window, a genuine soft-lock.
+	_second_helping_panel.position = Vector2(480.0, 260.0)
 	_second_helping_panel.second_helping_resolved.connect(_on_second_helping_resolved)
 	add_child(_second_helping_panel)
 

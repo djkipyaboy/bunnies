@@ -68,5 +68,19 @@ func _initialize() -> void:
 	_check(not spin_panel.is_spinning_for_test(), "the reroll's spin lands after its duration elapses")
 	spin_panel.queue_free()
 
+	# Task 3 (2026-08-08 professions-playtest-round2): the reel strip, result label, and buttons must
+	# not overlap -- the first playtest found the result text and Reroll/Bank buttons rendering
+	# directly on top of the reel strip.
+	var layout_panel: SecondHelpingPanel = SecondHelpingPanel.new()
+	get_root().add_child(layout_panel)
+	await process_frame
+	layout_panel.open_for(1)
+	_land(layout_panel)
+	var strip_bottom: float = layout_panel._reel_strips[0].position.y + ReelStripWidget.CELL_H * 3.0
+	_check(layout_panel._result_label.position.y >= strip_bottom, "the result label sits below the reel strip's bottom edge (strip bottom at %f, label at %f)" % [strip_bottom, layout_panel._result_label.position.y])
+	_check(layout_panel._reroll_button.position.y >= strip_bottom, "the Reroll button sits below the reel strip's bottom edge")
+	_check(layout_panel._bank_button.position.y >= strip_bottom, "the Bank button sits below the reel strip's bottom edge")
+	layout_panel.queue_free()
+
 	print("ok SecondHelpingPanel smoke test complete")
 	quit()
