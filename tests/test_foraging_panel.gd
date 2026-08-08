@@ -34,7 +34,12 @@ func _initialize() -> void:
 
 	_land(panel)
 	_check(not panel.is_spinning_for_test(), "advancing past the full spin duration lands the spin")
-	_check(panel.reel_strip_for_test().cell_text_for_test(&"current") == panel.current_tier_name_for_test(),
+	# Compares against the shortened reel-face label (Task 10, 2026-08-07 professions-playtest-fixes),
+	# not the tier's raw full name -- this assertion draws a REAL random tier (no tiers_override), so
+	# without routing through _reel_face_label() here, roughly 1-in-4 runs land on "Bumper Crop" and
+	# spuriously fail (the cell shows the shortened "Bumper", the raw name is the un-shortened full
+	# string). Found via a real regression sweep hitting exactly that ~25% chance.
+	_check(panel.reel_strip_for_test().cell_text_for_test(&"current") == ForagingPanel._reel_face_label(panel.current_tier_name_for_test()),
 		"the landed strip shows the tier the model actually picked, not a coincidence of timing")
 	_check(panel.reel_strip_for_test().cell_color_for_test(&"current") == ForagingPanel._color_for_tier_name(panel.current_tier_name_for_test()),
 		"the landed strip's current cell color matches the tier's mapped RarityVisuals color")
