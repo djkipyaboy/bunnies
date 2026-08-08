@@ -11,6 +11,31 @@ extends SceneTree
 func _check(cond: bool, label: String) -> void:
 	print(("ok " if cond else "FAIL ") + label)
 
+## Asserts a horizontal row of buttons both fits inside the panel AND never overlaps its own
+## neighbours, measured on each Button's REAL laid-out `size.x` rather than `custom_minimum_size.x`.
+## `custom_minimum_size` is only a FLOOR -- Godot renders a Button at max(custom_minimum_size, text
+## width + theme margins) -- which is exactly how "Uncommon" (99px rendered inside an 80px minimum)
+## overlapping "Rare", and "Headwear  ✓" (108px) overlapping "Cloak", both survived the previous,
+## custom_minimum_size-based version of these assertions (2026-08-08 professions-playtest-round2
+## final whole-branch review). Requires an `await process_frame` since the panel's last rebuild, so
+## `size` reflects a real layout pass.
+func _check_row_no_overlap(buttons: Dictionary, keys: Array, label: String) -> void:
+	var ordered: Array[Button] = []
+	for k in keys:
+		ordered.append(buttons[k])
+	for i in range(ordered.size()):
+		var b: Button = ordered[i]
+		# Guards against a false pass: an un-laid-out Button reports size.x == 0, which would satisfy
+		# every non-overlap assertion below no matter how broken the real layout is.
+		_check(b.size.x > 0.0 and b.size.x >= b.custom_minimum_size.x,
+			"%s: '%s' is really laid out (rendered width %f, minimum %f)" % [label, b.text, b.size.x, b.custom_minimum_size.x])
+		_check(b.position.x + b.size.x <= ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD,
+			"%s: '%s' stays inside the panel (right edge %f, panel inner edge %f)" % [label, b.text, b.position.x + b.size.x, ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD])
+		if i + 1 < ordered.size():
+			var next_btn: Button = ordered[i + 1]
+			_check(b.position.x + b.size.x <= next_btn.position.x,
+				"%s: '%s' does not overlap '%s' (right edge %f, next button starts at %f)" % [label, b.text, next_btn.text, b.position.x + b.size.x, next_btn.position.x])
+
 func _initialize() -> void:
 	var inv: PartyInventory = PartyInventory.new()
 	var chest: Gear = Gear.new()
@@ -430,44 +455,114 @@ func _initialize() -> void:
 	_check(logged[1].find("Handcrafted Cloak") != -1, "the logged Craft line names the crafted item (got: %s)" % (logged[1] if logged.size() > 1 else "<none>"))
 	log_panel.queue_free()
 
-	# Task 1 (2026-08-08 professions-playtest-round2): the 5 Craft slot buttons and both rarity rows
-	# (Craft's and Cooking's) must fit within PANEL_W -- the actual overflow bug the first playtest
-	# found (Charm's slot button extended past the panel's right edge, and "Uncommon"/"Legendary"
-	# overflowed their 76px-wide rarity buttons).
+	# Task 1 (2026-08-08 professions-playtest-round2), REWRITTEN by that plan's final whole-branch
+	# review: the 5 Craft slot buttons and both rarity rows (Craft's and Cooking's) must fit within
+	# PANEL_W *and* not overlap each other. The previous version of this block asserted on
+	# `custom_minimum_size.x` (a floor, not the rendered width) and only checked the panel's own right
+	# edge, so it printed `ok` while "Uncommon" overlapped "Rare" by 15px and "Headwear" overlapped
+	# "Cloak" by 3px. See _check_row_no_overlap()'s doc comment above.
 	var fit_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
 	get_root().add_child(fit_panel)
 	await process_frame
 	fit_panel.open_for(PartyInventory.new())
-	for slot: int in fit_panel._slot_buttons:
-		var b: Button = fit_panel._slot_buttons[slot]
-		_check(b.position.x + b.custom_minimum_size.x <= ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD,
-			"slot button for slot %d stays within the panel's right edge (right edge at %f, panel inner edge at %f)" % [slot, b.position.x + b.custom_minimum_size.x, ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD])
-	for rarity: int in fit_panel._rarity_buttons:
-		var rb: Button = fit_panel._rarity_buttons[rarity]
-		_check(rb.position.x + rb.custom_minimum_size.x <= ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD,
-			"craft rarity button for rarity %d stays within the panel's right edge" % rarity)
+	await process_frame
+	_check_row_no_overlap(fit_panel._slot_buttons, ProfessionsMenuPanel.ARMOR_SLOTS, "Craft slot row (nothing selected)")
+	_check_row_no_overlap(fit_panel._rarity_buttons, ProfessionsMenuPanel.RARITIES, "Craft rarity row (nothing selected)")
+
+	# The SELECTED state is exactly what the first fix missed: appending "  ✓" made the selected
+	# button's text -- and therefore its rendered width -- longer than the unselected one, so a row
+	# that fit while nothing was picked overlapped the moment the player picked something. Selection
+	# is a modulate tint now, so re-measure with the two widest labels selected.
+	fit_panel.select_craft_slot_for_test(Gear.Slot.HEADWEAR)
+	fit_panel.select_craft_rarity_for_test(RarityVisuals.Rarity.UNCOMMON)
+	await process_frame
+	_check(fit_panel._slot_buttons[Gear.Slot.HEADWEAR].text == "Headwear",
+		"selecting a Craft slot does not lengthen its button's text (got '%s')" % fit_panel._slot_buttons[Gear.Slot.HEADWEAR].text)
+	_check(fit_panel._slot_buttons[Gear.Slot.HEADWEAR].modulate == ProfessionsMenuPanel.SELECTED_TINT,
+		"the selected Craft slot is indicated by a tint instead of a text suffix")
+	_check(fit_panel._slot_buttons[Gear.Slot.CLOAK].modulate == Color.WHITE, "an unselected Craft slot is untinted")
+	_check_row_no_overlap(fit_panel._slot_buttons, ProfessionsMenuPanel.ARMOR_SLOTS, "Craft slot row ('Headwear' selected)")
+	_check_row_no_overlap(fit_panel._rarity_buttons, ProfessionsMenuPanel.RARITIES, "Craft rarity row ('Uncommon' selected)")
 
 	fit_panel.switch_to_cooking_for_test()
-	for rarity2: int in fit_panel._cooking_rarity_buttons:
-		var crb: Button = fit_panel._cooking_rarity_buttons[rarity2]
-		_check(crb.position.x + crb.custom_minimum_size.x <= ProfessionsMenuPanel.PANEL_W - ProfessionsMenuPanel.PAD,
-			"cooking rarity button for rarity %d stays within the panel's right edge" % rarity2)
+	await process_frame
+	_check_row_no_overlap(fit_panel._cooking_rarity_buttons, ProfessionsMenuPanel.RARITIES, "Cooking rarity row (nothing selected)")
+	fit_panel.select_cooking_rarity_for_test(RarityVisuals.Rarity.LEGENDARY)
+	await process_frame
+	_check(fit_panel._cooking_rarity_buttons[RarityVisuals.Rarity.LEGENDARY].text == "Legendary",
+		"selecting a Cooking rarity does not lengthen its button's text (got '%s')" % fit_panel._cooking_rarity_buttons[RarityVisuals.Rarity.LEGENDARY].text)
+	_check_row_no_overlap(fit_panel._cooking_rarity_buttons, ProfessionsMenuPanel.RARITIES, "Cooking rarity row ('Legendary' selected)")
 	fit_panel.queue_free()
 
 	# The panel recenters itself on the viewport after every rebuild, tracking its own actual
-	# (dynamic) size -- not a hardcoded screen position that assumes a fixed height.
+	# (dynamic) size -- but NEVER past the top-left corner of the screen. Also rewritten by the
+	# final review: the previous version opened the panel with an EMPTY PartyInventory (a short panel
+	# that never reproduces the bug) and compared `position` against the exact same expression the
+	# implementation itself computes, so it could not fail regardless of what the implementation did.
+	# These assertions are absolute and implementation-independent instead.
+	var center_inv: PartyInventory = PartyInventory.new()
+	for i in range(4):   # mirrors InventoryDemoSetup's real demo party: 4 Bag Gear items
+		var demo_gear: Gear = Gear.new()
+		demo_gear.display_name = "Demo Gear %d" % i
+		demo_gear.slot = Gear.Slot.HEADWEAR
+		demo_gear.rarity = RarityVisuals.Rarity.COMMON
+		center_inv.gear.append(demo_gear)
+
 	var center_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
 	get_root().add_child(center_panel)
 	await process_frame
-	center_panel.open_for(PartyInventory.new())
-	var vp: Vector2 = center_panel.get_viewport_rect().size
-	var expected_salvaging_pos: Vector2 = ((vp - center_panel.size * center_panel.scale) / 2.0).round()
-	_check(center_panel.position == expected_salvaging_pos, "the Salvaging tab centers itself on the viewport using its own actual size (got %s, want %s)" % [center_panel.position, expected_salvaging_pos])
-
+	center_panel.open_for(center_inv)
+	_check(center_panel.position.y >= 0.0,
+		"a panel taller than the window is never pushed off the TOP of the screen (Salvaging tab, realistic 4-Gear inventory: y=%f)" % center_panel.position.y)
+	_check(center_panel.position.x >= 0.0, "...nor off the LEFT edge (x=%f)" % center_panel.position.x)
 	center_panel.switch_to_cooking_for_test()
-	var expected_cooking_pos: Vector2 = ((vp - center_panel.size * center_panel.scale) / 2.0).round()
-	_check(center_panel.position == expected_cooking_pos, "switching to the Cooking tab re-centers for its own (different) height (got %s, want %s)" % [center_panel.position, expected_cooking_pos])
+	_check(center_panel.position.y >= 0.0, "the same holds after switching to the Cooking tab (y=%f)" % center_panel.position.y)
 	center_panel.queue_free()
+
+	# ...and the same, measured against the game's REAL window size. The headless SceneTree's own root
+	# viewport is 64x64 and refuses to be resized, so any assertion phrased in terms of it is checking
+	# against a 64px-tall screen. A SubViewport sized to the real 1600x900 window is what actually
+	# reproduces the playtest-visible bug: with the demo party's 4 Bag Gear items the Salvaging tab is
+	# 460x614 scaled 2x = 1228px tall, and the old unclamped centering put it at y=-164 with the
+	# Cooking tab (the only way to switch tabs at all) at screen y=-140 -- entirely unreachable.
+	var real_vp := SubViewport.new()
+	real_vp.size = Vector2i(1600, 900)
+	get_root().add_child(real_vp)
+	await process_frame
+
+	var tall_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	real_vp.add_child(tall_panel)
+	await process_frame
+	tall_panel.open_for(center_inv)
+	await process_frame
+	_check(tall_panel.get_viewport_rect().size == Vector2(1600.0, 900.0),
+		"test setup: the panel really is laid out against a 1600x900 viewport (got %s)" % tall_panel.get_viewport_rect().size)
+	_check(tall_panel.size.y * tall_panel.scale.y > 900.0,
+		"test setup: a realistic 4-Gear inventory really does make the panel taller than the window (%f px)" % (tall_panel.size.y * tall_panel.scale.y))
+	var cooking_tab_screen_y: float = tall_panel.position.y + tall_panel._tab_buttons[&"cooking"].position.y * tall_panel.scale.y
+	_check(cooking_tab_screen_y >= 0.0,
+		"the Cooking tab stays on-screen even when the panel is taller than the window (screen y=%f)" % cooking_tab_screen_y)
+	_check(tall_panel.position.y == ProfessionsMenuPanel.TOP_MARGIN,
+		"an over-tall panel anchors at TOP_MARGIN instead of centering (y=%f)" % tall_panel.position.y)
+
+	var short_panel: ProfessionsMenuPanel = ProfessionsMenuPanel.new()
+	real_vp.add_child(short_panel)
+	await process_frame
+	short_panel.open_for(PartyInventory.new())
+	await process_frame
+	var short_h: float = short_panel.size.y * short_panel.scale.y
+	_check(short_h <= 900.0, "test setup: an empty inventory really does fit the window (%f px)" % short_h)
+	var top_gap: float = short_panel.position.y
+	var bottom_gap: float = 900.0 - (short_panel.position.y + short_h)
+	_check(absf(top_gap - bottom_gap) <= 1.0,
+		"a panel that FITS is still genuinely centered -- equal gaps above and below (top %f, bottom %f)" % [top_gap, bottom_gap])
+	var left_gap: float = short_panel.position.x
+	var right_gap: float = 1600.0 - (short_panel.position.x + short_panel.size.x * short_panel.scale.x)
+	_check(absf(left_gap - right_gap) <= 1.0,
+		"...and horizontally centered too (left %f, right %f)" % [left_gap, right_gap])
+	tall_panel.queue_free()
+	short_panel.queue_free()
+	real_vp.queue_free()
 
 	# Task 2 (2026-08-08 professions-playtest-round2): the embedded strip is scoped per profession --
 	# Salvaging shows only Scrap materials (not Foraging/Fishing ingredients) + all Bag Gear; Cooking

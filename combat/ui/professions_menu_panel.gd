@@ -10,8 +10,35 @@ extends Panel
 ## showed -- see the Cooking-section comments below for the specific parallels.
 
 const PAD: float = 12.0
-const PANEL_W: float = 460.0
+const PANEL_W: float = 540.0
 const ROW_H: float = 26.0
+
+## Width/spacing of the three horizontal button rows sized per-button rather than full-panel-width:
+## the Craft slot row, the Craft rarity row, and the Cooking rarity row (2026-08-08
+## professions-playtest-round2 final review). Sized against the widest label the DEFAULT THEME
+## ACTUALLY RENDERS, measured headlessly: "Uncommon" = 99px, "Legendary" = 89px, "Headwear" = 87px.
+## `custom_minimum_size` is only a FLOOR -- a Button grows past it to fit longer text -- which is why
+## the previous 80px/84px values silently let "Uncommon" render 99px wide and overlap "Rare" by 15px.
+## 5 buttons at 100px wide / 104px spacing occupy x=12..528, exactly the panel's inner edge
+## (PANEL_W - PAD), with a 4px gap between neighbours.
+const ROW_BUTTON_W: float = 100.0
+const ROW_BUTTON_SPACING: float = 104.0
+
+## Smallest Y this panel will ever place itself at. _recenter_on_viewport() centers the panel when it
+## fits, but a panel TALLER than the window would otherwise be centered to a NEGATIVE y, pushing the
+## tab row (the only way to reach the Cooking tab) off the top of the screen -- reachable with as few
+## as ~2 Bag Gear items, i.e. normal play, not an edge case (2026-08-08 professions-playtest-round2
+## final review). When the panel doesn't fit, it anchors near the top instead, so the interactive
+## controls stay on-screen and only the read-only inventory strip at the bottom clips.
+const TOP_MARGIN: float = 20.0
+
+## Selection indicator for every pick-one button in this panel (tabs, Break Down rows, Craft slot/
+## rarity, Cooking recipe/rarity). Deliberately a TINT, never a "  ✓" text suffix: a suffix changes
+## the button's text length and therefore its rendered width, which is what made "Headwear  ✓"
+## (108px) overlap "Cloak" while plain "Headwear" (87px) fit (2026-08-08 professions-playtest-round2
+## final review). _build_tab_row() already used this idiom for the tab buttons; the other rows now
+## match it, so selection state can never change a row's layout.
+const SELECTED_TINT: Color = Color(0.6, 1.0, 0.6)
 const MAX_VISIBLE_BREAKDOWN_ROWS: int = 12   # sane cap so a large Bag (20+ Gear items) can't push the
                                               # Craft section off-panel or overlap it (final-review finding)
 const MAX_VISIBLE_STRIP_MATERIAL_ROWS: int = 5
@@ -298,11 +325,20 @@ func _rebuild() -> void:
 ## with a long Break Down list or a visible message row), so unlike the mini-game panels' fixed
 ## hardcoded centering, this one recomputes on every _rebuild() instead of relying on a caller to
 ## set position once.
+##
+## Centers only WHEN THE PANEL FITS. A panel taller than the window centers to a negative Y, which
+## puts the tab row -- the only way to switch to Cooking -- off the top of the screen entirely; with
+## the real demo party's 4 Bag Gear items the Salvaging tab measures 460x614 scaled 2x = 1228px tall
+## on a 900px window, i.e. y = -164 (2026-08-08 professions-playtest-round2 final review). The
+## maxf() floors keep the panel's top-left corner on-screen, so an over-tall panel clips only its
+## read-only inventory strip at the bottom -- matching the fixed y=20 anchor this panel used before
+## it started centering itself, but WITHOUT giving up centering for the sizes that do fit.
 func _recenter_on_viewport() -> void:
 	if not is_inside_tree():
 		return
 	var vp: Vector2 = get_viewport_rect().size
-	position = ((vp - size * scale) / 2.0).round()
+	var centered: Vector2 = ((vp - size * scale) / 2.0).round()
+	position = Vector2(maxf(0.0, centered.x), maxf(TOP_MARGIN, centered.y))
 
 ## Whether either profession mini-game is currently pending resolution (final-review finding,
 ## 2026-08-02): switching tabs while Tempering Reels/Second Helping is open leaves the OTHER
@@ -323,7 +359,7 @@ func _build_tab_row() -> void:
 		btn.position = Vector2(PAD + float(i) * 100.0, PAD)
 		btn.custom_minimum_size = Vector2(96.0, ROW_H)
 		if _active_section == section_id:
-			btn.modulate = Color(0.6, 1.0, 0.6)
+			btn.modulate = SELECTED_TINT
 		btn.disabled = mini_game_pending
 		btn.pressed.connect(func() -> void: _on_tab_pressed(section_id))
 		add_child(btn)
@@ -355,7 +391,7 @@ func _build_breakdown_section(top: float) -> void:
 		btn.position = Vector2(PAD, top + ROW_H + float(i) * ROW_H)
 		btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
 		if i == _breakdown_selected_index:
-			btn.text += "  ✓"
+			btn.modulate = SELECTED_TINT
 		var idx: int = i
 		btn.pressed.connect(func() -> void: _on_breakdown_item_pressed(idx))
 		add_child(btn)
@@ -411,10 +447,10 @@ func _build_craft_section(craft_top: float) -> void:
 		var btn := Button.new()
 		btn.text = slot_label(slot)
 		if slot == _craft_slot:
-			btn.text += "  ✓"
+			btn.modulate = SELECTED_TINT
 		btn.tooltip_text = _craft_slot_tooltip(slot)
-		btn.position = Vector2(PAD + float(i) * 84.0, craft_top + ROW_H)
-		btn.custom_minimum_size = Vector2(80.0, ROW_H)
+		btn.position = Vector2(PAD + float(i) * ROW_BUTTON_SPACING, craft_top + ROW_H)
+		btn.custom_minimum_size = Vector2(ROW_BUTTON_W, ROW_H)
 		btn.disabled = tempering_pending
 		btn.pressed.connect(func() -> void: _on_craft_slot_pressed(slot))
 		add_child(btn)
@@ -425,10 +461,10 @@ func _build_craft_section(craft_top: float) -> void:
 		var btn := Button.new()
 		btn.text = RarityVisuals.display_name(rarity)
 		if rarity == _craft_rarity:
-			btn.text += "  ✓"
+			btn.modulate = SELECTED_TINT
 		btn.tooltip_text = _craft_rarity_tooltip(rarity)
-		btn.position = Vector2(PAD + float(i) * 84.0, craft_top + ROW_H * 2.0)
-		btn.custom_minimum_size = Vector2(80.0, ROW_H)
+		btn.position = Vector2(PAD + float(i) * ROW_BUTTON_SPACING, craft_top + ROW_H * 2.0)
+		btn.custom_minimum_size = Vector2(ROW_BUTTON_W, ROW_H)
 		btn.disabled = tempering_pending
 		btn.pressed.connect(func() -> void: _on_craft_rarity_pressed(rarity))
 		add_child(btn)
@@ -689,7 +725,7 @@ func _build_cooking_section(top: float) -> float:
 		var btn := Button.new()
 		btn.text = recipe["display_name"]
 		if recipe_id == _cooking_recipe_id:
-			btn.text += "  ✓"
+			btn.modulate = SELECTED_TINT
 		btn.tooltip_text = _cooking_recipe_tooltip(recipe_id)
 		btn.position = Vector2(PAD, top + ROW_H + float(i) * ROW_H)
 		btn.custom_minimum_size = Vector2(PANEL_W - PAD * 2.0, ROW_H - 4.0)
@@ -704,9 +740,9 @@ func _build_cooking_section(top: float) -> float:
 		var btn := Button.new()
 		btn.text = RarityVisuals.display_name(rarity)
 		if rarity == _cooking_rarity:
-			btn.text += "  ✓"
-		btn.position = Vector2(PAD + float(i) * 84.0, rarity_top)
-		btn.custom_minimum_size = Vector2(80.0, ROW_H)
+			btn.modulate = SELECTED_TINT
+		btn.position = Vector2(PAD + float(i) * ROW_BUTTON_SPACING, rarity_top)
+		btn.custom_minimum_size = Vector2(ROW_BUTTON_W, ROW_H)
 		btn.disabled = second_helping_pending
 		btn.pressed.connect(func() -> void: _on_cooking_rarity_pressed(rarity))
 		add_child(btn)
