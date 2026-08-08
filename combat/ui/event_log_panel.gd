@@ -9,7 +9,7 @@ extends Panel
 ## _unhandled_input override here, so toggle_event_log / toggle_inventory / interact keypresses in
 ## the owning scene pass through untouched regardless of whether this panel is visible.
 
-const PANEL_W: float = 380.0
+const PANEL_W: float = 432.0
 const PANEL_H: float = 260.0
 const TRANSLUCENT_ALPHA: float = 0.35
 const OPAQUE_ALPHA: float = 1.0

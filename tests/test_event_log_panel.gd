@@ -24,6 +24,15 @@ func _initialize() -> void:
 	for tab_id: StringName in panel._tab_buttons:
 		var btn: Button = panel._tab_buttons[tab_id]
 		_check(btn.mouse_filter != Control.MOUSE_FILTER_IGNORE, "tab button '%s' stays clickable, not forced to ignore the mouse" % tab_id)
+
+	# Task 5 (2026-08-08 professions-playtest-round2): the tab row must fit within PANEL_W -- a 5th
+	# "Crafting" tab was added (2026-08-07 professions-playtest-fixes plan Task 5) without
+	# re-checking the row's total footprint, and the last tab visibly extended past the panel's
+	# right edge.
+	for tab_id2: StringName in panel._tab_buttons:
+		var tb: Button = panel._tab_buttons[tab_id2]
+		_check(tb.position.x + tb.custom_minimum_size.x <= EventLogPanel.PANEL_W, "tab button '%s' stays within the panel's right edge (right edge at %f, panel width %f)" % [tab_id2, tb.position.x + tb.custom_minimum_size.x, EventLogPanel.PANEL_W])
+
 	var vp: Vector2 = panel.get_viewport_rect().size
 	panel.position = Vector2(99999, 99999)
 	panel._clamp_to_viewport()
