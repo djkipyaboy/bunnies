@@ -1,19 +1,21 @@
-# SESSION HANDOFF — Redwall slot-RPG (working title TBD)
+# SESSION HANDOFF — Bunnies (Redwall-style slot-reel RPG, working title TBD)
 
 > **Purpose of this file:** a short, self-contained briefing so a *new* chat session (or a new
-> collaborator) can pick up instantly. Read this first, then `CLAUDE.md` (conventions),
-> `ARCHITECTURE.md` (as-built code), and `DESIGN.md` (full design — the source of truth if any
-> doc disagrees). The detailed per-feature record lives in `docs/superpowers/specs/` and
-> `docs/superpowers/DECISIONS-LOG.md`.
+> collaborator) can pick up instantly, without reading the full history. Read this first, then
+> `CLAUDE.md` (conventions + rules), `DESIGN.md` (full design, source of truth if anything
+> disagrees), and `ARCHITECTURE.md` (as-built code map). The complete, unabridged chronological
+> ship/playtest log lives in `docs/DEVLOG.md` — read it on demand, not every session.
 >
-> **This is a CURRENT snapshot** (branch `remaining-four-classes`, updated 2026-06-27). It supersedes
-> all earlier snapshots.
+> **This is a CURRENT snapshot, rewritten 2026-08-09** (replacing a version that had gone stale
+> since 2026-06-27 — its old dated "START HERE NEXT SESSION" blocks had turned into a second,
+> out-of-date copy of the ship log; that content is superseded by `docs/DEVLOG.md`, which has the
+> real, complete record).
 
 ---
 
 ## 1. What the game is (10-second version)
 
-A 2D, Godot-built, turn-based RPG in the *Redwall* tradition (anthropomorphic woodlanders vs
+A 2D, Godot-built, turn-based RPG in the *Redwall* tradition (anthropomorphic woodlanders vs.
 vermin, all-ages with real stakes). **The hook: every random resolution in combat is a SLOT-REEL
 SPIN, not a dice roll — and your build edits the reels** (which symbols, how many reels, what each
 symbol does). Campaign mode is built first; a roguelite mode comes post-1.0 and reuses the same
@@ -21,44 +23,33 @@ systems.
 
 ---
 
-## 2. Where we are — the combat prototype is built and playable
+## 2. Where we are right now
 
-The vertical-slice combat loop is **code-complete and test-green** (Godot 4.6.3-stable, GDScript,
-1v1 with placeholder rectangles). On top of the original slice — *Initiative spin → MTG-style phase
-turn → independent Action-reel attacks → 6-type damage chart → Bonus Meter → win/lose* — ten
-combat systems have shipped this branch (each has a design spec in `docs/superpowers/specs/`):
+The combat prototype, out-of-combat world, and four gathering/crafting professions are all
+built, code-complete, and have been through multiple rounds of human playtesting with fixes
+applied. At a glance:
 
-1. **Effect system + Crushing → Slow.** An `Effect` resource + `EffectLibrary` rider factory.
-   `current_initiative` is **derived** (`base_initiative` + active `INITIATIVE_MOD`s), recomputed
-   via `recompute_initiative()`. Per-turn `on_upkeep`/`on_end` hooks. A crit-success on a Crushing
-   reel reports a `&"slow"` rider; the orchestrator attaches it to the defender (−20 init / 2 turns).
-2. **Stacking control debuffs (merge-by-id).** `attach_effect` merges any re-applied effect by `id`
-   (never a second instance). SLOW stacks with diminishing returns (−20 / −10 / −5, cap 3 = −35) and
-   refreshes its duration; non-stacking effects (`max_stacks = 1`) only refresh.
-3. **ResourcePool (Stamina only).** Partial regen in Upkeep, spent in Main 1. Start 3 / max 5 / +1 a
-   round. Focus/Mana deferred.
-4. **Staged Main Phase 1 (`MainPhasePlan`).** Splice and Fire-Ultimate are **toggles that only
-   PREVIEW** — nothing is spent/consumed until **SPIN commits**. `PhaseManager` pauses at Main 1
-   (`proceed_to_combat()` enters Combat).
-5. **Main-Phase Storm reel splice.** Additive **+1 typed reel** for this turn only (2 STA, 5-reel
-   cap); excluded from the payline grid (it's a bonus attack, not a line cell).
-6. **Sticky-Wild Ultimate (redesigned).** Costs the **full Bonus Meter (cap 15)**; makes **ALL
-   weapon reels crit-BIASED (~65%, not forced)** for 2 spins; consumes only the meter.
-7. **Paylines.** `PaylineLibrary` generates rows/columns/diagonals per grid width (tic-tac-toe at
-   3×3); `PaylineResolver` scores same-tier straight lines over the 3×W **weapon** grid. Rewards:
-   crit line → bonus damage (length-scaled, `ceil`) + Inspirational party buff (+5 init, 2 turns,
-   non-stacking); success line → +1 meter; neutral line → refund 1 Stamina. `extra_lines` hook
-   reserved for Luck.
-8. **5+1 stat system + Gear.** `Stats` = Might / Finesse / Vigor / Focus / Grit / **Luck**, flat
-   1:1 modifiers: Might→flat damage per hit, Finesse→initiative + **tie-break** (then a d10 reel),
-   Vigor→max HP, Focus→max Stamina, Grit→meter floor, Luck→**adds crit-success faces to weapon
-   reels** (`apply_luck`). `Gear` (Padded Jerkin on Martin). `effective_stats()` / `apply_stats()`.
-9. **STUNNED mechanic.** Start-of-turn `current_initiative < −20` → STUNNED; a Main-1 d100 gate
-   (PC presses SPIN; 01–50 lose the turn / 51–100 recover to a full turn); **anti-lock** (can't be
-   stunned two turns running). Per-combatant.
-10. **Reel-face shuffle + round-up.** Reel faces are shuffled at creation (balance-neutral
-    anti-pattern). All damage/heal math rounds **up** (`ceil`). Window 1280×800; centered
-    victory/defeat card.
+- **Combat:** all 7 classes (Warrior/Vanguard/Skirmisher/Chancer/Ranger/Seer/Warden), each with a
+  full 4-ability + Ultimate kit and a talent/perk tree (L1–10); 8 damage types; N-vs-M party
+  combat; a multi-phase boss fight (the Hollow Warden); the Team-Up! jackpot minigame.
+- **Out-of-combat:** town, overworld, and a 4-floor dungeon (lock-and-key gate, boss, Treasure
+  Trove); equipment/inventory/banking UI; a real quest (Lost Cat); companion recruitment/bench;
+  shops (Amber economy); a rest point (the Old Well); a persistent cross-scene event log.
+- **Professions:** Foraging, Fishing, Salvaging, Cooking — each with an opt-in bonus mini-game
+  (Shake the Bush / claw-machine reel catch / Tempering Reels / Second Helping).
+
+**Most recent ship:** 2026-08-08, professions playtest round 2 (panel overflow/centering fixes,
+per-profession inventory scoping, layout fixes for Second Helping/Fishing/the event log) —
+human-playtested and confirmed working across the board. See `CLAUDE.md` §8 for a condensed
+status summary, or `docs/DEVLOG.md` for the full entry.
+
+**Next open items** (not started, no session currently in flight):
+- A proper quest-interaction UI (accept/turn-in popups) for Lost Cat and future quests.
+- `PartyInventory.give_material()` drops `quality_tier` when merging into an existing stack —
+  flagged, not yet fixed.
+- Ability-level redistribution / talent tuning, post-combat recovery, PC↔companion level parity —
+  each explicitly deferred to its own dedicated design session.
+- Design-bible settlement/roster content is still seeded proposals, not locked.
 
 ---
 
@@ -66,317 +57,73 @@ combat systems have shipped this branch (each has a design spec in `docs/superpo
 
 Each combatant rolls **Initiative once** (2-reel d100, `00`=100 high; + Finesse, with a Finesse →
 d10-reel tie-break) → combat runs in **rounds**, acting in descending `current_initiative` order
-(effects shove that value up/down with a duration; deeply-negative init → STUNNED gate). A turn runs
-**MTG phases**: Upkeep → **Main 1** (the staged `MainPhasePlan`: preview a Storm splice and/or
-Fire-Ultimate; SPIN commits) → Combat (spin 2–5 Action reels, *each an independent attack*) → Main 2
-→ End. Each Action reel lands on one of five tiers (crit-fail / fail / **neutral=utility** / success
-/ crit-success); damage = `ceil(base × multiplier × type-chart) + Might`. The 3×W weapon grid is then
-scored for **paylines** (extra rewards on matched lines). Results charge a **Bonus Meter**; the full
-meter (15) arms the **Sticky-Wild Ultimate**.
+(effects shove that value up/down with a duration; deeply-negative init → STUNNED gate). A turn
+runs **MTG phases**: Upkeep → **Main 1** (stage abilities/items — SPIN commits) → Combat (spin
+2–5 Action reels, *each an independent attack*) → Main 2 → End. Each Action reel lands on one of
+five tiers (crit-fail / fail / **neutral=utility** / success / crit-success); damage =
+`ceil(base × multiplier × type-chart) + Might`. The weapon grid is then scored for **paylines**
+(extra rewards on matched lines). Results charge a **Bonus Meter**; a full meter arms the class's
+Ultimate.
 
 ---
 
 ## 4. The non-negotiable pillars (don't let these drift)
 
-1. The slot reel **is** the dice — protect the spin as the core fantasy. (Luck adds crit *faces*,
-   never hidden weights; the Ultimate biases a reel's outcome, never bypasses the chart.)
-2. Builds **edit the reels** — that's the depth (splice, Luck faces, the Ultimate wild).
-3. **Legibility over realism** — show reel contents, turn order, staged previews; hidden math kills
-   the fun.
-4. **Every choice is a trade-off** (Slay the Spire lesson).
-5. **Campaign first, fun first** — prove the loop with placeholder art before anything else.
+1. The slot reel **is** the dice — protect the spin as the core fantasy.
+2. Builds **edit the reels** — that's the depth.
+3. **Legibility over realism** — show reel contents, turn order, staged previews; hidden math
+   kills the fun.
+4. **Every choice is a trade-off.**
+5. **Campaign first, fun first.**
+
+(Full detail: `CLAUDE.md` §3.)
 
 ---
 
 ## 5. How to run it
 
-**Godot 4.6.3-stable**, GDScript (no C#). Project root = `bunnies/` (the git repo); `main_scene` is
-`res://combat/combat.tscn`.
+**Godot 4.6.3-stable**, GDScript (no C#). Project root = `bunnies/` (this repo); `main_scene` is
+`res://combat/combat.tscn`. The Godot executable lives **one directory above this repo**:
+`C:\bunnies\bunnies-main\Godot_v4.6.3-stable_win64_console.exe`.
 
-- **Play the loop:** open the project in Godot and press play (or run `combat.tscn`). Judge feel here
-  — *that's the human call* (CLAUDE.md §5 hard ceiling: Claude builds the loop, the human decides
-  whether the spin is fun).
-- **Headless test suite — 103 suites, all green** (older suites print `… TEST PASSED/FAILED`; newer
-  suites print per-check `ok `/`FAIL ` lines via a shared `_check()` helper and rely on exit code 0 +
-  no `FAIL ` line — both conventions coexist, see §6 2026-07-01 entry). To run one:
+- **Play the loop:** open the project in Godot and press play, or launch a specific scene:
+  `Godot_v4.6.3-stable_win64_console.exe --path bunnies res://world/<scene>.tscn`. Judging
+  whether the spin is *fun* is the human call (CLAUDE.md §5 hard ceiling) — no computer-use tool
+  exists in this harness to drive a live GUI, so this always needs a human.
+- **Headless test suite — 300+ test files, all green as of the last full sweep (2026-08-08).**
+  To run one:
   ```bash
   Godot_v4.6.3-stable_win64_console.exe --headless --path . --script res://tests/test_<name>.gd
   ```
-  **Test-runner gotchas (learned 2026-06-25):**
-  1. **Use the `_console.exe` build to CAPTURE output.** The plain `Godot_v4.6.3-stable_win64.exe` is
-     GUI-subsystem and writes nothing to a redirected stream — looks empty/successful but you never see
-     `… TEST PASSED`. The `_console.exe` build writes to stdout.
-  2. **A parse error hangs the run forever.** A test script that fails to compile (e.g. references a
-     not-yet-implemented field) never runs `_initialize`, so `quit()` is never reached and the SceneTree
-     idles indefinitely. Bound every run with a `timeout` (e.g. `timeout 60 …`). To run the whole suite,
-     loop `tests/test_*.gd` each under `timeout 60`.
-  3. After adding a NEW `class_name`, refresh the class cache first or `--script` can't resolve it:
-     `Godot_v4.6.3-stable_win64_console.exe --headless --path . --editor --quit`.
-
-  Coverage spans foundation (`test_action_reel`, `test_bonus_meter`, `test_combatant`,
-  `test_turn_manager`, `test_phase_manager`, `test_resource_pool`, `test_stats`,
-  `test_initiative_tiebreak`, `test_might_damage`), effects (`test_effect`, `test_crushing_slow`,
-  `test_bleed`/`test_bleed_lifecycle`, `test_heal`, `test_shielded`, `test_cleanse`, `test_stun`),
-  resources (`test_mana_pool`, `test_mana_derivation`, `test_ability_cost`), Main-1 + abilities
-  (`test_main_phase_plan`, `test_class_abilities_plan`, `test_reel_splice`, `test_rend_reel`,
-  `test_heft`, `test_rampage`, `test_reroll_ability`/`test_reroll_selection`, `test_reresolve_reel`),
-  Ultimates (`test_ultimate_sticky_wild`, `test_ultimate_variants`, `test_wildcard_gamble`), paylines
-  (`test_payline_library`, `test_payline_resolver`, `test_payline_grid`, `test_payline_rewards`,
-  `test_casino_lines`, `test_payline_casino`, `test_payline_profile`, `test_weapon_attack_reels`),
-  classes (`test_character_class`, `test_class_library`, `test_chancer_class`, `test_luck_cleanup`),
-  and the full `test_combat_loop` integration. `tests/gen_damage_types.gd` regenerates the 6 type `.tres`.
+  **Gotchas:**
+  1. Use the `_console.exe` build to capture output — the plain `.exe` is GUI-subsystem and
+     writes nothing to a redirected stream.
+  2. A parse error hangs the run forever (never reaches `quit()`) — always bound a run with a
+     timeout.
+  3. After adding a new `class_name`, refresh the class cache or `--script` can't resolve it:
+     `Godot_v4.6.3-stable_win64_console.exe --headless --path . --editor --quit`. Never delete
+     `.godot/` to troubleshoot — it wipes the class-name registry project-wide; use the above
+     refresh instead.
+  4. **"Silent script-error-exits-zero":** a thrown error mid-`_process()`/`_init()` kills the
+     rest of that frame's checks but the process still exits 0. At least 3 known exit-code-blind
+     files exist (`tests/test_adventuring_board_panel.gd`, `tests/test_dungeon_demo.gd`, and one
+     more documented in memory `silent-script-error-exits-zero-gotcha`) — grep actual output for
+     `SCRIPT ERROR`/`FAIL`, don't trust exit codes alone on a full sweep.
+  5. A rare intermittent teardown-only SIGSEGV flake class has recurred across many different
+     test files over the project's history — always confirmed clean on immediate retry; not a
+     regression signal by itself.
 
 ---
 
-## 6. WHERE WE LEFT OFF / NEXT PHASE
+## 6. Detailed record — where to read more
 
-> ### ▶ START HERE NEXT SESSION (set 2026-07-14 — supersedes the 2026-07-10 block below)
-> **This file (HANDOFF.md) is stale below this point (last fully rewritten 2026-06-27) — read
-> `CLAUDE.md`'s status log (§8, read from the bottom up) for everything shipped since, and memory
-> `combat-items-out-of-combat-expansion-2026-07-14` for exactly where the brainstorm stopped.**
->
-> One-paragraph state: out-of-combat systems (town/overworld/inventory/event-log/party-selection/
-> combat handoff) and the combat Items menu (Healing Potion) are all shipped and human-playtest-
-> confirmed. **Next action:** resume the brainstorm for a 3-part items expansion the player wants
-> (in order — (1) items share bag space with Gear/Weapons instead of their own separate array, (2) a
-> Stats-tab click-to-target Confirm/Cancel flow for using items OUTSIDE combat too, (3) discard an
-> item to the world + pick it back up) — the split was agreed with the player but no detailed
-> questions were asked yet on sub-project 1. Don't skip straight to a spec; ask the first clarifying
-> question (bag-capacity model) per the memory file. Separately, there's one open/unresolved cosmetic
-> bug (a combat-log line once named the wrong ally after a Healing Potion heal) — thoroughly
-> investigated, root cause NOT found, low severity; see the memory file before touching it again.
-
-> ### ▶ (historical) START HERE NEXT SESSION (set 2026-07-10 — supersedes the 2026-07-01 block below)
-> **Human-playtest the new EQUIPMENT / INVENTORY / BANKING UI before any further equipment-system
-> work.** Open `world/town_demo.tscn`, press **`I`** in the plaza, and click through:
-> equip/unequip and deposit/withdraw across all **3 paperdoll columns** (Companion 1 | PC |
-> Companion 2), toggling the Bag/Vault tabs and the Compare hover along the way. This is a fresh
-> `InventoryMenuPanel` (spec `docs/superpowers/specs/2026-07-10-equipment-inventory-banking-ui-design.md`,
-> plan `docs/superpowers/plans/2026-07-10-equipment-inventory-banking-ui.md`) built on top of the
-> equipment/inventory/banking data foundation from earlier the same day — **140 headless suites
-> green**, scene loads clean, but **no human has clicked through the live panel yet** (§5 hard
-> ceiling). It's placeholder-data only: no real authored items/loot tables, no real companion
-> recruitment, no character-select screen. See CLAUDE.md §8's two 2026-07-10 SHIPPED entries for
-> full detail.
->
-> **Note on this file's staleness:** §6 below (and the rest of this file, last fully rewritten
-> 2026-06-27) predates a lot of shipped work — the remaining class kits, the ability-menu UI, the
-> town/overworld demos + Y-sort fix, and both 2026-07-10 equipment passes. Treat **`CLAUDE.md` §8**
-> as the current source of truth for what's shipped; the entries below are historical context, not
-> an up-to-date status.
-
-> ### ▶ (historical) START HERE NEXT SESSION (set 2026-07-01, updated 2026-07-01 final review)
-> **⚠ Build the extra-ability UI FIRST — the CLASS ABILITY EXPANSION is NOT playtest-ready yet.**
-> A final whole-branch review found that no task in the shipped plan (see the SHIPPED 2026-07-01
-> entry below) ever added combat-scene buttons/handlers for the 21 new L5/L7/L9 abilities:
-> `combat/combat.gd` only builds one base-ability button and one Ultimate button. Only the
-> model/logic layer exists — `MainPhasePlan.staged_extra_ability_id` staging/commit and the
-> corresponding `Combatant.stage_<ability>()` methods/`*_pending` flags — fully test-green, but
-> **a human cannot currently click to use any of these 21 abilities in the live scene.** The
-> ENDGAME toggle spawns level-9 PCs with everything unlocked in DATA, but there's no UI to select
-> it. Build that UI (buttons + handlers wired to the existing staging API) as the next task.
->
-> **Only after that UI exists**, human-playtest the CLASS ABILITY EXPANSION — this is the §5
-> hard-ceiling item blocking everything else in this section. Use the **ENDGAME combat tester**
-> toggle on the start-of-encounter selection screen to spawn PCs at level 9 (all 4 abilities +
-> Ultimate unlocked in data), then for every class: fire all 3 new abilities + confirm the L9
-> ultimate-tier ability, and specifically eyeball the four **orchestrator-level** abilities that are only
-> unit-tested at the boundary — **Double or Nothing** (refund/recoil), **Aimed Shot** (Hunter's-Mark-
-> conditional bonus), **Foresight/Regrowth** (auto-targeting the lowest-HP% ally), **Crippling Shot**
-> (bonus vs Slow/Rooted/Stunned). Only after the ENDGAME kit feels right, tune the `[ASSUMPTION]`
-> magnitudes (every number in all 21 new abilities is unbalanced-by-design per CLAUDE.md §4).
->
-> **Also fixed 2026-07-01 (final review I1):** Regrowth was healing for 0 HP every tick because the
-> orchestrator attached `&"regen"` without seeding `dot_base_damage` — fixed in `combat/combat.gd`
-> to seed it from the caster's weapon base, mirroring the existing DoT-rider pattern. Covered by
-> `tests/test_regrowth.gd`.
->
-> **Locked 2026-06-30 (still the governing shape):** each class grows to **3 new abilities + 1
-> Ultimate on top of the existing base**, unlocking **L1 (current base) → L3 (Ultimate, unchanged) → L5
-> (new) → L7 (new) → L9 (new, ultimate-tier)**; design philosophy = **Option A (differentiated kit) with
-> hardest class-fantasy lean**; talents/Reel-Points come AFTER ability depth (now that ability depth is
-> shipped, talents/Reel-Points are the next system after this playtest).
->
-> **Also progressed 2026-06-30:** the **storyline brief** (`docs/design-bible/10-storyline.md`) is now
-> richly filled — isekai-via-old-video-game premise, the 6-piece console relics
-> (`assets/console-pieces-concept.jpg`), the full First 9 / Schism / Wildcat myth, race≠alignment, playable
-> = First 9 (more races unlock across playthroughs), portal = an incomplete far-channeled spell, permanent
-> class commitment (a relic enables free *talent* respec, not class swap). Out-of-combat design bible
-> (`docs/design-bible/00-index.md`) remains the home for the rest. Combat build:
-> `dist/BunniesPartyCombatPrototype-NvM.exe` (git-ignored).
-
-**SHIPPED 2026-07-01 — CLASS ABILITY EXPANSION** (branch `nvm-party-combat`; spec
-`docs/superpowers/specs/2026-07-01-class-ability-expansion-design.md`, plan
-`docs/superpowers/plans/2026-07-01-class-ability-expansion.md`, **103 headless suites green**, up from
-69 — every one of the 69 pre-existing suites is still passing, untouched). Every class now has a full
-**4 base abilities + 1 Ultimate** kit, unlocking L1 (existing base) → L3 (existing Ultimate) → **L5/L7
-(new) → L9 (new, ultimate-tier)**:
-- **New infrastructure** (additive only — the existing `ability_id`/Ultimate dispatch is untouched):
-  `AbilityDef` resource; `Combatant.level`/`extra_abilities`/`cooldowns`; a parallel `MainPhasePlan`
-  staging slot for the 3 new per-class abilities (mutually exclusive with the base-ability slot); a new
-  outgoing/incoming `MULTIPLIER_EDIT` damage hook (previously inert — `Combatant.
-  outgoing_damage_multiplier()`/`incoming_damage_multiplier()`, wired into `CombatResolver`); thorns
-  reflection; `ActionReel.make_rider_attack()`; `PaylineLibrary.bonus_line()`; evasion/riposte-charge
-  tracking; `AttackResult.source_reel`; EnemyAI Taunt-priority targeting.
-- **11 new shared effects:** Sundered, Weakened, Jinxed, Rooted, Guarded, Taunt, Empowered, Evasion,
-  Regen, Cursed, Haste (alongside the existing Bleed/Slow/Stunned/Hunter's Mark/Inspirational/Shielded).
-- **21 new abilities, 3 per class** — see CLAUDE.md §8's 2026-07-01 entry for the full per-class
-  breakdown (Sundering Strike/Heroic Guard/Second Wind, Bloodwrath/Quake Slam/Mountain Stance,
-  Feint & Riposte/Quickstep/Riposte Storm, Loaded Dice/Jinx the Odds/Double or Nothing, Aimed Shot/
-  Snare Trap/Crippling Shot, Hex/Foresight/Mana Surge, Entangle/Regrowth/Bastion).
-- **ENDGAME combat tester** — a selection-screen toggle that spawns level-9 PCs so every ability +
-  Ultimate is marked unlocked in DATA, built specifically to make this playtest possible once the UI exists.
-
-> **⚠ NOT PLAYTEST-READY — NO UI EXISTS FOR THE 21 NEW ABILITIES.** See the START HERE block above.
-> `combat/combat.gd` only has a single base-ability button and a single Ultimate button; there is no
-> button/handler for any L5/L7/L9 ability. Only `MainPhasePlan.staged_extra_ability_id` staging/commit
-> and the `Combatant` staging methods exist (test-green). A human cannot yet click to use any of these
-> 21 abilities in the live scene — a follow-up UI task is required before playtest is possible.
->
-> **Regrowth fix (2026-07-01 final-review I1):** seeded `regen.dot_base_damage` from the caster's
-> weapon base in `combat/combat.gd` before attaching — previously it defaulted to 0.0, so every
-> Regrowth heal tick was `ceili(0.0 * fraction) = 0` (a dead ability). Covered by `tests/test_regrowth.gd`.
-
-**Not yet human-verified (§5 hard ceiling):** all 103 suites are test-green and the scene loads clean,
-but no one has played the ENDGAME kit live yet — and no one CAN yet, since the extra-ability UI doesn't
-exist (see above; build that first). Once it exists, four abilities need particular attention because
-they're orchestrator-level and only unit-tested at the boundary — Double or Nothing's refund/recoil, Aimed
-Shot's Mark-conditional bonus, Foresight/Regrowth's auto-targeting, Crippling Shot's bonus-vs-CC damage
-— plus the ENDGAME toggle's UI behavior generally, plus the feel/balance of all 21 abilities (every
-magnitude is an untuned `[ASSUMPTION]`).
-
-**ALL SEVEN classes are LIVE and in-scene** (full roster; class picker at start AND on the end card):
-
-- **Warrior (Martin)** — Slashing, 3 reels. Base **Rend** → stacking **BLEED** DoT. Ultimate `wild`.
-- **Vanguard (Sunflash)** — Crushing, 2 reels, heavy. Base **Heft** (reel-edit, removes misses).
-  Ultimate **Rampage** (`rampage`: +1 reel, Heft-all, AoE) — its +1 reel now counts toward paylines.
-- **Skirmisher (Basil Stag Hare)** — Slashing, 4 reels, fast. Base **Flurry** (own-type splice).
-  Ultimate `sticky_wild` (2-spin).
-- **Chancer (Cheek the Otter)** — Storm, 4 reels, **Luck 1**. Base **Re-roll** (worst reel, refund if none
-  bad). Ultimate **Wildcard Gamble**. **Casino payline profile** — human-approved 2026-06-25.
-- **Ranger (Squirrel)** — Piercing bow, 4 reels, stamina 10. Base **Hunter's Mark** (`hunters_mark`,
-  REEL_FACE_EDIT debuff, 3 turns, 3 STA): while an enemy is marked, any non-AoE attacker's weapon-attack
-  reels have crit-fails swapped for hits (`Combatant.hunters_mark_reels`). Ultimate **Collateral Damage**
-  (`collateral`): +1 reel, primary takes full, all other enemies take `ceil(total/2)` Piercing. **Built
-  2026-06-26 — awaiting cross-class fun/fairness playtest.**
-- **Seer (Vole)** — Mystic War Staff, 2 reels, **mana-only 15/15** (regen 1), Focus 6. Base **Select your
-  Fate!** (`select_fate`, 6 mana): +1 reel (joins paylines) + a 6-type modal that retypes the whole spin.
-  Ultimate **The Big Bang** (`big_bang`, full meter): tops to 4 WILD reels, AoE all enemies, heals each ally
-  `ceil(total/6)` with overflow → a 2-turn Shielded. Combos with Select your Fate (typed AoE nuke). **Built
-  2026-06-27 — awaiting cross-class fun/fairness playtest.** Spec `2026-06-27-seer-class-design.md`.
-- **Warden (Mole)** — Earth Earthstave, 3 reels, **mana-only 12/12** (regen 1), Focus 4, meter cap 20 (raised
-  from 15 in the 2026-06-29 playtest; the Rallying Cry reel also charges **no** meter — Earthquake refills fast). Base
-  **Rallying Cry** (`rallying_cry`, 4 mana): +1 no-damage utility reel (2 crit + 8 success faces, out of
-  paylines, at the tail) → success shields all allies `ceil(weapon×0.5)`, crit `ceil(weapon)`, 2 turns,
-  higher-overrides. Ultimate **Earthquake** (`earthquake`, full meter): +1 reel inserted contiguous with the
-  attack run, all 4 weapon reels crit-biased **WILD** + the **4-line payline grid**; **NOT AoE** — primary
-  takes full per-reel damage, every other enemy takes `ceil(total/2)` Earth (reuses Collateral's splash); then
-  **every damaged enemy is STUNNED next turn via a one-shot `force_stun_next_turn` that `evaluate_stun` honors
-  WITHOUT changing `current_initiative`** (queue order preserved) and **bypasses the anti-lock**. Does NOT
-  subsume Rallying Cry → they stack (5-reel power turn). **Built 2026-06-29 — awaiting cross-class fun/fairness
-  playtest.** Spec `2026-06-29-warden-class-design.md`. (Replaces the old Pick'em Bonus placeholder.)
-
-**SHIPPED 2026-06-29 — Warden + Earthquake** (all 60 suites green): added `ActionReel.make_rallying_cry`,
-`Combatant.force_stun_next_turn`/`apply_rallying_cry`/`fire_earthquake`, a shared `_splash_half_to_others`
-orchestrator helper (refactored out of Collateral), and the Warden's labels/tooltips/picker entry. Completes
-the 7-class roster — the next step is the whole-roster fun/fairness playtest.
-
-**SHIPPED 2026-06-27 — Seer + caster UI** (all 52 suites green): added the rail-aware **Mana line** and the
-**🛡 SHIELD chip** to `CombatantPanel` (the caster logic shipped earlier without caster UI), and fixed
-`apply_stats` so Focus boosts only a rail the class actually uses (no phantom stamina on a mana-only class).
-
-**SHIPPED 2026-06-26 — Ranger + playtest tooling** (all 48 suites green):
-- **Ability/Ultimate lock rule UPDATED:** an Ultimate locks the base ability ONLY if it **subsumes** it
-  (Vanguard Rampage=Heft free/coupled; Chancer Gamble→Re-roll locked). Warrior (Wild+Rend), Ranger
-  (Collateral+Mark), Skirmisher (Sticky-Wild+Flurry) can fire BOTH. Switch: `MainPhasePlan._ultimate_subsumes_ability()`.
-- **Window 1600×900**, respaced UI; **tooltips** on every button + class picker; **start-of-session
-  class-select overlay** (pick class + dummy toggle → BEGIN FIGHT).
-- **Target dummies (PERMANENT):** toggle adds two immortal 30-HP dummies (heal to full each turn, floor at
-  1 HP via `Combatant.min_hp`, excluded from `TurnManager._living` so they can't stall the win).
-- **N-vs-M target selection:** click an enemy panel to set the primary target (red outline; `_player_target`/
-  `CombatantPanel.set_targeted`); drives normal attacks + Hunter's Mark + Collateral primary.
-
-**SHIPPED 2026-06-23/25 — Casino paylines + payline-toggle polish** (specs
-`2026-06-23-chancer-casino-paylines-design.md`, `2026-06-25-payline-toggle-polish-and-reel-rules-design.md`):
-per-class `payline_profile_id` (`&"default"` whole-line vs `&"casino"` left-aligned); a **Paylines
-toggle button** that walks one line at a time over the reels (white-outline highlight, reliable clear,
-a `[R1-top, R2-mid, …]` cell readout); the payline grid width is now the **leading run of weapon-attack
-reels** so Flurry/Rampage additions join the grid while the no-damage Rend reel stays out
-(`ActionReel.is_weapon_attack`); and **staging any Ultimate now locks out the base-ability toggle**
-(generalized from Vanguard's Rampage-includes-Heft — you take the big play OR the base ability).
-
-**Supporting effect/resource systems already built** (groundwork for the caster classes — see the
-suite list in §5): **Mana** pool + derivation, **Heal**, **Shielded** buff, **Cleanse**. So the new
-classes mostly compose existing hooks, not new architecture.
-
-**SHIPPED 2026-06-28 (branch `nvm-party-combat`) — Enemy AI v1 + enemy variation + selection-screen polish**
-(spec `2026-06-28-enemy-ai-v1-and-selection-polish-design.md`, **69 suites green**): the placeholder enemy
-targeting is now `EnemyAI.pick_target` (super-effective → neutral → resisted, lowest-HP tie-break); ferret
-(dagger/Flurry) and stoat (bow/Hunter's Mark) borrow PC base abilities with small stamina pools (no enemy
-Ultimate); greedy ability use via the shared `_commit_main1`; and the character-select screen gained
-multi-line tooltips, `RoleVisuals` combat-role badges, and vertically-centered columns. **Next: human
-playtest the party fight + new AI, then tune the `[ASSUMPTION]` enemy numbers.**
-
-**NEW 2026-06-28 — OUT-OF-COMBAT DESIGN BIBLE** at `docs/design-bible/` (read `00-index.md` first). A
-research-grounded (Persona/FF/D&D, BG3/Diablo, Paper Mario) intake framework for every out-of-combat system:
-storyline, world/overworld, **KOTOR-style recruitable companions** (full PC-depth when active; party of 3),
-character creation, stats, leveling, talents + the **"Reel Points"** budget, equipment, inventory, the
-**cross-character bank** (replayability spine), crafting, and the **encounter framework** (boss-part-as-
-Combatant + data-driven phases). Workflow is **hybrid**: the player brain-dumps into each file's 💬 zone, I
-structure it into the 📋 brief (markers: 🟦 your input · 💡 proposal · 🔬 reference · ❓ open · ✅ locked · ⏳
-deferred); a locked brief graduates to a real spec→plan→build. **Unifying principle: every out-of-combat
-system FEEDS THE REELS, never a parallel build axis.** `DESIGN.md` stays the *combat* source of truth.
-
-**NEXT SESSION — build the N-vs-M PARTY-COMBAT prototype** (player direction 2026-06-29). All seven classes are
-built and test-green (60 suites); the **Warden was human-playtested 2026-06-29** — Earthquake felt good. Tuning
-applied that session and merged to `main`: meter cap 15→20, the Rallying Cry reel charges **no** Bonus Meter
-(`ActionReel.charges_meter`), and the right-hand action-button column dropped +40px to clear the taller caster
-panels. A **single-file distributable** was exported to `dist/BunniesCombatPrototype.exe` (git-ignored) for
-in-person playtesters and confirmed to launch cleanly. The next build is **real N-vs-M party combat** per the
-locked party-UI plan below (vertical columns — player party LEFT, enemy party RIGHT). The systems are already
-party-ready (`current_initiative`, AoE/splash/heal/shield broadcast over the combatant list, per-combatant
-effects, click-to-select targeting); the prototype just still *runs* 1v1 + dummies.
-
-**Open per-class playtests (alongside, non-blocking):** the **Seer/Ranger** Ultimates haven't had a dedicated
-human playtest. Tune `[ASSUMPTION]` numbers (per-class stats/HP/costs; Earthquake's stun-bypasses-anti-lock and
-"any-damage-stuns" calls; Rallying Cry's always-shields face mix; splash/heal fractions) only **after** the
-spins feel right — never balance-by-fiat (§4). **Deferred to the full-demo phase:** button hover-tooltips wrap
-off the window — re-flow them when we move past the bare combat scene (player note 2026-06-29).
-
-**Still deferred (don't build speculatively — §7 YAGNI):** the 6th Ultimate archetype polish, weapon
-riders, gear beyond the Padded Jerkin, races + specialization branches, and full **N-vs-M party combat**
-(everything is architected party-ready — `current_initiative`, Inspirational-targets-all-allies,
-per-combatant effects/Shielded, and now **click-to-select primary targeting** — but the prototype still
-*runs* 1v1 + dummies). Plus tuning all `[ASSUMPTION]` balance numbers post-playtest, and the UI polish
-recorded in `ARCHITECTURE.md §9`.
-
-> **N-vs-M PARTY-UI PLAN (player request 2026-06-26, build with the party prototype):** lay combatant
-> panels out as **vertical columns — the player's party down the LEFT edge, the enemy party down the
-> RIGHT edge** of the window (replacing the current top-row PC | dummies | enemy strip). The center then
-> frees up for the reels/log. The panels were widened to 300px on 2026-06-26 so the target-selection
-> outline contains all rows (HP bar / 6-stat line / Bonus Meter); carry that width into the column layout.
-
----
-
-## 7. Detailed record — where to read more
-
-- **Per-feature design specs** (`docs/superpowers/specs/`): `2026-06-19-combat-open-threads-design.md`,
-  `…-main1-staging-design.md`, `…-stacking-debuffs-design.md`, `2026-06-20-paylines-design.md`,
-  `…-stat-system-design.md`, `…-stunned-mechanic-design.md`, `2026-06-21-class-system-v1-design.md`,
-  `2026-06-22-remaining-four-classes-design.md`, `2026-06-22-remaining-classes-and-weapons-roadmap.md`,
-  `2026-06-23-chancer-casino-paylines-design.md`,
-  `2026-06-25-payline-toggle-polish-and-reel-rules-design.md`. Raw class input: `Bunnies New Class Info.txt`.
+- **Full chronological ship/playtest history:** `docs/DEVLOG.md` (moved out of `CLAUDE.md` on
+  2026-08-09 to keep that file lean).
+- **Per-feature design specs:** `docs/superpowers/specs/`. **Plans:** `docs/superpowers/plans/`.
 - **Autonomous balance/design calls + `[ASSUMPTION]` values:** `docs/superpowers/DECISIONS-LOG.md`.
-- **As-built code map:** `ARCHITECTURE.md`. **Conventions:** `CLAUDE.md`. **Full design / source of
-  truth:** `DESIGN.md`.
-
----
-
-*Snapshot updated 2026-06-29 on branch `warden-earthquake`: ALL 7 classes live (Warden + Earthquake shipped),
-60 headless suites green; next step is the whole-roster fun/fairness playtest. Earlier note retained below for
-history.*
-
-*Snapshot updated 2026-06-25 on branch `remaining-four-classes`: 4 of 7 classes live + playtested,
-casino paylines + toggle polish shipped and human-approved, 45 suites green. Next session builds
-Ranger/Seer/Warden one at a time (spec → implement → cross-class fairness playtest). Open `DESIGN.md`
-for the authoritative detail behind every line above.*
+- **As-built code map:** `ARCHITECTURE.md`. **Conventions/rules:** `CLAUDE.md`. **Full design /
+  source of truth:** `DESIGN.md`. **Out-of-combat systems:** `docs/design-bible/` (start at
+  `00-index.md`).
+- **Session-to-session context that doesn't belong in a doc** (what was surprising, what's still
+  open, why a decision was made): the assistant's persistent memory system — ask it to check
+  memory if picking up a thread that isn't reflected above.
