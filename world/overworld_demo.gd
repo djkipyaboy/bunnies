@@ -81,6 +81,10 @@ func _ready() -> void:
 	_build_camera()
 	_build_ui()
 	_build_inventory_demo()
+	# Tutorial "move" objective (Task 9) — connected here, not next to _build_pc() above, since
+	# _party_inventory doesn't exist until _build_inventory_demo() just ran; the lambda only reads
+	# _party_inventory when the player actually moves, so this ordering is what matters.
+	_pc.moved.connect(func() -> void: _party_inventory.complete_objective(&"tutorial", &"move"))
 	# VillageEntrance was built in _build_world(), before the party existed — wire its party
 	# fields now (2026-07-12 shared-party-state work) so entering town carries the SAME party
 	# town_demo.tscn will pick back up.

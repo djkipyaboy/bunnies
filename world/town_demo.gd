@@ -74,6 +74,11 @@ func _ready() -> void:
 	# has already run.
 	if _party_inventory.accepted_quest_ids.is_empty():
 		_party_inventory.accept_quest(&"tutorial")
+	# Tutorial "move" objective (Task 9): connected after the auto-start line above so the
+	# tutorial quest is guaranteed to exist before this could ever fire against it — though
+	# connecting itself is harmless regardless, since nothing emits `moved` until the player
+	# actually moves.
+	_pc.moved.connect(func() -> void: _party_inventory.complete_objective(&"tutorial", &"move"))
 	# TownExit was built in _wire_doors(), before the party existed — wire its party fields now
 	# (2026-07-12 shared-party-state work) so leaving town carries the SAME party the overworld
 	# will pick back up, instead of each scene seeding its own independent placeholder party.

@@ -7,6 +7,12 @@ extends CharacterBody2D
 
 @export var move_speed: float = 90.0
 
+## Emitted exactly once, the first time _physics_process() observes nonzero movement input — the
+## tutorial's "move" objective hook (2026-08-10 quest-popups-and-tutorial-wiring plan Task 9).
+signal moved
+
+var _moved_signal_fired: bool = false
+
 var _tracked: Array[Interactable] = []
 var _movement_paused: bool = false
 
@@ -59,5 +65,8 @@ func _physics_process(_delta: float) -> void:
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_down") - Input.get_action_strength("move_up")
 	)
+	if not _moved_signal_fired and input_vector != Vector2.ZERO:
+		_moved_signal_fired = true
+		moved.emit()
 	velocity = movement_velocity(input_vector, move_speed, _movement_paused)
 	move_and_slide()
