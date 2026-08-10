@@ -31,6 +31,7 @@ var _ui_layer: CanvasLayer
 var _inventory_panel: InventoryMenuPanel
 var _talent_panel: TalentMenuPanel
 var _professions_panel: ProfessionsMenuPanel
+var _quest_log_panel: QuestLogPanel
 var _vendor_prompt_panel: VendorPromptPanel
 var _shop_panel: ShopPanel
 var _pickup_debug_label: Label
@@ -362,6 +363,10 @@ func _build_inventory_demo() -> void:
 	_ui_layer.add_child(_professions_panel)
 	_professions_panel.set_log_fn(func(line: String) -> void: _handoff().log_event(line, _handoff().CATEGORY_CRAFTING))
 
+	_quest_log_panel = QuestLogPanel.new()
+	_quest_log_panel.hide()
+	_ui_layer.add_child(_quest_log_panel)
+
 	_vendor_prompt_panel = VendorPromptPanel.new()
 	_vendor_prompt_panel.hide()
 	_ui_layer.add_child(_vendor_prompt_panel)
@@ -686,7 +691,7 @@ func _set_highlighted_target(target: Interactable) -> void:
 	_highlighted_target = target
 
 func _toggle_inventory() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _professions_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -699,7 +704,7 @@ func _toggle_inventory() -> void:
 ## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
 ## different starting tab.
 func _toggle_stats() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _professions_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -711,7 +716,7 @@ func _toggle_stats() -> void:
 ## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
 ## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
 func _toggle_talents() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _inventory_panel.visible or _professions_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		return
 	if _talent_panel.visible:
 		_talent_panel.close()
@@ -723,13 +728,25 @@ func _toggle_talents() -> void:
 ## Professions (2026-08-02 salvaging-and-cooking professions design section 5) -- bound to 'P'. Same
 ## toggle semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents().
 func _toggle_professions() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible:
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _quest_log_panel.is_open():
 		return
 	if _professions_panel.is_open():
 		_professions_panel.close()
 		_pc.set_movement_paused(false)
 	else:
 		_professions_panel.open_for(_party_inventory)
+		_pc.set_movement_paused(true)
+
+## Quest Log (2026-08-10 quest-system-and-tutorial design §4) -- bound to 'Q'. Same toggle
+## semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents()/_toggle_professions().
+func _toggle_quest_log() -> void:
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open():
+		return
+	if _quest_log_panel.is_open():
+		_quest_log_panel.close()
+		_pc.set_movement_paused(false)
+	else:
+		_quest_log_panel.open_for(_party_inventory)
 		_pc.set_movement_paused(true)
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -748,7 +765,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_professions"):
 		_toggle_professions()
 		return
-	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open():
+	if event.is_action_pressed("toggle_quest_log"):
+		_toggle_quest_log()
+		return
+	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		return
 	if not event.is_action_pressed("interact"):
 		return
