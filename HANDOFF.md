@@ -47,8 +47,15 @@ status summary, or `docs/DEVLOG.md` for the full entry.
 - Ability-level redistribution / talent tuning, post-combat recovery, PC↔companion level parity —
   each explicitly deferred to its own dedicated design session.
 - Design-bible settlement/roster content is still seeded proposals, not locked.
-- **Pre-export checklist:** the Professions panel's scaling reads noticeably too large — flagged
-  during the 2026-08-10 Quest Log playtest, not fixed yet, check before cutting an export build.
+- **Pre-export checklist, remaining (parked as Plan 3, see below):** Quest Log's detail pane can
+  overflow past the panel's bottom edge for a quest with many objectives (needs a scroll
+  container); quest completion (both the tutorial's auto-complete and Lost Cat's turn-in) grants
+  rewards with no Event Log entry; the tutorial has no step directing players to the Adventuring
+  Board's other functionality (Party Selection, Level Up to Endgame). Professions' oversized
+  scaling and every menu panel's off-center positioning were fixed 2026-08-10.
+- **Plan 3 is parked** (session usage-limit risk) but is next in line before the next export —
+  world hover tooltips + the Respawn Gathering Nodes debug utility (spec §10/§12), plus the 3
+  playtest-fix items just above. See memory `quest-system-foundation-2026-08-10` for full context.
 
 ---
 
