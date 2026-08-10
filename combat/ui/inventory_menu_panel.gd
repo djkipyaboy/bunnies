@@ -1157,6 +1157,7 @@ func _equip_selected(c: Combatant, slot_idx: int) -> void:
 		var displaced2: Gear = c.equip_gear(item)
 		if displaced2 != null:
 			_active_container_give_gear(displaced2)
+		_party_inventory.complete_objective(&"tutorial", &"equip_gear")
 	_equip_reject_message = ""
 	_selected = {}
 
@@ -1227,6 +1228,7 @@ func _auto_equip_onto_pc(item: Resource, is_weapon: bool) -> void:
 		var displaced2: Gear = pc_col.equip_gear(g)
 		if displaced2 != null:
 			_active_container_give_gear(displaced2)
+		_party_inventory.complete_objective(&"tutorial", &"equip_gear")
 		_equip_reject_message = ""
 	if _selected.get("item") == item:
 		_selected = {}
@@ -1305,6 +1307,17 @@ func set_compare_enabled_for_test(enabled: bool) -> void:
 
 func select_grid_item_for_test(item: Resource, is_weapon: bool) -> void:
 	_on_grid_item_pressed(item, is_weapon)
+
+## Sets the current selection directly, without the grid-press side effects (message/tab
+## resets) select_grid_item_for_test() triggers — used by tests that only need _equip_selected()
+## to see a populated _selected (test hook).
+func select_item_for_test(item: Resource, is_weapon: bool) -> void:
+	_selected = {"item": item, "is_weapon": is_weapon}
+
+## Invokes _equip_selected() directly with an explicit Combatant, bypassing the column-lookup
+## press_slot_for_test() does (test hook).
+func equip_selected_for_test(c: Combatant, slot_idx: int) -> void:
+	_equip_selected(c, slot_idx)
 
 func select_material_for_test(m: CraftingMaterial) -> void:
 	_on_material_pressed(m)

@@ -573,6 +573,7 @@ func _toggle_inventory() -> void:
 	else:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false)
 		_pc.set_movement_paused(true)
+		_party_inventory.complete_objective(&"tutorial", &"open_inventory")
 
 func _toggle_stats() -> void:
 	if _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():

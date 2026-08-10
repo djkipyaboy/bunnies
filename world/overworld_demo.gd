@@ -676,6 +676,7 @@ func _toggle_inventory() -> void:
 	else:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false)   # overworld = not a safe zone, Vault unreachable
 		_pc.set_movement_paused(true)
+		_party_inventory.complete_objective(&"tutorial", &"open_inventory")
 
 ## Opens the same InventoryMenuPanel directly to its Stats tab (2026-07-12, player-requested
 ## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
