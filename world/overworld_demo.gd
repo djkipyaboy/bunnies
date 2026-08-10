@@ -56,6 +56,7 @@ var _vault: Vault
 var _inventory_panel: InventoryMenuPanel
 var _talent_panel: TalentMenuPanel
 var _professions_panel: ProfessionsMenuPanel
+var _quest_log_panel: QuestLogPanel
 var _village_entrance: SceneExit
 var _dungeon_entrance: SceneExit
 var _spawn_position: Vector2 = Vector2.ZERO
@@ -292,6 +293,10 @@ func _build_ui() -> void:
 	_professions_panel.hide()
 	ui.add_child(_professions_panel)
 	_professions_panel.set_log_fn(func(line: String) -> void: _handoff().log_event(line, _handoff().CATEGORY_CRAFTING))
+
+	_quest_log_panel = QuestLogPanel.new()
+	_quest_log_panel.hide()
+	ui.add_child(_quest_log_panel)
 
 	_dialogue_box = DialogueBox.new()
 	_dialogue_box.position = Vector2(20, 700)
@@ -652,7 +657,7 @@ func _on_random_encounter_resolved() -> void:
 	_pc.set_movement_paused(false)
 
 func _toggle_inventory() -> void:
-	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _professions_panel.is_open():
+	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -665,7 +670,7 @@ func _toggle_inventory() -> void:
 ## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
 ## different starting tab.
 func _toggle_stats() -> void:
-	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _professions_panel.is_open():
+	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -677,7 +682,7 @@ func _toggle_stats() -> void:
 ## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
 ## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
 func _toggle_talents() -> void:
-	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _inventory_panel.visible or _professions_panel.is_open():
+	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		return
 	if _talent_panel.visible:
 		_talent_panel.close()
@@ -689,7 +694,7 @@ func _toggle_talents() -> void:
 ## Professions (2026-08-02 salvaging-and-cooking professions design section 5) -- bound to 'P'. Same
 ## toggle semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents().
 func _toggle_professions() -> void:
-	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _inventory_panel.visible:
+	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _quest_log_panel.is_open():
 		return
 	if _professions_panel.is_open():
 		_professions_panel.close()
@@ -698,11 +703,23 @@ func _toggle_professions() -> void:
 		_professions_panel.open_for(_party_inventory)
 		_pc.set_movement_paused(true)
 
+## Quest Log (2026-08-10 quest-system-and-tutorial design §4) -- bound to 'Q'. Same toggle
+## semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents()/_toggle_professions().
+func _toggle_quest_log() -> void:
+	if _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open():
+		return
+	if _quest_log_panel.is_open():
+		_quest_log_panel.close()
+		_pc.set_movement_paused(false)
+	else:
+		_quest_log_panel.open_for(_party_inventory)
+		_pc.set_movement_paused(true)
+
 func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
 	_jackpot_bar.value = _party_inventory.jackpot_meter
-	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _professions_panel.is_open():
+	if _inventory_panel.visible or _dialogue_box.is_open() or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
@@ -752,7 +769,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_professions"):
 		_toggle_professions()
 		return
-	if _inventory_panel.visible or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _professions_panel.is_open():
+	if event.is_action_pressed("toggle_quest_log"):
+		_toggle_quest_log()
+		return
+	if _inventory_panel.visible or _random_encounter_panel.is_open() or _foraging_panel.is_open() or _fishing_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
 		return
 	if not event.is_action_pressed("interact"):
 		return
