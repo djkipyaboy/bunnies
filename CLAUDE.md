@@ -225,9 +225,6 @@ has been playtested across many rounds with no outstanding functional bugs. On t
 ### Still open / deferred (not forgotten, not started)
 
 - A proper Lost Cat / generic quest-interaction UI (accept/turn-in popups, event-log entries).
-- `PartyInventory.give_material()` silently drops `quality_tier` when merging into an existing
-  stack of the same `material_type` — flagged, not yet fixed, more reachable now that Fishing/
-  Salvaging/Cooking produce quality-tiered materials.
 - Ability-level redistribution (talent points, "Healing Well"-style rest-point tuning), post-
   combat recovery (Bonus Meter reduction + resource top-up on a win), and PC/companion level
   parity are all explicitly deferred to their own dedicated design sessions.

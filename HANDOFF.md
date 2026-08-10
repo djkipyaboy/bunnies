@@ -45,8 +45,6 @@ status summary, or `docs/DEVLOG.md` for the full entry.
 
 **Next open items** (not started, no session currently in flight):
 - A proper quest-interaction UI (accept/turn-in popups) for Lost Cat and future quests.
-- `PartyInventory.give_material()` drops `quality_tier` when merging into an existing stack —
-  flagged, not yet fixed.
 - Ability-level redistribution / talent tuning, post-combat recovery, PC↔companion level parity —
   each explicitly deferred to its own dedicated design session.
 - Design-bible settlement/roster content is still seeded proposals, not locked.
