@@ -71,7 +71,9 @@ func _initialize() -> void:
 	_check(inv.has_completed_quest(&"lost_cat"), "turned in for real via the board handler + popup")
 	_check(inv.has_quest_item(&"thank_you_note"), "the Thank You Note is granted")
 	tracker.refresh(inv)
-	_check(tracker.visible, "tracker still shows tutorial even after Lost Cat completes (tutorial is independent)")
+	var tracker_text := tracker.text_for_test()
+	_check(not tracker_text.to_lower().contains("bring"), "Lost Cat is filtered out of tracker once completed (completed-quest filtering works)")
+	_check(tracker_text.contains("Getting Started"), "tutorial remains visible in tracker (independent quest tracking)")
 
 	# 6. The Thank You Note's dialogue names the live party.
 	# Same lambda-capture-by-value gotcha as above — wrap in a 1-element Array.
