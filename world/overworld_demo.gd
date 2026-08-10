@@ -295,6 +295,7 @@ func _build_ui() -> void:
 	_professions_panel.set_log_fn(func(line: String) -> void: _handoff().log_event(line, _handoff().CATEGORY_CRAFTING))
 
 	_quest_log_panel = QuestLogPanel.new()
+	_quest_log_panel.position = Vector2(140, 60)
 	_quest_log_panel.hide()
 	ui.add_child(_quest_log_panel)
 

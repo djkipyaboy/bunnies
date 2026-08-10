@@ -5,8 +5,10 @@ extends SceneTree
 ## tests/test_overworld_demo_professions.gd's instantiate/await-process_frame/direct-field-access
 ## convention.
 
+var _failures: int = 0
 func _check(cond: bool, label: String) -> void:
-	print(("ok " if cond else "FAIL ") + label)
+	if cond: print("  ok: ", label)
+	else: _failures += 1; push_error("FAIL: " + label); print("  FAIL: ", label)
 
 func _initialize() -> void:
 	var scene: Node = load("res://world/town_demo.tscn").instantiate()
@@ -30,4 +32,4 @@ func _initialize() -> void:
 	_check(scene._quest_log_panel.is_open(), "opening Professions while the Quest Log is open is blocked (Quest Log stays open)")
 	_check(not scene._professions_panel.is_open(), "Professions did not open")
 
-	quit()
+	quit(_failures)

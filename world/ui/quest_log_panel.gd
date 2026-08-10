@@ -73,6 +73,12 @@ func _rebuild() -> void:
 		_select_quest(active_ids[0])
 	elif not completed_ids.is_empty():
 		_select_quest(completed_ids[0])
+	else:
+		_selected_quest_id = &""
+		_detail_title.text = "No active quests."
+		_detail_body.text = ""
+		_track_checkbox.disabled = true
+		_abandon_button.disabled = true
 
 func _add_row(quest_id: StringName, y: float) -> float:
 	var quest: Quest = QuestLibrary.get_quest(quest_id)
@@ -133,11 +139,15 @@ func _select_quest(quest_id: StringName) -> void:
 	_abandon_button.visible = not completed
 
 func _on_track_toggled(pressed: bool) -> void:
+	if _selected_quest_id == &"":
+		return
 	_party_inventory.set_quest_tracked(_selected_quest_id, pressed)
 
 ## Re-checks category itself rather than trusting only the Abandon button's `disabled` state —
 ## disabled blocks a real click, but this handler must be safe even if called directly.
 func _on_abandon_pressed() -> void:
+	if _selected_quest_id == &"":
+		return
 	var quest: Quest = QuestLibrary.get_quest(_selected_quest_id)
 	if quest != null and quest.category == Quest.Category.TUTORIAL:
 		return

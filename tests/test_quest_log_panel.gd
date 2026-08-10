@@ -35,5 +35,19 @@ func _initialize() -> void:
 	_check(inv.has_accepted_quest(&"tutorial"), "Abandon has no effect on a TUTORIAL-category quest")
 
 	panel.free()
+
+	## Empty state (final review finding 2): no accepted quests must not leave Track/Abandon
+	## live with an empty _selected_quest_id, and both handlers must no-op even if called
+	## directly (test hooks bypass the disabled UI state).
+	var empty_inv := PartyInventory.new()
+	var empty_panel := QuestLogPanel.new()
+	empty_panel.open_for(empty_inv)
+	_check(empty_panel.detail_text_for_test() == "", "empty Quest Log shows no detail body")
+	empty_panel.toggle_track_for_test(true)
+	_check(empty_inv.tracked_quest_ids.is_empty(), "toggling Track with no quest selected does not poison tracked_quest_ids")
+	empty_panel.press_abandon_for_test()
+	_check(empty_inv.accepted_quest_ids.is_empty(), "pressing Abandon with no quest selected is a no-op")
+	empty_panel.free()
+
 	print(("QUEST LOG PANEL TEST PASSED" if _failures == 0 else "QUEST LOG PANEL TEST FAILED: %d" % _failures))
 	quit(_failures)
