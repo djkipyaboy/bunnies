@@ -370,7 +370,7 @@ func _build_inventory_demo() -> void:
 	_ui_layer.add_child(_quest_log_panel)
 
 	_quest_popup_panel = QuestPopupPanel.new()
-	_quest_popup_panel.position = Vector2(1100, 600)
+	_quest_popup_panel.position = Vector2(1050, 100)
 	_quest_popup_panel.hide()
 	_ui_layer.add_child(_quest_popup_panel)
 	_quest_popup_panel.accepted.connect(_on_quest_popup_accepted)
