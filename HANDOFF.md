@@ -44,10 +44,11 @@ human-playtested and confirmed working across the board. See `CLAUDE.md` §8 for
 status summary, or `docs/DEVLOG.md` for the full entry.
 
 **Next open items** (not started, no session currently in flight):
-- A proper quest-interaction UI (accept/turn-in popups) for Lost Cat and future quests.
 - Ability-level redistribution / talent tuning, post-combat recovery, PC↔companion level parity —
   each explicitly deferred to its own dedicated design session.
 - Design-bible settlement/roster content is still seeded proposals, not locked.
+- **Pre-export checklist:** the Professions panel's scaling reads noticeably too large — flagged
+  during the 2026-08-10 Quest Log playtest, not fixed yet, check before cutting an export build.
 
 ---
 
