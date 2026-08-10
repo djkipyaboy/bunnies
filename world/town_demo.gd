@@ -507,6 +507,24 @@ func _make_dialogue(line_text: String, speaker_name: String = "Villager") -> Dia
 	dialogue_set.lines = lines
 	return dialogue_set
 
+## The Shopkeeper's tutorial-only greeting (2026-08-10 quest-system-and-tutorial design §8) —
+## explains the Amber economy and item-rarity coloring, shown instead of the normal greeting while
+## the tutorial's visit_shop objective is still pending. Built the same way as _make_dialogue().
+func _make_shopkeeper_tutorial_dialogue(speaker_name: String) -> DialogueSet:
+	var line1 := DialogueLine.new()
+	line1.speaker_name = speaker_name
+	line1.text = "New around here? Everything in my shop costs Amber — you'll earn it from quests and selling loot."
+	var line2 := DialogueLine.new()
+	line2.speaker_name = speaker_name
+	line2.text = "And take a look at the color on an item's name — that's its rarity. Brighter, fancier colors mean a better find."
+	var farewell := DialogueLine.new()
+	farewell.speaker_name = speaker_name
+	farewell.text = "Take a look around, and come back anytime!"
+	var lines: Array[DialogueLine] = [line1, line2, farewell]
+	var dialogue_set := DialogueSet.new()
+	dialogue_set.lines = lines
+	return dialogue_set
+
 func _make_quest_entries() -> Array[QuestBoardEntry]:
 	var lost_cat_body: String
 	var lost_cat_category: QuestBoardEntry.Category
@@ -564,12 +582,18 @@ func _on_dialogue_closed() -> void:
 	_pc.set_movement_paused(false)
 
 ## WoW-style vendor front door (2026-07-17 general store design §3.6): the Shopkeeper's interact
-## opens a Talk/Shop/Leave prompt instead of jumping straight into dialogue.
+## opens a Talk/Shop/Leave prompt instead of jumping straight into dialogue. While the tutorial's
+## visit_shop objective is pending, swaps in a tutorial-only greeting (2026-08-10 §8) and completes
+## the objective instead of playing the passed-in dialogue_set.
 func _on_vendor_interacted(dialogue_set: DialogueSet, villager: Villager) -> void:
 	_talking_to = villager
 	villager.set_wander_paused(true)
 	_pc.set_movement_paused(true)
-	_vendor_prompt_panel.open_for(dialogue_set)
+	var set_to_show: DialogueSet = dialogue_set
+	if not _party_inventory.is_objective_complete(&"tutorial", &"visit_shop"):
+		set_to_show = _make_shopkeeper_tutorial_dialogue(villager.dialogue.lines[0].speaker_name if not villager.dialogue.lines.is_empty() else "Shopkeeper")
+		_party_inventory.complete_objective(&"tutorial", &"visit_shop")
+	_vendor_prompt_panel.open_for(set_to_show)
 
 func _on_vendor_talk_pressed() -> void:
 	# Talk hands off to the existing linear DialogueBox flow unchanged — _on_dialogue_closed()
