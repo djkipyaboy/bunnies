@@ -35,6 +35,7 @@ var _quest_log_panel: QuestLogPanel
 var _quest_popup_panel: QuestPopupPanel
 var _legend_panel: InteractableLegendPanel
 var _vendor_prompt_panel: VendorPromptPanel
+var _vendor_dialogue_set: DialogueSet
 var _shop_panel: ShopPanel
 var _pickup_debug_label: Label
 var _amber_label: Label
@@ -275,18 +276,20 @@ func _build_ui() -> void:
 
 	# Jackpot Meter HUD (2026-07-29 spec §2): a translucent fill-bar, no raw numbers — mirrors
 	# CombatantPanel's Bonus Meter bar convention (ProgressBar, show_percentage=false). A caption
-	# label + a lower y-position (final-review fix 2026-07-30) — previously unlabeled and close
-	# enough to the quest tracker's 2-line text (up to ~y186 when active) to visually clip it.
+	# label + a lower y-position (final-review fix 2026-07-30, pushed further down 2026-08-10) —
+	# the quest tracker (Vector2(16, 140)) can now render 2 tracked quests at once (tutorial + Lost
+	# Cat), 2 lines each, ~4 lines of text starting at its own y=140 — y=195 clipped under that, so
+	# these sit below the tracker's full 2-quest height instead.
 	_jackpot_caption = Label.new()
 	_jackpot_caption.text = "Jackpot"
 	_jackpot_caption.add_theme_font_size_override("font_size", 12)
-	_jackpot_caption.position = Vector2(16, 195)
+	_jackpot_caption.position = Vector2(16, 275)
 	_ui_layer.add_child(_jackpot_caption)
 
 	_jackpot_bar = ProgressBar.new()
 	_jackpot_bar.name = "JackpotBar"
 	_jackpot_bar.show_percentage = false
-	_jackpot_bar.position = Vector2(16, 213)
+	_jackpot_bar.position = Vector2(16, 293)
 	_jackpot_bar.custom_minimum_size = Vector2(200, 16)
 	_jackpot_bar.modulate = Color(1.0, 0.84, 0.4, 0.6)
 	_jackpot_bar.max_value = PartyInventory.JACKPOT_CAP
@@ -388,6 +391,7 @@ func _build_inventory_demo() -> void:
 	_ui_layer.add_child(_quest_popup_panel)
 	_quest_popup_panel.accepted.connect(_on_quest_popup_accepted)
 	_quest_popup_panel.completed.connect(_on_quest_popup_completed)
+	_quest_popup_panel.declined.connect(_on_quest_popup_declined)
 	_legend_panel = InteractableLegendPanel.new()
 	_legend_panel.position = Vector2(140, 60)
 	_legend_panel.hide()
@@ -585,6 +589,11 @@ func _on_dialogue_closed() -> void:
 ## opens a Talk/Shop/Leave prompt instead of jumping straight into dialogue. While the tutorial's
 ## visit_shop objective is pending, swaps in a tutorial-only greeting (2026-08-10 §8) and completes
 ## the objective instead of playing the passed-in dialogue_set.
+## Final-review fix (2026-08-10): VendorPromptPanel.open_for() only ever renders line[0]'s text as a
+## single-line greeting — it can't show the tutorial dialogue's later lines (the rarity explanation).
+## _vendor_dialogue_set caches whichever DialogueSet was actually chosen here (tutorial substitute or
+## the real villager dialogue) so _on_vendor_talk_pressed() can hand the FULL set to DialogueBox
+## instead of re-reading villager.dialogue directly (which would silently drop the tutorial swap).
 func _on_vendor_interacted(dialogue_set: DialogueSet, villager: Villager) -> void:
 	_talking_to = villager
 	villager.set_wander_paused(true)
@@ -593,12 +602,18 @@ func _on_vendor_interacted(dialogue_set: DialogueSet, villager: Villager) -> voi
 	if not _party_inventory.is_objective_complete(&"tutorial", &"visit_shop"):
 		set_to_show = _make_shopkeeper_tutorial_dialogue(villager.dialogue.lines[0].speaker_name if not villager.dialogue.lines.is_empty() else "Shopkeeper")
 		_party_inventory.complete_objective(&"tutorial", &"visit_shop")
+	_vendor_dialogue_set = set_to_show
 	_vendor_prompt_panel.open_for(set_to_show)
 
 func _on_vendor_talk_pressed() -> void:
-	# Talk hands off to the existing linear DialogueBox flow unchanged — _on_dialogue_closed()
-	# (already wired to DialogueBox.closed) resumes movement/wander when it finishes.
-	_dialogue_box.open(_talking_to.dialogue)
+	# Talk hands off to the existing linear DialogueBox flow — _on_dialogue_closed() (already wired
+	# to DialogueBox.closed) resumes movement/wander when it finishes. Opens the cached
+	# _vendor_dialogue_set (whatever _on_vendor_interacted actually showed on the prompt — the
+	# tutorial substitute while visit_shop is pending, or the villager's normal dialogue otherwise)
+	# rather than re-reading _talking_to.dialogue directly, so the tutorial's later lines (the
+	# rarity explanation) are reachable through this path instead of only ever showing line[0] on
+	# the prompt's single-line greeting.
+	_dialogue_box.open(_vendor_dialogue_set)
 
 func _on_vendor_shop_pressed() -> void:
 	if _talking_to != null:
@@ -698,6 +713,7 @@ func _on_board_entry_selected(entry: QuestBoardEntry) -> void:
 		var quest: Quest = QuestLibrary.get_quest(entry.id)
 		if quest == null:
 			return
+		_pc.set_movement_paused(true)
 		_quest_popup_panel.open_offer(quest)
 		return
 	if _party_inventory.has_completed_quest(entry.id):
@@ -706,11 +722,13 @@ func _on_board_entry_selected(entry: QuestBoardEntry) -> void:
 		var turn_in_quest: Quest = QuestLibrary.get_quest(entry.id)
 		if turn_in_quest == null:
 			return
+		_pc.set_movement_paused(true)
 		_quest_popup_panel.open_turn_in(turn_in_quest)
 
 func _on_quest_popup_accepted(quest_id: StringName) -> void:
 	_party_inventory.accept_quest(quest_id)
 	_board_panel.open_for(_make_quest_entries())
+	_pc.set_movement_paused(true)
 
 ## lost_cat is the only quest turned in through this popup today; its specific item-consumption/
 ## reward-granting logic stays here (rather than generic in QuestPopupPanel) since it's unique to
@@ -721,6 +739,14 @@ func _on_quest_popup_completed(quest_id: StringName) -> void:
 		_party_inventory.complete_quest(&"lost_cat")
 		_party_inventory.give_quest_item(_make_thank_you_note())
 	_board_panel.open_for(_make_quest_entries())
+	_pc.set_movement_paused(true)
+
+## Declined means nothing was accepted/completed — no board re-render needed since state didn't
+## change (unlike Accept/Complete, which both re-open the Board via _make_quest_entries()). Just
+## resume movement (final-review fix, 2026-08-10): every path INTO the popup now pauses movement,
+## so this is the only path back out that doesn't already re-open a panel that itself pauses it.
+func _on_quest_popup_declined() -> void:
+	_pc.set_movement_paused(false)
 
 ## The Lost Cat quest's turn-in reward (2026-07-19-lost-cat-quest-system-design.md) — a QuestItem so
 ## it shows in the Quest Items tab like the dungeon's Rusty Key.
@@ -758,7 +784,7 @@ func _set_highlighted_target(target: Interactable) -> void:
 	_highlighted_target = target
 
 func _toggle_inventory() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open() or _quest_popup_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -772,7 +798,7 @@ func _toggle_inventory() -> void:
 ## WoW-style 'C' character-pane keybinding) — same toggle semantics as _toggle_inventory(), just a
 ## different starting tab.
 func _toggle_stats() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open() or _quest_popup_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -784,7 +810,7 @@ func _toggle_stats() -> void:
 ## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
 ## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
 func _toggle_talents() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open() or _quest_popup_panel.is_open():
 		return
 	if _talent_panel.visible:
 		_talent_panel.close()
@@ -796,7 +822,7 @@ func _toggle_talents() -> void:
 ## Professions (2026-08-02 salvaging-and-cooking professions design section 5) -- bound to 'P'. Same
 ## toggle semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents().
 func _toggle_professions() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _quest_log_panel.is_open() or _legend_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _quest_log_panel.is_open() or _legend_panel.is_open() or _quest_popup_panel.is_open():
 		return
 	if _professions_panel.is_open():
 		_professions_panel.close()
@@ -809,7 +835,7 @@ func _toggle_professions() -> void:
 ## Quest Log (2026-08-10 quest-system-and-tutorial design §4) -- bound to 'Q'. Same toggle
 ## semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents()/_toggle_professions().
 func _toggle_quest_log() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open() or _legend_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open() or _legend_panel.is_open() or _quest_popup_panel.is_open():
 		return
 	if _quest_log_panel.is_open():
 		_quest_log_panel.close()
@@ -822,7 +848,7 @@ func _toggle_quest_log() -> void:
 ## toggle semantics as the other modal panels. Opening it also completes the tutorial's
 ## open_legend objective (unconditional — safe since the tutorial always auto-accepts first).
 func _toggle_legend() -> void:
-	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
+	if _dialogue_box.is_open() or _board_panel.is_open() or _party_selection_panel.is_open() or _vendor_prompt_panel.is_open() or _shop_panel.is_open() or _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _quest_popup_panel.is_open():
 		return
 	if _legend_panel.is_open():
 		_legend_panel.close()
@@ -862,6 +888,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if _dialogue_box.is_open():
 		_dialogue_box.advance()
+		return
+	# Final-review fix (2026-08-10): the popup can be showing on TOP of the Board (opened from a
+	# board row click), so this must not let 'E' close the Board out from under it — that would
+	# unpause movement and satisfy every other panel's guard while the popup is still stuck on
+	# screen. Guard right here rather than teaching QuestPopupPanel its own input handling, since
+	# every other close-on-'E' path below (dialogue/party-selection/vendor/shop) is unaffected —
+	# none of them can currently be open at the same time as the popup.
+	if _quest_popup_panel.is_open():
 		return
 	if _board_panel.is_open():
 		_board_panel.close()
