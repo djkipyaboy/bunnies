@@ -149,21 +149,32 @@ func accept_quest(quest_id: StringName) -> void:
 func has_accepted_quest(quest_id: StringName) -> bool:
 	return accepted_quest_ids.has(quest_id)
 
+## Completing a quest also grants its authored reward_amber (0 for quests like lost_cat that
+## reward via a QuestItem instead — see town_demo.gd's own turn-in handling). Guarded by the same
+## "not already completed" check as before, so re-completing never double-grants.
 func complete_quest(quest_id: StringName) -> void:
 	if not completed_quest_ids.has(quest_id):
 		completed_quest_ids.append(quest_id)
+		var quest: Quest = QuestLibrary.get_quest(quest_id)
+		if quest != null:
+			amber += quest.reward_amber
 
 func has_completed_quest(quest_id: StringName) -> bool:
 	return completed_quest_ids.has(quest_id)
 
-## Marks one QuestObjective complete for a generic (non-lost_cat) quest. lost_cat's objectives
-## are derived from its existing quest-item/completion state instead — see is_objective_complete().
+## Marks one QuestObjective complete for a generic (non-lost_cat) quest. Once every objective in
+## the quest is complete, auto-completes the quest — deliberate design choice (2026-08-10
+## quest-popups-and-tutorial-wiring plan Task 1): a fully objective-driven quest like the tutorial
+## has no separate manual turn-in step, unlike lost_cat, which turns in at the board. lost_cat is
+## unaffected since it never calls this method — see is_objective_complete()'s special-case.
 func complete_objective(quest_id: StringName, objective_id: StringName) -> void:
 	if not quest_progress.has(quest_id):
 		quest_progress[quest_id] = []
 	var completed: Array = quest_progress[quest_id]
 	if not completed.has(objective_id):
 		completed.append(objective_id)
+	if next_incomplete_objective(quest_id) == null and not has_completed_quest(quest_id):
+		complete_quest(quest_id)
 
 ## lost_cat is special-cased against state that already exists for other reasons (its Adventuring
 ## Board accept/turn-in flow, untouched by this plan) rather than requiring complete_objective()

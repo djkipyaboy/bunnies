@@ -73,5 +73,29 @@ func _initialize() -> void:
 	_check(inv3.is_objective_complete(&"lost_cat", &"return_cat"), "return_cat completes once the quest is turned in")
 	_check(inv3.next_incomplete_objective(&"lost_cat") == null, "lost_cat has no incomplete objectives left")
 
+	# --- New: auto-complete + reward grant (quest-popups-and-tutorial-wiring plan, Task 1) ---
+
+	var inv4 := PartyInventory.new()
+	inv4.accept_quest(&"tutorial")
+	var tutorial: Quest = QuestLibrary.get_quest(&"tutorial")
+	for i in range(tutorial.objectives.size() - 1):
+		inv4.complete_objective(&"tutorial", tutorial.objectives[i].id)
+		_check(not inv4.has_completed_quest(&"tutorial"), "tutorial isn't auto-completed until the LAST objective finishes (got objective %d)" % i)
+	var amber_before: int = inv4.amber
+	inv4.complete_objective(&"tutorial", tutorial.objectives[tutorial.objectives.size() - 1].id)
+	_check(inv4.has_completed_quest(&"tutorial"), "completing the last objective auto-completes the quest")
+	_check(inv4.amber == amber_before + tutorial.reward_amber, "completing the quest grants its reward_amber (got %d, expected %d)" % [inv4.amber, amber_before + tutorial.reward_amber])
+
+	# Completing an already-complete quest's objective again must not double-grant the reward.
+	inv4.complete_objective(&"tutorial", tutorial.objectives[tutorial.objectives.size() - 1].id)
+	_check(inv4.amber == amber_before + tutorial.reward_amber, "re-completing the last objective doesn't grant the reward twice (got %d)" % inv4.amber)
+
+	# lost_cat never calls complete_objective(), so this change must be a no-op for its existing flow.
+	var inv5 := PartyInventory.new()
+	inv5.accept_quest(&"lost_cat")
+	var lost_cat_amber_before: int = inv5.amber
+	inv5.complete_quest(&"lost_cat")
+	_check(inv5.amber == lost_cat_amber_before, "completing lost_cat grants 0 Amber (its reward_amber is 0 — it rewards via a QuestItem instead)")
+
 	print(("PARTY INVENTORY QUEST STATE TEST PASSED" if _failures == 0 else "PARTY INVENTORY QUEST STATE TEST FAILED: %d" % _failures))
 	quit(_failures)
