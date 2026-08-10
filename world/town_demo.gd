@@ -780,6 +780,7 @@ func _toggle_professions() -> void:
 	else:
 		_professions_panel.open_for(_party_inventory)
 		_pc.set_movement_paused(true)
+		_party_inventory.complete_objective(&"tutorial", &"open_professions")
 
 ## Quest Log (2026-08-10 quest-system-and-tutorial design §4) -- bound to 'Q'. Same toggle
 ## semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents()/_toggle_professions().
@@ -810,6 +811,8 @@ func _toggle_legend() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_event_log"):
 		_event_log_panel.visible = not _event_log_panel.visible
+		if _event_log_panel.visible:
+			_party_inventory.complete_objective(&"tutorial", &"open_event_log")
 		return
 	if event.is_action_pressed("toggle_inventory"):
 		_toggle_inventory()
