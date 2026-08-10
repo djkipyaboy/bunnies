@@ -32,6 +32,7 @@ var _inventory_panel: InventoryMenuPanel
 var _talent_panel: TalentMenuPanel
 var _professions_panel: ProfessionsMenuPanel
 var _quest_log_panel: QuestLogPanel
+var _quest_popup_panel: QuestPopupPanel
 var _vendor_prompt_panel: VendorPromptPanel
 var _shop_panel: ShopPanel
 var _pickup_debug_label: Label
@@ -368,6 +369,13 @@ func _build_inventory_demo() -> void:
 	_quest_log_panel.hide()
 	_ui_layer.add_child(_quest_log_panel)
 
+	_quest_popup_panel = QuestPopupPanel.new()
+	_quest_popup_panel.position = Vector2(580, 350)
+	_quest_popup_panel.hide()
+	_ui_layer.add_child(_quest_popup_panel)
+	_quest_popup_panel.accepted.connect(_on_quest_popup_accepted)
+	_quest_popup_panel.completed.connect(_on_quest_popup_completed)
+
 	_vendor_prompt_panel = VendorPromptPanel.new()
 	_vendor_prompt_panel.hide()
 	_ui_layer.add_child(_vendor_prompt_panel)
@@ -636,25 +644,42 @@ func _on_remove_companion_requested(companion: Combatant) -> void:
 	_handoff().log_event("Benched %s" % companion.display_name, &"party")
 	_party_selection_panel.open_for(_pc_combatant, _companions, _bench)
 
-## Lost Cat quest board interactivity (2026-07-19-lost-cat-quest-system-design.md §3.3): a placeholder
-## row (empty id) always no-ops; an unaccepted row accepts on click and re-renders; an
-## accepted-but-not-ready row no-ops; a completed row no-ops; the Lost Cat row specifically turns in
-## (consumes rescued_cat, completes the quest, grants the Thank You Note) once the party holds the
-## rescued cat.
+## Lost Cat quest board interactivity (2026-07-19-lost-cat-quest-system-design.md §3.3, retrofitted
+## onto QuestPopupPanel 2026-08-10): a placeholder row (empty id) always no-ops; an unaccepted row
+## opens the Accept popup; an accepted-but-not-ready row no-ops; a completed row no-ops; the
+## Lost Cat row specifically opens the Complete (turn-in) popup once the party holds the rescued
+## cat. The actual accept_quest()/complete_quest() calls now live in
+## _on_quest_popup_accepted()/_on_quest_popup_completed(), triggered by the popup's own buttons.
 func _on_board_entry_selected(entry: QuestBoardEntry) -> void:
 	if entry.id == &"":
 		return
 	if not _party_inventory.has_accepted_quest(entry.id):
-		_party_inventory.accept_quest(entry.id)
-		_board_panel.open_for(_make_quest_entries())
+		var quest: Quest = QuestLibrary.get_quest(entry.id)
+		if quest == null:
+			return
+		_quest_popup_panel.open_offer(quest)
 		return
 	if _party_inventory.has_completed_quest(entry.id):
 		return
 	if entry.id == &"lost_cat" and _party_inventory.has_quest_item(&"rescued_cat"):
+		var turn_in_quest: Quest = QuestLibrary.get_quest(entry.id)
+		if turn_in_quest == null:
+			return
+		_quest_popup_panel.open_turn_in(turn_in_quest)
+
+func _on_quest_popup_accepted(quest_id: StringName) -> void:
+	_party_inventory.accept_quest(quest_id)
+	_board_panel.open_for(_make_quest_entries())
+
+## lost_cat is the only quest turned in through this popup today; its specific item-consumption/
+## reward-granting logic stays here (rather than generic in QuestPopupPanel) since it's unique to
+## this one quest's board-driven flow.
+func _on_quest_popup_completed(quest_id: StringName) -> void:
+	if quest_id == &"lost_cat":
 		_party_inventory.consume_quest_item(&"rescued_cat")
 		_party_inventory.complete_quest(&"lost_cat")
 		_party_inventory.give_quest_item(_make_thank_you_note())
-		_board_panel.open_for(_make_quest_entries())
+	_board_panel.open_for(_make_quest_entries())
 
 ## The Lost Cat quest's turn-in reward (2026-07-19-lost-cat-quest-system-design.md) — a QuestItem so
 ## it shows in the Quest Items tab like the dungeon's Rusty Key.

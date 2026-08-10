@@ -33,9 +33,12 @@ func _initialize() -> void:
 	_check(lost_cat.category == QuestBoardEntry.Category.SIDE, "Lost Cat starts as a SIDE quest")
 	_check(not inv.has_accepted_quest(&"lost_cat"), "Lost Cat starts unaccepted")
 
-	# Click it: accepts.
+	# Click it: opens the accept popup instead of accepting directly.
 	town._on_board_entry_selected(lost_cat)
-	_check(inv.has_accepted_quest(&"lost_cat"), "clicking the unaccepted row accepts it")
+	_check(town._quest_popup_panel.is_open(), "clicking the unaccepted row opens the accept popup")
+	_check(town._quest_popup_panel.mode_for_test() == &"offer", "the popup opens in offer mode")
+	town._quest_popup_panel.press_primary_for_test()
+	_check(inv.has_accepted_quest(&"lost_cat"), "pressing Accept on the popup accepts the quest")
 	entries = town._make_quest_entries()
 	for e: QuestBoardEntry in entries:
 		if e.id == &"lost_cat":
@@ -48,15 +51,18 @@ func _initialize() -> void:
 	_check(not inv.has_completed_quest(&"lost_cat"), "clicking an accepted-but-not-ready quest again does nothing")
 	_check(not inv.has_quest_item(&"thank_you_note"), "no Thank You Note yet")
 
-	# Now the player holds the rescued cat — click again: turns in.
+	# Now the player holds the rescued cat — click again: opens the turn-in popup.
 	var cat := QuestItem.new()
 	cat.item_id = &"rescued_cat"
 	cat.display_name = "Whiskers, Rescued"
 	inv.give_quest_item(cat)
 	town._on_board_entry_selected(lost_cat)
-	_check(not inv.has_quest_item(&"rescued_cat"), "turning in consumes the rescued_cat item")
-	_check(inv.has_completed_quest(&"lost_cat"), "turning in completes the quest")
-	_check(inv.has_quest_item(&"thank_you_note"), "turning in grants the Thank You Note")
+	_check(town._quest_popup_panel.is_open(), "clicking the ready-to-turn-in row opens the turn-in popup")
+	_check(town._quest_popup_panel.mode_for_test() == &"turn_in", "the popup opens in turn_in mode")
+	town._quest_popup_panel.press_primary_for_test()
+	_check(not inv.has_quest_item(&"rescued_cat"), "pressing Complete on the popup consumes the rescued_cat item")
+	_check(inv.has_completed_quest(&"lost_cat"), "pressing Complete on the popup completes the quest")
+	_check(inv.has_quest_item(&"thank_you_note"), "pressing Complete on the popup grants the Thank You Note")
 
 	# Click a completed quest again: no-op.
 	var before_size: int = inv.quest_items.size()

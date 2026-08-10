@@ -32,7 +32,8 @@ func _initialize() -> void:
 		if e.id == &"lost_cat":
 			lost_cat = e
 	_town._on_board_entry_selected(lost_cat)
-	_check(inv.has_accepted_quest(&"lost_cat"), "accepted for real via the board handler")
+	_town._quest_popup_panel.press_primary_for_test()
+	_check(inv.has_accepted_quest(&"lost_cat"), "accepted for real via the board handler + popup")
 	tracker.refresh(inv)
 	_check(tracker.text_for_test().to_lower().contains("rescue"), "tracker shows the rescue objective")
 
@@ -65,7 +66,8 @@ func _initialize() -> void:
 		if e.id == &"lost_cat":
 			lost_cat = e
 	_town._on_board_entry_selected(lost_cat)
-	_check(inv.has_completed_quest(&"lost_cat"), "turned in for real via the board handler")
+	_town._quest_popup_panel.press_primary_for_test()
+	_check(inv.has_completed_quest(&"lost_cat"), "turned in for real via the board handler + popup")
 	_check(inv.has_quest_item(&"thank_you_note"), "the Thank You Note is granted")
 	tracker.refresh(inv)
 	_check(not tracker.visible, "tracker hides again once completed")
