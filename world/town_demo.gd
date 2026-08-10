@@ -67,6 +67,13 @@ func _ready() -> void:
 	_wire_doors()
 	_build_inventory_demo()
 	_party_inventory.round_down_jackpot_to_checkpoint()   # 2026-07-29 jackpot spec §2: town-arrival checkpoint
+	# Tutorial auto-start (2026-08-10 quest-system-and-tutorial design §8): there's no save system,
+	# so "no quests accepted yet" is an accurate proxy for "this is a fresh launch." Only wired here
+	# (town_demo is the real entry point this project's playtests actually launch) — not duplicated
+	# into overworld_demo/dungeon_demo, since accept_quest() would just no-op there anyway once this
+	# has already run.
+	if _party_inventory.accepted_quest_ids.is_empty():
+		_party_inventory.accept_quest(&"tutorial")
 	# TownExit was built in _wire_doors(), before the party existed — wire its party fields now
 	# (2026-07-12 shared-party-state work) so leaving town carries the SAME party the overworld
 	# will pick back up, instead of each scene seeding its own independent placeholder party.

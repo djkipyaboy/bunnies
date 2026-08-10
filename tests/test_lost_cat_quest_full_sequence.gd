@@ -21,9 +21,10 @@ func _initialize() -> void:
 	var inv: PartyInventory = _town._party_inventory
 	var tracker := QuestTrackerPanel.new()
 
-	# 1. Not accepted: tracker hidden.
+	# 1. Tutorial is auto-accepted, so tracker shows tutorial objectives.
 	tracker.refresh(inv)
-	_check(not tracker.visible, "tracker hidden before accepting")
+	_check(inv.has_accepted_quest(&"tutorial"), "tutorial is auto-accepted on fresh load")
+	_check(tracker.visible, "tracker shows tutorial since it's auto-accepted")
 
 	# 2. Accept at the board.
 	var entries: Array[QuestBoardEntry] = _town._make_quest_entries()
@@ -70,7 +71,7 @@ func _initialize() -> void:
 	_check(inv.has_completed_quest(&"lost_cat"), "turned in for real via the board handler + popup")
 	_check(inv.has_quest_item(&"thank_you_note"), "the Thank You Note is granted")
 	tracker.refresh(inv)
-	_check(not tracker.visible, "tracker hides again once completed")
+	_check(tracker.visible, "tracker still shows tutorial even after Lost Cat completes (tutorial is independent)")
 
 	# 6. The Thank You Note's dialogue names the live party.
 	# Same lambda-capture-by-value gotcha as above — wrap in a 1-element Array.
