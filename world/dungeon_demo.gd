@@ -44,6 +44,7 @@ var _inventory_panel: InventoryMenuPanel
 var _talent_panel: TalentMenuPanel
 var _professions_panel: ProfessionsMenuPanel
 var _quest_log_panel: QuestLogPanel
+var _legend_panel: InteractableLegendPanel
 var _event_log_panel: EventLogPanel
 var _pickup_debug_label: Label
 var _amber_label: Label
@@ -298,6 +299,11 @@ func _build_ui() -> void:
 	_quest_log_panel.hide()
 	ui.add_child(_quest_log_panel)
 
+	_legend_panel = InteractableLegendPanel.new()
+	_legend_panel.position = Vector2(140, 60)
+	_legend_panel.hide()
+	ui.add_child(_legend_panel)
+
 	_pickup_debug_label = Label.new()
 	_pickup_debug_label.name = "PickupDebugLabel"
 	_pickup_debug_label.position = Vector2(16, 70)
@@ -493,7 +499,7 @@ func _process(_delta: float) -> void:
 	_amber_label.text = "Amber: %d" % _party_inventory.amber
 	_quest_tracker.refresh(_party_inventory)
 	_jackpot_bar.value = _party_inventory.jackpot_meter
-	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
+	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():
 		_interact_prompt.hide_prompt()
 		_set_highlighted_target(null)
 		return
@@ -543,7 +549,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_quest_log"):
 		_toggle_quest_log()
 		return
-	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
+	if event.is_action_pressed("toggle_interactable_legend"):
+		_toggle_legend()
+		return
+	if _inventory_panel.visible or _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():
 		return
 	if not event.is_action_pressed("interact"):
 		return
@@ -552,7 +561,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		target.interact()
 
 func _toggle_inventory() -> void:
-	if _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
+	if _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -562,7 +571,7 @@ func _toggle_inventory() -> void:
 		_pc.set_movement_paused(true)
 
 func _toggle_stats() -> void:
-	if _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
+	if _talent_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():
 		return
 	if _inventory_panel.visible:
 		_inventory_panel.hide()
@@ -574,7 +583,7 @@ func _toggle_stats() -> void:
 ## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
 ## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
 func _toggle_talents() -> void:
-	if _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
+	if _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open() or _legend_panel.is_open():
 		return
 	if _talent_panel.visible:
 		_talent_panel.close()
@@ -586,7 +595,7 @@ func _toggle_talents() -> void:
 ## Professions (2026-08-02 salvaging-and-cooking professions design section 5) -- bound to 'P'. Same
 ## toggle semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents().
 func _toggle_professions() -> void:
-	if _talent_panel.visible or _inventory_panel.visible or _quest_log_panel.is_open():
+	if _talent_panel.visible or _inventory_panel.visible or _quest_log_panel.is_open() or _legend_panel.is_open():
 		return
 	if _professions_panel.is_open():
 		_professions_panel.close()
@@ -598,7 +607,7 @@ func _toggle_professions() -> void:
 ## Quest Log (2026-08-10 quest-system-and-tutorial design §4) -- bound to 'Q'. Same toggle
 ## semantics as _toggle_inventory()/_toggle_stats()/_toggle_talents()/_toggle_professions().
 func _toggle_quest_log() -> void:
-	if _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open():
+	if _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open() or _legend_panel.is_open():
 		return
 	if _quest_log_panel.is_open():
 		_quest_log_panel.close()
@@ -606,3 +615,17 @@ func _toggle_quest_log() -> void:
 	else:
 		_quest_log_panel.open_for(_party_inventory)
 		_pc.set_movement_paused(true)
+
+## Interactable Legend (2026-08-10 quest-system-and-tutorial design §9) -- bound to 'K'. Same
+## toggle semantics as the other modal panels. Opening it also completes the tutorial's
+## open_legend objective (unconditional — safe since the tutorial always auto-accepts first).
+func _toggle_legend() -> void:
+	if _talent_panel.visible or _inventory_panel.visible or _professions_panel.is_open() or _quest_log_panel.is_open():
+		return
+	if _legend_panel.is_open():
+		_legend_panel.close()
+		_pc.set_movement_paused(false)
+	else:
+		_legend_panel.open()
+		_pc.set_movement_paused(true)
+		_party_inventory.complete_objective(&"tutorial", &"open_legend")
