@@ -26,6 +26,8 @@ const JACKPOT_PER_UTIL_PAYLINE: int = 15
 @export var unlocked_companion_slots: int = 0  # 0-2, story-gated
 @export var accepted_quest_ids: Array[StringName] = []
 @export var completed_quest_ids: Array[StringName] = []
+@export var quest_progress: Dictionary = {}       # StringName quest_id -> Array[StringName] completed objective ids
+@export var tracked_quest_ids: Array[StringName] = []
 
 func bag_capacity() -> int:
 	return BASE_BAG_CAPACITY + BAG_CAPACITY_PER_SLOT * unlocked_companion_slots
@@ -142,6 +144,7 @@ func consume_quest_item(item_id: StringName) -> bool:
 func accept_quest(quest_id: StringName) -> void:
 	if not accepted_quest_ids.has(quest_id):
 		accepted_quest_ids.append(quest_id)
+		tracked_quest_ids.append(quest_id)
 
 func has_accepted_quest(quest_id: StringName) -> bool:
 	return accepted_quest_ids.has(quest_id)
@@ -152,6 +155,55 @@ func complete_quest(quest_id: StringName) -> void:
 
 func has_completed_quest(quest_id: StringName) -> bool:
 	return completed_quest_ids.has(quest_id)
+
+## Marks one QuestObjective complete for a generic (non-lost_cat) quest. lost_cat's objectives
+## are derived from its existing quest-item/completion state instead — see is_objective_complete().
+func complete_objective(quest_id: StringName, objective_id: StringName) -> void:
+	if not quest_progress.has(quest_id):
+		quest_progress[quest_id] = []
+	var completed: Array = quest_progress[quest_id]
+	if not completed.has(objective_id):
+		completed.append(objective_id)
+
+## lost_cat is special-cased against state that already exists for other reasons (its Adventuring
+## Board accept/turn-in flow, untouched by this plan) rather than requiring complete_objective()
+## calls that flow doesn't make. Every other quest reads quest_progress directly.
+func is_objective_complete(quest_id: StringName, objective_id: StringName) -> bool:
+	if quest_id == &"lost_cat":
+		if objective_id == &"find_cat":
+			return has_quest_item(&"rescued_cat") or has_completed_quest(&"lost_cat")
+		if objective_id == &"return_cat":
+			return has_completed_quest(&"lost_cat")
+		return false
+	var completed: Array = quest_progress.get(quest_id, [])
+	return completed.has(objective_id)
+
+## The first objective (in Quest.objectives order) that isn't complete yet, or null once every
+## objective is complete or [param quest_id] isn't registered in QuestLibrary.
+func next_incomplete_objective(quest_id: StringName) -> QuestObjective:
+	var quest: Quest = QuestLibrary.get_quest(quest_id)
+	if quest == null:
+		return null
+	for objective: QuestObjective in quest.objectives:
+		if not is_objective_complete(quest_id, objective.id):
+			return objective
+	return null
+
+func is_quest_tracked(quest_id: StringName) -> bool:
+	return tracked_quest_ids.has(quest_id)
+
+## The Quest Log's Track checkbox (2026-08-10 design §4) — untracking hides a quest from the
+## on-screen tracker without abandoning it.
+func set_quest_tracked(quest_id: StringName, tracked: bool) -> void:
+	if tracked and not tracked_quest_ids.has(quest_id):
+		tracked_quest_ids.append(quest_id)
+	elif not tracked:
+		tracked_quest_ids.erase(quest_id)
+
+func abandon_quest(quest_id: StringName) -> void:
+	accepted_quest_ids.erase(quest_id)
+	tracked_quest_ids.erase(quest_id)
+	quest_progress.erase(quest_id)
 
 ## Adds a flat amount to the party-wide Jackpot Meter, clamped at JACKPOT_CAP (2026-07-29 spec §2).
 func gain_jackpot(amount: int) -> void:
