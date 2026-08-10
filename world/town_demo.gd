@@ -371,7 +371,7 @@ func _build_inventory_demo() -> void:
 	_inventory_panel.thank_you_note_requested.connect(_on_thank_you_note_requested)
 
 	_talent_panel = TalentMenuPanel.new()
-	_talent_panel.position = Vector2(140, 60)
+	_talent_panel.position = Vector2(490, 150)   # centered: PANEL_W=620/PANEL_H=600 on a 1600x900 viewport
 	_talent_panel.hide()
 	_ui_layer.add_child(_talent_panel)
 
@@ -381,11 +381,17 @@ func _build_inventory_demo() -> void:
 	_professions_panel.set_log_fn(func(line: String) -> void: _handoff().log_event(line, _handoff().CATEGORY_CRAFTING))
 
 	_quest_log_panel = QuestLogPanel.new()
-	_quest_log_panel.position = Vector2(140, 60)
+	_quest_log_panel.position = Vector2(520, 290)   # centered: PANEL_W=560/PANEL_H=320 on a 1600x900 viewport
 	_quest_log_panel.hide()
 	_ui_layer.add_child(_quest_log_panel)
 
 	_quest_popup_panel = QuestPopupPanel.new()
+	# Deliberately NOT centered, unlike the other menu panels (2026-08-10 playtest pass) -- this
+	# is the one panel that's designed to stay open WHILE the Board is open (it's triggered by
+	# clicking a Board row without closing the Board first). A screen-centered position here
+	# would overlap the Board again, exactly the bug two fix rounds already resolved in the
+	# quest-popups-and-tutorial-wiring plan. Keep this at a spot verified clear of the Board
+	# (Vector2(500,150), ~420x378) and the Event Log (Vector2(880,500), 432x260).
 	_quest_popup_panel.position = Vector2(1050, 100)
 	_quest_popup_panel.hide()
 	_ui_layer.add_child(_quest_popup_panel)
@@ -393,11 +399,17 @@ func _build_inventory_demo() -> void:
 	_quest_popup_panel.completed.connect(_on_quest_popup_completed)
 	_quest_popup_panel.declined.connect(_on_quest_popup_declined)
 	_legend_panel = InteractableLegendPanel.new()
-	_legend_panel.position = Vector2(140, 60)
+	_legend_panel.position = Vector2(620, 350)   # centered: 360x200 on a 1600x900 viewport
 	_legend_panel.hide()
 	_ui_layer.add_child(_legend_panel)
 
 	_vendor_prompt_panel = VendorPromptPanel.new()
+	# Never positioned before 2026-08-10 (rendered at the default (0,0)) -- harmless until the
+	# Quest Tracker (Plan 1) started rendering persistent text starting at y=140, which a
+	# corner-pinned VendorPromptPanel then visibly overlapped (2026-08-10 playtest finding).
+	# Centered: PANEL_W=320, fixed content height=174 (PAD+GREETING_H+8+3*ROW_H+PAD) on the
+	# 1600x900 viewport -- (1600-320)/2=640, (900-174)/2=363.
+	_vendor_prompt_panel.position = Vector2(640, 363)
 	_vendor_prompt_panel.hide()
 	_ui_layer.add_child(_vendor_prompt_panel)
 	_vendor_prompt_panel.talk_pressed.connect(_on_vendor_talk_pressed)

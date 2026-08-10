@@ -403,6 +403,18 @@ func _rebuild() -> void:
 			bottom += 3.0 * (SLOT_H + SLOT_GAP)
 	custom_minimum_size = Vector2(PANEL_W, bottom)
 	size = custom_minimum_size
+	_recenter_on_viewport()
+
+## Recomputes this panel's own screen position so it stays centered regardless of which tab is
+## active (2026-08-10 playtest finding — every tab besides Bag/Vault has a different row count, so
+## a fixed position left the panel visibly off-center on most tabs). Mirrors
+## ProfessionsMenuPanel._recenter_on_viewport()'s exact formula; this panel has no `scale` of its
+## own, so the multiply is a no-op here, kept for consistency with that sibling.
+func _recenter_on_viewport() -> void:
+	if not is_inside_tree():
+		return
+	var vp: Vector2 = get_viewport_rect().size
+	position = ((vp - size * scale) / 2.0).round()
 
 func _build_paperdoll_column(col: int, c: Combatant) -> void:
 	var x: float = PAD + float(col) * (COLUMN_W + COLUMN_GAP)

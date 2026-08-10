@@ -289,7 +289,7 @@ func _build_ui() -> void:
 	_inventory_panel.item_discarded.connect(_on_item_discarded)
 
 	_talent_panel = TalentMenuPanel.new()
-	_talent_panel.position = Vector2(140, 60)
+	_talent_panel.position = Vector2(490, 150)   # centered: PANEL_W=620/PANEL_H=600 on a 1600x900 viewport
 	_talent_panel.hide()
 	ui.add_child(_talent_panel)
 
@@ -299,12 +299,12 @@ func _build_ui() -> void:
 	_professions_panel.set_log_fn(func(line: String) -> void: _handoff().log_event(line, _handoff().CATEGORY_CRAFTING))
 
 	_quest_log_panel = QuestLogPanel.new()
-	_quest_log_panel.position = Vector2(140, 60)
+	_quest_log_panel.position = Vector2(520, 290)   # centered: PANEL_W=560/PANEL_H=320 on a 1600x900 viewport
 	_quest_log_panel.hide()
 	ui.add_child(_quest_log_panel)
 
 	_legend_panel = InteractableLegendPanel.new()
-	_legend_panel.position = Vector2(140, 60)
+	_legend_panel.position = Vector2(620, 350)   # centered: 360x200 on a 1600x900 viewport
 	_legend_panel.hide()
 	ui.add_child(_legend_panel)
 

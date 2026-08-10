@@ -218,7 +218,11 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(PANEL_W, 480.0)
 	size = custom_minimum_size
 	visible = false
-	scale = Vector2(2.0, 2.0)
+	# 1.0, not the 2x this panel used to render at (2026-08-10 playtest finding) — every sibling
+	# menu panel (Inventory/Talent/QuestLog/Legend) is unscaled, so a lone 2x panel read as
+	# noticeably oversized next to them. _recenter_on_viewport() below already multiplies by
+	# `scale`, so dropping it to 1.0 needs no other change here.
+	scale = Vector2(1.0, 1.0)
 
 	_tempering_panel = TemperingReelsPanel.new()
 	_tempering_panel.top_level = true
