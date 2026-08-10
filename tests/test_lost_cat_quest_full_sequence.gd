@@ -34,7 +34,7 @@ func _initialize() -> void:
 	_town._on_board_entry_selected(lost_cat)
 	_check(inv.has_accepted_quest(&"lost_cat"), "accepted for real via the board handler")
 	tracker.refresh(inv)
-	_check(tracker.text.to_lower().contains("rescue"), "tracker shows the rescue objective")
+	_check(tracker.text_for_test().to_lower().contains("rescue"), "tracker shows the rescue objective")
 
 	# 3. The cat is locked before the boss is defeated.
 	var cat := CagedCat.new()
@@ -57,7 +57,7 @@ func _initialize() -> void:
 	cat2.interact()
 	_check(inv.has_quest_item(&"rescued_cat"), "the cat grants rescued_cat once the boss is defeated")
 	tracker.refresh(inv)
-	_check(tracker.text.to_lower().contains("bring"), "tracker updates to the bring-it-back objective")
+	_check(tracker.text_for_test().to_lower().contains("bring"), "tracker updates to the bring-it-back objective")
 
 	# 5. Turn in at the board.
 	entries = _town._make_quest_entries()
