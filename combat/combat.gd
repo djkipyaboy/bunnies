@@ -2591,6 +2591,8 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 		# pre-clear count over the VICTORY/DEFEAT result overlay (final-review finding, 2026-08-01).
 		if _panels.has(c):
 			(_panels[c] as CombatantPanel).refresh_riposte()
+	if winner_is_player and _arrived_via_handoff and _party_inventory != null:
+		_party_inventory.complete_objective(&"tutorial", &"win_fight")
 	_last_result_won = winner_is_player
 	_spin_button.disabled = true
 	_end_turn_button.disabled = true
