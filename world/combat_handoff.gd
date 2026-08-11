@@ -79,6 +79,7 @@ const CATEGORY_LOOT: StringName = &"loot"
 const CATEGORY_COMBAT: StringName = &"combat"
 const CATEGORY_PARTY: StringName = &"party"
 const CATEGORY_CRAFTING: StringName = &"crafting"
+const CATEGORY_QUEST: StringName = &"quest"
 
 signal event_logged(line: String, category: StringName)
 

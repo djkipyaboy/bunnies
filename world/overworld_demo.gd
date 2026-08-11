@@ -82,6 +82,10 @@ func _ready() -> void:
 	_build_camera()
 	_build_ui()
 	_build_inventory_demo()
+	_party_inventory.quest_completed.connect(func(quest_id: StringName) -> void:
+		var quest: Quest = QuestLibrary.get_quest(quest_id)
+		var title: String = quest.title if quest != null else String(quest_id)
+		_handoff().log_event("Quest completed: %s" % title, _handoff().CATEGORY_QUEST))
 	# Tutorial "move" objective (Task 9) — connected here, not next to _build_pc() above, since
 	# _party_inventory doesn't exist until _build_inventory_demo() just ran; the lambda only reads
 	# _party_inventory when the player actually moves, so this ordering is what matters.

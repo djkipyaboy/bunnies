@@ -7,6 +7,12 @@ extends Resource
 ## Materials/Reel-Mods/Quest stay uncapped. `unlocked_companion_slots` increments PERMANENTLY at
 ## story beats regardless of whether a companion currently occupies the slot.
 
+## Emitted exactly once per quest, from complete_quest() below, whether that call came from a manual
+## turn-in (e.g. lost_cat's board hand-in) or the auto-complete path inside complete_objective() (e.g.
+## the tutorial). Added so every scene can log a real Event Log entry on quest completion (Plan 3 fix —
+## every other party-affecting action already logs one; this didn't).
+signal quest_completed(quest_id: StringName)
+
 const BASE_BAG_CAPACITY: int = 20
 const BAG_CAPACITY_PER_SLOT: int = 10
 
@@ -158,6 +164,7 @@ func complete_quest(quest_id: StringName) -> void:
 		var quest: Quest = QuestLibrary.get_quest(quest_id)
 		if quest != null:
 			amber += quest.reward_amber
+		quest_completed.emit(quest_id)
 
 func has_completed_quest(quest_id: StringName) -> bool:
 	return completed_quest_ids.has(quest_id)

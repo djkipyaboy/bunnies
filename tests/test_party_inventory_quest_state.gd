@@ -97,5 +97,25 @@ func _initialize() -> void:
 	inv5.complete_quest(&"lost_cat")
 	_check(inv5.amber == lost_cat_amber_before, "completing lost_cat grants 0 Amber (its reward_amber is 0 — it rewards via a QuestItem instead)")
 
+	# --- New: quest_completed signal (Plan 3 fix — quest completion had no Event Log entry) ---
+
+	var inv6 := PartyInventory.new()
+	var completed_ids: Array[StringName] = []
+	inv6.quest_completed.connect(func(quest_id: StringName) -> void: completed_ids.append(quest_id))
+	inv6.accept_quest(&"lost_cat")
+	inv6.complete_quest(&"lost_cat")
+	_check(completed_ids == [&"lost_cat"], "complete_quest emits quest_completed with the quest id (got %s)" % [completed_ids])
+	inv6.complete_quest(&"lost_cat")
+	_check(completed_ids.size() == 1, "re-completing an already-completed quest doesn't re-emit quest_completed (got %d emissions)" % completed_ids.size())
+
+	var inv7 := PartyInventory.new()
+	var auto_completed_ids: Array[StringName] = []
+	inv7.quest_completed.connect(func(quest_id: StringName) -> void: auto_completed_ids.append(quest_id))
+	inv7.accept_quest(&"tutorial")
+	var tutorial2: Quest = QuestLibrary.get_quest(&"tutorial")
+	for objective: QuestObjective in tutorial2.objectives:
+		inv7.complete_objective(&"tutorial", objective.id)
+	_check(auto_completed_ids == [&"tutorial"], "auto-completing the tutorial via complete_objective() ALSO emits quest_completed (got %s)" % [auto_completed_ids])
+
 	print(("PARTY INVENTORY QUEST STATE TEST PASSED" if _failures == 0 else "PARTY INVENTORY QUEST STATE TEST FAILED: %d" % _failures))
 	quit(_failures)

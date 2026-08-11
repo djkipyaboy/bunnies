@@ -69,6 +69,10 @@ func _ready() -> void:
 	_build_ui()
 	_wire_doors()
 	_build_inventory_demo()
+	_party_inventory.quest_completed.connect(func(quest_id: StringName) -> void:
+		var quest: Quest = QuestLibrary.get_quest(quest_id)
+		var title: String = quest.title if quest != null else String(quest_id)
+		_handoff().log_event("Quest completed: %s" % title, _handoff().CATEGORY_QUEST))
 	_party_inventory.round_down_jackpot_to_checkpoint()   # 2026-07-29 jackpot spec §2: town-arrival checkpoint
 	# Tutorial auto-start (2026-08-10 quest-system-and-tutorial design §8): there's no save system,
 	# so "no quests accepted yet" is an accurate proxy for "this is a fresh launch." Only wired here
