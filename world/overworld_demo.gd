@@ -348,7 +348,7 @@ func _build_ui() -> void:
 	# since overworld_demo has no AdventuringBoardPanel of its own to host it in.
 	_respawn_gathering_button = Button.new()
 	_respawn_gathering_button.text = "Respawn Gathering Nodes"
-	_respawn_gathering_button.position = Vector2(1360, 16)
+	_respawn_gathering_button.position = Vector2(1360, 48)
 	_respawn_gathering_button.tooltip_text = "Debug: re-place Foraging/Fishing nodes so playtesters can re-test those minigames without relaunching."
 	_respawn_gathering_button.pressed.connect(_on_respawn_gathering_nodes_pressed)
 	ui.add_child(_respawn_gathering_button)
