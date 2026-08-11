@@ -49,5 +49,18 @@ func _initialize() -> void:
 	_check(empty_inv.accepted_quest_ids.is_empty(), "pressing Abandon with no quest selected is a no-op")
 	empty_panel.free()
 
+	## Plan 3 fix: the tutorial's 8 objectives can overflow the detail pane's fixed height — the
+	## body must now live inside a ScrollContainer so long content scrolls instead of clipping.
+	var scroll_inv := PartyInventory.new()
+	scroll_inv.accept_quest(&"tutorial")
+	var scroll_panel := QuestLogPanel.new()
+	scroll_panel.open_for(scroll_inv)
+	scroll_panel.press_row_for_test(&"tutorial")
+	var scroll_container := scroll_panel.detail_scroll_container_for_test()
+	_check(scroll_container != null, "the detail pane is now wrapped in a ScrollContainer")
+	_check(scroll_container is ScrollContainer, "detail_scroll_container_for_test() returns an actual ScrollContainer")
+	_check(scroll_panel.detail_text_for_test().contains("Move around using WASD"), "detail_text_for_test() still returns the full body text unchanged")
+	scroll_panel.free()
+
 	print(("QUEST LOG PANEL TEST PASSED" if _failures == 0 else "QUEST LOG PANEL TEST FAILED: %d" % _failures))
 	quit(_failures)

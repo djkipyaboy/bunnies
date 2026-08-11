@@ -19,6 +19,7 @@ var _party_inventory: PartyInventory
 var _selected_quest_id: StringName = &""
 var _row_buttons: Dictionary = {}   # StringName -> Button
 var _detail_title: Label
+var _detail_scroll: ScrollContainer
 var _detail_body: Label
 var _track_checkbox: CheckBox
 var _abandon_button: Button
@@ -99,11 +100,16 @@ func _build_detail_pane() -> void:
 	_detail_title.custom_minimum_size = Vector2(PANEL_W - DETAIL_X - PAD, ROW_H)
 	add_child(_detail_title)
 
+	_detail_scroll = ScrollContainer.new()
+	_detail_scroll.position = Vector2(DETAIL_X, PAD + ROW_H + 4.0)
+	_detail_scroll.custom_minimum_size = Vector2(PANEL_W - DETAIL_X - PAD, PANEL_H - PAD * 2.0 - ROW_H - 40.0)
+	add_child(_detail_scroll)
+
 	_detail_body = Label.new()
-	_detail_body.position = Vector2(DETAIL_X, PAD + ROW_H + 4.0)
-	_detail_body.custom_minimum_size = Vector2(PANEL_W - DETAIL_X - PAD, PANEL_H - PAD * 2.0 - ROW_H - 40.0)
+	_detail_body.custom_minimum_size = Vector2(PANEL_W - DETAIL_X - PAD - 16.0, 0.0)  # -16 leaves room for the scrollbar
+	_detail_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_detail_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(_detail_body)
+	_detail_scroll.add_child(_detail_body)
 
 	_track_checkbox = CheckBox.new()
 	_track_checkbox.text = "Track"
@@ -168,6 +174,9 @@ func press_abandon_for_test() -> void:
 
 func detail_text_for_test() -> String:
 	return _detail_body.text
+
+func detail_scroll_container_for_test() -> ScrollContainer:
+	return _detail_scroll
 
 func is_row_present_for_test(quest_id: StringName) -> bool:
 	return _row_buttons.has(quest_id)
