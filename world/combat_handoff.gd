@@ -132,6 +132,13 @@ func mark_defeated(encounter_id: StringName) -> void:
 func is_defeated(encounter_id: StringName) -> bool:
 	return defeated_encounter_ids.has(encounter_id)
 
+## Debug-only escape hatch (Plan 3, "Respawn Gathering Nodes") — every OTHER caller of
+## defeated_encounter_ids only ever appends via mark_defeated(); this is the sole removal path,
+## used exclusively by that debug button so playtesters can re-test gathering minigames without
+## relaunching the executable.
+func unmark_defeated(encounter_id: StringName) -> void:
+	defeated_encounter_ids.erase(encounter_id)
+
 func mark_gate_unlocked(gate_id: StringName) -> void:
 	if not unlocked_gate_ids.has(gate_id):
 		unlocked_gate_ids.append(gate_id)

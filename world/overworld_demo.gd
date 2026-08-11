@@ -46,6 +46,7 @@ var _random_encounter_panel: RandomEncounterPanel
 var _foraging_panel: ForagingPanel
 var _fishing_panel: FishingPanel
 var _event_log_panel: EventLogPanel
+var _respawn_gathering_button: Button
 
 var _pc_combatant: Combatant
 var _companions: Array = []
@@ -341,6 +342,17 @@ func _build_ui() -> void:
 	_pickup_debug_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.4))
 	ui.add_child(_pickup_debug_label)
 
+	# "Respawn Gathering Nodes" debug button (2026-08-10 quest-system-and-tutorial design §12) —
+	# same "permanent visible debug aid" precedent as town_demo.gd's "Test: Hollow Warden Fight" /
+	# "Level Up to Endgame" buttons, but a plain standalone Button on this scene's own UI layer
+	# since overworld_demo has no AdventuringBoardPanel of its own to host it in.
+	_respawn_gathering_button = Button.new()
+	_respawn_gathering_button.text = "Respawn Gathering Nodes"
+	_respawn_gathering_button.position = Vector2(1360, 16)
+	_respawn_gathering_button.tooltip_text = "Debug: re-place Foraging/Fishing nodes so playtesters can re-test those minigames without relaunching."
+	_respawn_gathering_button.pressed.connect(_on_respawn_gathering_nodes_pressed)
+	ui.add_child(_respawn_gathering_button)
+
 	# Playtest-found gap (2026-07-18): Amber only ever showed on the InventoryMenuPanel's Stats
 	# tab, which the player didn't notice — a persistent, always-visible readout is more legible
 	# than a value hidden behind a panel toggle. Refreshed every _process() tick (below).
@@ -462,9 +474,29 @@ func _build_npcs() -> void:
 	wanderer.dialogue_requested.connect(_on_dialogue_requested.bind(wanderer))
 	_world.add_child(wanderer)
 
-	# Environmental gathering nodes (design-bible 27-crafting.md §11, player direction 2026-07-12) —
-	# basic one-shot interactables for this playtest, no mini-game reel yet. Positions chosen clear
-	# of every tree/mountain/village/river collider and the other placed NPCs above.
+	_place_gathering_nodes()
+
+	# Slay-the-Spire-style "?" random encounter (player direction 2026-07-12) — one authored
+	# example (bandit_ambush) for this playtest. Positioned clear of every collider/other NPC.
+	if not _handoff().is_defeated(&"BanditAmbush"):
+		var encounter_node := RandomEncounterNode.new()
+		encounter_node.name = "BanditAmbush"
+		encounter_node.encounter_id = &"bandit_ambush"
+		encounter_node.global_position = Vector2(1000, 600)
+		encounter_node.encounter_triggered.connect(_on_encounter_triggered)
+		_world.add_child(encounter_node)
+
+## Extracted from _build_npcs() (Plan 3) so the "Respawn Gathering Nodes" debug button can re-run
+## placement on demand without duplicating existing live nodes. Frees the 4 known gathering-node
+## names first (harmless no-op if a given node was never defeated/never existed), THEN re-creates
+## whichever ones aren't is_defeated() — same guard each node already used inline.
+func _place_gathering_nodes() -> void:
+	for existing_name in ["WildBerries", "WildBerries2", "FishingSpot", "FishingSpot2"]:
+		var existing: Node = _world.get_node_or_null(existing_name)
+		if existing != null:
+			_world.remove_child(existing)
+			existing.queue_free()
+
 	if not _handoff().is_defeated(&"WildBerries"):
 		var berries := GatheringNode.new()
 		berries.name = "WildBerries"
@@ -491,10 +523,6 @@ func _build_npcs() -> void:
 		fish.fishing_requested.connect(_on_fishing_requested)
 		_world.add_child(fish)
 
-	# A second Foraging node and a second Fishing node (2026-08-02 gathering-playtest-fixes spec
-	# section 5, player-requested for better playtesting) -- positions verified clear of every
-	# collider/NPC in this file (trees/river/mountain/village/enemies/pickups/other gathering
-	# nodes) by direct inspection before being placed.
 	if not _handoff().is_defeated(&"WildBerries2"):
 		var berries2 := GatheringNode.new()
 		berries2.name = "WildBerries2"
@@ -520,16 +548,6 @@ func _build_npcs() -> void:
 		fish2.global_position = Vector2(680, 500)
 		fish2.fishing_requested.connect(_on_fishing_requested)
 		_world.add_child(fish2)
-
-	# Slay-the-Spire-style "?" random encounter (player direction 2026-07-12) — one authored
-	# example (bandit_ambush) for this playtest. Positioned clear of every collider/other NPC.
-	if not _handoff().is_defeated(&"BanditAmbush"):
-		var encounter_node := RandomEncounterNode.new()
-		encounter_node.name = "BanditAmbush"
-		encounter_node.encounter_id = &"bandit_ambush"
-		encounter_node.global_position = Vector2(1000, 600)
-		encounter_node.encounter_triggered.connect(_on_encounter_triggered)
-		_world.add_child(encounter_node)
 
 ## Places one OverworldEnemy with the given [param enemy_ids] roster, skipping placement if
 ## already marked defeated. Factored out (2026-07-12) once ferret/stoat joined the rat as real
@@ -819,3 +837,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	# an encounter (queue_free() is deferred, so the target is still "live" for this frame).
 	if target != null and not target.auto_trigger:
 		target.interact()
+
+func _on_respawn_gathering_nodes_pressed() -> void:
+	for encounter_id: StringName in [&"WildBerries", &"WildBerries2", &"FishingSpot", &"FishingSpot2"]:
+		_handoff().unmark_defeated(encounter_id)
+	_place_gathering_nodes()
+	_handoff().log_event("Debug: respawned gathering nodes", _handoff().CATEGORY_CRAFTING)
+
+func press_respawn_gathering_nodes_for_test() -> void:
+	_respawn_gathering_button.pressed.emit()
