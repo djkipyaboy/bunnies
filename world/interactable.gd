@@ -29,22 +29,44 @@ extends Area2D
 ## frame (see docs/superpowers/specs/2026-07-11-overworld-npc-encounters-design.md §3.1).
 @export var auto_trigger: bool = false
 
+## Non-empty enables a mouse-hover tooltip via hover_started/hover_ended below (Plan 3, world hover
+## tooltips, 2026-08-10 quest-system-and-tutorial design §10). Empty by default — every existing
+## interactable (Door, SceneExit, GatheringNode, ...) is completely unaffected, since this project's
+## proximity-prompt system (nearest()/InteractPrompt) is independent of mouse input entirely.
+@export var hover_description: String = ""
+
 const DIM_ALPHA: float = 0.2
 
 ## Emitted by the default interact() implementation. Subclasses that override interact()
 ## may skip emitting this if they don't need external listeners.
 signal interacted
 
+## Emitted when the mouse enters/exits this Interactable's collision shape, ONLY if
+## hover_description is non-empty (see _ready() below). No payload — the receiving scene reads
+## hover_description off the emitting instance directly, same hand-off pattern signals elsewhere
+## in this project already use (e.g. AdventuringBoardPanel.party_selection_pressed).
+signal hover_started
+signal hover_ended
+
 func _ready() -> void:
 	monitoring = false
 	monitorable = true
 	collision_layer = 2
 	collision_mask = 0
+	# Area2D.input_pickable defaults to true in Godot 4, so this must be explicitly disabled to
+	# keep every existing interactable's mouse-input footprint at none (see hover_description
+	# above) unless a hover_description opts it back in below.
+	input_pickable = false
 	var shape := CollisionShape2D.new()
 	var circle := CircleShape2D.new()
 	circle.radius = interaction_radius
 	shape.shape = circle
 	add_child(shape)
+
+	if not hover_description.is_empty():
+		input_pickable = true
+		mouse_entered.connect(func() -> void: hover_started.emit())
+		mouse_exited.connect(func() -> void: hover_ended.emit())
 
 func interact() -> void:
 	interacted.emit()
