@@ -214,6 +214,16 @@ func _build_combatants() -> void:
 		# PartyInventory, no InventoryMenuPanel in this scene), so _party_inventory stays null there
 		# and every loot-granting code path below checks it before touching it.
 		_party_inventory = handoff.party_inventory as PartyInventory
+		# Quest-completion Event Log entries (2026-08-10 quest-system-and-tutorial design fix):
+		# the tutorial's real last objective (win_fight, below) completes IN combat -- by the time
+		# combat resolves, the world scene that originally connected this signal has already been
+		# left/freed, so its connection is gone too. Mirrors the identical connection made in
+		# town_demo.gd/overworld_demo.gd/dungeon_demo.gd right after their party becomes available.
+		if _party_inventory != null:
+			_party_inventory.quest_completed.connect(func(quest_id: StringName) -> void:
+				var quest: Quest = QuestLibrary.get_quest(quest_id)
+				var title: String = quest.title if quest != null else String(quest_id)
+				_handoff().log_event("Quest completed: %s" % title, _handoff().CATEGORY_QUEST))
 	else:
 		# Player party: one Combatant per selected class, in selection order. ClassLibrary supplies
 		# stats, weapon, defense, meter, resources, and the Main-1 base ability. Gear is deferred.

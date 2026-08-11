@@ -3,7 +3,7 @@ extends SceneTree
 
 ## Full end-to-end integration test for the tutorial quest (2026-08-10 quest-system-and-tutorial
 ## design) — proves every piece built across this plan's 13 tasks works TOGETHER: auto-start on a
-## fresh town_demo load → each of the 8 objectives completing via its real trigger → auto-complete
+## fresh town_demo load → each of the 9 objectives completing via its real trigger → auto-complete
 ## → reward_amber granted. Mirrors test_lost_cat_quest_full_sequence.gd's shape.
 
 func _check(cond: bool, label: String) -> void:
@@ -64,14 +64,19 @@ func _initialize() -> void:
 			shopkeeper = child
 	scene._on_vendor_interacted(shopkeeper.dialogue, shopkeeper)
 	_check(inv.is_objective_complete(&"tutorial", &"visit_shop"), "8. visit_shop objective complete")
+	_check(not inv.has_completed_quest(&"tutorial"), "still not complete — visit_board and win_fight remain")
+
+	# 9. visit_board
+	scene._on_board_opened(scene._make_quest_entries())
+	_check(inv.is_objective_complete(&"tutorial", &"visit_board"), "9. visit_board objective complete")
 	_check(not inv.has_completed_quest(&"tutorial"), "still not complete — win_fight is the last objective")
 
-	# 9. win_fight — the final objective; completing it must auto-complete the quest and grant the
+	# 10. win_fight — the final objective; completing it must auto-complete the quest and grant the
 	# reward. town_demo has no _on_combat_ended of its own (that's combat.gd, exercised directly by
 	# Task 13's own test) — call PartyInventory the same way that real hook does, to prove the
 	# auto-complete/reward chain fires from the LAST objective regardless of which trigger reaches it.
 	inv.complete_objective(&"tutorial", &"win_fight")
-	_check(inv.is_objective_complete(&"tutorial", &"win_fight"), "9. win_fight objective complete")
+	_check(inv.is_objective_complete(&"tutorial", &"win_fight"), "10. win_fight objective complete")
 	_check(inv.has_completed_quest(&"tutorial"), "completing the last objective auto-completes the tutorial quest")
 
 	var tutorial_quest: Quest = QuestLibrary.get_quest(&"tutorial")
