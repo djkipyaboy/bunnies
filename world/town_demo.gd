@@ -666,6 +666,7 @@ func _on_vendor_leave_pressed() -> void:
 ## would otherwise revert to whatever _make_quest_entries() returned back at _build_exterior() time
 ## (2026-07-19-lost-cat-quest-system-design.md §3.3 board-interactivity work).
 func _on_board_opened(_entries: Array[QuestBoardEntry]) -> void:
+	_party_inventory.complete_objective(&"tutorial", &"visit_board")
 	_board_panel.open_for(_make_quest_entries())
 	_pc.set_movement_paused(true)
 
