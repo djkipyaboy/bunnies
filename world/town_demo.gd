@@ -62,6 +62,11 @@ func _handoff() -> Node:
 	return get_node("/root/CombatHandoff")
 
 func _ready() -> void:
+	# Area2D.mouse_entered/mouse_exited (world hover tooltips, Plan 3) only fire against real mouse
+	# input if the viewport's object picking is enabled -- Viewport.physics_object_picking defaults
+	# to false in Godot 4 and nothing else in this project turns it on. Without this, hover_started/
+	# hover_ended never fire from real mouse motion (only the tests' direct .emit() calls "worked").
+	get_viewport().physics_object_picking = true
 	_build_exterior()
 	_build_interior()
 	_build_pc()
@@ -73,6 +78,10 @@ func _ready() -> void:
 		var quest: Quest = QuestLibrary.get_quest(quest_id)
 		var title: String = quest.title if quest != null else String(quest_id)
 		_handoff().log_event("Quest completed: %s" % title, _handoff().CATEGORY_QUEST))
+	_party_inventory.quest_accepted.connect(func(quest_id: StringName) -> void:
+		var quest: Quest = QuestLibrary.get_quest(quest_id)
+		var title: String = quest.title if quest != null else String(quest_id)
+		_handoff().log_event("Quest accepted: %s" % title, _handoff().CATEGORY_QUEST))
 	_party_inventory.round_down_jackpot_to_checkpoint()   # 2026-07-29 jackpot spec §2: town-arrival checkpoint
 	# Tutorial auto-start (2026-08-10 quest-system-and-tutorial design §8): there's no save system,
 	# so "no quests accepted yet" is an accurate proxy for "this is a fresh launch." Only wired here
@@ -95,6 +104,10 @@ func _ready() -> void:
 	_town_exit.party_inventory = _party_inventory
 	_town_exit.vault = _vault
 	_town_exit.shop_stock = _shop_stock
+	# Tutorial "leave_town" objective (playtest-requested reorder, 2026-08-12): SceneExit.interact()
+	# overrides Interactable.interact() entirely and never emits the base `interacted` signal, so
+	# this listens on SceneExit's own `exited` signal instead.
+	_town_exit.exited.connect(func() -> void: _party_inventory.complete_objective(&"tutorial", &"leave_town"))
 	# The Old Well (2026-07-23-old-well-rest-point-design.md) was also built in _build_exterior(),
 	# before the party existed — wire its party fields now, same as TownExit above.
 	_old_well.pc_combatant = _pc_combatant

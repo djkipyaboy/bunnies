@@ -21,6 +21,14 @@ func _init() -> void:
 	_check(_exit.fade_overlay == null, "fade_overlay defaults to unset")
 	_check(_exit.pc_combatant == null, "pc_combatant defaults to unset")
 
+	# `exited` (playtest-requested tutorial "leave_town" objective, 2026-08-12) — interact() overrides
+	# Interactable.interact() entirely so it never emits the base `interacted` signal; town_demo.gd
+	# listens on this instead.
+	var exited_count: Array[int] = [0]
+	_exit.exited.connect(func() -> void: exited_count[0] += 1)
+	_exit.exited.emit()
+	_check(exited_count[0] == 1, "exited signal exists and fires")
+
 	root.add_child(_exit)
 
 func _process(_delta: float) -> bool:

@@ -49,7 +49,14 @@ var vault: Vault
 ## spec ties the rounddown specifically to "leaving a dungeon," not every scene transition.
 @export var rounds_down_jackpot: bool = false
 
+## Emitted at the top of interact(), before the scene actually changes -- lets a scene-specific
+## listener (e.g. town_demo.gd completing the tutorial's "leave_town" objective) react without
+## SceneExit itself knowing anything about quests. Deliberately NOT the base Interactable.interacted
+## signal, since interact() overrides that behavior entirely without emitting it.
+signal exited
+
 func interact() -> void:
+	exited.emit()
 	_stash_party()
 	await fade_overlay.fade_out()
 	get_tree().change_scene_to_file(target_scene_path)

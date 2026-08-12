@@ -117,5 +117,15 @@ func _initialize() -> void:
 		inv7.complete_objective(&"tutorial", objective.id)
 	_check(auto_completed_ids == [&"tutorial"], "auto-completing the tutorial via complete_objective() ALSO emits quest_completed (got %s)" % [auto_completed_ids])
 
+	# --- New: quest_accepted signal (playtest feedback, 2026-08-12 -- accepting a quest logged nothing) ---
+
+	var inv8 := PartyInventory.new()
+	var accepted_ids: Array[StringName] = []
+	inv8.quest_accepted.connect(func(quest_id: StringName) -> void: accepted_ids.append(quest_id))
+	inv8.accept_quest(&"lost_cat")
+	_check(accepted_ids == [&"lost_cat"], "accept_quest emits quest_accepted with the quest id (got %s)" % [accepted_ids])
+	inv8.accept_quest(&"lost_cat")
+	_check(accepted_ids.size() == 1, "re-accepting an already-accepted quest doesn't re-emit quest_accepted (got %d emissions)" % accepted_ids.size())
+
 	print(("PARTY INVENTORY QUEST STATE TEST PASSED" if _failures == 0 else "PARTY INVENTORY QUEST STATE TEST FAILED: %d" % _failures))
 	quit(_failures)

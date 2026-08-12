@@ -49,9 +49,10 @@ static func _tutorial() -> Quest:
 		_objective(&"equip_gear", "Equip a piece of gear."),
 		_objective(&"open_event_log", "Press L to open the Event Log."),
 		_objective(&"open_professions", "Press P to open your Professions."),
-		_objective(&"open_legend", "Press K to open the Interactable Legend."),
-		_objective(&"visit_shop", "Visit the General Store and speak with the Shopkeeper."),
 		_objective(&"visit_board", "Visit the Adventuring Board — it also offers Party Selection and Level Up to Endgame."),
+		_objective(&"visit_shop", "Visit the General Store and speak with the Shopkeeper."),
+		_objective(&"leave_town", "Leave town to explore the Overworld."),
+		_objective(&"open_legend", "Press K to open the Interactable Legend."),
 		_objective(&"win_fight", "Win a fight against an overworld enemy."),
 	]
 	q.reward_amber = 25   ## [ASSUMPTION] placeholder, not balanced (CLAUDE.md §4)

@@ -20,10 +20,10 @@ func _initialize() -> void:
 
 	var tutorial: Quest = QuestLibrary.get_quest(&"tutorial")
 	_check(tutorial != null, "tutorial is registered")
-	_check(tutorial.objectives.size() == 9, "tutorial has 9 objectives (got %d)" % tutorial.objectives.size())
+	_check(tutorial.objectives.size() == 10, "tutorial has 10 objectives (got %d)" % tutorial.objectives.size())
 	_check(tutorial.category == Quest.Category.TUTORIAL, "tutorial is category TUTORIAL")
 	_check(tutorial.objectives[0].id == &"move", "tutorial's first objective is 'move'")
-	_check(tutorial.objectives[8].id == &"win_fight", "tutorial's last objective is 'win_fight'")
+	_check(tutorial.objectives[9].id == &"win_fight", "tutorial's last objective is 'win_fight'")
 	_check(tutorial.reward_amber > 0, "tutorial grants a placeholder Amber reward")
 
 	var first_call: Quest = QuestLibrary.get_quest(&"lost_cat")

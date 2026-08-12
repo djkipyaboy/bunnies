@@ -13,6 +13,11 @@ extends Resource
 ## every other party-affecting action already logs one; this didn't).
 signal quest_completed(quest_id: StringName)
 
+## Emitted exactly once per quest, from accept_quest() below. Mirrors quest_completed — playtest
+## feedback on Plan 3 (2026-08-12) noted that picking up a quest logs nothing while every other
+## quest-state change (completion) does.
+signal quest_accepted(quest_id: StringName)
+
 const BASE_BAG_CAPACITY: int = 20
 const BAG_CAPACITY_PER_SLOT: int = 10
 
@@ -151,6 +156,7 @@ func accept_quest(quest_id: StringName) -> void:
 	if not accepted_quest_ids.has(quest_id):
 		accepted_quest_ids.append(quest_id)
 		tracked_quest_ids.append(quest_id)
+		quest_accepted.emit(quest_id)
 
 func has_accepted_quest(quest_id: StringName) -> bool:
 	return accepted_quest_ids.has(quest_id)
