@@ -23,7 +23,6 @@ var _camera: Camera2D
 var _dialogue_box: DialogueBox
 var _board_panel: AdventuringBoardPanel
 var _interact_prompt: InteractPrompt
-var _world_tooltip: WorldTooltip
 var _fade_overlay: FadeOverlay
 var _shop_entry_marker: Marker2D
 var _highlighted_target: Interactable
@@ -62,11 +61,6 @@ func _handoff() -> Node:
 	return get_node("/root/CombatHandoff")
 
 func _ready() -> void:
-	# Area2D.mouse_entered/mouse_exited (world hover tooltips, Plan 3) only fire against real mouse
-	# input if the viewport's object picking is enabled -- Viewport.physics_object_picking defaults
-	# to false in Godot 4 and nothing else in this project turns it on. Without this, hover_started/
-	# hover_ended never fire from real mouse motion (only the tests' direct .emit() calls "worked").
-	get_viewport().physics_object_picking = true
 	_build_exterior()
 	_build_interior()
 	_build_pc()
@@ -148,7 +142,10 @@ func _build_exterior() -> void:
 	board.global_position = Vector2(150, 150)
 	board.entries = _make_quest_entries()
 	board.board_opened.connect(_on_board_opened)
-	board.hover_description = "Town quest board — accept and turn in quests here."
+	# Descriptive proximity prompt (playtest-requested pivot away from mouse-hover tooltips,
+	# 2026-08-12 — see CLAUDE.md's physics_object_picking gotcha for why hover never worked; this
+	# reuses the same already-working InteractPrompt/nearest() system every other interactable uses).
+	board.prompt_text = "Check the board — accept and turn in quests here."
 	_exterior.add_child(board)
 	_board = board
 
@@ -159,7 +156,7 @@ func _build_exterior() -> void:
 	_old_well.name = "OldWell"
 	_old_well.global_position = Vector2(300, 260)
 	_old_well.rest_message_requested.connect(show_message)
-	_old_well.hover_description = "Rest here to fully restore your party, once per visit — free and unlimited."
+	_old_well.prompt_text = "Rest at the Old Well — free, full restore, once per visit."
 	_exterior.add_child(_old_well)
 
 	WorldGeometry.add_boundary_walls(_exterior, EXTERIOR_BOUNDS)
@@ -270,14 +267,6 @@ func _build_ui() -> void:
 	_interact_prompt = InteractPrompt.new()
 	_interact_prompt.position = Vector2(16, 16)
 	_ui_layer.add_child(_interact_prompt)
-
-	_world_tooltip = WorldTooltip.new()
-	_ui_layer.add_child(_world_tooltip)
-
-	_board.hover_started.connect(func() -> void: _world_tooltip.show_tooltip(_board.hover_description))
-	_board.hover_ended.connect(_world_tooltip.hide_tooltip)
-	_old_well.hover_started.connect(func() -> void: _world_tooltip.show_tooltip(_old_well.hover_description))
-	_old_well.hover_ended.connect(_world_tooltip.hide_tooltip)
 
 	# Top-left pickup confirmation/rejection (final-review fix, 2026-07-14-ground-item-pickups
 	# design) — mirrors overworld_demo.gd's identical label exactly, so a manually-discarded item
@@ -492,9 +481,7 @@ func _wire_doors() -> void:
 	shop_door.camera = _camera
 	shop_door.target_camera_limits = INTERIOR_BOUNDS
 	shop_door.pc = _pc
-	shop_door.hover_description = "General Store — spend Amber on gear, weapons, and consumables."
-	shop_door.hover_started.connect(func() -> void: _world_tooltip.show_tooltip(shop_door.hover_description))
-	shop_door.hover_ended.connect(_world_tooltip.hide_tooltip)
+	shop_door.prompt_text = "General Store — spend Amber on gear, weapons, and consumables."
 	_exterior.add_child(shop_door)
 
 	var exit_marker := Marker2D.new()
