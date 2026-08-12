@@ -38,24 +38,27 @@ applied. At a glance:
 - **Professions:** Foraging, Fishing, Salvaging, Cooking — each with an opt-in bonus mini-game
   (Shake the Bush / claw-machine reel catch / Tempering Reels / Second Helping).
 
-**Most recent ship:** 2026-08-08, professions playtest round 2 (panel overflow/centering fixes,
-per-profession inventory scoping, layout fixes for Second Helping/Fishing/the event log) —
-human-playtested and confirmed working across the board. See `CLAUDE.md` §8 for a condensed
-status summary, or `docs/DEVLOG.md` for the full entry.
+**Most recent ship:** 2026-08-11/12, Plan 3 of the quest-system-and-tutorial design — world hover
+tooltips (Old Well/Adventuring Board/shop door), the "Respawn Gathering Nodes" debug button, the
+Quest Log detail-pane `ScrollContainer` fix, quest-completion Event Log entries, and a 9th tutorial
+objective directing players to the Adventuring Board. Code-complete and merged to main; full
+328-file headless suite re-run clean (see gotchas below for the one known unrelated exception).
+**Human playtest of Plan 3 itself is still pending.** See `CLAUDE.md` §8 for a condensed status
+summary, or `docs/DEVLOG.md` for the full entry.
 
 **Next open items** (not started, no session currently in flight):
+- **Plan 3 needs a human playtest pass**, then the pre-export checklist is fully clear — nothing
+  else is known to block the next export build.
+- A test-fixture staleness gap surfaced during the Plan 3 verification sweep:
+  `tests/test_professions_menu_panel.gd`'s "over-tall panel" case was calibrated for
+  `ProfessionsMenuPanel`'s old 2x scale; the 2026-08-10 panel-centering fix dropped that panel to
+  1x, so the fixture's 4-Gear-item case (614px) no longer exceeds the 900px viewport it's meant to
+  test against. Not a functional bug (the TOP_MARGIN anchoring code itself is untouched) — the test
+  fixture just needs re-engineering (its material/gear row caps mean simply adding more demo items
+  won't reproduce the case). Deferred, not blocking export.
 - Ability-level redistribution / talent tuning, post-combat recovery, PC↔companion level parity —
   each explicitly deferred to its own dedicated design session.
 - Design-bible settlement/roster content is still seeded proposals, not locked.
-- **Pre-export checklist, remaining (parked as Plan 3, see below):** Quest Log's detail pane can
-  overflow past the panel's bottom edge for a quest with many objectives (needs a scroll
-  container); quest completion (both the tutorial's auto-complete and Lost Cat's turn-in) grants
-  rewards with no Event Log entry; the tutorial has no step directing players to the Adventuring
-  Board's other functionality (Party Selection, Level Up to Endgame). Professions' oversized
-  scaling and every menu panel's off-center positioning were fixed 2026-08-10.
-- **Plan 3 is parked** (session usage-limit risk) but is next in line before the next export —
-  world hover tooltips + the Respawn Gathering Nodes debug utility (spec §10/§12), plus the 3
-  playtest-fix items just above. See memory `quest-system-foundation-2026-08-10` for full context.
 
 ---
 

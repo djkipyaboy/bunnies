@@ -202,11 +202,18 @@ has been playtested across many rounds with no outstanding functional bugs. On t
   memory `test-both-handoff-paths` for the recurring bug class this pattern has caused (a new
   `CombatHandoff` field needs coverage through BOTH the `SceneExit`/`stash_party()` path AND the
   `OverworldEnemy`/`begin_encounter()` path, or it silently resets on one of them).
-- **The Old Well** (town rest-point, free full restore), a **General Store** (Amber economy),
-  **companion recruitment** (bench + Party Selection panel, not full KOTOR-depth yet), and
-  **the Lost Cat quest** (this project's first real quest, unlocked by beating the Hollow Warden;
-  a proper quest-interaction UI — accept/turn-in popups — is still on the backlog).
+- **The Old Well** (town rest-point, free full restore), a **General Store** (Amber economy), and
+  **companion recruitment** (bench + Party Selection panel, not full KOTOR-depth yet).
 - A persistent, tabbed, cross-scene **Event Log** (`L` key) and an **Amber HUD**.
+- **Quest system** (`Q` key Quest Log, tracker, popups): generic per-objective progress tracking
+  on `PartyInventory`, an auto-starting 9-objective **tutorial quest** (covers movement, inventory,
+  event log, professions, the interactable legend, the shop, the Adventuring Board, and winning a
+  fight), and **the Lost Cat quest** (unlocked by beating the Hollow Warden) with real Accept/
+  Decline and Turn-in popups (`QuestPopupPanel`). `main_scene` boots straight into `town_demo` so
+  an exported build reaches the tutorial's auto-start. World hover tooltips (Old Well/board/shop
+  door) and an **Interactable Legend** (`K` key) round out the new-player onboarding surface.
+  Code-complete and merged; human playtest of the latest pass (hover tooltips + the Respawn
+  Gathering Nodes debug button) still pending — see `HANDOFF.md`.
 
 ### Known recurring gotchas (worth re-reading before debugging something that "should just work")
 
@@ -224,12 +231,14 @@ has been playtested across many rounds with no outstanding functional bugs. On t
 
 ### Still open / deferred (not forgotten, not started)
 
-- A proper Lost Cat / generic quest-interaction UI (accept/turn-in popups, event-log entries).
 - Ability-level redistribution (talent points, "Healing Well"-style rest-point tuning), post-
   combat recovery (Bonus Meter reduction + resource top-up on a win), and PC/companion level
   parity are all explicitly deferred to their own dedicated design sessions.
 - Design-bible settlement/roster content (`docs/design-bible/`) is still seeded proposals, not
   locked.
+- `tests/test_professions_menu_panel.gd`'s "over-tall panel" fixture is stale (calibrated for
+  `ProfessionsMenuPanel`'s old 2x scale, dropped to 1x by the 2026-08-10 panel-centering fix) —
+  not a functional bug, just needs its fixture re-engineered. Deferred, not export-blocking.
 
 **For the full, unabridged history — every shipped feature, every playtest bug, every root
 cause — see `docs/DEVLOG.md`.**
