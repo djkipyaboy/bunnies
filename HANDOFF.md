@@ -38,22 +38,20 @@ applied. At a glance:
 - **Professions:** Foraging, Fishing, Salvaging, Cooking — each with an opt-in bonus mini-game
   (Shake the Bush / claw-machine reel catch / Tempering Reels / Second Helping).
 
-**Most recent ship:** 2026-08-12, fixes from Plan 3's first human playtest. The tutorial's
-objective order was reworked (Adventuring Board -> Shopkeeper -> leave town [new `leave_town`
-objective] -> Legend -> win a fight) and accepting a quest now logs an Event Log entry
-(`PartyInventory.quest_accepted`, mirrors `quest_completed`) — both confirmed working by a second
-playtest pass. World hover tooltips were tried, still didn't fire with a real mouse even after
-fixing `Viewport.physics_object_picking` (defaults `false`, was never enabled), and were replaced
-outright with a descriptive `InteractPrompt` line on proximity — the same already-working
-mechanism every other interactable uses. Full 328-file suite clean (see CLAUDE.md's gotchas for
-the two known unrelated exceptions). See `CLAUDE.md` §8 for a condensed status summary, or
-`docs/DEVLOG.md` for the full entry.
+**Most recent ship:** 2026-08-12, Plan 3 (quest-system-and-tutorial design) is now FULLY
+playtest-confirmed end to end. Its human playtest found 3 issues, all fixed and re-confirmed same
+day: the tutorial's objective order was reworked (Adventuring Board -> Shopkeeper -> leave town
+[new `leave_town` objective] -> Legend -> win a fight); accepting a quest now logs an Event Log
+entry (`PartyInventory.quest_accepted`, mirrors `quest_completed`); and world hover tooltips
+(which never fired with a real mouse even after fixing `Viewport.physics_object_picking`) were
+replaced outright with a descriptive `InteractPrompt` line on proximity — the same already-working
+mechanism every other interactable uses — which playtested cleanly. Full 328-file suite clean (see
+CLAUDE.md's gotchas for the two known unrelated exceptions). See `CLAUDE.md` §8 for a condensed
+status summary, or `docs/DEVLOG.md` for the full entry.
 
 **Next open items** (not started, no session currently in flight):
-- **A playtest check of the 3 new/changed proximity prompts** (board/Old Well/shop door), now
-  descriptive sentences instead of one-word verbs, since the mouse-hover approach that was meant
-  to carry this info never worked and was just replaced. Otherwise nothing is known to block the
-  next export build.
+- **Nothing is known to block the next export/distro build** — the entire quest-system-and-
+  tutorial thread (all 3 plans) is shipped and playtest-confirmed.
 - A test-fixture staleness gap surfaced during the Plan 3 verification sweep:
   `tests/test_professions_menu_panel.gd`'s "over-tall panel" case was calibrated for
   `ProfessionsMenuPanel`'s old 2x scale; the 2026-08-10 panel-centering fix dropped that panel to

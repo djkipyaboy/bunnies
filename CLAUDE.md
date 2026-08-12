@@ -207,18 +207,15 @@ has been playtested across many rounds with no outstanding functional bugs. On t
 - A persistent, tabbed, cross-scene **Event Log** (`L` key) and an **Amber HUD**.
 - **Quest system** (`Q` key Quest Log, tracker, popups): generic per-objective progress tracking
   on `PartyInventory`, an auto-starting 9-objective **tutorial quest** (covers movement, inventory,
-  event log, professions, the interactable legend, the shop, the Adventuring Board, and winning a
-  fight), and **the Lost Cat quest** (unlocked by beating the Hollow Warden) with real Accept/
-  Decline and Turn-in popups (`QuestPopupPanel`). `main_scene` boots straight into `town_demo` so
-  an exported build reaches the tutorial's auto-start. World hover tooltips (Old Well/board/shop
-  door) and an **Interactable Legend** (`K` key) round out the new-player onboarding surface. Town
-  landmarks (board/Old Well/shop door) show a descriptive `InteractPrompt` line on proximity, same
-  mechanism every other interactable already uses — a mouse-hover-tooltip approach was tried first
-  and abandoned (see gotcha below) after a human playtest found it simply never fired.
-  Code-complete and merged; a first human playtest found 3 issues (hover tooltips not firing,
-  tutorial objective order, quest-accept not logging) — the latter two fixed 2026-08-12, hover
-  tooltips replaced outright with the proximity-prompt approach above. A second playtest to
-  confirm is still pending, see `HANDOFF.md`.
+  event log, professions, the interactable legend, the shop, the Adventuring Board, leaving town,
+  and winning a fight), and **the Lost Cat quest** (unlocked by beating the Hollow Warden) with
+  real Accept/Decline and Turn-in popups (`QuestPopupPanel`). `main_scene` boots straight into
+  `town_demo` so an exported build reaches the tutorial's auto-start. Town landmarks (board/Old
+  Well/shop door) show a descriptive `InteractPrompt` line on proximity, same mechanism every
+  other interactable already uses — a mouse-hover-tooltip approach was tried first and abandoned
+  (see gotcha below) after a human playtest found it simply never fired. An **Interactable Legend**
+  (`K` key) rounds out the new-player onboarding surface. Code-complete, merged, and **fully
+  playtest-confirmed** (2026-08-12) — nothing known blocks the next export/distro build.
 
 ### Known recurring gotchas (worth re-reading before debugging something that "should just work")
 
