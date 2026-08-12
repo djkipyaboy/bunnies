@@ -212,8 +212,9 @@ has been playtested across many rounds with no outstanding functional bugs. On t
   Decline and Turn-in popups (`QuestPopupPanel`). `main_scene` boots straight into `town_demo` so
   an exported build reaches the tutorial's auto-start. World hover tooltips (Old Well/board/shop
   door) and an **Interactable Legend** (`K` key) round out the new-player onboarding surface.
-  Code-complete and merged; human playtest of the latest pass (hover tooltips + the Respawn
-  Gathering Nodes debug button) still pending — see `HANDOFF.md`.
+  Code-complete and merged; a first human playtest found 3 issues (hover tooltips not firing,
+  tutorial objective order, quest-accept not logging), fixed 2026-08-12 — a second playtest to
+  confirm those fixes is still pending, see `HANDOFF.md`.
 
 ### Known recurring gotchas (worth re-reading before debugging something that "should just work")
 
@@ -221,6 +222,11 @@ has been playtested across many rounds with no outstanding functional bugs. On t
   that frame's checks but the test file still exits 0. At least 3 known exit-code-blind test
   files exist (incl. `tests/test_adventuring_board_panel.gd`, `tests/test_dungeon_demo.gd`). Grep
   actual output for `SCRIPT ERROR`/`FAIL`, don't trust exit codes alone.
+- **`Viewport.physics_object_picking` defaults to `false`**: `Area2D.mouse_entered`/`mouse_exited`
+  never fire from a REAL mouse until something sets this true on the relevant viewport — nothing
+  did until the 2026-08-12 hover-tooltip fix (`town_demo.gd._ready()`). A test that calls
+  `mouse_entered.emit()` directly proves the signal's wiring, never that a live mouse actually
+  triggers it — see memory `godot-toggle-button-and-test-bypass-gotchas` gotcha 3.
 - **GDScript typed-array `Node.set()` gotcha**: assigning a bare `[]` to a typed-array property
   through a `Node`-typed handle silently no-ops; casting an already-typed `Array[Subclass]` as
   `Array[Base]` loudly errors instead. Rebuild via a loop.
