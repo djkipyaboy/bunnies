@@ -211,10 +211,14 @@ has been playtested across many rounds with no outstanding functional bugs. On t
   fight), and **the Lost Cat quest** (unlocked by beating the Hollow Warden) with real Accept/
   Decline and Turn-in popups (`QuestPopupPanel`). `main_scene` boots straight into `town_demo` so
   an exported build reaches the tutorial's auto-start. World hover tooltips (Old Well/board/shop
-  door) and an **Interactable Legend** (`K` key) round out the new-player onboarding surface.
+  door) and an **Interactable Legend** (`K` key) round out the new-player onboarding surface. Town
+  landmarks (board/Old Well/shop door) show a descriptive `InteractPrompt` line on proximity, same
+  mechanism every other interactable already uses — a mouse-hover-tooltip approach was tried first
+  and abandoned (see gotcha below) after a human playtest found it simply never fired.
   Code-complete and merged; a first human playtest found 3 issues (hover tooltips not firing,
-  tutorial objective order, quest-accept not logging), fixed 2026-08-12 — a second playtest to
-  confirm those fixes is still pending, see `HANDOFF.md`.
+  tutorial objective order, quest-accept not logging) — the latter two fixed 2026-08-12, hover
+  tooltips replaced outright with the proximity-prompt approach above. A second playtest to
+  confirm is still pending, see `HANDOFF.md`.
 
 ### Known recurring gotchas (worth re-reading before debugging something that "should just work")
 
@@ -222,11 +226,16 @@ has been playtested across many rounds with no outstanding functional bugs. On t
   that frame's checks but the test file still exits 0. At least 3 known exit-code-blind test
   files exist (incl. `tests/test_adventuring_board_panel.gd`, `tests/test_dungeon_demo.gd`). Grep
   actual output for `SCRIPT ERROR`/`FAIL`, don't trust exit codes alone.
-- **`Viewport.physics_object_picking` defaults to `false`**: `Area2D.mouse_entered`/`mouse_exited`
-  never fire from a REAL mouse until something sets this true on the relevant viewport — nothing
-  did until the 2026-08-12 hover-tooltip fix (`town_demo.gd._ready()`). A test that calls
-  `mouse_entered.emit()` directly proves the signal's wiring, never that a live mouse actually
-  triggers it — see memory `godot-toggle-button-and-test-bypass-gotchas` gotcha 3.
+- **Mouse-hover on world objects is a bad fit for this project** (2026-08-12): built once via
+  `Area2D.mouse_entered`/`mouse_exited` + `Viewport.physics_object_picking` (which defaults `false`
+  in Godot 4 — nothing enabled it, so it silently never fired; a test that calls
+  `mouse_entered.emit()` directly proves only the signal's wiring, never that a live mouse actually
+  triggers it, see memory `godot-toggle-button-and-test-bypass-gotchas` gotcha 3). Even after
+  enabling the flag, real-mouse hover still didn't fire in a live human playtest and root-causing
+  it further wasn't worth it — the project already has a proven, working, proximity-based
+  `InteractPrompt`/`nearest_interactable()` system every other interactable uses (walk near, see
+  `prompt_text`). Default to THAT for any future "show info about a world object" ask instead of
+  reaching for mouse-hover.
 - **GDScript typed-array `Node.set()` gotcha**: assigning a bare `[]` to a typed-array property
   through a `Node`-typed handle silently no-ops; casting an already-typed `Array[Subclass]` as
   `Array[Base]` loudly errors instead. Rebuild via a loop.
