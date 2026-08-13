@@ -18,7 +18,7 @@ func _init() -> void:
 
 	draft.class_id = &"warrior"
 	panel.refresh(draft)
-	_check(panel.text_for_test().find("Martin (Mouse)") != -1, "picking a class shows its display name in the preview")
+	_check(panel.text_for_test().find("Warrior") != -1, "picking a class shows its id-derived label in the preview")
 	_check(panel.text_for_test().find("3 reels") != -1, "picking a class shows its reel_count in the preview")
 
 	draft.heritage_id = &"hare"

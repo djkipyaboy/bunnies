@@ -18,7 +18,7 @@ func _init() -> void:
 	for id: StringName in ClassLibrary.IDS:
 		var character_class: CharacterClass = ClassLibrary.make(id)
 		var btn: Button = Button.new()
-		btn.text = "%s (%d reels)" % [character_class.display_name, character_class.reel_count]
+		btn.text = "%s (%d reels)" % [String(id).capitalize(), character_class.reel_count]
 		btn.position = Vector2(0.0, y)
 		btn.pressed.connect(_on_pressed.bind(id))
 		add_child(btn)

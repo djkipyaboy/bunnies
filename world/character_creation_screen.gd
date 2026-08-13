@@ -31,31 +31,39 @@ func _ready() -> void:
 
 	_species_step = SpeciesStep.new()
 	_species_step.selected.connect(_on_species_selected)
+	_species_step.position = Vector2(24, 24)
 	add_child(_species_step)
 
 	_class_step = ClassStep.new()
 	_class_step.selected.connect(_on_class_selected)
+	_class_step.position = Vector2(24, 24)
 	add_child(_class_step)
 
 	_background_step = BackgroundStep.new()
 	_background_step.selected.connect(_on_background_selected)
+	_background_step.position = Vector2(24, 24)
 	add_child(_background_step)
 
 	_name_step = NameStep.new()
 	_name_step.name_changed.connect(_on_name_changed)
+	_name_step.position = Vector2(24, 24)
 	add_child(_name_step)
 
 	_reel_preview = ReelPreviewPanel.new()
+	_reel_preview.position = Vector2(400, 24)
+	_reel_preview.custom_minimum_size = Vector2(300, 400)
 	add_child(_reel_preview)
 
 	_back_button = Button.new()
 	_back_button.text = "Back"
 	_back_button.pressed.connect(_on_back_pressed)
+	_back_button.position = Vector2(24, 440)
 	add_child(_back_button)
 
 	_next_button = Button.new()
 	_next_button.text = "Next"
 	_next_button.pressed.connect(_on_next_pressed)
+	_next_button.position = Vector2(120, 440)
 	add_child(_next_button)
 
 	_rebuild()
@@ -108,18 +116,19 @@ func _on_next_pressed() -> void:
 		_step_index += 1
 		_rebuild()
 
-## Builds the real PC Combatant from the completed draft: the tentative CharacterClass's baseline,
-## the chosen Heritage's passive layered onto base_stats (then re-derives stats/luck so the bump
-## actually takes effect), and the chosen Background's signature face inserted into the first
-## weapon reel's strip ("the signature face literally appears on the strip" -- design bible §5).
+## Builds the real PC Combatant from the completed draft: the chosen Heritage's passive is layered
+## onto the tentative CharacterClass's base_stats BEFORE build_combatant() runs, so the bump flows
+## through build_combatant()'s own single apply_stats()/apply_luck()/start_combat() sequence
+## (apply_luck() is explicitly non-idempotent -- see combat/combatant.gd -- so it must only run
+## once). The chosen Background's signature face is then inserted into the first weapon reel's
+## strip ("the signature face literally appears on the strip" -- design bible §5).
 func _build_pc() -> Combatant:
 	var character_class: CharacterClass = ClassLibrary.make(draft.class_id)
+	var heritage: Heritage = HeritageLibrary.make(draft.heritage_id)
+	heritage.apply_passive(character_class.base_stats)
 	var pc: Combatant = character_class.build_combatant(true)
 	pc.display_name = draft.character_name.strip_edges()
-	pc.heritage = HeritageLibrary.make(draft.heritage_id)
-	pc.heritage.apply_passive(pc.base_stats)
-	pc.apply_stats()
-	pc.apply_luck()
+	pc.heritage = heritage
 	pc.background = BackgroundLibrary.make(draft.background_id)
 	pc.weapon.reels[0].faces.append(pc.background.signature_face)
 	pc.class_is_locked = false

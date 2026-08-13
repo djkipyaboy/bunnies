@@ -8,8 +8,11 @@ extends SceneTree
 
 var _instance: Node
 var _frames: int = 0
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
+	if not cond:
+		_failures += 1
 	print(("ok " if cond else "FAIL ") + label)
 
 func _init() -> void:
@@ -65,6 +68,11 @@ func _process(_delta: float) -> bool:
 		_check(created_pc[0] != null, "pressing Finalize on the Name step emits character_created with a real Combatant")
 		_check(created_pc[0].display_name == "Martin", "the finalized Combatant carries the entered name")
 		_check(created_pc[0].heritage != null and created_pc[0].heritage.species_name == "Hare", "the finalized Combatant carries the chosen heritage")
+		# Warrior's base Finesse is 2 (combat/class_library.gd); Hare's passive is +1 Finesse
+		# (combat/heritage_library.gd). This must land exactly once -- apply_luck()/apply_stats()
+		# are non-idempotent (combat/combatant.gd apply_luck() doc comment), so a double-apply
+		# bug would silently double- (or zero-) count this.
+		_check(created_pc[0].base_stats.finesse == 3, "the Hare passive (+1 Finesse) lands exactly once on top of Warrior's base Finesse (2)")
 		_check(created_pc[0].background != null and created_pc[0].background.background_name == "Reformed Vermin", "the finalized Combatant carries the chosen background")
 		_check(created_pc[0].class_id == &"warrior", "the finalized Combatant carries the chosen (tentative) class")
 		_check(not created_pc[0].class_is_locked, "the finalized Combatant's class starts unlocked, pending the future Class Trial & Lock-In mechanic")
@@ -73,5 +81,6 @@ func _process(_delta: float) -> bool:
 	if _frames >= 2:
 		print("ok character-creation-screen scene test complete")
 		_instance.free()
+		quit(_failures)
 		return true
 	return false

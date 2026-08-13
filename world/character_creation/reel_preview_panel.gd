@@ -18,7 +18,7 @@ func refresh(draft: CharacterCreationDraft) -> void:
 	var lines: Array[String] = []
 	if draft.has_class():
 		var character_class: CharacterClass = ClassLibrary.make(draft.class_id)
-		lines.append("%s -- %d reels (%s)" % [character_class.display_name, character_class.reel_count, character_class.weapon_display_name])
+		lines.append("%s -- %d reels (%s)" % [String(draft.class_id).capitalize(), character_class.reel_count, character_class.weapon_display_name])
 	if draft.has_heritage():
 		var heritage: Heritage = HeritageLibrary.make(draft.heritage_id)
 		lines.append("%s passive: %s" % [heritage.species_name, heritage.passive_description])
