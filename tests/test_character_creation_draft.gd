@@ -1,7 +1,5 @@
 extends SceneTree
 
-var CharacterCreationDraft = preload("res://world/character_creation/character_creation_draft.gd")
-
 var _failures: int = 0
 func _check(cond: bool, label: String) -> void:
 	if cond:
@@ -12,7 +10,7 @@ func _check(cond: bool, label: String) -> void:
 		print("  FAIL: ", label)
 
 func _init() -> void:
-	var draft = CharacterCreationDraft.new()
+	var draft: CharacterCreationDraft = CharacterCreationDraft.new()
 	_check(not draft.has_heritage(), "a fresh draft has no heritage")
 	_check(not draft.has_class(), "a fresh draft has no class")
 	_check(not draft.has_background(), "a fresh draft has no background")
