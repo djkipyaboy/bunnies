@@ -209,8 +209,9 @@ has been playtested across many rounds with no outstanding functional bugs. On t
   on `PartyInventory`, an auto-starting 9-objective **tutorial quest** (covers movement, inventory,
   event log, professions, the interactable legend, the shop, the Adventuring Board, leaving town,
   and winning a fight), and **the Lost Cat quest** (unlocked by beating the Hollow Warden) with
-  real Accept/Decline and Turn-in popups (`QuestPopupPanel`). `main_scene` boots straight into
-  `town_demo` so an exported build reaches the tutorial's auto-start. Town landmarks (board/Old
+  real Accept/Decline and Turn-in popups (`QuestPopupPanel`). `main_scene` boots into
+  `start_menu`, whose New Game path (character creation -> `seed_demo_party(pc)`) reaches
+  `town_demo` and the tutorial's auto-start. Town landmarks (board/Old
   Well/shop door) show a descriptive `InteractPrompt` line on proximity, same mechanism every
   other interactable already uses — a mouse-hover-tooltip approach was tried first and abandoned
   (see gotcha below) after a human playtest found it simply never fired. An **Interactable Legend**

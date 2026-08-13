@@ -95,11 +95,14 @@ Ultimate.
 ## 5. How to run it
 
 **Godot 4.6.3-stable**, GDScript (no C#). Project root = `bunnies/` (this repo); `main_scene` is
-`res://world/town_demo.tscn` (changed 2026-08-10 from `combat/combat.tscn` so an exported build
-actually reaches the tutorial's auto-start — `town_demo.gd` already seeds a fresh party via
+`res://world/start_menu.tscn` (changed 2026-08-13 per the start-menu spec, reversing the
+2026-08-10 decision this same sentence used to describe). The start menu's "New Game" path goes
+through `CharacterCreationScreen` -> `InventoryDemoSetup.seed_demo_party(pc)` -> `CombatHandoff`
+-> `town_demo.tscn` — `town_demo.gd` already seeds a fresh party via
 `InventoryDemoSetup.seed_demo_party()` when no `CombatHandoff` state exists, and the full
-Town⇄Overworld⇄Dungeon⇄Combat loop is reachable from there; locked in by
-`tests/test_main_scene_is_town_demo.gd`). The Godot executable lives **one directory above this
+Town⇄Overworld⇄Dungeon⇄Combat loop is reachable from there, now reached via the start menu's New
+Game rather than being the literal boot scene; locked in by
+`tests/test_main_scene_is_start_menu.gd`. The Godot executable lives **one directory above this
 repo**: `C:\bunnies\bunnies-main\Godot_v4.6.3-stable_win64_console.exe`.
 
 - **Play the loop:** open the project in Godot and press play, or launch a specific scene:

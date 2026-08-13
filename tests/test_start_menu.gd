@@ -9,8 +9,11 @@ extends SceneTree
 
 var _instance: Node
 var _frames: int = 0
+var _failures: int = 0
 
 func _check(cond: bool, label: String) -> void:
+	if not cond:
+		_failures += 1
 	print(("ok " if cond else "FAIL ") + label)
 
 func _init() -> void:
@@ -53,5 +56,8 @@ func _process(_delta: float) -> bool:
 		print("ok start-menu scene test complete")
 		if current != null:
 			current.free()
+		if _instance != null:
+			_instance.free()
+		quit(_failures)
 		return true
 	return false
