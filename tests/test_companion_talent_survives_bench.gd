@@ -27,7 +27,7 @@ func _process(_delta: float) -> bool:
 		var town: TownDemo = _instance
 		_check(town._companions.size() == 1, "sanity: town seeds exactly 1 active companion")
 		_companion = town._companions[0]
-		_companion.level = 10   # unlock every row so a pick is possible (default seed level is 3)
+		_companion.level = 10   # unlock every row so a pick is possible (default seed level is 4)
 
 		town._toggle_talents()
 		_check(town._talent_panel.press_party_tab_for_test(1), "switching to the companion's tab succeeds")

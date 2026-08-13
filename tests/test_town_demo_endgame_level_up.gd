@@ -21,10 +21,10 @@ func _initialize() -> void:
 
 	_check(_town._pc_combatant.level == 9, "sanity: the demo seeds the PC at level 9")
 	_check(_town._companions.size() > 0, "sanity: the demo seeds at least 1 active companion")
-	_check(_town._companions[0].level == 3, "sanity: the demo seeds the active companion at level 3")
+	_check(_town._companions[0].level == 4, "sanity: the demo seeds the active companion at level 4")
 	_check(_town._bench.size() > 0, "sanity: the demo seeds a non-empty bench")
 	for c: Combatant in _town._bench:
-		_check(c.level == 3, "sanity: every benched companion starts at level 3 (%s)" % c.display_name)
+		_check(c.level == 4, "sanity: every benched companion starts at level 4 (%s)" % c.display_name)
 
 	_town._on_board_opened([])   # real production entry point (ignores its arg, recomputes fresh)
 	_check(_town._board_panel.visible, "the real Adventuring Board opens")

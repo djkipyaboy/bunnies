@@ -19,11 +19,15 @@ static func seed_demo_party(pc_override: Combatant = null) -> Dictionary:
 
 	var companion: Combatant = ClassLibrary.make(&"skirmisher").build_combatant(true)
 	companion.display_name = "Basil"
-	companion.level = 3   # can equip Common/Uncommon only — exercises a visible level-gate rejection
+	# [ASSUMPTION] playtest-only (2026-08-13 playtest round 2 request): raised from 3 to 4, matching
+	# the pc_override level-4 override above, so every companion/bench class also shows its full
+	# early ability kit — this replaces the level-3 "can equip Common/Uncommon only" level-gate demo
+	# this value used to also exercise; that scenario can be re-created by hand if needed later.
+	companion.level = 4
 
 	# Precreated companion bench (2026-07-12 Party Selection work) — one per remaining class
 	# (everything except the PC's own class and the already-in-party Skirmisher/Basil), all at
-	# level 3 like Basil — base ability + Ultimate only, no L5/L7/L9 kit, per player direction.
+	# level 4 like Basil (raised from 3, see above) — base ability + Ultimate + L2/L3/L4 kit.
 	# Excludes pc.class_id (not a hardcoded &"warrior") since pc can now be ANY class, via
 	# pc_override (2026-08-13 start-menu spec) — a hardcoded &"warrior" exclusion would wrongly keep
 	# excluding Warrior and wrongly include a duplicate of whatever class the real PC actually is.
@@ -32,7 +36,7 @@ static func seed_demo_party(pc_override: Combatant = null) -> Dictionary:
 		if class_id == pc.class_id or class_id == &"skirmisher":
 			continue
 		var recruit: Combatant = ClassLibrary.make(class_id).build_combatant(true)
-		recruit.level = 3
+		recruit.level = 4
 		bench.append(recruit)
 
 	var inv: PartyInventory = PartyInventory.new()

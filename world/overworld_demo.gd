@@ -47,6 +47,7 @@ var _foraging_panel: ForagingPanel
 var _fishing_panel: FishingPanel
 var _event_log_panel: EventLogPanel
 var _respawn_gathering_button: Button
+var _respawn_combatants_button: Button
 
 var _pc_combatant: Combatant
 var _companions: Array = []
@@ -361,6 +362,16 @@ func _build_ui() -> void:
 	_respawn_gathering_button.pressed.connect(_on_respawn_gathering_nodes_pressed)
 	ui.add_child(_respawn_gathering_button)
 
+	# "Respawn Combatants" debug button (2026-08-13 playtest round 2 request) -- same precedent as
+	# "Respawn Gathering Nodes" directly above: a single playtest session was otherwise limited to
+	# just the 3 overworld fights + the random encounter before running out of things to fight.
+	_respawn_combatants_button = Button.new()
+	_respawn_combatants_button.text = "Respawn Combatants"
+	_respawn_combatants_button.position = Vector2(1360, 88)
+	_respawn_combatants_button.tooltip_text = "Debug: re-place the rat/ferret/stoat and the bandit ambush so playtesters can keep fighting without relaunching."
+	_respawn_combatants_button.pressed.connect(_on_respawn_combatants_pressed)
+	ui.add_child(_respawn_combatants_button)
+
 	# Playtest-found gap (2026-07-18): Amber only ever showed on the InventoryMenuPanel's Stats
 	# tab, which the player didn't notice — a persistent, always-visible readout is more legible
 	# than a value hidden behind a panel toggle. Refreshed every _process() tick (below).
@@ -456,11 +467,7 @@ func _build_npcs() -> void:
 	# every tree/mountain/village collider by more than the default 48px wander_leash_radius —
 	# the previous (500, 550) placement was only ~41px from the (450, 550) tree's collider,
 	# close enough that a wander target could land inside it, visibly sticking the rat in place.
-	_place_overworld_enemy("OverworldRat", [&"rat"], Vector2(800, 400))
-	# More overworld encounter variety (player direction 2026-07-12): ferret/stoat were already
-	# authored in EnemyLibrary but never placed. Positions clear of every collider/other NPC above.
-	_place_overworld_enemy("OverworldFerret", [&"ferret"], Vector2(1000, 250))
-	_place_overworld_enemy("OverworldStoat", [&"stoat"], Vector2(700, 600))
+	_place_overworld_combatants()
 
 	if not _handoff().is_defeated(&"ShinyTrinket"):
 		var reward := RewardPickup.new()
@@ -483,6 +490,25 @@ func _build_npcs() -> void:
 	_world.add_child(wanderer)
 
 	_place_gathering_nodes()
+
+## Extracted from _build_npcs() (2026-08-13 playtest round 2 request) so the "Respawn Combatants"
+## debug button can re-run placement on demand without duplicating existing live nodes -- same
+## free-then-recreate pattern _place_gathering_nodes() already established for its own debug
+## button. Covers every fightable overworld encounter: the 3 placed OverworldEnemy roamers plus the
+## Slay-the-Spire-style "?" random encounter (bandit_ambush) -- NOT the ShinyTrinket reward pickup,
+## which isn't a combatant.
+func _place_overworld_combatants() -> void:
+	for existing_name in ["OverworldRat", "OverworldFerret", "OverworldStoat", "BanditAmbush"]:
+		var existing: Node = _world.get_node_or_null(existing_name)
+		if existing != null:
+			_world.remove_child(existing)
+			existing.queue_free()
+
+	_place_overworld_enemy("OverworldRat", [&"rat"], Vector2(800, 400))
+	# More overworld encounter variety (player direction 2026-07-12): ferret/stoat were already
+	# authored in EnemyLibrary but never placed. Positions clear of every collider/other NPC above.
+	_place_overworld_enemy("OverworldFerret", [&"ferret"], Vector2(1000, 250))
+	_place_overworld_enemy("OverworldStoat", [&"stoat"], Vector2(700, 600))
 
 	# Slay-the-Spire-style "?" random encounter (player direction 2026-07-12) — one authored
 	# example (bandit_ambush) for this playtest. Positioned clear of every collider/other NPC.
@@ -854,3 +880,12 @@ func _on_respawn_gathering_nodes_pressed() -> void:
 
 func press_respawn_gathering_nodes_for_test() -> void:
 	_respawn_gathering_button.pressed.emit()
+
+func _on_respawn_combatants_pressed() -> void:
+	for encounter_id: StringName in [&"OverworldRat", &"OverworldFerret", &"OverworldStoat", &"BanditAmbush"]:
+		_handoff().unmark_defeated(encounter_id)
+	_place_overworld_combatants()
+	_handoff().log_event("Debug: respawned overworld combatants", _handoff().CATEGORY_COMBAT)
+
+func press_respawn_combatants_for_test() -> void:
+	_respawn_combatants_button.pressed.emit()
