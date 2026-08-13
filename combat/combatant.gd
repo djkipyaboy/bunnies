@@ -57,6 +57,20 @@ signal shield_changed(shield_hp: int, shield_turns: int)
 var display_name: String = ""
 var is_player: bool = false
 
+## The player's chosen species (CharacterCreationScreen) -- null for every enemy/companion built
+## directly via ClassLibrary, since only a player-created PC goes through creation (spec
+## 2026-08-13-character-creation-design.md).
+var heritage: Heritage
+
+## The player's chosen backstory grant (CharacterCreationScreen) -- null for every enemy/companion
+## built directly via ClassLibrary, same rule as [member heritage].
+var background: Background
+
+## True once the player's tentative class choice (made in CharacterCreationScreen) has been locked
+## permanently by the Class Trial & Lock-In mechanic (its own future spec). This plan always leaves
+## it false; nothing else in this plan reads it yet.
+var class_is_locked: bool = false
+
 ## A non-combat TARGET DUMMY (debug/testing aid): takes splash/AoE damage so the player can see it land,
 ## never dies (see [member min_hp]), spends its turn healing to full, and is EXCLUDED from the combat-end
 ## check (TurnManager._living) so immortal dummies can't stall a win. Not used in normal play.
