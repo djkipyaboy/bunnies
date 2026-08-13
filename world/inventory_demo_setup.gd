@@ -7,21 +7,29 @@ extends RefCounted
 ## companion-recruitment systems (neither exists in code yet) — placeholder data only, split out of
 ## town_demo.gd per the spec's §6 file-size note. All numeric magnitudes are [ASSUMPTION].
 
-static func seed_demo_party() -> Dictionary:
-	var pc: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
-	pc.display_name = "Martin"
-	pc.level = 9   # can equip every rarity tier, so the demo can show the full ladder
+static func seed_demo_party(pc_override: Combatant = null) -> Dictionary:
+	var pc: Combatant
+	if pc_override != null:
+		pc = pc_override
+		pc.level = 4   # [ASSUMPTION] playtest-only: unlocks each class's early ability kit immediately
+	else:
+		pc = ClassLibrary.make(&"warrior").build_combatant(true)
+		pc.display_name = "Martin"
+		pc.level = 9   # can equip every rarity tier, so the demo can show the full ladder
 
 	var companion: Combatant = ClassLibrary.make(&"skirmisher").build_combatant(true)
 	companion.display_name = "Basil"
 	companion.level = 3   # can equip Common/Uncommon only — exercises a visible level-gate rejection
 
 	# Precreated companion bench (2026-07-12 Party Selection work) — one per remaining class
-	# (everything except the PC's own Warrior and the already-in-party Skirmisher/Basil), all at
+	# (everything except the PC's own class and the already-in-party Skirmisher/Basil), all at
 	# level 3 like Basil — base ability + Ultimate only, no L5/L7/L9 kit, per player direction.
+	# Excludes pc.class_id (not a hardcoded &"warrior") since pc can now be ANY class, via
+	# pc_override (2026-08-13 start-menu spec) — a hardcoded &"warrior" exclusion would wrongly keep
+	# excluding Warrior and wrongly include a duplicate of whatever class the real PC actually is.
 	var bench: Array[Combatant] = []
 	for class_id: StringName in ClassLibrary.IDS:
-		if class_id == &"warrior" or class_id == &"skirmisher":
+		if class_id == pc.class_id or class_id == &"skirmisher":
 			continue
 		var recruit: Combatant = ClassLibrary.make(class_id).build_combatant(true)
 		recruit.level = 3
