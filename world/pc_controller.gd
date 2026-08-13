@@ -61,6 +61,12 @@ func movement_paused_for_test() -> bool:
 	return _movement_paused
 
 func _physics_process(_delta: float) -> void:
+	if _movement_paused:
+		# Skip move_and_slide() entirely while paused, not just zero the requested velocity --
+		# move_and_slide()'s own overlap depenetration was still shoving the PC whenever a
+		# Villager walked into it with a menu open (playtest-found bug, 2026-08-13).
+		velocity = Vector2.ZERO
+		return
 	var input_vector := Vector2(
 		Input.get_action_strength("move_right") - Input.get_action_strength("move_left"),
 		Input.get_action_strength("move_down") - Input.get_action_strength("move_up")

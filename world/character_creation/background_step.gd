@@ -6,6 +6,11 @@ extends Control
 
 const BUTTON_H: float = 32.0
 
+## Playtest-found fix (2026-08-13): with no explicit width, each button sized itself tightly
+## around its own text -- cramped and unreadable. The screen is 1600px wide with room to spare, so
+## give every option a real, generous width instead of letting it wrap/clip.
+const BUTTON_W: float = 900.0
+
 signal selected(id: StringName)
 
 var _buttons: Dictionary = {}   # StringName -> Button
@@ -17,6 +22,7 @@ func _init() -> void:
 		var background: Background = BackgroundLibrary.make(id)
 		var btn: Button = Button.new()
 		btn.text = "%s -- %s" % [background.background_name, background.flavor_text]
+		btn.custom_minimum_size = Vector2(BUTTON_W, BUTTON_H)
 		btn.position = Vector2(0.0, y)
 		btn.pressed.connect(_on_pressed.bind(id))
 		add_child(btn)

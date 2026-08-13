@@ -50,8 +50,11 @@ func _ready() -> void:
 	add_child(_name_step)
 
 	_reel_preview = ReelPreviewPanel.new()
-	_reel_preview.position = Vector2(400, 24)
-	_reel_preview.custom_minimum_size = Vector2(300, 400)
+	# Playtest-found fix (2026-08-13): the picker steps' buttons were widened to 900px (see
+	# SpeciesStep/ClassStep/BackgroundStep) -- the preview has to sit clear of that, not at the old
+	# x=400 which overlapped them.
+	_reel_preview.position = Vector2(950, 24)
+	_reel_preview.custom_minimum_size = Vector2(600, 400)
 	add_child(_reel_preview)
 
 	_back_button = Button.new()

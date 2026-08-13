@@ -16,6 +16,9 @@ var _validity_check: CharacterCreationDraft = CharacterCreationDraft.new()
 func _init() -> void:
 	_line_edit = LineEdit.new()
 	_line_edit.placeholder_text = "Enter your name"
+	# Playtest-found fix (2026-08-13): with no explicit width, this defaulted to a tiny box that
+	# clipped even the placeholder text ("Enter y...").
+	_line_edit.custom_minimum_size = Vector2(400.0, 32.0)
 	_line_edit.text_changed.connect(_on_text_changed)
 	add_child(_line_edit)
 

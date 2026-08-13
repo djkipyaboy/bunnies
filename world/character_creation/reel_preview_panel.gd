@@ -12,6 +12,10 @@ var _label: Label
 func _init() -> void:
 	_label = Label.new()
 	_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	# Playtest-found fix (2026-08-13): with no explicit width, a word-wrapping Label shrinks its own
+	# minimum size down to fit around individual words -- "War Hammer" wrapped mid-word into two
+	# lines even though the panel itself had plenty of room. Match the panel's own width instead.
+	_label.custom_minimum_size = Vector2(580.0, 400.0)
 	add_child(_label)
 
 func refresh(draft: CharacterCreationDraft) -> void:
