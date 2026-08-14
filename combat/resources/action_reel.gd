@@ -38,17 +38,19 @@ extends Reel
 ## when this reel's hit lands on a target that's Slowed/Rooted/Stunned. False for every other reel.
 @export var bonus_vs_cc: bool = false
 
-## Builds a first-pass Action reel as a physical 10-face strip. Odds = how many of each symbol
-## sit on the reel (the reel IS the dice — no hidden weights). Crits are rare (1 each → 10%):
-##   1 crit-failure · 2 failure · 2 neutral/utility · 4 success · 1 crit-success.
+## Builds a first-pass Action reel as a physical 50-face strip (scaled 5x from the original 10,
+## 2026-08-13 accuracy-stat spec §2 — gives Luck/Finesse's per-point face conversions real
+## percentage granularity without eliminating a tier entirely). Odds = how many of each symbol sit
+## on the reel (the reel IS the dice — no hidden weights). Crits are rare (5 each → 10%):
+##   5 crit-failure · 10 failure · 10 neutral/utility · 20 success · 5 crit-success.
 ## [b]Balance numbers are [ASSUMPTION] placeholders[/b] — tune by playtest, do not hard-balance.
 ## (Later, gear/talents edit this symbol mix; see DESIGN.md §4.4.)
 const DEFAULT_COMPOSITION := [
-	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 1],
-	[ReelFace.ResultTier.FAILURE, 0.0, 2],
-	[ReelFace.ResultTier.NEUTRAL, 0.0, 2],
-	[ReelFace.ResultTier.SUCCESS, 1.0, 4],
-	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 1],
+	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 5],
+	[ReelFace.ResultTier.FAILURE, 0.0, 10],
+	[ReelFace.ResultTier.NEUTRAL, 0.0, 10],
+	[ReelFace.ResultTier.SUCCESS, 1.0, 20],
+	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 5],
 ]
 
 static func make_default(type: DamageType = null) -> ActionReel:

@@ -1,8 +1,9 @@
 extends SceneTree
 
 # Headless test for ActionReel.make_default() face composition (DESIGN.md §4.4 success ladder).
-# The reel is a physical 10-face strip — odds come from how many of each symbol sit on it, NOT
-# hidden weights (protects "the reel IS the dice"). [ASSUMPTION] balance — tune by playtest.
+# Scaled 5x (2026-08-13 accuracy-stat spec §2) so Luck/Finesse's per-point face conversions have
+# real percentage granularity to work with. The reel is a physical 50-face strip — odds come from
+# how many of each symbol sit on it, NOT hidden weights (protects "the reel IS the dice").
 # Run: Godot_v4.6.3-stable_win64 --headless --path <proj> --script res://tests/test_action_reel.gd
 
 var _failures: int = 0
@@ -26,22 +27,19 @@ func _initialize() -> void:
 	var T := ReelFace.ResultTier
 	var reel: ActionReel = ActionReel.make_default()
 
-	_check(reel.faces.size() == 10, "default reel has 10 faces (got %d)" % reel.faces.size())
+	_check(reel.faces.size() == 50, "default reel has 50 faces (got %d)" % reel.faces.size())
 
-	# Crit symbols are rare: exactly one each → 10% / 10%.
-	_check(_count(reel, T.CRIT_FAILURE) == 1, "1 crit-failure symbol (got %d)" % _count(reel, T.CRIT_FAILURE))
-	_check(_count(reel, T.CRIT_SUCCESS) == 1, "1 crit-success symbol (got %d)" % _count(reel, T.CRIT_SUCCESS))
-
-	# The remaining 8 split among success / failure / utility.
-	_check(_count(reel, T.SUCCESS) == 4, "4 success symbols (got %d)" % _count(reel, T.SUCCESS))
-	_check(_count(reel, T.FAILURE) == 2, "2 failure symbols (got %d)" % _count(reel, T.FAILURE))
-	_check(_count(reel, T.NEUTRAL) == 2, "2 neutral/utility symbols (got %d)" % _count(reel, T.NEUTRAL))
+	_check(_count(reel, T.CRIT_FAILURE) == 5, "5 crit-failure symbols = 10%% (got %d)" % _count(reel, T.CRIT_FAILURE))
+	_check(_count(reel, T.CRIT_SUCCESS) == 5, "5 crit-success symbols = 10%% (got %d)" % _count(reel, T.CRIT_SUCCESS))
+	_check(_count(reel, T.SUCCESS) == 20, "20 success symbols = 40%% (got %d)" % _count(reel, T.SUCCESS))
+	_check(_count(reel, T.FAILURE) == 10, "10 failure symbols = 20%% (got %d)" % _count(reel, T.FAILURE))
+	_check(_count(reel, T.NEUTRAL) == 10, "10 neutral/utility symbols = 20%% (got %d)" % _count(reel, T.NEUTRAL))
 
 	# Faces must be distinct objects so the resolver's chosen face maps to a unique strip index.
 	var seen: Dictionary = {}
 	for f: ReelFace in reel.faces:
 		seen[f] = true
-	_check(seen.size() == 10, "all 10 faces are distinct objects (got %d)" % seen.size())
+	_check(seen.size() == 50, "all 50 faces are distinct objects (got %d)" % seen.size())
 
 	# Damaging tiers keep their multipliers; non-damaging tiers deal none.
 	for f: ReelFace in reel.faces:
