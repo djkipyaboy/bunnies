@@ -104,6 +104,15 @@ var _start_overlay: Panel
 var _arrived_via_handoff: bool = false
 var _handoff_fade_overlay: FadeOverlay
 var _last_result_won: bool = false
+## Re-entrancy guard (final-review Important finding, 2026-08-13): _resolve_handoff_continue()
+## applies post-combat recovery, resolves every PC's Bonus Meter, and wipes CombatHandoff's
+## combat-specific data (clear_combat_data()) — all one-shot, non-idempotent side effects. Without
+## this guard a second Continue press (or a second press_continue_for_test() call) during the
+## ~1.5s+ readable-pause/fade window would double-apply recovery/meter resolution and then read a
+## blanked return_scene_path, eventually calling change_scene_to_file(""). Lives on the shared
+## resolver rather than only the button handler so BOTH real callers and the headless test hook
+## are protected by the same check.
+var _handoff_continue_resolved: bool = false
 ## Total XP awarded to the party THIS fight (player direction 2026-07-12: XP gain wasn't visible
 ## enough) — reset per _build_combatants() call, surfaced on the result card in _on_combat_ended().
 var _fight_xp_gained: int = 0
@@ -2666,11 +2675,17 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 func _apply_post_combat_recovery() -> void:
 	var label: Label = _overlay.get_node("ResultLabel")
 	for c: Combatant in _pcs:
+		# Bonus Meter resolution (final-review Important finding, 2026-08-13) must run for EVERY
+		# PC, including one knocked out during the winning fight — the spec says "every PC's
+		# meter" resolves, and the floor/full-carry rule still applies to a downed PC. This must
+		# NOT be gated behind is_alive(): only the HP/Stamina/Mana recovery + label text below are
+		# alive-only (a dead PC's apply_post_combat_recovery() already returns all-zero gains, so
+		# skipping it just avoids an empty ", " label line — it isn't why the meter was skipped).
+		if c.bonus_meter != null:
+			c.bonus_meter.resolve_post_combat()
 		if not c.is_alive():
 			continue
 		var gains: Dictionary = c.apply_post_combat_recovery()
-		if c.bonus_meter != null:
-			c.bonus_meter.resolve_post_combat()
 		var parts: Array[String] = []
 		if gains.hp > 0:
 			parts.append("+%d HP" % gains.hp)
@@ -2682,6 +2697,12 @@ func _apply_post_combat_recovery() -> void:
 			label.text += "\n%s: %s" % [c.display_name, ", ".join(parts)]
 
 func _resolve_handoff_continue() -> String:
+	# Re-entrancy guard (final-review Important finding, 2026-08-13): a second call while the
+	# first is still in-flight (e.g. a second Continue click during the readable-pause/fade
+	# window) must be a total no-op — see _handoff_continue_resolved's declaration for why.
+	if _handoff_continue_resolved:
+		return ""
+	_handoff_continue_resolved = true
 	var handoff: Node = _handoff()
 	if _last_result_won:
 		handoff.mark_defeated(handoff.pending_encounter_id)
