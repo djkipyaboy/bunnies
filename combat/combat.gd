@@ -21,6 +21,10 @@ const RALLYING_CRY_SHIELD_TURNS: int = 3  # Warden Rallying Cry: party shield du
 ## yet, that's leveling-system work (docs/design-bible/22-leveling-and-progression.md), deferred.
 const ENEMY_XP_REWARD: int = 10
 
+## How long the recovery summary stays on screen (readable) before the Continue-on-win transition
+## fades out (2026-08-13 post-combat-flow spec §3). [ASSUMPTION] tune by playtest.
+const RECOVERY_DISPLAY_PAUSE: float = 1.5
+
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
 var _phase_manager: PhaseManager
@@ -2699,8 +2703,12 @@ func _resolve_handoff_continue() -> String:
 ## Overworld handoff "Continue" button (spec §3.5): mark the encounter defeated on a win, fade out,
 ## clear the fight data, then return to the overworld scene the fight was triggered from.
 func _on_continue_after_handoff_pressed() -> void:
+	var was_win: bool = _last_result_won
+	var return_path: String = _resolve_handoff_continue()
+	if was_win:
+		await get_tree().create_timer(RECOVERY_DISPLAY_PAUSE).timeout
 	await _handoff_fade_overlay.fade_out()
-	get_tree().change_scene_to_file(_resolve_handoff_continue())
+	get_tree().change_scene_to_file(return_path)
 
 ## Test-only hook (mirrors this project's _for_test() convention, e.g.
 ## combat/ui/inventory_menu_panel.gd's press_slot_for_test()): runs the exact same
