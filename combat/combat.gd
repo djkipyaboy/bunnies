@@ -2652,10 +2652,36 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 ## clear_pending() would wipe them here, before anyone's had a chance to consume them (final-review
 ## Critical finding, 2026-07-11, for return_position; playtest-found gap, 2026-07-12, for the party
 ## — it was being silently reseeded from scratch on every return, dropping equipped gear/HP).
+## Applies post-combat recovery to every PC on a WIN (2026-08-13 post-combat-flow spec §3): each
+## PC's HP/Stamina/Mana partially recover (Combatant.apply_post_combat_recovery()) and their Bonus
+## Meter resolves via the existing floor/full-carry rule (BonusMeter.resolve_post_combat(),
+## DESIGN.md §4.9 — previously coded but never actually called anywhere in the real combat flow).
+## Appends a per-PC "+N HP, +N Stamina, +N Mana" summary line to the already-visible result label so
+## the player sees what changed before the scene transitions away (never on a loss — see the
+## defeat-handling plan for that path).
+func _apply_post_combat_recovery() -> void:
+	var label: Label = _overlay.get_node("ResultLabel")
+	for c: Combatant in _pcs:
+		if not c.is_alive():
+			continue
+		var gains: Dictionary = c.apply_post_combat_recovery()
+		if c.bonus_meter != null:
+			c.bonus_meter.resolve_post_combat()
+		var parts: Array[String] = []
+		if gains.hp > 0:
+			parts.append("+%d HP" % gains.hp)
+		if gains.stamina > 0:
+			parts.append("+%d Stamina" % gains.stamina)
+		if gains.mana > 0:
+			parts.append("+%d Mana" % gains.mana)
+		if not parts.is_empty():
+			label.text += "\n%s: %s" % [c.display_name, ", ".join(parts)]
+
 func _resolve_handoff_continue() -> String:
 	var handoff: Node = _handoff()
 	if _last_result_won:
 		handoff.mark_defeated(handoff.pending_encounter_id)
+		_apply_post_combat_recovery()
 	# NOTE: _fight_overflow_items.duplicate() as Array[Resource] does NOT actually retype the array
 	# when assigned through this Node-typed handle's dynamic Object.set() path — the runtime value
 	# stays tagged Array[Gear], and the property setter rejects it (a variant of the documented
