@@ -894,11 +894,16 @@ func talent_incoming_multiplier() -> float:
 func talent_dot_damage_multiplier() -> float:
 	return 0.9 if (&"battle_hardened" in talent_perks) else 1.0
 
-## Edits this combatant's weapon reels to add crit-success faces from its Luck (the reel IS the
-## dice — Luck raises crit ODDS via more crit FACES, then reshuffles to distribute them). Mutates this
-## combatant's OWN weapon reels only (N-vs-M safe — each combatant has its own Weapon). Call ONCE at
-## setup (after gear/apply_stats); NOT idempotent — each call appends more faces, so do not re-apply.
-## [ASSUMPTION] +1 crit-success face (×2.0) per LUCK_PER_CRIT_FACE points of Luck (threshold, not 1:1).
+## Edits this combatant's weapon reels by converting existing CRIT_FAILURE faces to CRIT_SUCCESS
+## from its Luck (the reel IS the dice — Luck raises crit odds by converting existing risk into
+## reward, not by diluting the reel with new faces). REPLACE mechanic (2026-08-13 accuracy-stat
+## spec §2, reworked from the original additive append): total face count on the reel never
+## changes. Mutates this combatant's OWN weapon reels only (N-vs-M safe — each combatant has its
+## own Weapon). Call ONCE at setup (after gear/apply_stats); NOT idempotent — each call converts up
+## to [member LUCK_PER_CRIT_FACE]-per-point MORE faces on whatever's left, so do not re-apply.
+## [ASSUMPTION] converts 1 crit-failure face to crit-success per LUCK_PER_CRIT_FACE points of Luck
+## (threshold, not 1:1), capped at however many crit-failure faces exist on that specific reel —
+## points beyond the cap are explicitly wasted (player's call, spec §2).
 func apply_luck() -> void:
 	if weapon == null:
 		return
@@ -906,11 +911,14 @@ func apply_luck() -> void:
 	if n <= 0:
 		return
 	for reel: ActionReel in weapon.reels:
-		for i: int in range(n):
-			var f: ReelFace = ReelFace.new()
-			f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
-			f.multiplier = 2.0
-			reel.faces.append(f)
+		var converted: int = 0
+		for face: ReelFace in reel.faces:
+			if converted >= n:
+				break
+			if face.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
+				face.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
+				face.multiplier = 2.0
+				converted += 1
 		reel.faces.shuffle()
 
 ## Luck's payline hook (spec §5.4) — the extra_lines mechanism was reserved for Luck but never
