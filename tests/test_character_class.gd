@@ -42,11 +42,13 @@ func _initialize() -> void:
 	_check(c.bonus_meter != null and c.bonus_meter.floor == 5, "meter floor = 3 + grit 2 = 5 (got %d)" % (c.bonus_meter.floor if c.bonus_meter else -1))
 	_check(c.bonus_meter.cap == 15, "meter cap copied")
 	_check(c.hp == c.max_hp, "start_combat seeded full HP")
-	# Luck 3 -> floor(3/3) = 1 crit face per reel.
+	# Luck 3 -> floor(3/3) = 1 crit-failure face converted to crit-success per reel (REPLACE
+	# mechanic, 2026-08-13 accuracy-stat spec §2). DEFAULT_COMPOSITION now has 5 native crit-success
+	# faces (5x scale) + 1 converted = 6.
 	var crit: int = 0
 	for f: ReelFace in c.weapon.reels[0].faces:
 		if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS: crit += 1
-	_check(crit == 2, "apply_luck added floor(3/3)=1 crit face (1 default + 1 = 2; got %d)" % crit)
+	_check(crit == 6, "apply_luck converted floor(3/3)=1 crit-failure face to crit-success (5 native + 1 = 6; got %d)" % crit)
 
 	# Enemy build: no meter visibility, no stamina pool.
 	var ec: CharacterClass = CharacterClass.new()

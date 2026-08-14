@@ -53,7 +53,7 @@ func _initialize() -> void:
 	var rend: ActionReel = ActionReel.make_rend(piercing)  # is_weapon_attack == false
 	var before_a_cf: int = _count(weapon_a, ReelFace.ResultTier.CRIT_FAILURE)
 	var before_a_succ: int = _count(weapon_a, ReelFace.ResultTier.SUCCESS)
-	_check(before_a_cf == 1, "default reel has 1 crit-fail before swap (got %d)" % before_a_cf)
+	_check(before_a_cf == 5, "default reel has 5 crit-fail faces before swap (DEFAULT_COMPOSITION, 5x scale, got %d)" % before_a_cf)
 
 	var swapped: Array = Combatant.hunters_mark_reels([weapon_a, weapon_b, rend])
 	_check(swapped.size() == 3, "swap returns same count")

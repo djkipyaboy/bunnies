@@ -51,7 +51,14 @@ func _initialize() -> void:
 	pr.commit()
 	_check(r.turn_reels.size() == 4 and r.resource_pool.stamina == 1, "rend commit: 4 reels, 2 STA spent")
 
-	# HEFT: count unchanged in preview; commit edits faces (one fewer FAILURE per reel) + spends STA.
+	# HEFT: count unchanged in preview; commit edits faces (converts a fixed number of FAILURE faces
+	# to SUCCESS per reel) + spends STA. MainPhasePlan.commit() calls combatant.apply_heft(talent_cost)
+	# with no explicit conversions arg, so it uses apply_heft's own default of 3 (unchanged gameplay-
+	# balance number, intentionally left untouched here). DEFAULT_COMPOSITION (5x scale, 2026-08-13
+	# accuracy-stat spec §2) now has 10 FAILURE faces per reel, so 3 conversions is a partial dent, not
+	# a full "removes both FAILUREs" clear like it was at the old 2-FAILURE scale — a real,
+	# proportionally-weaker-than-before-scaling side effect flagged for playtest, not a decided design
+	# change.
 	var v: Combatant = _pc(&"heft", 2, crushing)
 	var fail_before: int = _count(v.turn_reels[0], ReelFace.ResultTier.FAILURE)
 	var ph: MainPhasePlan = MainPhasePlan.new(v, 2, 5, 2)
@@ -59,7 +66,7 @@ func _initialize() -> void:
 	_check(ph.preview_reels().size() == 2, "heft preview keeps 2 reels (no added strip)")
 	ph.commit()
 	_check(v.resource_pool.stamina == 1, "heft commit spent 2 STA")
-	_check(_count(v.turn_reels[0], ReelFace.ResultTier.FAILURE) == fail_before - 2, "heft commit removed TWO FAILURE faces from reel 0 (got %d, want %d)" % [_count(v.turn_reels[0], ReelFace.ResultTier.FAILURE), fail_before - 2])
+	_check(_count(v.turn_reels[0], ReelFace.ResultTier.FAILURE) == fail_before - 3, "heft commit converted 3 FAILURE faces (its default conversions arg) from reel 0 (got %d, want %d)" % [_count(v.turn_reels[0], ReelFace.ResultTier.FAILURE), fail_before - 3])
 
 	# Unknown/empty ability cannot stage.
 	var n: Combatant = _pc(&"", 3, slashing)

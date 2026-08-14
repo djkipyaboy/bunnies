@@ -27,16 +27,25 @@ func _initialize() -> void:
 	var fail_before: int = _count(w.reels[0], ReelFace.ResultTier.FAILURE)
 	var critfail_before: int = _count(w.reels[0], ReelFace.ResultTier.CRIT_FAILURE)
 	var succ_before: int = _count(w.reels[0], ReelFace.ResultTier.SUCCESS)
-	var misses_before: int = fail_before + critfail_before  # default reel: 2 + 1 = 3
+	# DEFAULT_COMPOSITION (5x scale, 2026-08-13 accuracy-stat spec §2): a default reel now carries
+	# 10 FAILURE + 5 CRIT_FAILURE + 20 SUCCESS faces, not the old 2/1/4. apply_heft(2) here means
+	# cost=2, conversions stays at its default of 3 (apply_heft(cost, conversions=3) — the
+	# `conversions` value itself is a gameplay-balance number and is intentionally left untouched).
+	# _heft_turn_reels converts FAILURE faces first, then CRIT_FAILURE only once FAILURE runs out —
+	# with 10 FAILURE faces available, all 3 conversions land on FAILURE and CRIT_FAILURE is
+	# untouched. This is a real, proportionally-weaker-than-before-scaling side effect of Heft
+	# converting a FIXED count (3) instead of "all" misses (which it incidentally did at the old
+	# 2 FAILURE + 1 CRIT_FAILURE scale) — flagged for playtest, not a decided design change.
+	var conversions: int = 3
 
 	c.begin_turn()
-	var ok: bool = c.apply_heft(2)   # default 3 conversions per reel: both failures + the crit-failure
+	var ok: bool = c.apply_heft(2)
 	_check(ok, "apply_heft succeeded with 3 stamina")
 	_check(c.resource_pool.stamina == 1, "spent 2 stamina -> 1 left (got %d)" % c.resource_pool.stamina)
-	_check(_count(c.turn_reels[0], ReelFace.ResultTier.FAILURE) == 0, "turn reel 0: all FAILUREs removed (got %d)" % _count(c.turn_reels[0], ReelFace.ResultTier.FAILURE))
-	_check(_count(c.turn_reels[0], ReelFace.ResultTier.CRIT_FAILURE) == 0, "turn reel 0: crit-failure removed (got %d)" % _count(c.turn_reels[0], ReelFace.ResultTier.CRIT_FAILURE))
-	_check(_count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS) == succ_before + misses_before, "turn reel 0: +%d SUCCESS (got %d)" % [misses_before, _count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS)])
-	_check(_count(c.turn_reels[1], ReelFace.ResultTier.SUCCESS) == succ_before + misses_before, "turn reel 1 also fully hefted")
+	_check(_count(c.turn_reels[0], ReelFace.ResultTier.FAILURE) == fail_before - conversions, "turn reel 0: %d of %d FAILUREs converted (%d left, got %d)" % [conversions, fail_before, fail_before - conversions, _count(c.turn_reels[0], ReelFace.ResultTier.FAILURE)])
+	_check(_count(c.turn_reels[0], ReelFace.ResultTier.CRIT_FAILURE) == critfail_before, "turn reel 0: CRIT_FAILURE untouched — the 3 conversions were fully absorbed by FAILURE's larger pool (got %d, want %d)" % [_count(c.turn_reels[0], ReelFace.ResultTier.CRIT_FAILURE), critfail_before])
+	_check(_count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS) == succ_before + conversions, "turn reel 0: +%d SUCCESS (got %d)" % [conversions, _count(c.turn_reels[0], ReelFace.ResultTier.SUCCESS)])
+	_check(_count(c.turn_reels[1], ReelFace.ResultTier.SUCCESS) == succ_before + conversions, "turn reel 1 also hefted for the same %d conversions" % conversions)
 	# Weapon untouched (deep-copy guard).
 	_check(_count(w.reels[0], ReelFace.ResultTier.FAILURE) == fail_before, "WEAPON reel 0 FAILURE unchanged (got %d, want %d)" % [_count(w.reels[0], ReelFace.ResultTier.FAILURE), fail_before])
 

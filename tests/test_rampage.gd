@@ -29,11 +29,17 @@ func _initialize() -> void:
 	_check(fired, "fire_rampage succeeds when armed")
 	_check(c.bonus_meter.value == 0, "rampage consumed the full meter (got %d)" % c.bonus_meter.value)
 	_check(c.turn_reels.size() == 3, "rampage added +1 reel -> 3 (got %d)" % c.turn_reels.size())
-	# Every reel was hefted: a default reel has 2 FAILURE faces; after 2 conversions, 0 remain.
+	# Every reel was hefted via fire_rampage's explicit conversions=2 arg (a gameplay-balance number,
+	# intentionally left untouched here — NOT auto-scaled). DEFAULT_COMPOSITION/ABILITY_COMPOSITION
+	# (5x scale, 2026-08-13 accuracy-stat spec §2) now put 10 FAILURE faces on each reel (the 2 weapon
+	# reels AND the added Rampage reel), so 2 conversions leaves 8 FAILURE faces per reel (24 across
+	# all 3 reels) — a real, proportionally-weaker-than-before-scaling side effect of Heft converting
+	# a FIXED count instead of "all" misses (which it incidentally did at the old 2-FAILURE-per-reel
+	# scale). Flagged for playtest, not a decided design change.
 	var any_fail: int = 0
 	for r: ActionReel in c.turn_reels:
 		any_fail += _count(r, ReelFace.ResultTier.FAILURE)
-	_check(any_fail == 0, "all 3 reels hefted (no FAILURE faces left; got %d)" % any_fail)
+	_check(any_fail == 24, "all 3 reels hefted by 2 conversions each (8 FAILURE left per reel x 3 = 24; got %d)" % any_fail)
 	_check(c.is_aoe_active(), "AoE active for the rampage spin")
 
 	# The added reel deals real damage (it's a normal reel, not a no-damage rend reel).

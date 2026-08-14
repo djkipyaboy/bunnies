@@ -83,12 +83,15 @@ func _test_select_fate_row() -> void:
 	var c3: Combatant = _mk_seer()
 	_check(c3.pick_ability_talent(&"base_ability", &"fate_wilder"), "picks fate_wilder")
 	_check(c3.apply_select_fate(c3.weapon_type(), 6), "casts Select your Fate (wilder)")
+	# Both DEFAULT_COMPOSITION (weapon reels) and ABILITY_COMPOSITION (the added Select your Fate
+	# reel) carry 5 native crit-success faces post-5x-scale (2026-08-13 accuracy-stat spec §2), so
+	# fate_wilder's +1 temporary crit face per reel lands at 5 + 1 = 6, not 1 + 1 = 2.
 	for r: ActionReel in c3.turn_reels:
 		var crit_count: int = 0
 		for f: ReelFace in r.faces:
 			if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 				crit_count += 1
-		_check(crit_count == 2, "fate_wilder: every one of this turn's reels gained an extra temporary crit face (1 baseline + 1 added, got %d)" % crit_count)
+		_check(crit_count == 6, "fate_wilder: every one of this turn's reels gained an extra temporary crit face (5 native + 1 added, got %d)" % crit_count)
 
 	# Mutual exclusion: only 1 pick per row.
 	var c4: Combatant = _mk_seer()

@@ -107,14 +107,16 @@ func _test_loaded_dice_row() -> void:
 	_check(c.ability_talent_cost_delta(&"loaded_dice") == -1, "dice_efficient: Loaded Dice costs 1 less Mana")
 
 	var c2: Combatant = _mk_chancer()
-	_check(_count_crit_faces_with_mult(c2.turn_reels[0], 2.0) == 1, "sanity: a fresh Storm Sling reel has exactly 1 native x2.0 crit face")
+	# DEFAULT_COMPOSITION (5x scale, 2026-08-13 accuracy-stat spec §2) puts 5 native x2.0 crit-
+	# success faces on a fresh reel, not 1.
+	_check(_count_crit_faces_with_mult(c2.turn_reels[0], 2.0) == 5, "sanity: a fresh Storm Sling reel has exactly 5 native x2.0 crit faces")
 	_check(c2.apply_loaded_dice(3), "casts Loaded Dice (baseline)")
-	_check(_count_crit_faces_with_mult(c2.turn_reels[0], 2.0) == 2, "baseline Loaded Dice: adds a 2nd x2.0 crit face (got %d)" % _count_crit_faces_with_mult(c2.turn_reels[0], 2.0))
+	_check(_count_crit_faces_with_mult(c2.turn_reels[0], 2.0) == 6, "baseline Loaded Dice: adds a 6th x2.0 crit face (5 native + 1 added, got %d)" % _count_crit_faces_with_mult(c2.turn_reels[0], 2.0))
 
 	var c3: Combatant = _mk_chancer()
 	_check(c3.pick_ability_talent(&"ability_l2", &"dice_deeper"), "picks dice_deeper")
 	_check(c3.apply_loaded_dice(3), "casts Loaded Dice (deeper)")
-	_check(_count_crit_faces_with_mult(c3.turn_reels[0], 2.0) == 1, "dice_deeper: the native x2.0 crit face is untouched")
+	_check(_count_crit_faces_with_mult(c3.turn_reels[0], 2.0) == 5, "dice_deeper: the 5 native x2.0 crit faces are untouched")
 	_check(_count_crit_faces_with_mult(c3.turn_reels[0], 2.25) == 1, "dice_deeper: the ADDED crit face is x2.25 instead (got %d)" % _count_crit_faces_with_mult(c3.turn_reels[0], 2.25))
 
 	var c4: Combatant = _mk_chancer()

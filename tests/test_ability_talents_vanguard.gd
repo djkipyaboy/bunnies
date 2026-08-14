@@ -74,17 +74,26 @@ func _test_heft_row() -> void:
 	_check(c.pick_ability_talent(&"base_ability", &"heft_efficient"), "picks heft_efficient")
 	_check(c.ability_talent_cost_delta(&"heft") == -1, "heft_efficient: Heft costs 1 less Stamina")
 
+	# DEFAULT_COMPOSITION (5x scale, 2026-08-13 accuracy-stat spec §2) puts 10 NEUTRAL / 10 FAILURE /
+	# 20 SUCCESS faces on a fresh reel. apply_heft(2) here means cost=2, conversions stays at its
+	# default of 3 (apply_heft(cost, conversions=3)) — NOT the conversions=2 the old comments
+	# described. Heft converts up to 3 FAILURE faces to SUCCESS (10 available, so all 3 come from
+	# FAILURE), plus (heft_reinforced only) 1 NEUTRAL face to SUCCESS. `conversions` itself is a
+	# gameplay-balance number and is intentionally left untouched here — converting a fixed 3 faces
+	# out of a NOW-10-FAILURE pool is proportionally weaker post-5x-scale than before scaling (it used
+	# to fully clear a 2-3-face FAILURE pool); this is an unreviewed balance side effect flagged for
+	# playtest, not a decided design change.
 	var c2: Combatant = _mk_vanguard()
 	_check(c2.pick_ability_talent(&"base_ability", &"heft_reinforced"), "picks heft_reinforced")
 	_check(c2.apply_heft(2), "casts Heft (reinforced)")
 	var reel: ActionReel = c2.turn_reels[0]
-	_check(_count(reel, ReelFace.ResultTier.NEUTRAL) == 1, "heft_reinforced: 1 NEUTRAL face converted (1 left, got %d)" % _count(reel, ReelFace.ResultTier.NEUTRAL))
-	_check(_count(reel, ReelFace.ResultTier.SUCCESS) == 8, "heft_reinforced: SUCCESS count is 8 (2 base misses + crit-fail + 1 neutral, got %d)" % _count(reel, ReelFace.ResultTier.SUCCESS))
+	_check(_count(reel, ReelFace.ResultTier.NEUTRAL) == 9, "heft_reinforced: 1 of 10 NEUTRAL faces converted (9 left, got %d)" % _count(reel, ReelFace.ResultTier.NEUTRAL))
+	_check(_count(reel, ReelFace.ResultTier.SUCCESS) == 24, "heft_reinforced: SUCCESS count is 24 (20 base + 3 from FAILURE conversions + 1 from NEUTRAL conversion, got %d)" % _count(reel, ReelFace.ResultTier.SUCCESS))
 
 	var c3: Combatant = _mk_vanguard()
 	_check(c3.apply_heft(2), "casts Heft (baseline)")
 	var reel3: ActionReel = c3.turn_reels[0]
-	_check(_count(reel3, ReelFace.ResultTier.NEUTRAL) == 2, "baseline Heft leaves both NEUTRAL faces untouched (got %d)" % _count(reel3, ReelFace.ResultTier.NEUTRAL))
+	_check(_count(reel3, ReelFace.ResultTier.NEUTRAL) == 10, "baseline Heft (no heft_reinforced) leaves all 10 NEUTRAL faces untouched (got %d)" % _count(reel3, ReelFace.ResultTier.NEUTRAL))
 
 	var c4: Combatant = _mk_vanguard()
 	_check(c4.pick_ability_talent(&"base_ability", &"heft_guarding"), "picks heft_guarding")

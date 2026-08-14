@@ -34,7 +34,7 @@ func _initialize() -> void:
 	var crit: int = 0
 	for f: ReelFace in c.weapon.reels[0].faces:
 		if f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS: crit += 1
-	_check(crit == 1, "Luck 0 → default single crit face (got %d)" % crit)
+	_check(crit == 5, "Luck 0 → default 5 native crit faces (DEFAULT_COMPOSITION, 5x scale, got %d)" % crit)
 
 	print(("SEER CLASS TEST PASSED" if _failures == 0 else "SEER CLASS TEST FAILED: %d" % _failures))
 	quit(_failures)
