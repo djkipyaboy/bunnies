@@ -25,6 +25,15 @@ const VIGOR_DOT_RESIST_FLOOR: float = 0.4
 ## Focus -> per-Upkeep resource regen bonus (spec 2026-07-10 §5.3): +0.5 regen/turn per point, floored.
 const FOCUS_REGEN_PER_POINT: float = 0.5
 
+## Post-combat recovery (2026-08-13 post-combat-flow spec §3): base 5% of max, uncapped stat-scaled
+## bonus. HP scales with Vigor, Stamina/Mana scale with Focus — the same two stats that already
+## govern those pools' max/regen (Vigor -> HP, Focus -> resource pool).
+const RECOVERY_BASE_PCT: float = 0.05
+const RECOVERY_PCT_PER_HP_STEP: float = 0.01
+const VIGOR_PER_RECOVERY_STEP: int = 3
+const RECOVERY_PCT_PER_RESOURCE_STEP: float = 0.01
+const FOCUS_PER_RECOVERY_STEP: int = 2
+
 ## Luck -> crit-success reel faces: every LUCK_PER_CRIT_FACE points adds 1 crit face (threshold,
 ## not 1:1 — spec 2026-07-10 §5.4).
 const LUCK_PER_CRIT_FACE: int = 3
@@ -428,6 +437,43 @@ func restore_to_full() -> void:
 			resource_pool.stamina = resource_pool.max_stamina
 		if resource_pool.max_mana > 0:
 			resource_pool.mana = resource_pool.max_mana
+
+## Applies the post-combat partial recovery (2026-08-13 post-combat-flow spec §3, triggered by
+## combat.gd on pressing "Continue" after a WIN — never on a loss, see the defeat-handling plan for
+## that path). HP recovers RECOVERY_BASE_PCT + RECOVERY_PCT_PER_HP_STEP per VIGOR_PER_RECOVERY_STEP
+## points of Vigor, of max HP. Stamina/Mana recover RECOVERY_BASE_PCT +
+## RECOVERY_PCT_PER_RESOURCE_STEP per FOCUS_PER_RECOVERY_STEP points of Focus, of max, applied only
+## to whichever rail(s) this combatant's class actually uses (same base>0 gating apply_stats()
+## already uses for Focus's regen bonus). Both percentages are deliberately uncapped — [ASSUMPTION]
+## gear-stat budgets are unlikely to reach a level where this matters, and a build that does invest
+## heavily in Vigor/Focus should be rewarded, not throttled (player's explicit call). Returns the
+## ACTUAL (post-clamp) amounts gained, for on-screen feedback. No-op (all zeros) if dead.
+func apply_post_combat_recovery() -> Dictionary:
+	var result: Dictionary = {"hp": 0, "stamina": 0, "mana": 0}
+	if not is_alive():
+		return result
+
+	var s: Stats = effective_stats()
+
+	var hp_pct: float = RECOVERY_BASE_PCT + (s.vigor / VIGOR_PER_RECOVERY_STEP) * RECOVERY_PCT_PER_HP_STEP
+	var hp_before: int = hp
+	# snappedf guards against float-accumulation epsilon (e.g. 0.05+0.02 landing a hair above 0.07)
+	# pushing ceili() up to the next whole point it shouldn't reach.
+	heal(ceili(snappedf(max_hp * hp_pct, 0.0001)))
+	result.hp = hp - hp_before
+
+	if resource_pool != null:
+		var resource_pct: float = RECOVERY_BASE_PCT + (s.focus / FOCUS_PER_RECOVERY_STEP) * RECOVERY_PCT_PER_RESOURCE_STEP
+		if resource_pool.max_stamina > 0:
+			var stamina_before: int = resource_pool.stamina
+			resource_pool.refund({&"stamina": ceili(snappedf(resource_pool.max_stamina * resource_pct, 0.0001))})
+			result.stamina = resource_pool.stamina - stamina_before
+		if resource_pool.max_mana > 0:
+			var mana_before: int = resource_pool.mana
+			resource_pool.refund({&"mana": ceili(snappedf(resource_pool.max_mana * resource_pct, 0.0001))})
+			result.mana = resource_pool.mana - mana_before
+
+	return result
 
 ## True while this combatant still has HP.
 func is_alive() -> bool:
