@@ -1,8 +1,9 @@
 extends SceneTree
 
 ## Chancer "Double or Nothing" (L9) wild gambler's reel (playtest 2026-07-04, player-specified exact
-## distribution): ActionReel.make_gamble() and Combatant.gambled_reels(). The reel is a physical
-## 20-face strip — 25% crit-failure, 10% success, 65% crit-success, ZERO failure/neutral faces.
+## distribution): ActionReel.make_gamble() and Combatant.gambled_reels(). Scaled 5x (2026-08-13
+## accuracy-stat spec §2) — the reel is a physical 100-face strip — 25% crit-failure, 10% success,
+## 65% crit-success, ZERO failure/neutral faces.
 ## Run: Godot_v4.6.3-stable_win64 --headless --path <proj> --script res://tests/test_gamble_reel.gd
 
 func _check(cond: bool, label: String) -> void:
@@ -19,10 +20,10 @@ func _init() -> void:
 	var T := ReelFace.ResultTier
 	var reel: ActionReel = ActionReel.make_gamble()
 
-	_check(reel.faces.size() == 20, "gamble reel has 20 faces (got %d)" % reel.faces.size())
-	_check(_count(reel, T.CRIT_FAILURE) == 5, "5 crit-failure faces = 25%% (got %d)" % _count(reel, T.CRIT_FAILURE))
-	_check(_count(reel, T.SUCCESS) == 2, "2 success faces = 10%% (got %d)" % _count(reel, T.SUCCESS))
-	_check(_count(reel, T.CRIT_SUCCESS) == 13, "13 crit-success faces = 65%% (got %d)" % _count(reel, T.CRIT_SUCCESS))
+	_check(reel.faces.size() == 100, "gamble reel has 100 faces (got %d)" % reel.faces.size())
+	_check(_count(reel, T.CRIT_FAILURE) == 25, "25 crit-failure faces = 25%% (got %d)" % _count(reel, T.CRIT_FAILURE))
+	_check(_count(reel, T.SUCCESS) == 10, "10 success faces = 10%% (got %d)" % _count(reel, T.SUCCESS))
+	_check(_count(reel, T.CRIT_SUCCESS) == 65, "65 crit-success faces = 65%% (got %d)" % _count(reel, T.CRIT_SUCCESS))
 	_check(_count(reel, T.FAILURE) == 0, "zero plain-failure faces (all-or-nothing reel)")
 	_check(_count(reel, T.NEUTRAL) == 0, "zero neutral faces (all-or-nothing reel)")
 
@@ -41,8 +42,8 @@ func _init() -> void:
 	var utility_reel: ActionReel = ActionReel.make_rallying_cry()
 	var converted: Array[ActionReel] = Combatant.gambled_reels([weapon_reel, utility_reel])
 	_check(converted.size() == 2, "gambled_reels preserves reel count")
-	_check(converted[0].faces.size() == 20, "weapon-attack reel replaced with the 20-face gamble composition")
+	_check(converted[0].faces.size() == 100, "weapon-attack reel replaced with the 100-face gamble composition")
 	_check(converted[1] == utility_reel, "non-weapon-attack (utility) reel passes through untouched, same instance")
-	_check(weapon_reel.faces.size() == 10, "original weapon_reel is untouched (gambled_reels doesn't mutate the input)")
+	_check(weapon_reel.faces.size() == 50, "original weapon_reel is untouched (gambled_reels doesn't mutate the input)")
 
 	quit()

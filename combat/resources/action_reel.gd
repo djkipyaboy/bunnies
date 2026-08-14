@@ -120,15 +120,16 @@ static func make_ability_attack(type: DamageType, rider_id: StringName = &"", bo
 	return reel
 
 ## Chancer "Double or Nothing" (L9) wild gambler's reel (playtest 2026-07-04, player-specified exact
-## distribution): a genuine ALL-OR-NOTHING reel — no FAILURE or NEUTRAL faces at all. A 20-face strip
-## (not 10) specifically because 25%/65% aren't representable in tenths: 5 crit-failure (25%), 2
-## success (10%), 13 crit-success (65%). Used for BOTH the caster's existing weapon-attack reels (via
+## distribution): a genuine ALL-OR-NOTHING reel — no FAILURE or NEUTRAL faces at all. Scaled 5x
+## (2026-08-13 accuracy-stat spec §2) to a 100-face strip (not 20) for consistency with every other
+## reel variant's new face-count granularity, same percentages: 25 crit-failure (25%), 10 success
+## (10%), 65 crit-success (65%). Used for BOTH the caster's existing weapon-attack reels (via
 ## Combatant.gambled_reels()) and the ability's own 2 bonus reels — a whole-spin effect, not a
 ## partial one, matching the ability's original "wild crit-biased" framing.
 const GAMBLE_COMPOSITION := [
-	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 5],
-	[ReelFace.ResultTier.SUCCESS, 1.0, 2],
-	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 13],
+	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 25],
+	[ReelFace.ResultTier.SUCCESS, 1.0, 10],
+	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 65],
 ]
 
 static func make_gamble(type: DamageType = null) -> ActionReel:
