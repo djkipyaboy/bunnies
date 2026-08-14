@@ -5,6 +5,7 @@
 # Build output (exported executables) and parallel-session worktrees
 dist/
 .claude/worktrees/
+.worktrees/
 
 # Superpowers brainstorming visual-companion sessions
 .superpowers/
