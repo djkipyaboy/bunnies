@@ -427,9 +427,12 @@ func heal(amount: int) -> int:
 ## Restores HP to max and (if present) Stamina/Mana to their max — the Old Well's effect (spec
 ## 2026-07-23). Does NOT touch active_effects, bonus_meter, shield_hp, cooldowns, or xp; those are
 ## explicitly out of scope (a free town amenity shouldn't undercut e.g. the meter_floor carryover
-## rule). No-op on a dead combatant (hp == 0) — mirrors heal()'s own guard.
-func restore_to_full() -> void:
-	if hp != max_hp and hp > 0:
+## rule). No-op on a dead combatant (hp == 0) UNLESS [param revive] is true (2026-08-13
+## defeat-handling spec §4 — the post-defeat reset path needs to revive a PC that died in the
+## losing fight; every other caller, including the Old Well, omits this and keeps the original
+## "never resurrects" behavior).
+func restore_to_full(revive: bool = false) -> void:
+	if hp != max_hp and (hp > 0 or revive):
 		hp = max_hp
 		hp_changed.emit(hp, max_hp)
 	if resource_pool != null:

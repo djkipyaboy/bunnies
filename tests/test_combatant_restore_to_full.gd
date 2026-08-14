@@ -64,5 +64,18 @@ func _initialize() -> void:
 	dead.restore_to_full()
 	_check(dead.hp == 0, "restore_to_full() does not resurrect a dead combatant")
 
+	# revive=true DOES restore a dead combatant's HP (2026-08-13 defeat-handling spec §4 — the
+	# defeat-reset path needs to revive a PC that died in the losing fight; the default (false)
+	# behavior above, used everywhere else including the Old Well, is unchanged).
+	var revived: Combatant = Combatant.new()
+	revived.base_stats = Stats.new()
+	revived.base_max_hp = 20
+	revived.apply_stats()
+	revived.start_combat()
+	revived.take_damage(20)
+	_check(revived.hp == 0, "sanity: the combatant is dead")
+	revived.restore_to_full(true)
+	_check(revived.hp == 20, "restore_to_full(true) revives a dead combatant to full HP")
+
 	print(("COMBATANT RESTORE TO FULL TEST PASSED" if _failures == 0 else "COMBATANT RESTORE TO FULL TEST FAILED: %d" % _failures))
 	quit(_failures)
