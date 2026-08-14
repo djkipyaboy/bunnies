@@ -10,6 +10,12 @@ extends SceneTree
 func _check(cond: bool, label: String) -> void:
 	print(("ok " if cond else "FAIL ") + label)
 
+func _count_neutral(reel: ActionReel) -> int:
+	var n: int = 0
+	for f: ReelFace in reel.faces:
+		if f.result_tier == ReelFace.ResultTier.NEUTRAL: n += 1
+	return n
+
 func _init() -> void:
 	var cc: CharacterClass = ClassLibrary.make(&"seer")
 
@@ -35,6 +41,7 @@ func _init() -> void:
 	plan.commit()
 
 	_check(c.turn_reels.size() == before_reel_count + 2, "commit adds 2 reels (Seer baseline %d -> %d)" % [before_reel_count, c.turn_reels.size()])
+	_check(_count_neutral(c.turn_reels[before_reel_count]) == 0, "commit-added reel uses ABILITY_COMPOSITION (no neutral tier)")
 	_check(c.has_effect(&"empowered"), "commit attaches Empowered")
 	_check(is_equal_approx(c.outgoing_damage_multiplier(), 1.6), "outgoing_damage_multiplier == 1.6 right after commit")
 	var def: AbilityDef = c.find_extra_ability(&"mana_surge")
@@ -56,6 +63,7 @@ func _init() -> void:
 	_check(direct_c.resource_pool.mana == direct_before - 6, "apply_mana_surge spent 6 mana")
 	_check(is_equal_approx(direct_c.outgoing_damage_multiplier(), 1.6), "direct: outgoing multiplier 1.6")
 	_check(direct_c.turn_reels.size() == direct_before_reels + 2, "direct: appended 2 reels")
+	_check(_count_neutral(direct_c.turn_reels[direct_before_reels]) == 0, "direct: appended reel uses ABILITY_COMPOSITION (no neutral tier)")
 
 	# Reel cap: never blocks the buff itself, just caps how many reels actually get added.
 	var capped_c: Combatant = cc.build_combatant(true)

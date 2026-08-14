@@ -10,6 +10,12 @@ func _check(c: bool, l: String) -> void:
 	if c: print("  ok: ", l)
 	else: _failures += 1; push_error("FAIL: " + l); print("  FAIL: ", l)
 
+func _count_neutral(reel: ActionReel) -> int:
+	var n: int = 0
+	for f: ReelFace in reel.faces:
+		if f.result_tier == ReelFace.ResultTier.NEUTRAL: n += 1
+	return n
+
 func _make_armed(reel_count: int, type: DamageType) -> Combatant:
 	var c: Combatant = Combatant.new()
 	var w: Weapon = Weapon.new(); w.base_damage = 7.0
@@ -36,6 +42,7 @@ func _initialize() -> void:
 	var added: ActionReel = ranger.turn_reels[4]
 	_check(added.is_weapon_attack, "added collateral reel is a weapon-attack reel")
 	_check(added.faces.any(func(f: ReelFace) -> bool: return f.multiplier > 0.0), "added reel deals damage")
+	_check(_count_neutral(added) == 0, "added collateral reel uses ABILITY_COMPOSITION (no neutral tier)")
 
 	# Consume the single spin; it clears.
 	ranger.consume_collateral_spin()

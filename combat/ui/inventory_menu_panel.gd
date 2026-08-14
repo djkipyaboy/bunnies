@@ -16,11 +16,11 @@ const COLUMN_LABELS: Array[String] = ["Companion 1", "PC", "Companion 2"]
 const STAT_ROWS: Array[String] = ["Might", "Finesse", "Vigor", "Focus", "Grit", "Luck"]
 const STAT_TOOLTIPS: Array[String] = [
 	"Adds flat damage per action reel, normalized by how many reels you're spinning this turn — a heavy 2-reel loadout gets a bigger per-reel bonus than a rapid 5-reel one for the same Might.",
-	"Raises your Initiative roll, and breaks Initiative ties against an equal current_initiative.",
+	"Raises your Initiative roll, and breaks Initiative ties against an equal current_initiative. At a points-per-conversion threshold, also converts existing FAILURE faces on your weapon reels to SUCCESS, in place (no new faces added).",
 	"Adds Max HP, and reduces incoming damage-over-time tick damage (floored — never full DoT immunity).",
 	"Adds Max Stamina/Mana, and increases how much your resources regen each Upkeep.",
 	"Raises your Bonus Meter floor — how much meter charge carries over.",
-	"Adds bonus crit-success faces to your action reels, and — at a higher threshold — extra scored payline lines.",
+	"Converts existing crit-failure faces on your action reels into crit-success faces, in place (same total face count) — and, at a higher threshold, grants extra scored payline lines.",
 ]
 
 const PAD: float = 12.0

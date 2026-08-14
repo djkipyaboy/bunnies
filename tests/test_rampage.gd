@@ -45,6 +45,7 @@ func _initialize() -> void:
 	# The added reel deals real damage (it's a normal reel, not a no-damage rend reel).
 	var added_reel: ActionReel = c.turn_reels[2]
 	_check(added_reel.faces.any(func(f: ReelFace) -> bool: return f.multiplier > 0.0), "added rampage reel deals damage")
+	_check(_count(added_reel, ReelFace.ResultTier.NEUTRAL) == 0, "added rampage reel uses ABILITY_COMPOSITION (no neutral tier)")
 
 	# Consume the single AoE spin; it clears.
 	c.consume_aoe_spin()

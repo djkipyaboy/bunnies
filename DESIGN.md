@@ -211,9 +211,12 @@ This is the skeleton that everything hangs off. Designed so campaign and rogueli
 > **Naming convention (LOCKED):** classes are `PascalCase`, files `snake_case`, and **signals are `snake_case` past-tense events** — the `spin_resolved` standard (canonical: `spin_started`, `spin_resolved`, `face_resolved`, `initiative_rolled`, `damage_applied`, `meter_charged`, `turn_ended`; handlers are `_on_<emitter>_<signal>`). The authoritative name list lives in **`CLAUDE.md §2`**; this doc remains the source of truth for design.
 
 - **`ReelFace`** — one face on a reel. For an **Action** reel: `result_tier` (critfail/fail/neutral/success/critsuccess), `multiplier`, `rider_effect_id` (nullable). For an **Initiative** reel: a digit `0–9`. (Whether this becomes two face types or one type with nullable fields is a code-time call; the two kinds carry different data.)
-- **`Reel`** — abstract base `Resource`: an ordered list of `ReelFace` (default 10 faces) and a `spin() -> ReelFace` returning a face by weighted/uniform selection. **Not instantiated directly — two subclasses, not a `kind` enum:**
+- **`Reel`** — abstract base `Resource`: an ordered list of `ReelFace` (default 50 faces, scaled 5x
+  from an original 10-face default on 2026-08-13 for finer-grained tier proportions) and a
+  `spin() -> ReelFace` returning a face by weighted/uniform selection. **Not instantiated directly —
+  two subclasses, not a `kind` enum:**
   - **`InitiativeReel`** (`extends Reel`) — digit `0–9` faces, percentile convention (`00`=100, §4.2). This reel is a **constant shared by every combatant** — authored once and reused, not edited per build.
-  - **`ActionReel`** (`extends Reel`) — result-tier faces with `multiplier` + optional rider. Instances **vary** by weapon/class/talent/gear (the build-expression layer, §4.4).
+  - **`ActionReel`** (`extends Reel`) — result-tier faces with `multiplier` + optional rider. Instances **vary** by weapon/class/talent/gear (the build-expression layer, §4.4). 2026-08-13 added a second shared composition, `ABILITY_COMPOSITION` (via `make_ability_attack()`), used by every reel a resource-costed ability adds — no neutral tier, 70% base hit rate — alongside the original weapon-baseline `DEFAULT_COMPOSITION`.
 - **`Weapon`** — `base_damage`, `damage_types[]` (1+, supports multi-typing), `special_effect_id`, `action_reel_profile` (how many reels, what faces).
 - **`DamageType`** — id + the type-chart row/column. Chart stored as a lookup table.
 - **`Effect`** — buffs/debuffs/riders. Crucially includes **`InitiativeModifier(value, duration)`** to drive §4.1 turn-order manipulation, plus damage-over-time, multiplier edits, reel-face edits, etc.

@@ -2220,3 +2220,39 @@ review + a full 302-file regression sweep):
 - **Human-playtested and confirmed working across the board** — Professions panel centering/overflow,
   Second Helping's layout, Fishing's result screen + reel visibility, the Event Log's 5 tabs, and the
   per-profession inventory strip scoping all read correctly in a live `overworld_demo.tscn` session.
+
+**SHIPPED 2026-08-13 — REEL SCALE-UP + ACCURACY STAT REWORK, code-complete, test-green, 11-task plan
++ final whole-branch review closed** (plan `docs/superpowers/plans/2026-08-13-reel-scale-and-accuracy-stat.md`,
+sdd session `.superpowers/sdd/2026-08-13-reel-scale-and-accuracy-stat/`):
+- **5x reel scale-up** — every `ActionReel` composition (`DEFAULT_COMPOSITION`, the item-use reel,
+  and the new `ABILITY_COMPOSITION` below) grew from a 10-face to a 50-face strip, same proportional
+  tier spread, just finer-grained — existing multiplier/hit-rate math untouched, only the face count
+  changed.
+- **Luck reworked from "add" to "replace"** — `Combatant.apply_luck()` no longer appends new
+  crit-success faces to a weapon's reels; it now converts existing CRIT_FAILURE faces to
+  CRIT_SUCCESS **in place** (same total face count per reel), one conversion per
+  `LUCK_PER_CRIT_FACE` points of Luck, capped at however many crit-fail faces exist on that reel.
+  The extra-payline-lines threshold (`luck_extra_lines()`) is unchanged.
+- **New Finesse accuracy mechanic** (`Combatant.apply_finesse_accuracy()`) — Finesse's second job
+  alongside Initiative: mirrors `apply_luck()`'s replace shape exactly but on the disjoint
+  fail/success face pool (never touches crit-fail/crit-success), converting existing FAILURE faces
+  to SUCCESS in place, one per `FINESSE_PER_ACCURACY_FACE` points, capped per-reel.
+- **New shared `ABILITY_COMPOSITION`** (`ActionReel.make_ability_attack()`) — replaces the old
+  `RIDER_COMPOSITION`/`make_rend`-adjacent `make_rider_attack()` for every reel that exists because
+  of a resource-costed ability (Flurry, Select Fate, Mana Surge, Rampage, Collateral Damage, Big
+  Bang, Earthquake, and the Main-Phase-1 preview path). Drops the NEUTRAL tier entirely and lands a
+  70% hit rate (before any Finesse/Luck conversion) on a 50-face strip: 5 crit-fail / 10 fail / 0
+  neutral / 30 success / 5 crit-success — more reliable odds than a plain weapon reel, since the
+  player already paid a resource cost to get it.
+- **Final whole-branch review (2026-08-13) closed 5 Important findings, all documentation/test-
+  coverage gaps, no logic bugs**: stale player-facing Finesse/Luck tooltips in
+  `InventoryMenuPanel` (Luck's said "adds bonus crit-success faces" — now describes conversion;
+  Finesse's didn't mention accuracy at all — now does), a stale `Stats` header doc-comment with the
+  same two facts, a test-coverage gap where 7 of the 8 `make_ability_attack()` call sites had no
+  assertion that would catch a regression back to `make_default()` (fixed by asserting zero
+  NEUTRAL-tier faces on each ability's added reel — the distinguishing signature of the new
+  composition), a missing end-to-end test resolving a real `make_ability_attack()` reel through
+  `CombatResolver` (new `tests/test_ability_attack_resolve.gd`, forcing a deterministic SUCCESS and
+  CRIT_SUCCESS landed face the same way `test_rend_reel.gd` does, confirming real damage + rider
+  reporting through the actual pipeline), and stale docs (`CLAUDE.md`'s "5 result tiers" combat-facts
+  line, `DESIGN.md`'s "default 10 faces" line, this entry).

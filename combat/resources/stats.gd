@@ -2,8 +2,10 @@ class_name Stats
 extends Resource
 
 ## The six character stats (DESIGN spec 2026-06-20). Flat direct modifiers — the value IS the bonus.
-## Might→damage, Finesse→initiative+tiebreak, Vigor→HP, Focus→resource pool, Grit→Bonus-Meter floor,
-## Luck→adds crit-success FACES to weapon reels (the reel IS the dice — see [method Combatant.apply_luck]).
+## Might→damage, Finesse→initiative+tiebreak (2026-08-13: also converts existing FAILURE faces on
+## weapon reels to SUCCESS, in place — see [method Combatant.apply_finesse_accuracy]), Vigor→HP,
+## Focus→resource pool, Grit→Bonus-Meter floor, Luck→converts existing crit-failure FACES on weapon
+## reels into crit-success, in place (the reel IS the dice — see [method Combatant.apply_luck]).
 ## [ASSUMPTION] working range ~0–6.
 
 @export var might: int = 0

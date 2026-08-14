@@ -13,6 +13,12 @@ func _check(cond: bool, label: String) -> void:
 		push_error("FAIL: " + label)
 		print("  FAIL: ", label)
 
+func _count_neutral(reel: ActionReel) -> int:
+	var n: int = 0
+	for f: ReelFace in reel.faces:
+		if f.result_tier == ReelFace.ResultTier.NEUTRAL: n += 1
+	return n
+
 func _mk_pc(stamina: int) -> Combatant:
 	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
 	var w: Weapon = Weapon.new()
@@ -39,6 +45,7 @@ func _initialize() -> void:
 	_check(ok, "splice succeeds with 3 stamina")
 	_check(c.turn_reels.size() == 4, "splice -> 4 turn reels (got %d)" % c.turn_reels.size())
 	_check(c.turn_reels[3].damage_type == storm, "spliced reel is Storm-typed")
+	_check(_count_neutral(c.turn_reels[3]) == 0, "spliced reel uses ABILITY_COMPOSITION (no neutral tier)")
 	_check(c.resource_pool.stamina == 1, "splice cost 2 stamina (3 -> %d)" % c.resource_pool.stamina)
 	_check(c.weapon.reels.size() == 3, "weapon loadout untouched (additive only, got %d)" % c.weapon.reels.size())
 

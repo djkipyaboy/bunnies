@@ -114,6 +114,9 @@ of two:
 - **Each reel resolves as an INDEPENDENT attack.** No aggregation. Damage =
   `Σ (weapon_base_damage × that reel's multiplier) + modifiers`, then apply the type chart.
 - **5 result tiers per reel:** crit-fail / fail / **neutral (utility, no damage, +1 meter)** / success / crit-success.
+  **2026-08-13 exception:** ability-costed reels (built via `ActionReel.make_ability_attack()`, one
+  per resource-costed ability) use a **4-tier `ABILITY_COMPOSITION`** instead — no neutral tier, 70%
+  base hit rate. Only weapon-baseline reels (`make_default()`) carry all 5 tiers.
 - **6 damage types:** Slashing, Piercing, Crushing, Storm, Mystic, Earth. Gentle spread
   (×0.75 / ×1.0 / ×1.25; rare ×0.5 / ×1.5). Chart is in `DESIGN.md` §5.1 — it's a lookup table.
 - **Bonus Meter / Ultimate:** a SEPARATE economy from Stamina/Focus/Mana. The Ultimate costs

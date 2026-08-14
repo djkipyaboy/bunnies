@@ -10,6 +10,12 @@ func _check(c: bool, l: String) -> void:
 	if c: print("  ok: ", l)
 	else: _failures += 1; push_error("FAIL: " + l); print("  FAIL: ", l)
 
+func _count_neutral(reel: ActionReel) -> int:
+	var n: int = 0
+	for f: ReelFace in reel.faces:
+		if f.result_tier == ReelFace.ResultTier.NEUTRAL: n += 1
+	return n
+
 func _make_armed_warden(type: DamageType) -> Combatant:
 	var c: Combatant = Combatant.new()
 	var w: Weapon = Weapon.new(); w.base_damage = 9.0
@@ -35,6 +41,7 @@ func _initialize() -> void:
 	_check(w.is_earthquake_active(), "earthquake active for the spin")
 	var all_attack: bool = w.turn_reels.all(func(r: ActionReel) -> bool: return r.is_weapon_attack)
 	_check(all_attack, "all 4 reels are weapon-attack reels (feed the 4-wide payline grid)")
+	_check(_count_neutral(w.turn_reels[3]) == 0, "added Earthquake reel uses ABILITY_COMPOSITION (no neutral tier)")
 
 	# Consume → clears.
 	w.consume_earthquake_spin()

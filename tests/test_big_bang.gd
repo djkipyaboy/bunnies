@@ -10,6 +10,12 @@ func _check(c: bool, l: String) -> void:
 	if c: print("  ok: ", l)
 	else: _failures += 1; push_error("FAIL: " + l); print("  FAIL: ", l)
 
+func _count_neutral(reel: ActionReel) -> int:
+	var n: int = 0
+	for f: ReelFace in reel.faces:
+		if f.result_tier == ReelFace.ResultTier.NEUTRAL: n += 1
+	return n
+
 func _make_armed_seer(type: DamageType) -> Combatant:
 	var c: Combatant = Combatant.new()
 	var w: Weapon = Weapon.new(); w.base_damage = 13.0
@@ -36,6 +42,8 @@ func _initialize() -> void:
 	_check(seer.is_big_bang_active(), "Big Bang active for the spin")
 	for r: ActionReel in seer.turn_reels:
 		_check(r.is_weapon_attack, "every Big Bang reel is a weapon-attack reel (joins paylines)")
+	_check(_count_neutral(seer.turn_reels[2]) == 0, "topped-up Big Bang reel uses ABILITY_COMPOSITION (no neutral tier)")
+	_check(_count_neutral(seer.turn_reels[3]) == 0, "topped-up Big Bang reel uses ABILITY_COMPOSITION (no neutral tier)")
 
 	# Consume the single spin; aoe + wild + big-bang all clear.
 	seer.consume_big_bang_spin()

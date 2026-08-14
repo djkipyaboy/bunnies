@@ -10,6 +10,12 @@ func _check(c: bool, l: String) -> void:
 	if c: print("  ok: ", l)
 	else: _failures += 1; push_error("FAIL: " + l); print("  FAIL: ", l)
 
+func _count_neutral(reel: ActionReel) -> int:
+	var n: int = 0
+	for f: ReelFace in reel.faces:
+		if f.result_tier == ReelFace.ResultTier.NEUTRAL: n += 1
+	return n
+
 func _make_seer(mana: int) -> Combatant:
 	var mystic: DamageType = load("res://combat/resources/types/mystic.tres")
 	var c: Combatant = Combatant.new()
@@ -40,6 +46,7 @@ func _initialize() -> void:
 	_check(all_storm, "every turn reel is now Storm")
 	# The added reel is a real weapon-attack reel (joins paylines, deals damage).
 	_check(seer.turn_reels[2].is_weapon_attack, "added Select-Fate reel is a weapon-attack reel")
+	_check(_count_neutral(seer.turn_reels[2]) == 0, "added Select-Fate reel uses ABILITY_COMPOSITION (no neutral tier)")
 
 	# The underlying WEAPON must stay Mystic (turn-reel deep copy never mutates the weapon).
 	var weapon_untouched: bool = true
