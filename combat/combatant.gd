@@ -1303,7 +1303,7 @@ func try_splice_reel(type: DamageType, base_damage: float, cost: int, cap: int) 
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	var reel: ActionReel = ActionReel.make_default(type)
+	var reel: ActionReel = ActionReel.make_ability_attack(type)
 	if has_ability_talent(&"flurry_deeper"):
 		# Skirmisher "Deeper Flurry" talent (Task 17): +10% bonus damage on Flurry's own added reel —
 		# scaled directly on this reel's face multipliers, mirroring Vanguard's rampage_deeper
@@ -1594,7 +1594,7 @@ func apply_mana_surge(type: DamageType, cost: int, reel_cap: int) -> bool:
 	attach_effect(e)
 	for i: int in range(2):
 		if turn_reels.size() < reel_cap:
-			turn_reels.append(ActionReel.make_default(type))
+			turn_reels.append(ActionReel.make_ability_attack(type))
 	return true
 
 ## Chancer "Loaded Dice" (L5): adds one crit-success face (mult 2.0, mirrors apply_luck) to each of
@@ -1644,7 +1644,7 @@ func weapon_type() -> DamageType:
 func apply_select_fate(chosen_type: DamageType, cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
-	var extra: ActionReel = ActionReel.make_default(chosen_type)
+	var extra: ActionReel = ActionReel.make_ability_attack(chosen_type)
 	if has_ability_talent(&"fate_deeper"):
 		# The added reel isn't rider-carrying, so there's nothing for the generic
 		# rider_talent_bonus_damage_pct() hook to key off — scale this freshly-constructed reel's own
@@ -1952,7 +1952,7 @@ func fire_rampage(extra_reel_type: DamageType, conversions: int, spins: int) -> 
 	if bonus_meter == null or not bonus_meter.is_armed():
 		return false
 	bonus_meter.consume()
-	var extra_reel: ActionReel = ActionReel.make_default(extra_reel_type)
+	var extra_reel: ActionReel = ActionReel.make_ability_attack(extra_reel_type)
 	turn_reels.append(extra_reel)  # +1 attack reel for the Rampage turn
 	_heft_turn_reels(conversions)  # Heft bonus on every reel (incl. the new one)
 	if has_ability_talent(&"rampage_deeper"):
@@ -1991,7 +1991,7 @@ func fire_collateral(extra_reel_type: DamageType, spins: int) -> bool:
 	if bonus_meter == null or not bonus_meter.is_armed():
 		return false
 	bonus_meter.consume()
-	turn_reels.append(ActionReel.make_default(extra_reel_type))  # +1 weapon-attack reel for the Collateral turn
+	turn_reels.append(ActionReel.make_ability_attack(extra_reel_type))  # +1 weapon-attack reel for the Collateral turn
 	collateral_spins_remaining = spins
 	return true
 
@@ -2018,7 +2018,7 @@ func fire_big_bang(extra_reel_type: DamageType, target_reels: int, spins: int) -
 		return false
 	bonus_meter.consume()
 	while turn_reels.size() < target_reels:
-		turn_reels.append(ActionReel.make_default(extra_reel_type))  # top up to the Big Bang reel count
+		turn_reels.append(ActionReel.make_ability_attack(extra_reel_type))  # top up to the Big Bang reel count
 	sticky_wild_count = turn_reels.size()      # every reel crit-biased (reuse the wild path)
 	sticky_wild_spins_remaining = spins
 	aoe_spins_remaining = spins                 # hits ALL enemies (reuse the AoE path)
@@ -2048,7 +2048,7 @@ func fire_earthquake(extra_reel_type: DamageType, spins: int) -> bool:
 	if bonus_meter == null or not bonus_meter.is_armed():
 		return false
 	bonus_meter.consume()
-	_insert_weapon_attack_reel(ActionReel.make_default(extra_reel_type))  # 3 → 4 weapon-attack reels
+	_insert_weapon_attack_reel(ActionReel.make_ability_attack(extra_reel_type))  # 3 → 4 weapon-attack reels
 	var attack_count: int = 0
 	for r: ActionReel in turn_reels:
 		if r.is_weapon_attack:

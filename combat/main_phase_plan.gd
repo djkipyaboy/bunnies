@@ -278,11 +278,11 @@ func preview_reels() -> Array[ActionReel]:
 	if ability_staged and _ability_adds_reel() and reels.size() < reel_cap:
 		match ability_id:
 			&"flurry":
-				reels.append(ActionReel.make_default(combatant.weapon_type()))
+				reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
 			&"rend":
 				reels.append(ActionReel.make_rend(combatant.weapon_type()))
 			&"select_fate":
-				reels.append(ActionReel.make_default(selected_fate_type))  # joins paylines (a weapon-attack reel)
+				reels.append(ActionReel.make_ability_attack(selected_fate_type))  # joins paylines (a weapon-attack reel)
 			&"rallying_cry":
 				reels.append(ActionReel.make_rallying_cry(combatant.weapon_type()))  # utility reel (out of paylines, tail)
 	if staged_extra_ability_id != &"" and staged_extra_ability_id in REEL_ADDING_EXTRA_IDS and reels.size() < reel_cap:
@@ -306,7 +306,7 @@ func preview_reels() -> Array[ActionReel]:
 		# it also converts the caster's EXISTING reels the same way, but (matching the evasion_reels/
 		# jinxed_reels precedent) that whole-spin conversion isn't shown in the Main-1 preview, only
 		# applied at actual commit/spin time. Mana Surge keeps the plain default-composition preview.
-		var maker: Callable = ActionReel.make_gamble if staged_extra_ability_id == &"double_or_nothing" else ActionReel.make_default
+		var maker: Callable = ActionReel.make_gamble if staged_extra_ability_id == &"double_or_nothing" else ActionReel.make_ability_attack
 		for i: int in range(2):
 			if reels.size() < reel_cap:
 				reels.append(maker.call(combatant.weapon_type()))
@@ -319,11 +319,11 @@ func preview_reels() -> Array[ActionReel]:
 		for i: int in range(reels.size()):
 			if reels[i].is_weapon_attack:
 				pos = i + 1
-		reels.insert(pos, ActionReel.make_default(combatant.weapon_type()))
+		reels.insert(pos, ActionReel.make_ability_attack(combatant.weapon_type()))
 	# The Big Bang tops the loadout up to 4 reels (the Seer's 2 → 4) — preview the added strips.
 	if fire_ultimate_staged and ultimate_id == &"big_bang":
 		while reels.size() < mini(BIG_BANG_REELS, reel_cap):
-			reels.append(ActionReel.make_default(combatant.weapon_type()))
+			reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
 	# Item-use reel: appended whenever an item is staged, UNCONDITIONAL on reel_cap (player's call,
 	# 2026-07-16 design §2) — staging an item always adds its reel regardless of loadout size.
 	if staged_item_type != &"":
