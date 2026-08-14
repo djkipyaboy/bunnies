@@ -144,19 +144,20 @@ static func make_gamble(type: DamageType = null) -> ActionReel:
 	reel.faces.shuffle()  # balance-neutral: only adjacency varies, tier counts fixed
 	return reel
 
-## Builds the Warden's "Rallying Cry" reel (spec 2026-06-29 §3): a no-damage UTILITY reel of 2
-## crit-success + 8 success faces (no fail/neutral/crit-fail). Every face deals zero direct damage
-## (multiplier 0) and carries NO rider — the orchestrator reads the landed tier post-spin and shields
-## the party (SUCCESS → half-weapon, CRIT_SUCCESS → full-weapon). is_weapon_attack = false → it stays
-## OUT of paylines, is never WILD-biased, and sits at the loadout tail.
+## Builds the Warden's "Rallying Cry" reel (spec 2026-06-29 §3): a no-damage UTILITY reel, scaled 5x
+## (2026-08-13 accuracy-stat spec §2) to 10 crit-success + 40 success faces (no fail/neutral/crit-
+## fail). Every face deals zero direct damage (multiplier 0) and carries NO rider — the orchestrator
+## reads the landed tier post-spin and shields the party (SUCCESS → half-weapon, CRIT_SUCCESS →
+## full-weapon). is_weapon_attack = false → it stays OUT of paylines, is never WILD-biased, and sits
+## at the loadout tail.
 static func make_rallying_cry(type: DamageType = null) -> ActionReel:
 	var reel: ActionReel = ActionReel.new()
 	reel.damage_type = type
 	reel.is_weapon_attack = false
 	reel.charges_meter = false  # the shield IS the payoff — don't also feed the Bonus Meter (playtest 2026-06-29)
-	for i: int in range(2):
+	for i: int in range(10):
 		reel.faces.append(_make_face(ReelFace.ResultTier.CRIT_SUCCESS, 0.0))
-	for i: int in range(8):
+	for i: int in range(40):
 		reel.faces.append(_make_face(ReelFace.ResultTier.SUCCESS, 0.0))
 	reel.faces.shuffle()  # balance-neutral: only adjacency varies, tier counts fixed
 	return reel

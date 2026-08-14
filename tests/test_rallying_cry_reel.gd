@@ -18,9 +18,9 @@ func _count(reel: ActionReel, tier: ReelFace.ResultTier) -> int:
 func _initialize() -> void:
 	var earth: DamageType = load("res://combat/resources/types/earth.tres")
 	var reel: ActionReel = ActionReel.make_rallying_cry(earth)
-	_check(reel.faces.size() == 10, "10 faces (got %d)" % reel.faces.size())
-	_check(_count(reel, ReelFace.ResultTier.CRIT_SUCCESS) == 2, "2 crit-success faces (got %d)" % _count(reel, ReelFace.ResultTier.CRIT_SUCCESS))
-	_check(_count(reel, ReelFace.ResultTier.SUCCESS) == 8, "8 success faces (got %d)" % _count(reel, ReelFace.ResultTier.SUCCESS))
+	_check(reel.faces.size() == 50, "50 faces (got %d)" % reel.faces.size())
+	_check(_count(reel, ReelFace.ResultTier.CRIT_SUCCESS) == 10, "10 crit-success faces (got %d)" % _count(reel, ReelFace.ResultTier.CRIT_SUCCESS))
+	_check(_count(reel, ReelFace.ResultTier.SUCCESS) == 40, "40 success faces (got %d)" % _count(reel, ReelFace.ResultTier.SUCCESS))
 	_check(_count(reel, ReelFace.ResultTier.FAILURE) == 0, "no failure faces")
 	_check(_count(reel, ReelFace.ResultTier.NEUTRAL) == 0, "no neutral faces")
 	_check(_count(reel, ReelFace.ResultTier.CRIT_FAILURE) == 0, "no crit-failure faces")
