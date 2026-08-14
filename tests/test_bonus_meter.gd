@@ -79,6 +79,20 @@ func _initialize() -> void:
 	full.resolve_post_combat()
 	_check(full.value == 10, "end full (10) carries full (got %d)" % full.value)
 
+	# --- reset_to_floor(): a DEFEAT always drops straight to floor, even from full (2026-08-13
+	# defeat-handling spec §4) — unlike resolve_post_combat(), which lets a full meter carry over.
+	var floor_from_full: BonusMeter = _make_meter(3, 10); floor_from_full.value = 10
+	floor_from_full.reset_to_floor()
+	_check(floor_from_full.value == 3, "reset_to_floor() drops a FULL meter to floor 3, not carried over (got %d)" % floor_from_full.value)
+
+	var floor_from_mid: BonusMeter = _make_meter(3, 10); floor_from_mid.value = 7
+	floor_from_mid.reset_to_floor()
+	_check(floor_from_mid.value == 3, "reset_to_floor() drops a partial meter to floor 3 (got %d)" % floor_from_mid.value)
+
+	var floor_zero: BonusMeter = _make_meter(0, 10); floor_zero.value = 5
+	floor_zero.reset_to_floor()
+	_check(floor_zero.value == 0, "reset_to_floor() with floor 0 drops all the way to 0 (got %d)" % floor_zero.value)
+
 	# --- consume() empties the meter ---
 	var spent: BonusMeter = _make_meter(3, 10); spent.value = 10
 	spent.consume()

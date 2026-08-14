@@ -35,6 +35,16 @@ var shop_stock: Array = []
 ## that isn't inside the dungeon.
 var dungeon_floor: int = 0
 
+## The last town scene the player actually visited (2026-08-13 defeat-handling spec §4) — read by
+## combat.gd's Continue-on-LOSS handler as the destination instead of return_scene_path (which
+## would otherwise send the player right back to the exact overworld/dungeon spot they were
+## defeated at). Defaults to the only town that exists today; set by every town scene's own
+## _ready() (mirrors the existing town-arrival jackpot-checkpoint hook already there). Deliberately
+## NOT cleared by clear_pending() or any of its narrower siblings — same session-lifetime
+## persistence convention as defeated_encounter_ids/unlocked_gate_ids, since it must survive any
+## number of combat round trips between actual town visits.
+var last_town_scene_path: String = "res://world/town_demo.tscn"
+
 ## Where to spawn the PC after a PLAIN scene transition (SceneExit, e.g. the dungeon's own exit) —
 ## the counterpart to return_position/has_return_position, but for the non-combat path. Playtest-
 ## found bug (2026-07-17): overworld_demo.gd's _build_pc() only ever special-cased return_position,

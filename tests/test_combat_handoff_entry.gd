@@ -114,8 +114,9 @@ func _initialize() -> void:
 	await process_frame
 
 	# -----------------------------------------------------------------------
-	# LOSS via "Continue": mark_defeated does NOT fire, but the party still survives and the
-	# scene-change path is still correctly reported.
+	# LOSS via "Continue": mark_defeated does NOT fire, the party still survives, and the
+	# scene-change path returned is the last-visited-town path (2026-08-13 defeat-handling spec
+	# §4), NOT the original return_scene_path this encounter was triggered from.
 	# -----------------------------------------------------------------------
 	CombatHandoff.clear_pending()  # start this section clean
 	var loss_pc: Combatant = ClassLibrary.make(&"ranger").build_combatant(true)
@@ -133,7 +134,7 @@ func _initialize() -> void:
 
 	_check(CombatHandoff.is_defeated(&"OverworldFerret") == false, "LOSS + Continue does NOT mark the encounter defeated")
 	_check(CombatHandoff.pc == loss_pc, "LOSS + Continue also leaves the party intact for the overworld to reuse")
-	_check(returned_path_loss == return_path, "LOSS + Continue still returns the correct scene path (scene change still happens)")
+	_check(returned_path_loss == CombatHandoff.last_town_scene_path, "LOSS + Continue returns the last-visited-town path, NOT the original return_scene_path (got %s)" % returned_path_loss)
 
 	loss_inst.queue_free()
 	await process_frame

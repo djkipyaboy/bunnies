@@ -77,6 +77,7 @@ func _ready() -> void:
 		var title: String = quest.title if quest != null else String(quest_id)
 		_handoff().log_event("Quest accepted: %s" % title, _handoff().CATEGORY_QUEST))
 	_party_inventory.round_down_jackpot_to_checkpoint()   # 2026-07-29 jackpot spec §2: town-arrival checkpoint
+	_handoff().last_town_scene_path = scene_file_path   # 2026-08-13 defeat-handling spec §4: town-arrival checkpoint
 	# Tutorial auto-start (2026-08-10 quest-system-and-tutorial design §8): there's no save system,
 	# so "no quests accepted yet" is an accurate proxy for "this is a fresh launch." Only wired here
 	# (town_demo is the real entry point this project's playtests actually launch) — not duplicated

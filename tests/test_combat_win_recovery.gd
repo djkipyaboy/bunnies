@@ -46,7 +46,10 @@ func _initialize() -> void:
 	CombatHandoff.clear_party()
 	CombatHandoff.clear_pending()
 
-	# --- LOSS case (regression): recovery must NOT apply on a loss — that's the defeat-handling plan's job ---
+	# --- LOSS case: win-side partial recovery must NOT apply on a loss — instead the defeat-
+	# handling plan's own full-revive rule applies (Combatant.restore_to_full(true) via
+	# Combat._apply_defeat_reset(), 2026-08-13 defeat-handling spec §4), so a downed PC comes back
+	# at max_hp, not "unchanged."  ---
 	var loss_pc: Combatant = ClassLibrary.make(&"ranger").build_combatant(true)
 	loss_pc.hp = loss_pc.max_hp - 50
 	CombatHandoff.begin_encounter(loss_pc, [], inv, vault, enemy_ids, &"OverworldFerret", return_path, Vector2(1.0, 2.0))
@@ -60,7 +63,7 @@ func _initialize() -> void:
 	var loss_hp_before: int = loss_pc.hp
 	loss_inst._last_result_won = false
 	loss_inst.press_continue_for_test()
-	_check(loss_pc.hp == loss_hp_before, "LOSS + Continue does NOT apply win-side recovery (hp unchanged, got %d, was %d)" % [loss_pc.hp, loss_hp_before])
+	_check(loss_pc.hp == loss_pc.max_hp, "LOSS + Continue fully revives the PC to max HP (got %d/%d, was %d)" % [loss_pc.hp, loss_pc.max_hp, loss_hp_before])
 
 	loss_inst.queue_free()
 	await process_frame
