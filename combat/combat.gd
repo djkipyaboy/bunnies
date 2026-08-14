@@ -761,9 +761,13 @@ func _build_overlay() -> void:
 		_overlay.add_child(restart)
 	else:
 		var continue_btn := Button.new()
+		continue_btn.name = "ContinueButton"
 		continue_btn.text = "Continue"
 		continue_btn.position = Vector2((OVERLAY_SIZE.x - RESTART_SIZE.x) * 0.5, 150)
 		continue_btn.custom_minimum_size = RESTART_SIZE
+		# Placeholder — the real win/loss-specific text is set in _on_combat_ended() once the
+		# outcome (and therefore the real destination: overworld on a win, last town on a loss) is
+		# known. This default only shows if the tooltip were somehow read before combat ends.
 		continue_btn.tooltip_text = "Return to the overworld."
 		continue_btn.pressed.connect(_on_continue_after_handoff_pressed)
 		_overlay.add_child(continue_btn)
@@ -2624,6 +2628,14 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	_awaiting_end_turn = false
 	var label: Label = _overlay.get_node("ResultLabel")
 	label.text = "VICTORY!" if winner_is_player else "DEFEAT"
+	# Continue-button tooltip (final-review Important finding, 2026-08-13): the destination is
+	# win/loss-dependent (overworld vs. last town, see _resolve_handoff_continue()'s return_path),
+	# so the tooltip set at build time is only a placeholder — correct it here, the same place the
+	# label above gets its own win/loss-specific text. Only present on a handoff-launched fight
+	# (the non-handoff path builds a "Fight again" restart button instead, no tooltip to fix).
+	var continue_button: Button = _overlay.get_node_or_null("ContinueButton")
+	if continue_button != null:
+		continue_button.tooltip_text = "Return to the overworld." if winner_is_player else "Return to the last town you visited, fully recovered."
 	# XP gain wasn't visible enough in the log alone (player direction 2026-07-12) — the result
 	# card is guaranteed on-screen and uncrowded, so it's the reliable place to show the total.
 	if _fight_xp_gained > 0:
@@ -2705,11 +2717,17 @@ func _apply_post_combat_recovery() -> void:
 ## clear_combat_effects() call, so this method doesn't repeat that. World-state (which
 ## encounters/floors are still fightable, quest progress/items) needs no reset here at all — it's
 ## already correctly gated by CombatHandoff.is_defeated(), which this loss path never sets.
+## Appends a short feedback line to the already-visible result label (final-review Important
+## finding, 2026-08-13 — the player was teleported to town with zero on-screen explanation),
+## mirroring exactly how the win-side _apply_post_combat_recovery() appends its own summary line to
+## the same label.
 func _apply_defeat_reset() -> void:
 	for c: Combatant in _pcs:
 		c.restore_to_full(true)
 		if c.bonus_meter != null:
 			c.bonus_meter.reset_to_floor()
+	var label: Label = _overlay.get_node("ResultLabel")
+	label.text += "\nYour party retreats to town, fully recovered."
 
 func _resolve_handoff_continue() -> String:
 	# Re-entrancy guard (final-review Important finding, 2026-08-13): a second call while the
