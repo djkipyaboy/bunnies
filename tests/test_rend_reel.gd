@@ -27,7 +27,7 @@ func _initialize() -> void:
 			_check(f.rider_effect_id == &"bleed", "rend hit face carries bleed rider")
 		else:
 			_check(f.rider_effect_id == &"", "rend non-hit face has no rider")
-	_check(hit_faces == 5, "rend has 5 hit faces (4 success + 1 crit, default spread; got %d)" % hit_faces)
+	_check(hit_faces == 35, "rend has 35 hit faces (30 success + 5 crit, ability-composition spread; got %d)" % hit_faces)
 
 	var resolver: CombatResolver = CombatResolver.new()
 	var SU := ReelFace.ResultTier.SUCCESS

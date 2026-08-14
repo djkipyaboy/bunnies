@@ -67,11 +67,13 @@ static func make_default(type: DamageType = null) -> ActionReel:
 	reel.faces.shuffle()
 	return reel
 
-## Builds the Warrior's "Rend" reel (spec §4A/§4B): same tier spread as the default strip, but its
-## HIT faces (success / crit-success) deal NO direct weapon damage (multiplier 0) and instead carry a
-## &"bleed" rider. So landing a hit on this reel applies a BLEED stack rather than swinging for damage.
+## Builds the Warrior's "Rend" reel (spec §4A/§4B): derives from ABILITY_COMPOSITION (2026-08-13
+## accuracy-stat spec §2 — Rend is a resource-costed ability that adds a reel, same as every other
+## reel in that spec's scope), but its HIT faces (success / crit-success) deal NO direct weapon
+## damage (multiplier 0) and instead carry a &"bleed" rider. So landing a hit on this reel applies
+## a BLEED stack rather than swinging for damage.
 static func make_rend(type: DamageType = null) -> ActionReel:
-	var reel: ActionReel = make_default(type)
+	var reel: ActionReel = make_ability_attack(type)
 	reel.is_weapon_attack = false  # Rend hits apply BLEED (a debuff), not a weapon swing — out of paylines
 	for face: ReelFace in reel.faces:
 		if face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
