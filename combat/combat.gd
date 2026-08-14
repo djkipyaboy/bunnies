@@ -329,7 +329,8 @@ func _make_combatant(name: String, is_player: bool, max_hp: int, defense: Damage
 	c.base_stats = base_stats
 	c.gear = items
 	c.apply_stats()       # derive max_hp / max_stamina / regen / meter.floor from stats BEFORE seeding hp
-	c.apply_luck()        # edit weapon reels: +1 crit-success face per Luck. ONCE here — not idempotent.
+	c.apply_luck()        # edit weapon reels: convert crit-fail -> crit-success per Luck. ONCE here — not idempotent.
+	c.apply_finesse_accuracy()  # edit weapon reels: convert fail -> success per Finesse. ONCE here — not idempotent.
 	c.start_combat()
 	return c
 

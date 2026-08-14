@@ -80,6 +80,7 @@ static func _build(enemy_name: String, weapon_type: DamageType, weapon_base: flo
 		c.base_stamina_regen = ability_cost  # refreshes each turn so the greedy AI can re-fire
 	c.apply_stats()   # derive max_hp (and max_stamina if a pool exists) BEFORE seeding hp
 	c.apply_luck()    # luck 0 → no-op, kept for parity with ClassLibrary
+	c.apply_finesse_accuracy()    # finesse 0 → no-op, kept for parity with ClassLibrary
 	c.start_combat()
 	return c
 

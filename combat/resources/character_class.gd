@@ -124,6 +124,7 @@ func build_combatant(is_player: bool) -> Combatant:
 		c.base_mana_regen = mana_regen
 
 	c.apply_stats()   # derive max_hp / max_stamina / regen / meter.floor BEFORE seeding hp
-	c.apply_luck()    # edit weapon reels: +1 crit face per Luck. ONCE — not idempotent.
+	c.apply_luck()    # edit weapon reels: convert crit-fail -> crit-success per Luck. ONCE — not idempotent.
+	c.apply_finesse_accuracy()    # edit weapon reels: convert fail -> success per Finesse. ONCE — not idempotent.
 	c.start_combat()
 	return c

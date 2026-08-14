@@ -29,6 +29,11 @@ const FOCUS_REGEN_PER_POINT: float = 0.5
 ## not 1:1 — spec 2026-07-10 §5.4).
 const LUCK_PER_CRIT_FACE: int = 3
 
+## Finesse -> accuracy: every FINESSE_PER_ACCURACY_FACE points converts 1 FAILURE face to SUCCESS on
+## a weapon reel (threshold, not 1:1 — same replace-mechanic pace as LUCK_PER_CRIT_FACE, 2026-08-13
+## accuracy-stat spec §2).
+const FINESSE_PER_ACCURACY_FACE: int = 3
+
 ## Luck -> extra scored payline lines: every LUCK_PER_EXTRA_LINE points grants 1 extra line
 ## (spec 2026-07-10 §5.4).
 const LUCK_PER_EXTRA_LINE: int = 4
@@ -918,6 +923,31 @@ func apply_luck() -> void:
 			if face.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
 				face.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
 				face.multiplier = 2.0
+				converted += 1
+		reel.faces.shuffle()
+
+## Edits this combatant's weapon reels by converting existing FAILURE faces to SUCCESS from its
+## Finesse (2026-08-13 accuracy-stat spec §2 — Finesse's second job alongside initiative). REPLACE
+## mechanic, mirroring apply_luck()'s shape exactly but on the disjoint fail/success face pool
+## (never touches crit-fail/crit-success). Mutates this combatant's OWN weapon reels only. Call
+## ONCE at setup (same point as apply_luck()); NOT idempotent for the same reason.
+## [ASSUMPTION] converts 1 failure face to success per FINESSE_PER_ACCURACY_FACE points of Finesse,
+## capped at however many failure faces exist on that specific reel — points beyond the cap are
+## explicitly wasted (player's call, spec §2).
+func apply_finesse_accuracy() -> void:
+	if weapon == null:
+		return
+	var n: int = effective_stats().finesse / FINESSE_PER_ACCURACY_FACE
+	if n <= 0:
+		return
+	for reel: ActionReel in weapon.reels:
+		var converted: int = 0
+		for face: ReelFace in reel.faces:
+			if converted >= n:
+				break
+			if face.result_tier == ReelFace.ResultTier.FAILURE:
+				face.result_tier = ReelFace.ResultTier.SUCCESS
+				face.multiplier = 1.0
 				converted += 1
 		reel.faces.shuffle()
 
