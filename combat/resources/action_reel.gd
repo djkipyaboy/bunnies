@@ -163,18 +163,20 @@ static func make_rallying_cry(type: DamageType = null) -> ActionReel:
 	return reel
 
 ## Builds the item-use reel (2026-07-16 combat item-use targeting design §2): a no-damage utility
-## reel with NO failure tiers at all — a potion should never simply fail. 9 SUCCESS + 1 CRIT_SUCCESS
-## (90%/10%). Every face has multiplier 0; the orchestrator reads the landed tier post-spin and
-## applies the item's real effect (e.g. a heal, ×1.5 on crit) itself, same convention as
-## make_rallying_cry(). is_weapon_attack = false (out of paylines); charges_meter = false (the item's
-## effect IS the payoff — same reasoning already used for Rallying Cry).
+## reel with NO failure tiers at all — a potion should never simply fail. Scaled 5x (2026-08-13
+## accuracy-stat spec §2) to 45 SUCCESS + 5 CRIT_SUCCESS (90%/10%). Every face has multiplier 0; the
+## orchestrator reads the landed tier post-spin and applies the item's real effect (e.g. a heal,
+## ×1.5 on crit) itself, same convention as make_rallying_cry(). is_weapon_attack = false (out of
+## paylines); charges_meter = false (the item's effect IS the payoff — same reasoning already used
+## for Rallying Cry).
 static func make_item_use(type: DamageType = null) -> ActionReel:
 	var reel: ActionReel = ActionReel.new()
 	reel.damage_type = type
 	reel.is_weapon_attack = false
 	reel.charges_meter = false
-	reel.faces.append(_make_face(ReelFace.ResultTier.CRIT_SUCCESS, 0.0))
-	for i: int in range(9):
+	for i: int in range(5):
+		reel.faces.append(_make_face(ReelFace.ResultTier.CRIT_SUCCESS, 0.0))
+	for i: int in range(45):
 		reel.faces.append(_make_face(ReelFace.ResultTier.SUCCESS, 0.0))
 	reel.faces.shuffle()
 	return reel

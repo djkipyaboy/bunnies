@@ -19,9 +19,9 @@ func _count(reel: ActionReel, tier: ReelFace.ResultTier) -> int:
 func _initialize() -> void:
 	var mystic: DamageType = load("res://combat/resources/types/mystic.tres")
 	var reel: ActionReel = ActionReel.make_item_use(mystic)
-	_check(reel.faces.size() == 10, "10 faces (got %d)" % reel.faces.size())
-	_check(_count(reel, ReelFace.ResultTier.SUCCESS) == 9, "9 success faces (got %d)" % _count(reel, ReelFace.ResultTier.SUCCESS))
-	_check(_count(reel, ReelFace.ResultTier.CRIT_SUCCESS) == 1, "1 crit-success face (got %d)" % _count(reel, ReelFace.ResultTier.CRIT_SUCCESS))
+	_check(reel.faces.size() == 50, "50 faces (got %d)" % reel.faces.size())
+	_check(_count(reel, ReelFace.ResultTier.SUCCESS) == 45, "45 success faces (got %d)" % _count(reel, ReelFace.ResultTier.SUCCESS))
+	_check(_count(reel, ReelFace.ResultTier.CRIT_SUCCESS) == 5, "5 crit-success faces (got %d)" % _count(reel, ReelFace.ResultTier.CRIT_SUCCESS))
 	_check(_count(reel, ReelFace.ResultTier.FAILURE) == 0, "no failure faces — a potion never simply fails")
 	_check(_count(reel, ReelFace.ResultTier.NEUTRAL) == 0, "no neutral faces")
 	_check(_count(reel, ReelFace.ResultTier.CRIT_FAILURE) == 0, "no crit-failure faces")
@@ -42,7 +42,7 @@ func _initialize() -> void:
 	# make_item_use() with no type argument still builds a valid reel (default null damage_type).
 	var untyped: ActionReel = ActionReel.make_item_use()
 	_check(untyped.damage_type == null, "damage_type defaults to null when not passed")
-	_check(untyped.faces.size() == 10, "untyped reel still has 10 faces")
+	_check(untyped.faces.size() == 50, "untyped reel still has 50 faces")
 
 	print(("ITEM USE REEL TEST PASSED" if _failures == 0 else "ITEM USE REEL TEST FAILED: %d" % _failures))
 	quit(_failures)
