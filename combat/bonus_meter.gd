@@ -91,3 +91,11 @@ func resolve_post_combat() -> void:
 	else:
 		value = 0
 	meter_changed.emit(value, cap)
+
+## Hard-resets to this meter's floor on a DEFEAT (2026-08-13 defeat-handling spec §4) — unlike
+## resolve_post_combat()'s floor/full-carry rule (which lets a full meter survive a WIN), a loss
+## never lets the player keep a "for free" armed or partially-charged Ultimate into their next
+## attempt. If floor is 0, resets all the way to 0.
+func reset_to_floor() -> void:
+	value = floor
+	meter_changed.emit(value, cap)
