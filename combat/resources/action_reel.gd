@@ -79,34 +79,39 @@ static func make_rend(type: DamageType = null) -> ActionReel:
 			face.rider_effect_id = &"bleed"
 	return reel
 
-## A resource-costing "called shot" is modestly more reliable than a free weapon swing (playtest
-## 2026-07-04, player-specified "at least a small benefit" for spending a resource): 1 crit-failure ·
-## 1 failure · 2 neutral · 5 success · 1 crit-success — hit rate (success + crit-success) 60%, up
-## from DEFAULT_COMPOSITION's 50%. [ASSUMPTION] tune by playtest, same as DEFAULT_COMPOSITION.
-const RIDER_COMPOSITION := [
-	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 1],
-	[ReelFace.ResultTier.FAILURE, 0.0, 1],
-	[ReelFace.ResultTier.NEUTRAL, 0.0, 2],
-	[ReelFace.ResultTier.SUCCESS, 1.0, 5],
-	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 1],
+## The shared composition for every reel that exists because of a resource-costed ability — NOT
+## the plain weapon-swing baseline (2026-08-13 accuracy-stat spec §2, replacing the old
+## RIDER_COMPOSITION/make_rider_attack "called shot" concept). Removes the NEUTRAL tier entirely
+## (player's own least-favorite thing about combat: spending a resource and landing on a
+## no-damage utility result) and redistributes what used to be neutral into fail/success so the
+## base hit rate lands at 70% (before Finesse/Luck conversion): 5 crit-failure · 10 failure ·
+## 30 success · 5 crit-success, out of 50 faces. [ASSUMPTION] tune by playtest, same as
+## DEFAULT_COMPOSITION.
+const ABILITY_COMPOSITION := [
+	[ReelFace.ResultTier.CRIT_FAILURE, 0.0, 5],
+	[ReelFace.ResultTier.FAILURE, 0.0, 10],
+	[ReelFace.ResultTier.SUCCESS, 1.0, 30],
+	[ReelFace.ResultTier.CRIT_SUCCESS, 2.0, 5],
 ]
 
-## Builds a real weapon-attack reel whose SUCCESS/CRIT_SUCCESS faces ALSO carry [param rider_id],
-## using RIDER_COMPOSITION's slightly better odds (see its comment) rather than DEFAULT_COMPOSITION.
-## Unlike make_rend (multiplier zeroed, utility-only), this keeps real damage: the attack itself both
-## hits AND applies its rider on a hit. Used by Sundering Strike / Quake Slam / Jinx the Odds / Snare
-## Trap / Hex / Entangle / Crippling Shot (spec 2026-07-01 §4).
-static func make_rider_attack(type: DamageType, rider_id: StringName, bonus_vs_cc: bool = false) -> ActionReel:
+## Builds a real weapon-attack reel using ABILITY_COMPOSITION's more-reliable odds (see its comment)
+## rather than DEFAULT_COMPOSITION — every reel that exists because of a resource-costed ability
+## uses this, whether or not it carries a rider. When [param rider_id] is non-empty, it's attached
+## to every SUCCESS/CRIT_SUCCESS face (the attack both hits AND applies its rider on a hit). Used by
+## Flurry, Rend (via make_rend), Select Fate, Sundering Strike, Quake Slam, Jinx the Odds, Snare
+## Trap, Hex, Entangle, Crippling Shot, Mana Surge, Rampage, Collateral Damage, Big Bang, and
+## Earthquake (spec 2026-08-13 §2).
+static func make_ability_attack(type: DamageType, rider_id: StringName = &"", bonus_vs_cc: bool = false) -> ActionReel:
 	var reel: ActionReel = ActionReel.new()
 	reel.damage_type = type
 	reel.bonus_vs_cc = bonus_vs_cc
-	for entry: Array in RIDER_COMPOSITION:
+	for entry: Array in ABILITY_COMPOSITION:
 		var tier: ReelFace.ResultTier = entry[0]
 		var multiplier: float = entry[1]
 		var count: int = entry[2]
 		for i: int in range(count):
 			var face: ReelFace = _make_face(tier, multiplier)
-			if tier == ReelFace.ResultTier.SUCCESS or tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			if rider_id != &"" and (tier == ReelFace.ResultTier.SUCCESS or tier == ReelFace.ResultTier.CRIT_SUCCESS):
 				face.rider_effect_id = rider_id
 			reel.faces.append(face)
 	reel.faces.shuffle()
