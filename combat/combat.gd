@@ -21,6 +21,10 @@ const RALLYING_CRY_SHIELD_TURNS: int = 3  # Warden Rallying Cry: party shield du
 ## yet, that's leveling-system work (docs/design-bible/22-leveling-and-progression.md), deferred.
 const ENEMY_XP_REWARD: int = 10
 
+## How long the recovery summary stays on screen (readable) before the Continue-on-win transition
+## fades out (2026-08-13 post-combat-flow spec §3). [ASSUMPTION] tune by playtest.
+const RECOVERY_DISPLAY_PAUSE: float = 1.5
+
 var _resolver: CombatResolver
 var _turn_manager: TurnManager
 var _phase_manager: PhaseManager
@@ -100,6 +104,15 @@ var _start_overlay: Panel
 var _arrived_via_handoff: bool = false
 var _handoff_fade_overlay: FadeOverlay
 var _last_result_won: bool = false
+## Re-entrancy guard (final-review Important finding, 2026-08-13): _resolve_handoff_continue()
+## applies post-combat recovery, resolves every PC's Bonus Meter, and wipes CombatHandoff's
+## combat-specific data (clear_combat_data()) — all one-shot, non-idempotent side effects. Without
+## this guard a second Continue press (or a second press_continue_for_test() call) during the
+## ~1.5s+ readable-pause/fade window would double-apply recovery/meter resolution and then read a
+## blanked return_scene_path, eventually calling change_scene_to_file(""). Lives on the shared
+## resolver rather than only the button handler so BOTH real callers and the headless test hook
+## are protected by the same check.
+var _handoff_continue_resolved: bool = false
 ## Total XP awarded to the party THIS fight (player direction 2026-07-12: XP gain wasn't visible
 ## enough) — reset per _build_combatants() call, surfaced on the result card in _on_combat_ended().
 var _fight_xp_gained: int = 0
@@ -2653,10 +2666,48 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 ## clear_pending() would wipe them here, before anyone's had a chance to consume them (final-review
 ## Critical finding, 2026-07-11, for return_position; playtest-found gap, 2026-07-12, for the party
 ## — it was being silently reseeded from scratch on every return, dropping equipped gear/HP).
+## Applies post-combat recovery to every PC on a WIN (2026-08-13 post-combat-flow spec §3): each
+## PC's HP/Stamina/Mana partially recover (Combatant.apply_post_combat_recovery()) and their Bonus
+## Meter resolves via the existing floor/full-carry rule (BonusMeter.resolve_post_combat(),
+## DESIGN.md §4.9 — previously coded but never actually called anywhere in the real combat flow).
+## Appends a per-PC "+N HP, +N Stamina, +N Mana" summary line to the already-visible result label so
+## the player sees what changed before the scene transitions away (never on a loss — see the
+## defeat-handling plan for that path).
+func _apply_post_combat_recovery() -> void:
+	var label: Label = _overlay.get_node("ResultLabel")
+	for c: Combatant in _pcs:
+		# Bonus Meter resolution (final-review Important finding, 2026-08-13) must run for EVERY
+		# PC, including one knocked out during the winning fight — the spec says "every PC's
+		# meter" resolves, and the floor/full-carry rule still applies to a downed PC. This must
+		# NOT be gated behind is_alive(): only the HP/Stamina/Mana recovery + label text below are
+		# alive-only (a dead PC's apply_post_combat_recovery() already returns all-zero gains, so
+		# skipping it just avoids an empty ", " label line — it isn't why the meter was skipped).
+		if c.bonus_meter != null:
+			c.bonus_meter.resolve_post_combat()
+		if not c.is_alive():
+			continue
+		var gains: Dictionary = c.apply_post_combat_recovery()
+		var parts: Array[String] = []
+		if gains.hp > 0:
+			parts.append("+%d HP" % gains.hp)
+		if gains.stamina > 0:
+			parts.append("+%d Stamina" % gains.stamina)
+		if gains.mana > 0:
+			parts.append("+%d Mana" % gains.mana)
+		if not parts.is_empty():
+			label.text += "\n%s: %s" % [c.display_name, ", ".join(parts)]
+
 func _resolve_handoff_continue() -> String:
+	# Re-entrancy guard (final-review Important finding, 2026-08-13): a second call while the
+	# first is still in-flight (e.g. a second Continue click during the readable-pause/fade
+	# window) must be a total no-op — see _handoff_continue_resolved's declaration for why.
+	if _handoff_continue_resolved:
+		return ""
+	_handoff_continue_resolved = true
 	var handoff: Node = _handoff()
 	if _last_result_won:
 		handoff.mark_defeated(handoff.pending_encounter_id)
+		_apply_post_combat_recovery()
 	# NOTE: _fight_overflow_items.duplicate() as Array[Resource] does NOT actually retype the array
 	# when assigned through this Node-typed handle's dynamic Object.set() path — the runtime value
 	# stays tagged Array[Gear], and the property setter rejects it (a variant of the documented
@@ -2674,8 +2725,12 @@ func _resolve_handoff_continue() -> String:
 ## Overworld handoff "Continue" button (spec §3.5): mark the encounter defeated on a win, fade out,
 ## clear the fight data, then return to the overworld scene the fight was triggered from.
 func _on_continue_after_handoff_pressed() -> void:
+	var was_win: bool = _last_result_won
+	var return_path: String = _resolve_handoff_continue()
+	if was_win:
+		await get_tree().create_timer(RECOVERY_DISPLAY_PAUSE).timeout
 	await _handoff_fade_overlay.fade_out()
-	get_tree().change_scene_to_file(_resolve_handoff_continue())
+	get_tree().change_scene_to_file(return_path)
 
 ## Test-only hook (mirrors this project's _for_test() convention, e.g.
 ## combat/ui/inventory_menu_panel.gd's press_slot_for_test()): runs the exact same
