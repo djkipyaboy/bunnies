@@ -2696,6 +2696,21 @@ func _apply_post_combat_recovery() -> void:
 		if not parts.is_empty():
 			label.text += "\n%s: %s" % [c.display_name, ", ".join(parts)]
 
+## Applies the defeat reset to every PC on a LOSS (2026-08-13 defeat-handling spec §4): full
+## HP/Stamina/Mana restore, reviving any PC that died in the losing fight
+## (Combatant.restore_to_full(true)), and a hard reset of each PC's Bonus Meter to its class floor
+## (BonusMeter.reset_to_floor() — deliberately NOT the win-side resolve_post_combat() carry rule; a
+## loss never lets the player keep a partially-or-fully-charged Ultimate for free). Lingering combat
+## effects are already cleared for every PC regardless of win/loss by _on_combat_ended()'s existing
+## clear_combat_effects() call, so this method doesn't repeat that. World-state (which
+## encounters/floors are still fightable, quest progress/items) needs no reset here at all — it's
+## already correctly gated by CombatHandoff.is_defeated(), which this loss path never sets.
+func _apply_defeat_reset() -> void:
+	for c: Combatant in _pcs:
+		c.restore_to_full(true)
+		if c.bonus_meter != null:
+			c.bonus_meter.reset_to_floor()
+
 func _resolve_handoff_continue() -> String:
 	# Re-entrancy guard (final-review Important finding, 2026-08-13): a second call while the
 	# first is still in-flight (e.g. a second Continue click during the readable-pause/fade
@@ -2707,6 +2722,8 @@ func _resolve_handoff_continue() -> String:
 	if _last_result_won:
 		handoff.mark_defeated(handoff.pending_encounter_id)
 		_apply_post_combat_recovery()
+	else:
+		_apply_defeat_reset()
 	# NOTE: _fight_overflow_items.duplicate() as Array[Resource] does NOT actually retype the array
 	# when assigned through this Node-typed handle's dynamic Object.set() path — the runtime value
 	# stays tagged Array[Gear], and the property setter rejects it (a variant of the documented
@@ -2717,7 +2734,7 @@ func _resolve_handoff_continue() -> String:
 	for g: Gear in _fight_overflow_items:
 		overflow_drops.append(g)
 	handoff.pending_ground_drops = overflow_drops
-	var return_path: String = handoff.return_scene_path
+	var return_path: String = handoff.return_scene_path if _last_result_won else handoff.last_town_scene_path
 	handoff.clear_combat_data()
 	return return_path
 
