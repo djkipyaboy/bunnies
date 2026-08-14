@@ -1298,7 +1298,7 @@ func try_sundering_strike(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	turn_reels.append(ActionReel.make_rider_attack(type, &"sundered"))
+	turn_reels.append(ActionReel.make_ability_attack(type, &"sundered"))
 	return true
 
 ## Vanguard "Quake Slam" (L7): splices a real-damage reel that reliably applies SLOW on a hit.
@@ -1307,7 +1307,7 @@ func try_quake_slam(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	var reel: ActionReel = ActionReel.make_rider_attack(type, &"slow")
+	var reel: ActionReel = ActionReel.make_ability_attack(type, &"slow")
 	if has_ability_talent(&"slam_deeper"):
 		# +15% bonus damage on Quake Slam's own hit — scaled directly on THIS reel's face
 		# multipliers, not the generic rider_talent_bonus_damage_pct hook: Vanguard's Crushing weapon
@@ -1330,7 +1330,7 @@ func try_jinx_the_odds(type: DamageType, cost: int, cap: int) -> bool:
 	# Mana, not Stamina — the Chancer moved rails on 2026-07-04 (see class_library.gd).
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
-	turn_reels.append(ActionReel.make_rider_attack(type, &"jinxed"))
+	turn_reels.append(ActionReel.make_ability_attack(type, &"jinxed"))
 	return true
 
 ## Ranger "Snare Trap" (L7): splices a real-damage reel that Roots the target on a hit.
@@ -1339,7 +1339,7 @@ func try_snare_trap(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	turn_reels.append(ActionReel.make_rider_attack(type, &"rooted"))
+	turn_reels.append(ActionReel.make_ability_attack(type, &"rooted"))
 	return true
 
 ## Ranger "Crippling Shot" (L9, ultimate-tier, 3-turn CD): a called shot that Weakens the target
@@ -1349,7 +1349,7 @@ func try_crippling_shot(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	turn_reels.append(ActionReel.make_rider_attack(type, &"weakened", true))
+	turn_reels.append(ActionReel.make_ability_attack(type, &"weakened", true))
 	return true
 
 ## Seer "Hex" (L5): splices a real-Mystic-damage reel that Curses the target with a Mystic DoT
@@ -1360,7 +1360,7 @@ func try_hex(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
-	turn_reels.append(ActionReel.make_rider_attack(type, &"cursed"))
+	turn_reels.append(ActionReel.make_ability_attack(type, &"cursed"))
 	return true
 
 ## Warden "Entangle" (L5): splices a real-Earth-damage reel that Roots the target on a hit
@@ -1371,7 +1371,7 @@ func try_entangle(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
 		return false
-	turn_reels.append(ActionReel.make_rider_attack(type, &"rooted"))
+	turn_reels.append(ActionReel.make_ability_attack(type, &"rooted"))
 	return true
 
 ## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off

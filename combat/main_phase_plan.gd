@@ -288,19 +288,19 @@ func preview_reels() -> Array[ActionReel]:
 	if staged_extra_ability_id != &"" and staged_extra_ability_id in REEL_ADDING_EXTRA_IDS and reels.size() < reel_cap:
 		match staged_extra_ability_id:
 			&"sundering_strike":
-				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"sundered"))
+				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"sundered"))
 			&"quake_slam":
-				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"slow"))
+				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"slow"))
 			&"jinx_the_odds":
-				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"jinxed"))
+				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"jinxed"))
 			&"snare_trap":
-				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"rooted"))
+				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"rooted"))
 			&"crippling_shot":
-				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"weakened", true))
+				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"weakened", true))
 			&"hex":
-				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"cursed"))
+				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"cursed"))
 			&"entangle":
-				reels.append(ActionReel.make_rider_attack(combatant.weapon_type(), &"rooted"))
+				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"rooted"))
 	if staged_extra_ability_id in TWO_REEL_BONUS_EXTRA_IDS:
 		# Double or Nothing's bonus reels preview as the wild gambler's spread (playtest 2026-07-04) —
 		# it also converts the caster's EXISTING reels the same way, but (matching the evasion_reels/
