@@ -33,6 +33,16 @@ func _new_summoner_encounter(encounter_id: StringName) -> Array:
 
 	var pc: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
 	pc.weapon.base_damage = 0.0  # isolate the minion's own damage — see file header
+	# Final-review fix (2026-08-16 minion-summoning-class, Important #3) made the minion a real,
+	# lowest-HP-tiebreak-eligible EnemyAI target once it exists — deliberately, per spec (enemies can
+	# now choose to kill the minion instead of hitting a PC). That turns this whole file's every-HP-
+	# assertion-is-exact escalation script flaky: the rat sometimes lands a real (unforced) attack on
+	# the low-HP minion instead of the PC, killing it before its self-timed stage 2/3 fire. A durable
+	# TAUNT (way past this test's frame guards) keeps the rat's real attacks pinned on the PC, exactly
+	# reproducing the pre-fix guarantee, without touching EnemyAI's own targeting logic.
+	var taunt: Effect = EffectLibrary.make(&"taunt")
+	taunt.duration = 999
+	pc.attach_effect(taunt)
 	var inv: PartyInventory = PartyInventory.new()
 	var vault: Vault = Vault.new()
 	var enemy_ids: Array[StringName] = [&"rat"]

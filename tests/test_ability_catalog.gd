@@ -8,9 +8,8 @@ func _check(cond: bool, label: String) -> void:
 	print(("ok " if cond else "FAIL ") + label)
 
 func _init() -> void:
-	var class_ids: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer", &"ranger", &"seer", &"warden"]
 	var seen: int = 0
-	for cid: StringName in class_ids:
+	for cid: StringName in ClassLibrary.IDS:
 		var cc: CharacterClass = ClassLibrary.make(cid)
 		var ids: Array[StringName] = [cc.ability_id]
 		for def: AbilityDef in cc.extra_abilities:
@@ -19,7 +18,7 @@ func _init() -> void:
 			seen += 1
 			_check(AbilityCatalog.display_name(id) != "", "%s/%s: display_name non-empty" % [cid, id])
 			_check(AbilityCatalog.description(id) != "", "%s/%s: description non-empty" % [cid, id])
-	_check(seen == 28, "roster carries 28 ability ids (7 base + 21 extra), saw %d" % seen)
+	_check(seen == 29, "roster carries 29 ability ids (8 base + 21 extra), saw %d" % seen)
 	_check(AbilityCatalog.display_name(&"nope") == "", "unknown id -> empty name")
 	_check(AbilityCatalog.description(&"nope") == "", "unknown id -> empty description")
 	quit()

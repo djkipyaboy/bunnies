@@ -205,7 +205,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_stats = _stats(0, 1, 2, 5, 1, 0)
 			c.weapon_base_damage = 6.0; c.weapon_type = earth; c.reel_count = 2
 			c.weapon_display_name = "Warden's Staff"
-			c.combat_role = &"support"
+			c.combat_role = &"caster"
 			c.defense_type = earth
 			# [ASSUMPTION] HP 300 for testing (matches other casters); meter_cap 15 (standard).
 			c.base_max_hp = 300; c.base_max_stamina = 0; c.base_meter_floor = 3; c.meter_cap = 15

@@ -725,15 +725,24 @@ func _on_enemy_panel_death(c: Combatant) -> void:
 		(_click_catchers[c] as Button).visible = false
 	_relayout_enemy_column()
 
-## Builds a CombatantPanel for a freshly-summoned minion, positioned directly below the PC column
-## (2026-08-16 spec §3) — same x=24.0 as _place_party_column()'s PC column, same y-step math
-## (312.0 panel height + 14.0 gap) that column already uses, placed one slot past the last PC.
-## Mirrors _spawn_enemy_mid_combat()'s panel-building portion; a minion never needs a click-catcher
-## target button since it's never player-targetable via the ally-target UI (only real PCs can be
-## item/ability targets) — build the panel only, no click-catcher.
+## Builds a CombatantPanel for a freshly-summoned minion. Final-review fix (2026-08-16
+## minion-summoning-class, Important #4): the original "one slot past the last PC" position
+## (`80.0 + _pcs.size() * (312.0+14.0)`) scaled with party size and landed off-screen at the real
+## 1600x900 viewport for a 2-or-3-PC party (y=732 clipped, y=1058 fully off-screen). Every other
+## piece of on-screen real estate at 1600x900 is already claimed by a PERMANENTLY visible element:
+## the PC column (x24-324), the enemy column (x1276-1576), the turn-order bar (x350-1250, y14-58,
+## a Panel so it paints an opaque background across that whole width), the payline banner/strips
+## caption/reel strips (y58-304, strips box up to 606px wide for a max 5-reel spin, i.e. up to
+## x=1036), the phase label (y314), the 3-row action-button bar (x350-1237, y352-512), and the
+## combat log (x350-1260, y528-886). The one gap clear of ALL of those in every case (including
+## the widest 5-reel spin) is the sliver at the top-right of the center band, right of the widest
+## possible reel strip and below the turn-order bar: scaled to 0.7x (same Control.scale-down
+## trick _relayout_enemy_column already uses for its own overflow case) so it fits within that
+## sliver instead of overlapping the enemy column.
 func _build_minion_panel(minion: Combatant) -> void:
 	var panel := CombatantPanel.new()
-	panel.position = Vector2(24.0, 80.0 + float(_pcs.size()) * (312.0 + 14.0))
+	panel.position = Vector2(1050.0, 64.0)
+	panel.scale = Vector2(0.7, 0.7)
 	add_child(panel)
 	panel.bind(minion)
 	_panels[minion] = panel
@@ -1142,7 +1151,16 @@ func _refresh_ally_target_highlight() -> void:
 ## Picks which living PC an enemy attacks this turn (spec 2026-06-28 §3.1): EnemyAI prefers a
 ## super-effective matchup, then neutral, then lowest-HP. Isolated so a future policy swaps only this.
 func _enemy_pick_target(c: Combatant) -> Combatant:
-	return EnemyAI.pick_target(c, _pcs)
+	# Minions have real HP and must be single-targetable by enemies, same as any PC (spec
+	# 2026-08-16 minion-summoning-class §3 — final-review Important #3): _pcs never contains the
+	# minion (it's tracked only on _turn_manager.combatants + its own panel), so build a combined
+	# ally list here rather than changing EnemyAI.pick_target()'s own logic.
+	var targets: Array[Combatant] = _pcs.duplicate()
+	if _turn_manager != null:
+		for combatant: Combatant in _turn_manager.combatants:
+			if combatant != null and combatant.is_minion and combatant.is_alive():
+				targets.append(combatant)
+	return EnemyAI.pick_target(c, targets)
 
 ## Greedy first-iteration enemy ability use (spec 2026-06-28 §3.2): stage the enemy's base ability
 ## into _plan when affordable. Flurry: always (pure upside). Hunter's Mark: only if the chosen target
