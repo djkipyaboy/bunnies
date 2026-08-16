@@ -17,6 +17,15 @@ var _stats_label: Label
 var _types_label: RichTextLabel
 var _combatant: Combatant
 var _meter_flash_tween: Tween
+var _init_strip_row: HBoxContainer
+var _init_tens_strip: InitiativeReelStrip
+var _init_ones_strip: InitiativeReelStrip
+var _init_strips_settled_count: int = 0
+
+## Emitted once BOTH this panel's tens/ones initiative-reel strips have finished animating —
+## an aggregation the panel does internally so the orchestrator (combat.gd) only has to wait for
+## one signal per combatant, not two (2026-08-16 visible-initiative-reels spec §2).
+signal initiative_strips_settled
 
 func _ready() -> void:
 	# Wide enough that the widest row (the 6-stat line, which the VBox stretches every bar to) stays
@@ -37,6 +46,16 @@ func _ready() -> void:
 	box.position = Vector2(10, 8)
 	box.custom_minimum_size = Vector2(ROW_W, 296)
 	add_child(box)
+
+	_init_strip_row = HBoxContainer.new()
+	_init_strip_row.visible = false
+	_init_strip_row.custom_minimum_size = Vector2(ROW_W, 32.0)  # matches InitiativeReelStrip.CELL_HEIGHT (Task 2)
+	box.add_child(_init_strip_row)
+
+	_init_tens_strip = InitiativeReelStrip.new()
+	_init_strip_row.add_child(_init_tens_strip)
+	_init_ones_strip = InitiativeReelStrip.new()
+	_init_strip_row.add_child(_init_ones_strip)
 
 	_name_label = Label.new()
 	box.add_child(_name_label)
@@ -147,6 +166,34 @@ func _refresh_types() -> void:
 func refresh_initiative() -> void:
 	if _combatant != null:
 		_name_label.text = "%s  (init %d)" % [_combatant.display_name, _combatant.current_initiative]
+
+## Reveals the initiative-reel strips and configures both with a fresh digit reel (2026-08-16
+## visible-initiative-reels spec §2). Call once per encounter, right before rolling initiative.
+func show_initiative_strips() -> void:
+	_init_strip_row.visible = true
+	_init_strips_settled_count = 0
+	_init_tens_strip.configure(InitiativeReel.make_default())
+	_init_ones_strip.configure(InitiativeReel.make_default())
+	if not _init_tens_strip.strip_settled.is_connected(_on_init_strip_settled):
+		_init_tens_strip.strip_settled.connect(_on_init_strip_settled)
+	if not _init_ones_strip.strip_settled.is_connected(_on_init_strip_settled):
+		_init_ones_strip.strip_settled.connect(_on_init_strip_settled)
+
+## Animates both strips to the given landed digits, SIMULTANEOUSLY (no delay/stagger between
+## them — 2026-08-16 spec §2's "no stagger" decision).
+func play_initiative_reels(tens_digit: int, ones_digit: int) -> void:
+	_init_tens_strip.play_to(tens_digit)
+	_init_ones_strip.play_to(ones_digit)
+
+func _on_init_strip_settled() -> void:
+	_init_strips_settled_count += 1
+	if _init_strips_settled_count >= 2:
+		initiative_strips_settled.emit()
+
+## Hides the initiative-reel strips again once the tracker has been populated (2026-08-16 spec
+## §2 — no permanent UI clutter for the rest of the fight).
+func hide_initiative_strips() -> void:
+	_init_strip_row.visible = false
 
 ## Refreshes the active-effect line (e.g. "SLOW -20 (1)"). Called by the orchestrator on
 ## Upkeep/End and when a rider is applied. Empty when no effects are active.
