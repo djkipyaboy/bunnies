@@ -1398,6 +1398,11 @@ func _on_turn_started(c: Combatant) -> void:
 	if c.is_target_dummy:
 		_take_dummy_turn(c)
 		return
+	# Minions never take a normal Main-1 turn — no reels, no player input (2026-08-16 spec §3).
+	# Checked in the same spot/style as is_target_dummy, immediately before the stun/spin flow.
+	if c.is_minion:
+		_take_minion_turn(c)
+		return
 	var is_stunned: bool = c.evaluate_stun(STUN_THRESHOLD)
 	(_panels[c] as CombatantPanel).refresh_status()  # reflect/clear the STUNNED tag now that it's evaluated
 	if is_stunned:
@@ -1446,6 +1451,24 @@ func _take_dummy_turn(c: Combatant) -> void:
 		_log("  %s is already at full HP (%d/%d)." % [c.display_name, c.hp, c.max_hp])
 	(_panels[c] as CombatantPanel).refresh_status()
 	# Brief beat, then skip Combat: Main 2 → End → turn_finished → advance.
+	get_tree().create_timer(ENEMY_THINK_DELAY).timeout.connect(_phase_manager.resume_after_combat, CONNECT_ONE_SHOT)
+
+## A minion's whole turn: auto-resolve its next stage immediately, no reels, no player input
+## (2026-08-16 spec §3). Mirrors _take_dummy_turn()'s structure exactly. Expiry-on-stage-3 is
+## handled inside _run_minion_stage() itself; if it fires here, the combatant is already dead by
+## the time TurnManager gets back around to it, and _announce_current() already skips dead
+## combatants (no extra bookkeeping needed here).
+func _take_minion_turn(c: Combatant) -> void:
+	_spin_button.disabled = true
+	_abilities_button.disabled = true
+	_ultimate_button.disabled = true
+	_items_button.disabled = true
+	_team_up_button.disabled = true
+	_flee_button.disabled = true
+	var none: Array[ActionReel] = []
+	_prepare_strips(none)  # no reels — the minion doesn't spin
+	c.minion_stage += 1
+	_run_minion_stage(c, c.minion_stage)
 	get_tree().create_timer(ENEMY_THINK_DELAY).timeout.connect(_phase_manager.resume_after_combat, CONNECT_ONE_SHOT)
 
 ## Toggles the type-effectiveness chart graphic on/off. While on, it floats over the free center space and
