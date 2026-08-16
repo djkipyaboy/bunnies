@@ -1246,7 +1246,17 @@ func _finish_initiative_roll() -> void:
 
 func _on_initiative_rolled(c: Combatant, value: int) -> void:
 	_pending_initiative_values[c] = value
-	_log("%s rolled initiative %d." % [c.display_name, value])
+	# The reel strips always show this raw roll (never the Finesse-adjusted number — the reel
+	# result must stay the actual dice roll, per the "reel IS the dice" pillar), but
+	# TurnManager.roll_initiative() sets base_initiative = value + Finesse, so the tracker's
+	# current_initiative (shown right after the strips settle, via refresh_initiative()) can
+	# differ from what the reels landed on. Spell out the delta here so that's explained instead
+	# of silently confusing (final-review Important #2, 2026-08-16).
+	var finesse: int = c.effective_stats().finesse
+	if finesse != 0:
+		_log("%s rolled initiative %d (+%d Finesse = %d)." % [c.display_name, value, finesse, value + finesse])
+	else:
+		_log("%s rolled initiative %d." % [c.display_name, value])
 
 func _on_round_started(n: int) -> void:
 	_current_round = n
@@ -2992,18 +3002,17 @@ func press_continue_for_test() -> String:
 	return _resolve_handoff_continue()
 
 ## Test-only hook (mirrors press_continue_for_test()'s convention): performs the exact same
-## roll-initiative-then-begin sequence as _on_roll_initiative_pressed(), but WITHOUT the strip
-## animations or the button — a headless SceneTree test can't wait on a live Tween. Call this
-## immediately after instantiating combat.tscn (after the usual 2 process_frame awaits) wherever
-## a test needs the fight already mid-round, exactly the same point every existing combat.tscn
-## test used to get for free before this feature gated it behind a manual button press.
+## roll-then-finish tail as _on_roll_initiative_pressed(), but WITHOUT the strip animations or
+## the button — a headless SceneTree test can't wait on a live Tween. Deliberately calls the
+## SAME _finish_initiative_roll() the real button-press path calls (rather than re-implementing
+## its body), so this bypass can never drift from production behavior. Call this immediately
+## after instantiating combat.tscn (after the usual 2 process_frame awaits) wherever a test needs
+## the fight already mid-round, exactly the same point every existing combat.tscn test used to
+## get for free before this feature gated it behind a manual button press.
 func roll_initiative_for_test() -> void:
 	_roll_initiative_button.visible = false
 	_turn_manager.roll_initiative()
-	for c: Combatant in _turn_manager.combatants:
-		(_panels[c] as CombatantPanel).refresh_initiative()
-	_turn_order_bar.set_order(_turn_manager.get_turn_order())
-	_turn_manager.begin()
+	_finish_initiative_roll()
 
 func _on_event_log_button_pressed() -> void:
 	_event_log_panel.visible = not _event_log_panel.visible

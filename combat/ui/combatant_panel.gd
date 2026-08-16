@@ -47,10 +47,21 @@ func _ready() -> void:
 	box.custom_minimum_size = Vector2(ROW_W, 296)
 	add_child(box)
 
+	# NOT a child of `box` — deliberately kept OUT of the VBoxContainer layout flow (final-review
+	# Important #3, 2026-08-16). A layout-participating row here would push every row beneath it
+	# (name, stats, HP, …) down by its own height while visible, on a panel already tight on
+	# vertical space and already known to clip its status row by ~8px. Instead this is a sibling
+	# of `box`, positioned to sit right over the name row — an overlay, not an inserted row — the
+	# same "float over the normal layout" idea as ReelStrip's own RerollTag (fixed offset OUTSIDE
+	# its strip's flow) and combat.gd's per-panel click-catcher buttons (positioned OVER a panel
+	# rather than inside it). It stays a descendant of CombatantPanel (not an independent overlay
+	# Control combat.gd would have to separately track) so it still rides along with whatever
+	# scale/position math _relayout_enemy_column() applies to the whole panel.
 	_init_strip_row = HBoxContainer.new()
 	_init_strip_row.visible = false
+	_init_strip_row.position = box.position  # overlays the name row (box's first child) below
 	_init_strip_row.custom_minimum_size = Vector2(ROW_W, 32.0)  # matches InitiativeReelStrip.CELL_HEIGHT (Task 2)
-	box.add_child(_init_strip_row)
+	add_child(_init_strip_row)
 
 	_init_tens_strip = InitiativeReelStrip.new()
 	_init_strip_row.add_child(_init_tens_strip)
