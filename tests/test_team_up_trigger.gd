@@ -42,6 +42,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	var guard: int = 0
 	while is_instance_valid(inst) and not (inst._awaiting_player_spin and inst._attacker == pc) and guard < 1000:

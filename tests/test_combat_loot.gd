@@ -39,6 +39,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	_check(inst._party_inventory == inv, "_build_combatants() captures the handoff's PartyInventory")
 	_check(inst._fight_loot_names.is_empty(), "no loot yet before any kill")
@@ -79,6 +80,8 @@ func _initialize() -> void:
 	# is pressed. Drive that directly, same as tests/test_scene_party_smoke.gd, so _enemies is
 	# actually populated before this test touches it.
 	standalone._start_combat()
+	await process_frame
+	standalone.roll_initiative_for_test()
 	await process_frame
 
 	_check(standalone._party_inventory == null, "standalone launches never capture a PartyInventory")

@@ -30,6 +30,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	_check(inst._enemies.size() == 2, "handoff builds both enemies from CombatHandoff.enemy_ids")
 	_check(pc.xp == 0, "xp starts at 0 before any kill")

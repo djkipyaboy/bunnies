@@ -44,6 +44,7 @@ func _run_scenario(rig_tier: ReelFace.ResultTier, expect_crit: bool) -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	# Guard of 1000, not the brief's 400: debugged live with a standalone repro script printing
 	# _attacker/_awaiting_player_spin every 20 frames across 45 runs. With only 3 combatants (pc,

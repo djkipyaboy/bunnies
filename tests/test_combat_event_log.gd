@@ -38,6 +38,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	_check(inst._event_log_panel != null, "combat.gd builds an EventLogPanel")
 	_check(not inst._event_log_panel.visible, "the panel starts hidden")
@@ -81,6 +82,8 @@ func _initialize() -> void:
 	# is pressed. Drive that directly, same as tests/test_combat_loot.gd, so _enemies is actually
 	# populated before this test touches it.
 	standalone._start_combat()
+	await process_frame
+	standalone.roll_initiative_for_test()
 	await process_frame
 
 	standalone._enemies[0].take_damage(9999)

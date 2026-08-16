@@ -60,6 +60,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	# Rig the enemy's (rat's) weapon reels to the identical forced-NEUTRAL technique, so the
 	# "enemy-side NEUTRAL never contributes" assertion below is deterministically meaningful on
@@ -143,6 +144,8 @@ func _initialize() -> void:
 	get_root().add_child(standalone)
 	await process_frame
 	standalone._start_combat()
+	await process_frame
+	standalone.roll_initiative_for_test()
 	await process_frame
 	_check(standalone._party_inventory == null, "standalone launches never capture a PartyInventory")
 

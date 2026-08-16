@@ -67,6 +67,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	_check(inst._arrived_via_handoff == true, "handoff launch sets _arrived_via_handoff")
 	_check(inst._start_overlay == null, "handoff launch never builds the start overlay")

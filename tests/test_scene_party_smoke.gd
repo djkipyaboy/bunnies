@@ -20,7 +20,9 @@ func _initialize() -> void:
 	await process_frame
 	await process_frame
 
-	inst._start_combat()   # BEGIN: build party + enemies, lay out columns, roll initiative, start round
+	inst._start_combat()   # BEGIN: build party + enemies, lay out columns
+	await process_frame
+	inst.roll_initiative_for_test()   # roll initiative + start round (now gated behind the button)
 	await process_frame
 
 	if inst._panels.size() != 4:

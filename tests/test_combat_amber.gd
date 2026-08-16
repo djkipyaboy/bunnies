@@ -28,6 +28,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	_check(inst._enemies.size() == 2, "handoff builds both enemies from CombatHandoff.enemy_ids")
 	_check(inst._enemies[0].amber_reward == 5, "the rat carries its authored Amber reward (got %d)" % inst._enemies[0].amber_reward)
@@ -66,6 +67,8 @@ func _initialize() -> void:
 	get_root().add_child(standalone)
 	await process_frame
 	standalone._start_combat()
+	await process_frame
+	standalone.roll_initiative_for_test()
 	await process_frame
 
 	_check(standalone._party_inventory == null, "standalone launches never capture a PartyInventory")

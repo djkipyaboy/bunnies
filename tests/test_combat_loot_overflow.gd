@@ -37,6 +37,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	_check(inst._fight_overflow_items.is_empty(), "no overflow yet before any kill")
 

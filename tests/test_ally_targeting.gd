@@ -27,6 +27,7 @@ func _initialize() -> void:
 	get_root().add_child(inst)
 	await process_frame
 	await process_frame
+	inst.roll_initiative_for_test()
 
 	# Drive turns until it's a PC's turn awaiting a spin (enemy turns auto-resolve on a timer; this
 	# loop only advances frames, mirroring tests/test_scene_party_smoke.gd's guard style).
