@@ -181,6 +181,24 @@ static func make_item_use(type: DamageType = null) -> ActionReel:
 	reel.faces.shuffle()
 	return reel
 
+## Builds the minion-summon reel (2026-08-16 minion-summoning-class spec §3): a no-damage utility
+## reel with NO failure tiers — identical shape to make_item_use() (45 SUCCESS + 5 CRIT_SUCCESS,
+## 90%/10%), since a summon should never simply fail, only land baseline vs. a stronger/tankier
+## variant. Every face has multiplier 0; the orchestrator reads the landed tier post-spin and
+## builds the minion itself (SUCCESS = baseline, CRIT_SUCCESS = the tankier variant).
+## is_weapon_attack = false (out of paylines); charges_meter = false (same reasoning as
+## make_rallying_cry()/make_item_use() — the summon IS the payoff).
+static func make_summon_reel() -> ActionReel:
+	var reel: ActionReel = ActionReel.new()
+	reel.is_weapon_attack = false
+	reel.charges_meter = false
+	for i: int in range(5):
+		reel.faces.append(_make_face(ReelFace.ResultTier.CRIT_SUCCESS, 0.0))
+	for i: int in range(45):
+		reel.faces.append(_make_face(ReelFace.ResultTier.SUCCESS, 0.0))
+	reel.faces.shuffle()
+	return reel
+
 ## Builds the Flee-attempt reel (2026-08-16 combat-encounter-revamp spec §1): a no-damage
 ## utility reel reusing ABILITY_COMPOSITION's tier counts/odds (5 crit-fail / 10 fail / 30
 ## success / 5 crit-success, out of 50) — same shape already approved for resource-costed

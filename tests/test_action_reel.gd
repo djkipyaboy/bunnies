@@ -71,5 +71,20 @@ func _initialize() -> void:
 	_check(flee_success == 30, "make_flee: 30 success faces (got %d)" % flee_success)
 	_check(flee_crit_success == 5, "make_flee: 5 crit-success faces (got %d)" % flee_crit_success)
 
+	# --- make_summon_reel(): no-damage utility reel, item-use-shaped tier counts, out of paylines ---
+	var summon_reel: ActionReel = ActionReel.make_summon_reel()
+	_check(summon_reel.faces.size() == 50, "make_summon_reel: 50 faces (got %d)" % summon_reel.faces.size())
+	_check(not summon_reel.is_weapon_attack, "make_summon_reel: is_weapon_attack = false (out of paylines)")
+	_check(not summon_reel.charges_meter, "make_summon_reel: charges_meter = false")
+	var summon_success: int = 0
+	var summon_crit: int = 0
+	for f: ReelFace in summon_reel.faces:
+		_check(f.multiplier == 0.0, "make_summon_reel: every face has multiplier 0.0")
+		_check(f.result_tier == ReelFace.ResultTier.SUCCESS or f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS, "make_summon_reel: no FAILURE/CRIT_FAILURE/NEUTRAL faces")
+		if f.result_tier == ReelFace.ResultTier.SUCCESS: summon_success += 1
+		else: summon_crit += 1
+	_check(summon_success == 45, "make_summon_reel: 45 success faces (got %d)" % summon_success)
+	_check(summon_crit == 5, "make_summon_reel: 5 crit-success faces (got %d)" % summon_crit)
+
 	print(("ACTION REEL TEST PASSED" if _failures == 0 else "ACTION REEL TEST FAILED: %d" % _failures))
 	quit(_failures)
