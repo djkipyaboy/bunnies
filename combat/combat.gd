@@ -58,6 +58,8 @@ var _paylines_button: Button
 var _team_up_button: Button
 var _flee_button: Button
 var _roll_initiative_button: Button
+var _pending_initiative_values: Dictionary = {}   # Combatant -> int (raw percentile), captured per-roll
+var _settled_panels_count: int = 0
 var _team_up_panel: TeamUpPanel
 var _jackpot_bar: ProgressBar
 var _jackpot_caption: Label
@@ -1202,13 +1204,18 @@ func _start_combat() -> void:
 ## every combatant (unchanged math — TurnManager.roll_initiative()), reveals and animates each
 ## combatant's own digit-reel strips SIMULTANEOUSLY, and only populates the tracker + begins the
 ## round once every strip has settled.
-var _pending_initiative_values: Dictionary = {}   # Combatant -> int (raw percentile), captured per-roll
-var _settled_panels_count: int = 0
-
 func _on_roll_initiative_pressed() -> void:
 	_roll_initiative_button.visible = false
 	_pending_initiative_values.clear()
 	_settled_panels_count = 0
+	if _turn_manager.combatants.is_empty():
+		# Defensive guard: no combatants means no panel will ever connect to
+		# _on_panel_initiative_settled, so the settle-count never reaches its target and the
+		# encounter would hang forever waiting on strips that don't exist. Not reachable via any
+		# current entry point (party/enemies are never built empty), but skip straight to
+		# finishing rather than deadlocking if that ever changes.
+		_finish_initiative_roll()
+		return
 	for c: Combatant in _turn_manager.combatants:
 		(_panels[c] as CombatantPanel).show_initiative_strips()
 	_turn_manager.roll_initiative()   # unchanged math; initiative_rolled fires per combatant below
@@ -1216,8 +1223,7 @@ func _on_roll_initiative_pressed() -> void:
 		var value: int = _pending_initiative_values.get(c, 0)
 		var digits: Vector2i = InitiativeReel.digits_for_value(value)
 		var panel: CombatantPanel = _panels[c] as CombatantPanel
-		if not panel.initiative_strips_settled.is_connected(_on_panel_initiative_settled):
-			panel.initiative_strips_settled.connect(_on_panel_initiative_settled, CONNECT_ONE_SHOT)
+		panel.initiative_strips_settled.connect(_on_panel_initiative_settled, CONNECT_ONE_SHOT)
 		panel.play_initiative_reels(digits.x, digits.y)   # delay = 0.0 on both — simultaneous
 
 func _on_panel_initiative_settled() -> void:
