@@ -118,6 +118,13 @@ var _handoff_continue_resolved: bool = false
 ## enough) — reset per _build_combatants() call, surfaced on the result card in _on_combat_ended().
 var _fight_xp_gained: int = 0
 var _fight_amber_gained: int = 0
+## Per-PC XP actually credited THIS fight (Combatant -> int), tracked alongside _fight_xp_gained
+## so a Flee can revert it precisely. NOT simply _fight_xp_gained applied to every PC: the flat
+## per-kill XP loop in _on_enemy_defeated() only credits PCs who were is_alive() AT THAT KILL, so
+## a PC who died/revived mid-fight can have a different running total than another PC — a single
+## fight-wide total subtracted uniformly would either under- or over-revert whichever PC's actual
+## total differs (2026-08-16 review finding). Reset alongside _fight_xp_gained.
+var _fight_xp_gained_per_pc: Dictionary = {}
 ## The real overworld party's shared inventory (2026-07-12 combat loot drops) — set ONLY in the
 ## handoff launch path (_build_combatants()); stays null for a standalone "Choose your Party"
 ## launch, since there's no real PartyInventory (or any UI to view one) behind that flow. Every
@@ -130,6 +137,11 @@ var _fight_loot_names: Array[String] = []
 ## _fight_loot_names in _build_combatants(). Copied into CombatHandoff.pending_ground_drops on
 ## Continue (2026-07-14-ground-item-pickups-design.md §3.3).
 var _fight_overflow_items: Array[Gear] = []
+## The actual Gear Resources successfully granted into _party_inventory THIS fight (parallel to
+## _fight_loot_names, which only keeps display-name strings) — needed so a Flee can call
+## take_gear() to reverse the grant precisely (2026-08-16 review finding). Reset alongside
+## _fight_loot_names.
+var _fight_granted_gear: Array[Gear] = []
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
@@ -209,8 +221,10 @@ func _build_combatants() -> void:
 	_enemies.clear()
 	_fight_xp_gained = 0
 	_fight_amber_gained = 0
+	_fight_xp_gained_per_pc = {}
 	_fight_loot_names = []
 	_fight_overflow_items = []
+	_fight_granted_gear = []
 	if _arrived_via_handoff:
 		# Overworld handoff (spec §3.4): the party is already real, already-equipped Combatants — no
 		# ClassLibrary build, no ENDGAME scaling (that's a fresh-spawn testing aid, not appropriate for
@@ -2664,6 +2678,7 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 	for pc: Combatant in _pcs:
 		if pc.is_alive():
 			pc.xp += ENEMY_XP_REWARD
+			_fight_xp_gained_per_pc[pc] = _fight_xp_gained_per_pc.get(pc, 0) + ENEMY_XP_REWARD
 	_fight_xp_gained += ENEMY_XP_REWARD
 	_log("%s defeated — party gains %d XP! (total this fight: %d)" % [enemy.display_name, ENEMY_XP_REWARD, _fight_xp_gained])
 	# Amber (2026-07-17 general store design): standalone launches (_party_inventory == null) skip
@@ -2682,6 +2697,7 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 				var g: Gear = item as Gear
 				if _party_inventory.try_give_gear(g):
 					_fight_loot_names.append(g.display_name)
+					_fight_granted_gear.append(g)
 					_log("Loot: %s" % g.display_name)
 				else:
 					_fight_overflow_items.append(g)
@@ -2752,6 +2768,19 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 ## which always keeps whatever was earned).
 func _on_combat_fled() -> void:
 	_fled_this_encounter = true
+	# Revert XP/Amber/Loot already granted from enemies defeated earlier THIS fight (2026-08-16
+	# review finding, Critical #1): _on_enemy_defeated() applies these to PERMANENT party state
+	# immediately at kill-time, so a Flee after an earlier kill must undo that state, not merely
+	# suppress its display. XP is reverted per-PC via _fight_xp_gained_per_pc (NOT a uniform
+	# _fight_xp_gained subtraction from every PC) because the flat-XP-per-kill loop only credits
+	# PCs who were is_alive() at that specific kill — a PC who died/revived mid-fight can have a
+	# different running total than another PC.
+	for pc: Combatant in _fight_xp_gained_per_pc:
+		pc.xp -= int(_fight_xp_gained_per_pc[pc])
+	if _party_inventory != null:
+		_party_inventory.amber -= _fight_amber_gained
+		for g: Gear in _fight_granted_gear:
+			_party_inventory.take_gear(g)
 	for c: Combatant in _pcs:
 		c.clear_combat_effects()
 		if _panels.has(c):
@@ -2860,9 +2889,13 @@ func _resolve_handoff_continue() -> String:
 	# gdscript-typed-array-node-set-gotcha: `as` only reliably retypes a fresh/untyped array literal,
 	# not an already concretely-typed Array[Gear]). Build a genuinely Array[Resource]-typed array
 	# instead.
+	# On a Flee, overflow loot must NOT leak through as a ground drop either (2026-08-16 review
+	# finding, Critical #2) — that loot was never earned, same as the XP/Amber/bag-loot reverted in
+	# _on_combat_fled() above. Leave overflow_drops empty in that case.
 	var overflow_drops: Array[Resource] = []
-	for g: Gear in _fight_overflow_items:
-		overflow_drops.append(g)
+	if not _fled_this_encounter:
+		for g: Gear in _fight_overflow_items:
+			overflow_drops.append(g)
 	handoff.pending_ground_drops = overflow_drops
 	var return_path: String = handoff.return_scene_path if _last_result_won else handoff.last_town_scene_path
 	handoff.clear_combat_data()
