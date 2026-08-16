@@ -42,7 +42,7 @@ one passive each.* 🔬 *Keeping species to passives avoids stacking a second re
 
 ### 5. Layer C — Background/Origin
 💡🔬 **Background grants exactly ONE "signature reel face."** E.g. *Reformed Vermin* → a Piercing crit-success
-face; *Abbey-Cook* → a neutral/utility face that restores a sliver of resource. Fiction → a tangible, visible
+face; *Community Chef* → a neutral/utility face that restores a sliver of resource. Fiction → a tangible, visible
 reel edit (the cleanest way to make backstory load-bearing without a parallel system). 🟦 *Author the backgrounds.*
 
 ### 6. Starting stats — array, not point-buy

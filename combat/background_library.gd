@@ -20,7 +20,7 @@ static func make(id: StringName) -> Background:
 			return b
 		&"abbey_cook":
 			var b: Background = Background.new()
-			b.background_name = "Abbey-Cook"
+			b.background_name = "Community Chef"
 			b.flavor_text = "Years at the hearth taught patience, and a knack for a well-timed breather."
 			var face: ReelFace = ReelFace.new()
 			face.result_tier = ReelFace.ResultTier.NEUTRAL

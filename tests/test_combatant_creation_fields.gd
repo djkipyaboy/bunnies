@@ -19,7 +19,7 @@ func _init() -> void:
 	c.background = BackgroundLibrary.make(&"abbey_cook")
 	c.class_is_locked = true
 	_check(c.heritage.species_name == "Hare", "heritage can be assigned and read back")
-	_check(c.background.background_name == "Abbey-Cook", "background can be assigned and read back")
+	_check(c.background.background_name == "Community Chef", "background can be assigned and read back")
 	_check(c.class_is_locked, "class_is_locked can be assigned and read back")
 
 	print(("COMBATANT CREATION FIELDS TEST PASSED" if _failures == 0 else "COMBATANT CREATION FIELDS TEST FAILED: %d" % _failures))

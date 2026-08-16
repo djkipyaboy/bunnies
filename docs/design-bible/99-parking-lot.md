@@ -13,7 +13,7 @@
 - 💡 **Bestiary / enemy Codex.** Defeating an enemy logs its types/resists/abilities — turns the type-chart
   meta into earned knowledge and rewards exploration. Ties to [[40-enemy-roster]]. 
 - 💡 **Consumables in combat** (potions/throwables) — a non-reel resource lever. ❓ *How many per turn?* (noted in [[25-inventory-and-storage]]).
-- 💡 **Flee / retreat & ambush/surprise** rules — initiative advantage from who-started-it. (noted in [[28-encounter-design-framework]]).
+- 💡 **Flee / retreat & ambush/surprise** rules — initiative advantage from who-started-it. (noted in [[28-encounter-design-framework]]). 🔬 *2026-08-15: player raised this directly after confirming Escape correctly does NOT close a combat encounter — wants "Flee" as an actual player-turn option. Nudges this toward ⬆️ whenever combat-turn-options gets revisited; needs its own brainstorm (what it costs, success chance vs. reel spin, what happens to loot/XP/party state on success).*
 - 💡 **Environmental hazards / terrain** in encounters (lava tile, collapsing bridge) — variety lever, more art/code.
 
 ## B. World & content systems

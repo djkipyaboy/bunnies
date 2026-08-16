@@ -60,13 +60,13 @@ func _ready() -> void:
 	_back_button = Button.new()
 	_back_button.text = "Back"
 	_back_button.pressed.connect(_on_back_pressed)
-	_back_button.position = Vector2(24, 440)
+	_back_button.position = Vector2(24, 820)
 	add_child(_back_button)
 
 	_next_button = Button.new()
 	_next_button.text = "Next"
 	_next_button.pressed.connect(_on_next_pressed)
-	_next_button.position = Vector2(120, 440)
+	_next_button.position = Vector2(120, 820)
 	add_child(_next_button)
 
 	_rebuild()

@@ -352,8 +352,11 @@ func _build_ui() -> void:
 	# overworld_demo.gd's own EventLogPanel; town needs it too since companion recruit/bench events
 	# only happen here.
 	_event_log_panel = EventLogPanel.new()
-	_event_log_panel.position = Vector2(880, 500)
-	_event_log_panel.visible = false
+	# Bottom-right corner of the 1600x900 viewport (PANEL_W=432/PANEL_H=260, 20px margin):
+	# 1600-432-20=1148, 900-260-20=620 (2026-08-15 default-open playtest note — Vector2(880,500)
+	# left a wide gap on both edges, not actually anchored to the corner).
+	_event_log_panel.position = Vector2(1148, 620)
+	_event_log_panel.visible = true   # open by default (2026-08-15) — still toggleable via 'L'
 	_ui_layer.add_child(_event_log_panel)
 	_event_log_panel.build()
 	_event_log_panel.refresh(_handoff().event_log_entries)
@@ -840,6 +843,15 @@ func _toggle_stats() -> void:
 	else:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, true, &"stats")
 		_pc.set_movement_paused(true)
+		# Tutorial "open_inventory" objective bugfix (2026-08-15): this opens the SAME
+		# InventoryMenuPanel _toggle_inventory() does, just to a different starting tab — a
+		# player who presses 'C' before ever pressing 'I' (very natural: 'C' is the more
+		# familiar WoW-style character-pane binding) leaves the panel already visible, so a
+		# later 'I' press only CLOSES it and its own complete_objective() call never runs —
+		# silently "skipping" a step the player actually already did. Credit it here too, same
+		# as the real _toggle_inventory() open branch, since both are legitimate ways to open
+		# the Inventory.
+		_party_inventory.complete_objective(&"tutorial", &"open_inventory")
 
 ## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
 ## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.
@@ -892,7 +904,64 @@ func _toggle_legend() -> void:
 		_pc.set_movement_paused(true)
 		_party_inventory.complete_objective(&"tutorial", &"open_legend")
 
+## Escape-closes whichever modal panel is currently on top (2026-08-15 playtester note: every
+## togglable/modal panel should also close on Escape, in addition to its own keybind/close button).
+## Deliberately NOT a generic panel-manager — just an explicit priority cascade over the same panel
+## set this scene's own toggle-functions and 'E'-close cascade already check, topmost-stacked first
+## (quest_popup_panel can be showing on TOP of the Board, same ordering the 'E' handler below uses).
+## The Event Log is excluded on purpose — it's non-modal by design (see EventLogPanel's own doc
+## comment) and must stay reachable/visible regardless of Escape.
+func _close_topmost_panel_for_escape() -> void:
+	if _dialogue_box.is_open():
+		_dialogue_box.close()   # emits `closed`, already wired to resume movement/wander
+		return
+	if _quest_popup_panel.is_open():
+		_quest_popup_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _board_panel.is_open():
+		_board_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _party_selection_panel.is_open():
+		_party_selection_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _vendor_prompt_panel.is_open():
+		_vendor_prompt_panel.close()
+		if _talking_to != null:
+			_talking_to.set_wander_paused(false)
+			_talking_to = null
+		_pc.set_movement_paused(false)
+		return
+	if _shop_panel.is_open():
+		_shop_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _inventory_panel.visible:
+		_inventory_panel.hide()
+		_pc.set_movement_paused(false)
+		return
+	if _talent_panel.visible:
+		_talent_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _professions_panel.is_open():
+		_professions_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _quest_log_panel.is_open():
+		_quest_log_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _legend_panel.is_open():
+		_legend_panel.close()
+		_pc.set_movement_paused(false)
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_close_topmost_panel_for_escape()
+		return
 	if event.is_action_pressed("toggle_event_log"):
 		_event_log_panel.visible = not _event_log_panel.visible
 		if _event_log_panel.visible:

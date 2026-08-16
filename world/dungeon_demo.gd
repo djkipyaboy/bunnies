@@ -367,8 +367,12 @@ func _build_ui() -> void:
 	_refresh_location_label()
 
 	_event_log_panel = EventLogPanel.new()
-	_event_log_panel.position = Vector2(880, 500)
-	_event_log_panel.visible = false
+	# Bottom-right corner of the 1600x900 viewport (PANEL_W=432/PANEL_H=260, 20px margin):
+	# 1600-432-20=1148, 900-260-20=620 (2026-08-15 default-open playtest note, applied here too for
+	# consistency with town_demo.gd/overworld_demo.gd's identical EventLogPanel wiring — Vector2
+	# (880,500) left a wide gap on both edges, not actually anchored to the corner).
+	_event_log_panel.position = Vector2(1148, 620)
+	_event_log_panel.visible = true   # open by default (2026-08-15) — still toggleable via 'L'
 	ui.add_child(_event_log_panel)
 	_event_log_panel.build()
 	_event_log_panel.refresh(_handoff().event_log_entries)
@@ -544,7 +548,35 @@ func _set_highlighted_target(target: Interactable) -> void:
 		target.set_highlighted(true)
 	_highlighted_target = target
 
+## Escape-closes whichever modal panel is currently on top (2026-08-15 playtester note). Mirrors
+## town_demo.gd's _close_topmost_panel_for_escape() exactly, restricted to the panel set this scene
+## actually has (no dialogue/board/vendor/shop/gathering panels in the dungeon demo). The Event Log
+## stays excluded, same as town_demo.gd — it's non-modal by design.
+func _close_topmost_panel_for_escape() -> void:
+	if _inventory_panel.visible:
+		_inventory_panel.hide()
+		_pc.set_movement_paused(false)
+		return
+	if _talent_panel.visible:
+		_talent_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _professions_panel.is_open():
+		_professions_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _quest_log_panel.is_open():
+		_quest_log_panel.close()
+		_pc.set_movement_paused(false)
+		return
+	if _legend_panel.is_open():
+		_legend_panel.close()
+		_pc.set_movement_paused(false)
+
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		_close_topmost_panel_for_escape()
+		return
 	if event.is_action_pressed("toggle_event_log"):
 		_event_log_panel.visible = not _event_log_panel.visible
 		if _event_log_panel.visible:
@@ -596,6 +628,11 @@ func _toggle_stats() -> void:
 	else:
 		_inventory_panel.open_for(_pc_combatant, _companions, _party_inventory, _vault, false, &"stats")
 		_pc.set_movement_paused(true)
+		# Tutorial "open_inventory" objective bugfix (2026-08-15): see town_demo.gd's
+		# _toggle_stats() for the full explanation — 'C' opens the same InventoryMenuPanel
+		# _toggle_inventory() does, so a player pressing 'C' before 'I' would otherwise never
+		# get credit (the later 'I' press just closes an already-open panel).
+		_party_inventory.complete_objective(&"tutorial", &"open_inventory")
 
 ## Talents (Task 23, spec 2026-07-24 §2/§6) — bound to 'N'. Same toggle semantics as
 ## _toggle_inventory()/_toggle_stats(): pause PC movement while open, resume on close.

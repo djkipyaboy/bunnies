@@ -22,6 +22,9 @@ CombatHandoff="*res://world/combat_handoff.gd"
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
+window/size/resizable=true
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
 
 [input]
 

@@ -971,16 +971,10 @@ func _class_tooltip(id: StringName) -> String:
 		_: return "Playable class."
 
 ## Hover description for the Ultimate button, per class (flags whether the base ability is wasted).
+## Catalog-backed (one source of truth, mirrors AbilityCatalog) — extracted 2026-08-15 to
+## UltimateCatalog so CharacterCreationScreen's class-info panel can reuse the same copy.
 func _ultimate_tooltip(id: StringName) -> String:
-	match id:
-		&"wild": return "Wild (full meter): all weapon reels crit-biased for 1 spin. Your base ability still works — fire both."
-		&"sticky_wild": return "Sticky Wild (full meter): all weapon reels crit-biased for 2 spins. Your base ability still works — fire both."
-		&"rampage": return "Rampage (full meter): +1 reel, all misses removed (includes Heft free), hits ALL enemies."
-		&"wildcard_gamble": return "Wildcard Gamble (full meter): re-rolls every non-crit reel double-or-nothing. Replaces Re-roll — don't stage both."
-		&"collateral": return "Collateral Damage (full meter): +1 reel; primary takes full, all other enemies take half as Piercing. Hunter's Mark still works — fire both."
-		&"big_bang": return "The Big Bang (full meter): pick a damage type, then 4 crit-biased WILD reels of it hit ALL enemies; heals each ally 1/6 of the total, excess → a shield. (Type choice is free — no need to also cast Select your Fate.)"
-		&"earthquake": return "Earthquake (full meter): +1 reel, all 4 reels crit-biased WILD and feeding the 4-line paylines. Primary enemy takes full damage, all others take half (Earth). Every enemy hit is STUNNED next turn — its initiative (turn order) is unchanged."
-		_: return ""
+	return UltimateCatalog.description(id)
 
 # ---------------------------------------------------------------------------
 # Target selection (N-vs-M): click an enemy panel to make it the primary target
@@ -1194,17 +1188,10 @@ func _ultimate_label(id: StringName) -> String:
 		&"dark_reinforcements": return "ULTIMATE: Dark Reinforcements"
 		_: return "Fire Ultimate"
 
+## Catalog-backed (one source of truth, mirrors _ability_name/AbilityCatalog) — extracted 2026-08-15
+## to UltimateCatalog so CharacterCreationScreen's class-info panel can reuse the same copy.
 func _ultimate_name(id: StringName) -> String:
-	match id:
-		&"rampage": return "RAMPAGE (+1 reel, Heft-all, AoE)"
-		&"wild": return "WILD (all reels crit-biased, 1 spin)"
-		&"sticky_wild": return "STICKY WILD (all reels crit-biased, 2 spins)"
-		&"wildcard_gamble": return "WILDCARD GAMBLE (re-roll non-crits, double-or-nothing)"
-		&"collateral": return "COLLATERAL DAMAGE (+1 reel, splash all enemies)"
-		&"big_bang": return "THE BIG BANG (4 wild reels, AoE, party heal)"
-		&"earthquake": return "EARTHQUAKE (+1 wild reel, splash, stun all hit)"
-		&"dark_reinforcements": return "DARK REINFORCEMENTS (summon 2 acolytes)"
-		_: return "Ultimate"
+	return UltimateCatalog.display_name(id)
 
 ## Called from _on_turn_started() for [param c].is_boss turns only. Sets up the Darkness Rampage
 ## turn (4 Dark WILD AoE reels @ 18.0 base damage) while boss_phase_two_active, OR — symmetric
@@ -1339,6 +1326,30 @@ func _on_type_chart_toggle_pressed() -> void:
 		var pc_atk: DamageType = _active_pc().weapon_type()
 		_type_chart.highlight_attacker(pc_atk.type if pc_atk != null else -1)
 		move_child(_type_chart, get_child_count() - 1)  # draw over the reel area while up
+
+## Escape-closes whichever modal panel/menu is currently on top (2026-08-15 playtester note: every
+## togglable/modal panel should also close on Escape). This is combat.gd's first keyboard input
+## handler — every other panel here (Type Chart, the Ability/Item menus, the Fate picker) is opened
+## and closed entirely through button presses today, per the _event_log_button comment above.
+## Deliberately excludes _team_up_panel: unlike the other panels here, it has no close()/hide() path
+## of its own — it's a full Hold & Win minigame with mid-spin state that only ever ends itself (via
+## its own "Bank Result" button or a natural finish), the same reasoning ProfessionsMenuPanel's
+## Tempering Reels/Second Helping sub-panels and overworld_demo.gd's Fishing/Foraging panels get
+## excluded for — none of the five expose an externally-safe "abandon mid-play" behavior.
+func _unhandled_input(event: InputEvent) -> void:
+	if not event.is_action_pressed("ui_cancel"):
+		return
+	if _fate_picker != null and _fate_picker.visible:
+		_fate_picker.visible = false
+		return
+	if _item_menu.visible:
+		_item_menu.hide()
+		return
+	if _ability_menu.visible:
+		_ability_menu.hide()
+		return
+	if _type_chart.visible:
+		_on_type_chart_toggle_pressed()   # reuses the same off-path as the button (text/highlight)
 
 ## Flips the target-dummy toggle and reloads so the scenario rebuilds with/without the dummies.
 func _on_dummy_toggle_pressed() -> void:
