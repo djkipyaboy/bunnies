@@ -57,6 +57,7 @@ var _ultimate_button: Button
 var _paylines_button: Button
 var _team_up_button: Button
 var _flee_button: Button
+var _roll_initiative_button: Button
 var _team_up_panel: TeamUpPanel
 var _jackpot_bar: ProgressBar
 var _jackpot_caption: Label
@@ -507,6 +508,18 @@ func _build_ui() -> void:
 	_flee_button.disabled = true
 	_flee_button.tooltip_text = "Attempt to escape the fight — a single reel spin decides for the whole party. Replaces your attack this turn. All loot/XP is forfeited on success."
 	add_child(_flee_button)
+
+	# "Start Combat / Roll Initiative" button (2026-08-16 visible-initiative-reels spec §2): the
+	# encounter opens with an EMPTY initiative tracker; the round doesn't begin until this is
+	# pressed and every combatant's digit reels have visibly spun.
+	_roll_initiative_button = Button.new()
+	_roll_initiative_button.text = "Start Combat / Roll Initiative"
+	_roll_initiative_button.custom_minimum_size = Vector2(280, 56)
+	_roll_initiative_button.visible = false
+	_roll_initiative_button.tooltip_text = "Roll initiative for every combatant — the round begins once all reels settle."
+	add_child(_roll_initiative_button)
+	# Centered on screen, same convention as _build_overlay()'s result card.
+	_roll_initiative_button.position = (get_viewport_rect().size - _roll_initiative_button.custom_minimum_size) * 0.5
 
 	# Jackpot Meter HUD (2026-07-29 spec §2) — same translucent-bar convention as the world scenes.
 	# A small caption above the bar (final-review fix 2026-07-30): previously an unlabeled gold bar
@@ -1170,6 +1183,7 @@ func _bind_signals() -> void:
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
 	_type_chart_button.pressed.connect(_on_type_chart_toggle_pressed)
 	_event_log_button.pressed.connect(_on_event_log_button_pressed)
+	_roll_initiative_button.pressed.connect(_on_roll_initiative_pressed)
 
 func _start_combat() -> void:
 	_build_combatants()      # build the chosen party + enemies (+ dummies) now that selection is locked
@@ -1182,9 +1196,40 @@ func _start_combat() -> void:
 		foes.append(c.display_name)
 	_log("Party: %s" % ", ".join(party))
 	_log("Enemies: %s" % ", ".join(foes))
-	_turn_manager.roll_initiative()
+	_roll_initiative_button.visible = true
+
+## Fired by the "Start Combat / Roll Initiative" button (2026-08-16 spec §2). Rolls initiative for
+## every combatant (unchanged math — TurnManager.roll_initiative()), reveals and animates each
+## combatant's own digit-reel strips SIMULTANEOUSLY, and only populates the tracker + begins the
+## round once every strip has settled.
+var _pending_initiative_values: Dictionary = {}   # Combatant -> int (raw percentile), captured per-roll
+var _settled_panels_count: int = 0
+
+func _on_roll_initiative_pressed() -> void:
+	_roll_initiative_button.visible = false
+	_pending_initiative_values.clear()
+	_settled_panels_count = 0
 	for c: Combatant in _turn_manager.combatants:
-		(_panels[c] as CombatantPanel).refresh_initiative()
+		(_panels[c] as CombatantPanel).show_initiative_strips()
+	_turn_manager.roll_initiative()   # unchanged math; initiative_rolled fires per combatant below
+	for c: Combatant in _turn_manager.combatants:
+		var value: int = _pending_initiative_values.get(c, 0)
+		var digits: Vector2i = InitiativeReel.digits_for_value(value)
+		var panel: CombatantPanel = _panels[c] as CombatantPanel
+		if not panel.initiative_strips_settled.is_connected(_on_panel_initiative_settled):
+			panel.initiative_strips_settled.connect(_on_panel_initiative_settled, CONNECT_ONE_SHOT)
+		panel.play_initiative_reels(digits.x, digits.y)   # delay = 0.0 on both — simultaneous
+
+func _on_panel_initiative_settled() -> void:
+	_settled_panels_count += 1
+	if _settled_panels_count >= _turn_manager.combatants.size():
+		_finish_initiative_roll()
+
+func _finish_initiative_roll() -> void:
+	for c: Combatant in _turn_manager.combatants:
+		var panel: CombatantPanel = _panels[c] as CombatantPanel
+		panel.refresh_initiative()
+		panel.hide_initiative_strips()
 	_turn_order_bar.set_order(_turn_manager.get_turn_order())
 	_log("Initiative rolled. Fight!")
 	_turn_manager.begin()
@@ -1194,6 +1239,7 @@ func _start_combat() -> void:
 # ---------------------------------------------------------------------------
 
 func _on_initiative_rolled(c: Combatant, value: int) -> void:
+	_pending_initiative_values[c] = value
 	_log("%s rolled initiative %d." % [c.display_name, value])
 
 func _on_round_started(n: int) -> void:
@@ -2938,6 +2984,20 @@ func _on_continue_after_handoff_pressed() -> void:
 ## so a test can assert the "scene change still happens" behavior without it firing.
 func press_continue_for_test() -> String:
 	return _resolve_handoff_continue()
+
+## Test-only hook (mirrors press_continue_for_test()'s convention): performs the exact same
+## roll-initiative-then-begin sequence as _on_roll_initiative_pressed(), but WITHOUT the strip
+## animations or the button — a headless SceneTree test can't wait on a live Tween. Call this
+## immediately after instantiating combat.tscn (after the usual 2 process_frame awaits) wherever
+## a test needs the fight already mid-round, exactly the same point every existing combat.tscn
+## test used to get for free before this feature gated it behind a manual button press.
+func roll_initiative_for_test() -> void:
+	_roll_initiative_button.visible = false
+	_turn_manager.roll_initiative()
+	for c: Combatant in _turn_manager.combatants:
+		(_panels[c] as CombatantPanel).refresh_initiative()
+	_turn_order_bar.set_order(_turn_manager.get_turn_order())
+	_turn_manager.begin()
 
 func _on_event_log_button_pressed() -> void:
 	_event_log_panel.visible = not _event_log_panel.visible
