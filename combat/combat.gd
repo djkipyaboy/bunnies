@@ -137,6 +137,8 @@ var _earthquake_total: int = 0           # this spin's primary-target total, for
 var _darkness_rampage_total: int = 0      # this spin's total damage, for the Hollow Warden's Darkness Rampage self-heal (half of total)
 var _rallying_cry_tier: int = -1         # the Warden Rallying Cry reel's landed tier this spin (-1 = none)
 var _item_use_tier: int = -1             # the item-use reel's landed tier this spin (-1 = none)
+var _flee_tier: int = -1         # this spin's Flee reel landed tier (-1 = none staged)
+var _fled_this_encounter: bool = false  # true once a Flee attempt has succeeded this fight
 var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
 var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds: &"ability" (Select your Fate) | &"ultimate" (The Big Bang)
 var _fate_picker_title: Label            # picker heading, re-captioned per mode
@@ -1992,6 +1994,14 @@ func _do_spin() -> void:
 		var iu_idx: int = reels.find(_attacker.item_use_reel)
 		if iu_idx >= 0 and iu_idx < attacks.size():
 			_item_use_tier = attacks[iu_idx].face.result_tier
+	# Flee reel (2026-08-16 spec §1): read the utility reel's resolved tier the same way, so
+	# _finish_spin can decide whether the whole party escapes. flee_reel is null unless Flee was
+	# staged this turn.
+	_flee_tier = -1
+	if _attacker.flee_reel != null:
+		var flee_idx: int = reels.find(_attacker.flee_reel)
+		if flee_idx >= 0 and flee_idx < attacks.size():
+			_flee_tier = attacks[flee_idx].face.result_tier
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
 	# deferred the emit above.) `extra_lines` (Loaded Dice's bonus line, built above) must be folded
@@ -2589,6 +2599,18 @@ func _finish_spin() -> void:
 		_log("  ✚ %s uses %s%s — %s heals %d HP (%d/%d)." % [_attacker.display_name, item_name, tier_text, _ally_target.display_name, amount, _ally_target.hp, _ally_target.max_hp])
 		if _panels.has(_ally_target):
 			(_panels[_ally_target] as CombatantPanel).refresh_status()
+	# Flee attempt (2026-08-16 spec §1): SUCCESS/CRIT_SUCCESS ends the encounter for the whole
+	# party immediately (no further turns, no XP/loot); FAILURE/CRIT_FAILURE just wastes this
+	# turn — fall through to the normal end-of-spin flow below exactly like any non-damaging
+	# action, and the party may attempt Flee again on a later round.
+	if _attacker.flee_reel != null and _flee_tier != -1:
+		if _flee_tier == ReelFace.ResultTier.SUCCESS or _flee_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			var tier_text2: String = "CRITICAL SUCCESS" if _flee_tier == ReelFace.ResultTier.CRIT_SUCCESS else "SUCCESS"
+			_log("  🏃 %s attempts to Flee — %s! The party escapes." % [_attacker.display_name, tier_text2])
+			_on_combat_fled()
+			return
+		else:
+			_log("  🏃 %s attempts to Flee — fails! The turn is wasted." % _attacker.display_name)
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	if _attacker.is_boss and _attacker.weapon.base_damage == 18.0:
@@ -2723,6 +2745,38 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	move_child(_overlay, get_child_count() - 1)  # ensure the result card draws over everything
 	_overlay.visible = true
 
+## A Flee attempt succeeded (2026-08-16 spec §1): ends the encounter for the whole party without
+## going through the normal win/loss attrition check. Mirrors _on_combat_ended()'s overlay/label
+## bookkeeping but shows "FLED!" and deliberately shows NO XP/Amber/Loot — those are forfeited
+## entirely, even for enemies already defeated earlier in this same fight (unlike a real win,
+## which always keeps whatever was earned).
+func _on_combat_fled() -> void:
+	_fled_this_encounter = true
+	for c: Combatant in _pcs:
+		c.clear_combat_effects()
+		if _panels.has(c):
+			(_panels[c] as CombatantPanel).refresh_riposte()
+	_last_result_won = true  # routes _resolve_handoff_continue() to return_scene_path (overworld), same as a win
+	_spin_button.disabled = true
+	_end_turn_button.disabled = true
+	_team_up_button.disabled = true
+	_flee_button.disabled = true
+	_awaiting_player_spin = false
+	_awaiting_end_turn = false
+	var label: Label = _overlay.get_node("ResultLabel")
+	label.text = "FLED!"
+	var continue_button: Button = _overlay.get_node_or_null("ContinueButton")
+	if continue_button != null:
+		continue_button.tooltip_text = "Return to the overworld. All loot and XP from this encounter were forfeited."
+	if _arrived_via_handoff:
+		var enemy_names: Array[String] = []
+		for e: Combatant in _enemies:
+			enemy_names.append(e.display_name)
+		_handoff().log_event("Fled from: %s" % ", ".join(enemy_names), &"combat")
+	_log("Combat over — the party fled.")
+	move_child(_overlay, get_child_count() - 1)
+	_overlay.visible = true
+
 ## Shared by _on_continue_after_handoff_pressed() and press_continue_for_test() so the two can't
 ## drift apart (final-review Minor finding, 2026-07-11 — they used to duplicate this logic
 ## independently). Marks the encounter defeated on a win, reads return_scene_path into a local
@@ -2793,7 +2847,9 @@ func _resolve_handoff_continue() -> String:
 		return ""
 	_handoff_continue_resolved = true
 	var handoff: Node = _handoff()
-	if _last_result_won:
+	if _fled_this_encounter:
+		pass  # no mark_defeated, no recovery, no defeat reset — the encounter is simply left behind
+	elif _last_result_won:
 		handoff.mark_defeated(handoff.pending_encounter_id)
 		_apply_post_combat_recovery()
 	else:
