@@ -56,6 +56,7 @@ var _items_button: Button
 var _ultimate_button: Button
 var _paylines_button: Button
 var _team_up_button: Button
+var _flee_button: Button
 var _team_up_panel: TeamUpPanel
 var _jackpot_bar: ProgressBar
 var _jackpot_caption: Label
@@ -477,6 +478,17 @@ func _build_ui() -> void:
 	_team_up_button.disabled = true
 	_team_up_button.tooltip_text = "Free action: spend a full Jackpot Meter on a party-wide bonus round."
 	add_child(_team_up_button)
+
+	# Flee button (2026-08-16 combat-encounter-revamp spec §1) — same 3rd-row convention as
+	# Items/Team-Up!; gating (staged-state text + boss-disable) computed in
+	# _refresh_main1_preview() alongside them.
+	_flee_button = Button.new()
+	_flee_button.text = "Flee"
+	_flee_button.position = Vector2(col_x.call(2), ROW3_Y)
+	_flee_button.custom_minimum_size = Vector2(BTN_W, 44)
+	_flee_button.disabled = true
+	_flee_button.tooltip_text = "Attempt to escape the fight — a single reel spin decides for the whole party. Replaces your attack this turn. All loot/XP is forfeited on success."
+	add_child(_flee_button)
 
 	# Jackpot Meter HUD (2026-07-29 spec §2) — same translucent-bar convention as the world scenes.
 	# A small caption above the bar (final-review fix 2026-07-30): previously an unlabeled gold bar
@@ -1134,6 +1146,7 @@ func _bind_signals() -> void:
 	_items_button.pressed.connect(_on_items_pressed)
 	_item_menu.item_pressed.connect(_on_item_menu_item_pressed)
 	_team_up_button.pressed.connect(_on_team_up_pressed)
+	_flee_button.pressed.connect(_on_flee_pressed)
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 	_paylines_button.pressed.connect(_on_paylines_pressed)
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
@@ -1275,6 +1288,7 @@ func _on_turn_started(c: Combatant) -> void:
 		_ultimate_button.disabled = true
 		_items_button.disabled = true
 		_team_up_button.disabled = true
+		_flee_button.disabled = true
 		_prepare_strips(c.turn_reels)  # show the reels (idle) behind the gate
 		_log("  %s is STUNNED — %s a shake-off roll." % [c.display_name, "press SPIN for" if c.is_player else "rolling"])
 		if c.is_player:
@@ -1301,6 +1315,7 @@ func _take_dummy_turn(c: Combatant) -> void:
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	var none: Array[ActionReel] = []
 	_prepare_strips(none)  # no reels — the dummy doesn't spin
 	var missing: int = c.max_hp - c.hp
@@ -1419,6 +1434,7 @@ func _on_spin_pressed() -> void:
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	_ability_menu.hide()
 	_item_menu.hide()
 	_abilities_button.modulate = Color(1, 1, 1)
@@ -1467,6 +1483,13 @@ func _on_abilities_pressed() -> void:
 	_item_menu.hide()  # the two menus float at the same spot (2026-07-14 final review) — only one at a time
 	_ability_menu.open_for(_attacker, _plan)
 	move_child(_ability_menu, get_child_count() - 1)  # draw over the reel strips while up
+
+## Toggles Flee directly (no sub-menu — there's nothing to choose, unlike Abilities/Items).
+func _on_flee_pressed() -> void:
+	if not _awaiting_player_spin or _plan == null:
+		return
+	_plan.toggle_flee()
+	_refresh_main1_preview()
 
 ## One menu row pressed: dispatch to the existing model (base slot vs extra slot — mutual exclusivity
 ## is model-enforced, never policed here). A SUCCESSFUL stage/un-stage closes the menu so the reel/
@@ -1528,6 +1551,7 @@ func _on_team_up_pressed() -> void:
 	_items_button.disabled = true
 	_ultimate_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	_ability_menu.hide()
 	_item_menu.hide()
 	move_child(_team_up_panel, get_child_count() - 1)
@@ -1645,6 +1669,15 @@ func _refresh_main1_preview() -> void:
 		_items_button.modulate = Color(1, 1, 1)
 	_items_button.disabled = not (is_player_main1 and _party_inventory != null and not _party_inventory.items.is_empty())
 	_team_up_button.disabled = not (is_player_main1 and _party_inventory != null and _party_inventory.jackpot_meter >= PartyInventory.JACKPOT_CAP)
+	# Flee button (2026-08-16 spec §1): staged-green + label convention matching Items/Abilities;
+	# disabled entirely against a Boss/Elite encounter regardless of staged state.
+	if _plan.flee_staged:
+		_flee_button.text = "Flee ✓"
+		_flee_button.modulate = Color(0.6, 1.0, 0.6)
+	else:
+		_flee_button.text = "Flee"
+		_flee_button.modulate = Color(1, 1, 1)
+	_flee_button.disabled = not (is_player_main1 and _plan.can_stage_flee() and not _any_enemy_is_boss())
 	if _item_menu.visible:
 		_item_menu.open_for(_plan, _party_inventory, _ally_target)  # keep an open menu's row states live
 
@@ -1717,6 +1750,15 @@ func _weapon_attack_count(reels: Array[ActionReel]) -> int:
 		else:
 			break
 	return n
+
+## True if any enemy in this encounter is a Boss/Elite (2026-08-16 spec §1: Flee is disabled
+## entirely against a scripted boss fight — reuses is_boss, the same flag that already gates
+## Bonus Meter visibility per CLAUDE.md §4.9, rather than introducing a separate Elite flag).
+func _any_enemy_is_boss() -> bool:
+	for e: Combatant in _enemies:
+		if e.is_boss:
+			return true
+	return false
 
 ## Clears any payline-preview highlight on all strips.
 func _clear_payline_preview() -> void:
@@ -2566,6 +2608,7 @@ func _finish_spin() -> void:
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	_items_button.modulate = Color(1, 1, 1)
@@ -2636,6 +2679,7 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	_spin_button.disabled = true
 	_end_turn_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	_awaiting_player_spin = false
 	_awaiting_end_turn = false
 	var label: Label = _overlay.get_node("ResultLabel")
