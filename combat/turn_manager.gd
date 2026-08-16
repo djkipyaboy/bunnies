@@ -43,11 +43,19 @@ var _turn_index: int = 0
 ## sort key. Emits [signal initiative_rolled] per combatant (DESIGN.md §4.1–§4.2).
 func roll_initiative() -> void:
 	for c: Combatant in combatants:
-		var value: int = InitiativeReel.roll_percentile(_initiative_tens, _initiative_ones)
-		c.base_initiative = value + c.effective_stats().finesse
-		c.tiebreak_roll = _initiative_tens.spin().digit  # stored d10 final tie-break (a spin, not randf)
-		c.recompute_initiative()
-		initiative_rolled.emit(c, value)
+		roll_initiative_for(c)
+
+## Rolls Initiative for exactly ONE combatant (extracted from roll_initiative()'s loop body,
+## 2026-08-16 minion-summoning-class spec §3 — a minion needs to roll its own initiative the
+## moment it's summoned, independent of every other combatant's already-fixed rolls). Returns the
+## raw percentile value (pre-Finesse), same value roll_initiative() used to emit per combatant.
+func roll_initiative_for(c: Combatant) -> int:
+	var value: int = InitiativeReel.roll_percentile(_initiative_tens, _initiative_ones)
+	c.base_initiative = value + c.effective_stats().finesse
+	c.tiebreak_roll = _initiative_tens.spin().digit  # stored d10 final tie-break (a spin, not randf)
+	c.recompute_initiative()
+	initiative_rolled.emit(c, value)
+	return value
 
 ## Rolls a fresh d100 (percentile, 00=100, range 1–100) from the shared Initiative reels — used by
 ## the STUNNED "shake off" gate. (DESIGN spec 2026-06-20.)
@@ -98,7 +106,7 @@ func _living(is_player: bool) -> Array[Combatant]:
 	for c: Combatant in combatants:
 		# Target dummies are excluded: they never die (min_hp 1), so counting them would mean the player
 		# could never clear the enemy side and win. They still take turns; they just don't gate combat end.
-		if c.is_player == is_player and c.is_alive() and not c.is_target_dummy:
+		if c.is_player == is_player and c.is_alive() and not c.is_target_dummy and not c.is_minion:
 			out.append(c)
 	return out
 

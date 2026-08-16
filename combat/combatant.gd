@@ -90,6 +90,13 @@ var class_is_locked: bool = false
 ## check (TurnManager._living) so immortal dummies can't stall a win. Not used in normal play.
 var is_target_dummy: bool = false
 
+## True for a lightweight, auto-resolving combatant summoned by an ability mid-fight (2026-08-16
+## minion-summoning-class spec §3) — EXCLUDED from the combat-end check (TurnManager._living), same
+## treatment as is_target_dummy, so a surviving minion can never itself constitute a "win" for
+## either side. Also drives combat.gd's _on_turn_started() branch that skips the normal player/
+## enemy Main-1 flow entirely (mirrors is_target_dummy's own dedicated _take_dummy_turn() branch).
+var is_minion: bool = false
+
 ## True for a combatant that always acts LAST in turn order regardless of its initiative roll (the
 ## Hollow Warden's minions, spec 2026-07-19 §3.1). Checked FIRST in TurnManager's sort comparator.
 var acts_last: bool = false
@@ -355,6 +362,16 @@ var big_bang_spins_remaining: int = 0
 ## turn (null otherwise). The orchestrator reads its post-spin result tier to shield the party. Reset
 ## each turn by begin_turn.
 var rallying_cry_reel: ActionReel = null
+
+## This combatant's currently-active summoned minion, or null (2026-08-16 minion-summoning-class
+## spec §3). Only one minion may be active at a time — summoning a new one expires this one first
+## (via take_damage(hp), the existing self-defeat pattern — see apply_summon_minion()).
+var active_minion: Combatant = null
+
+## How many post-summon stages THIS combatant (when is_minion is true) has completed on its OWN
+## turns. Stage 1 always fires synchronously at summon time (2026-08-16 spec §3) and is NOT
+## counted here; this tracks stage 2/3 on the minion's subsequent turns. Expires after stage 3.
+var minion_stage: int = 0
 
 ## The Flee-attempt reel staged this turn, or null if Flee wasn't chosen (2026-08-16 combat-
 ## encounter-revamp spec §1). Mirrors rallying_cry_reel/item_use_reel: set once on commit, read

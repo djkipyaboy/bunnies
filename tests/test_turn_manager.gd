@@ -93,5 +93,32 @@ func _initialize() -> void:
 	tm5.advance_turn()     # should end combat, player wins
 	_check(_combat_ended_winner_is_player == 1, "combat_ended fired with player win (got %d)" % _combat_ended_winner_is_player)
 
+	# --- is_minion combatants are excluded from _living()'s win/loss gate, same as is_target_dummy ---
+	var minion_tm: TurnManager = TurnManager.new()
+	var pc_side: Combatant = _mk("PC", true, 0, 10)
+	var enemy_side: Combatant = _mk("Enemy", false, 0, 10)
+	var lone_minion: Combatant = _mk("Minion", true, 0, 10)
+	lone_minion.is_minion = true
+	minion_tm.combatants = [pc_side, enemy_side, lone_minion]
+	pc_side.take_damage(999)  # kill the only real PC
+	_check(minion_tm.is_combat_over(), "combat is over when the only real PC dies, even if an is_minion combatant on the same side survives")
+	_check(not minion_tm.winner_is_player(), "the surviving minion does NOT count as a player win")
+
+	# --- roll_initiative_for() rolls exactly one combatant, independent of the others ---
+	var extract_tm: TurnManager = TurnManager.new()
+	var solo: Combatant = _mk("Solo", true, 0, 10)
+	extract_tm.combatants = [solo]
+	var solo_value: int = extract_tm.roll_initiative_for(solo)
+	_check(solo_value >= 1 and solo_value <= 100, "roll_initiative_for returns a value in 1..100 (got %d)" % solo_value)
+	_check(solo.current_initiative != 0, "roll_initiative_for actually sets the combatant's current_initiative")
+
+	# --- roll_initiative() still behaves identically after the refactor (no regression) ---
+	var regress_tm: TurnManager = TurnManager.new()
+	var r1: Combatant = _mk("R1", true, 0, 10)
+	var r2: Combatant = _mk("R2", false, 0, 10)
+	regress_tm.combatants = [r1, r2]
+	regress_tm.roll_initiative()
+	_check(r1.current_initiative != 0 and r2.current_initiative != 0, "roll_initiative() still rolls every combatant after the refactor")
+
 	print(("TURN MANAGER TEST PASSED" if _failures == 0 else "TURN MANAGER TEST FAILED: %d" % _failures))
 	quit(_failures)
