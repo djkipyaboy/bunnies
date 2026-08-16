@@ -153,6 +153,7 @@ var _darkness_rampage_total: int = 0      # this spin's total damage, for the Ho
 var _rallying_cry_tier: int = -1         # the Warden Rallying Cry reel's landed tier this spin (-1 = none)
 var _item_use_tier: int = -1             # the item-use reel's landed tier this spin (-1 = none)
 var _flee_tier: int = -1         # this spin's Flee reel landed tier (-1 = none staged)
+var _summon_tier: int = -1       # this spin's summon reel landed tier (-1 = none staged)
 var _fled_this_encounter: bool = false  # true once a Flee attempt has succeeded this fight
 var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
 var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds: &"ability" (Select your Fate) | &"ultimate" (The Big Bang)
@@ -723,6 +724,45 @@ func _on_enemy_panel_death(c: Combatant) -> void:
 	if _click_catchers.has(c):
 		(_click_catchers[c] as Button).visible = false
 	_relayout_enemy_column()
+
+## Builds a CombatantPanel for a freshly-summoned minion, positioned directly below the PC column
+## (2026-08-16 spec §3) — same x=24.0 as _place_party_column()'s PC column, same y-step math
+## (312.0 panel height + 14.0 gap) that column already uses, placed one slot past the last PC.
+## Mirrors _spawn_enemy_mid_combat()'s panel-building portion; a minion never needs a click-catcher
+## target button since it's never player-targetable via the ally-target UI (only real PCs can be
+## item/ability targets) — build the panel only, no click-catcher.
+func _build_minion_panel(minion: Combatant) -> void:
+	var panel := CombatantPanel.new()
+	panel.position = Vector2(24.0, 80.0 + float(_pcs.size()) * (312.0 + 14.0))
+	add_child(panel)
+	panel.bind(minion)
+	_panels[minion] = panel
+	minion.defeated.connect(_on_minion_panel_death.bind(minion))
+
+## A minion's panel-hide-on-death handler (2026-08-16 spec §3) — mirrors _on_enemy_panel_death()
+## exactly (hide, don't remove from _panels; other code dereferences that dict without existence
+## checks).
+func _on_minion_panel_death(minion: Combatant) -> void:
+	if _panels.has(minion):
+		(_panels[minion] as CombatantPanel).visible = false
+
+## Runs the Ember Minion's fixed 3-stage AoE effect (2026-08-16 spec §3): a scaling AoE damage
+## pulse, stage N deals N x BASE_STAGE_DAMAGE to every living enemy of the minion's side (Earth
+## typed, matching its defense_type). [ASSUMPTION] damage numbers — tune by playtest. Expires the
+## minion (self-inflicted fatal damage, same pattern as _sacrifice_reinforcements()) once stage 3
+## completes.
+const MINION_BASE_STAGE_DAMAGE: int = 8
+
+func _run_minion_stage(minion: Combatant, stage: int) -> void:
+	var amount: int = MINION_BASE_STAGE_DAMAGE * stage
+	for enemy: Combatant in _enemies_of(minion):
+		enemy.take_damage(amount)
+		if _panels.has(enemy):
+			(_panels[enemy] as CombatantPanel).refresh_status()
+	_log("  🔥 Ember Minion (stage %d) pulses %d damage to every enemy." % [stage, amount])
+	if stage >= 3 and minion.is_alive():
+		_log("  Ember Minion completes its final stage and fades away.")
+		minion.take_damage(minion.hp)
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
@@ -2080,6 +2120,13 @@ func _do_spin() -> void:
 		var flee_idx: int = reels.find(_attacker.flee_reel)
 		if flee_idx >= 0 and flee_idx < attacks.size():
 			_flee_tier = attacks[flee_idx].face.result_tier
+	# Minion-summon reel (2026-08-16 spec §3): read the utility reel's resolved tier the same way,
+	# so _finish_spin can build the minion. summon_reel is null unless Ember Minion was staged.
+	_summon_tier = -1
+	if _attacker.summon_reel != null:
+		var summon_idx: int = reels.find(_attacker.summon_reel)
+		if summon_idx >= 0 and summon_idx < attacks.size():
+			_summon_tier = attacks[summon_idx].face.result_tier
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
 	# deferred the emit above.) `extra_lines` (Loaded Dice's bonus line, built above) must be folded
@@ -2689,6 +2736,27 @@ func _finish_spin() -> void:
 			return
 		else:
 			_log("  🏃 %s attempts to Flee — fails! The turn is wasted." % _attacker.display_name)
+	# Ember Minion summon (2026-08-16 spec §3): SUCCESS = baseline minion, CRIT_SUCCESS = the
+	# tankier variant. Only one minion may be active at a time — expire any existing one first
+	# (self-inflicted fatal damage, the same pattern _sacrifice_reinforcements() already uses for
+	# the Hollow Warden's own leftover adds — no bespoke removal logic needed). Stage 1 fires
+	# IMMEDIATELY (not on the minion's own turn); it then rolls its own initiative and is appended
+	# directly to combatants WITHOUT insert_acting_this_round() — that method would also make it
+	# act THIS round, which the locked spec decision explicitly does not want (it joins the
+	# turn order starting the FOLLOWING round only).
+	if _attacker.summon_reel != null and _summon_tier != -1:
+		if _attacker.active_minion != null and _attacker.active_minion.is_alive():
+			_attacker.active_minion.take_damage(_attacker.active_minion.hp)
+		var tanky: bool = _summon_tier == ReelFace.ResultTier.CRIT_SUCCESS
+		var minion: Combatant = MinionLibrary.make(tanky)
+		_attacker.active_minion = minion
+		minion.minion_stage = 0
+		_turn_manager.roll_initiative_for(minion)
+		_turn_manager.combatants.append(minion)  # NOT insert_acting_this_round() — see comment above
+		_build_minion_panel(minion)
+		var tier_text: String = "CRITICAL SUCCESS — a stronger" if tanky else "SUCCESS — a"
+		_log("  🔥 %s summons Ember Minion — %s minion appears! (%d HP)" % [_attacker.display_name, tier_text, minion.max_hp])
+		_run_minion_stage(minion, 1)
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	if _attacker.is_boss and _attacker.weapon.base_damage == 18.0:
