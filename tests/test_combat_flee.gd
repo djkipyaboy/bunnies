@@ -123,5 +123,113 @@ func _initialize() -> void:
 	CombatHandoff.clear_party()
 	CombatHandoff.clear_pending()
 
+	# --- Real-spin regression (2026-08-16 final-review fix wave, Critical #1): staging Flee then
+	# actually driving a real SPIN must not throw a script error or hang, for BOTH outcome tiers.
+	# Everything above only ever called _on_combat_fled() directly, which is exactly the gap the
+	# final review found — it never actually exercised _do_spin()/PaylineLibrary/PaylineResolver
+	# with Flee's 0-weapon-attack-reel loadout (Flee's reel has is_weapon_attack = false, so
+	# _weapon_attack_count() returns 0). Before the fix, PaylineLibrary.lines_for(0) hands back 3
+	# EMPTY row-lines and PaylineResolver.evaluate() indexes line[0] on one of them — a runtime
+	# error.
+	#
+	# Uses the fully-manual harness established by tests/test_darkness_rampage.gd (build a bare
+	# combat.tscn instance, then assign _pcs/_enemies/_turn_manager.combatants/_panels/_attacker/
+	# _defender/_plan directly) rather than the CombatHandoff-driven harness used above: the
+	# CombatHandoff path lets the scene's OWN turn-start machinery run too (whichever combatant
+	# wins initiative gets a real turn immediately), and if the enemy wins that roll it arms a
+	# real ENEMY_THINK_DELAY timer bound to _do_spin() — which then fires in the background WHILE
+	# this test is polling _pending_strips, calling _do_spin() a second unwanted time against the
+	# by-then-overridden _attacker and re-connecting strip_settled on already-connected strips (a
+	# real "Signal already connected" engine error, confirmed live while drafting this test). The
+	# fully-manual harness never starts that turn machinery in the first place, so there's no such
+	# race — deterministic, and still exercises the real async _do_spin()/_finish_spin() pipeline.
+	var rs_scene: PackedScene = load("res://combat/combat.tscn")
+	var rs_inst: Combat = rs_scene.instantiate()
+	get_root().add_child(rs_inst)
+	await process_frame
+	await process_frame
+
+	var rs_pc: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
+	var rs_enemy: Combatant = EnemyLibrary.make(&"rat")
+	rs_inst._pcs = [rs_pc]
+	rs_inst._enemies = [rs_enemy]
+	rs_inst._dummies = []
+	rs_inst._turn_manager.combatants = [rs_pc, rs_enemy]
+	rs_inst._panels[rs_pc] = CombatantPanel.new()
+	rs_inst._panels[rs_enemy] = CombatantPanel.new()
+	rs_inst._attacker = rs_pc
+	rs_inst._defender = rs_enemy
+	rs_inst._plan = MainPhasePlan.new(rs_pc, rs_pc.ability_cost, 5, 2, null)
+	rs_inst._plan.toggle_flee()
+	_check(rs_inst._plan.flee_staged, "real-spin success: Flee staged via the real toggle_flee()")
+	rs_inst._plan.commit()
+	_check(rs_pc.flee_reel != null, "real-spin success: commit() built a real flee_reel on the combatant")
+	# Pin the reel's faces to a single known SUCCESS face (established technique,
+	# tests/test_darkness_rampage.gd) so the spin's outcome is deterministic.
+	var success_face: ReelFace = null
+	for f: ReelFace in rs_pc.flee_reel.faces:
+		if f.result_tier == ReelFace.ResultTier.SUCCESS:
+			success_face = f
+			break
+	rs_pc.flee_reel.faces = [success_face]
+	rs_inst._prepare_strips(rs_pc.turn_reels)
+	rs_inst._do_spin()  # the real spin-driving method — this is the exact call path that used to crash
+
+	var rs_guard: int = 0
+	while rs_inst._pending_strips > 0 and rs_guard < 2000:
+		rs_guard += 1
+		await process_frame
+	_check(rs_inst._pending_strips <= 0, "real-spin success: the Flee spin's strip settled without hanging (no script error)")
+	_check(rs_inst._fled_this_encounter, "real-spin success: a real SPIN with a forced SUCCESS flee tier actually fled")
+	var rs_label: Label = rs_inst._overlay.get_node("ResultLabel")
+	_check(rs_label.text == "FLED!", "real-spin success: result overlay reads FLED! (got: %s)" % rs_label.text)
+
+	rs_inst.free()
+	await process_frame
+
+	# --- Real-spin FAILURE tier: the turn must end NORMALLY (no encounter-end, no hang), and Flee
+	# must be stageable again on a later turn (staging state isn't left corrupted by a failed try). ---
+	var rf_scene: PackedScene = load("res://combat/combat.tscn")
+	var rf_inst: Combat = rf_scene.instantiate()
+	get_root().add_child(rf_inst)
+	await process_frame
+	await process_frame
+
+	var rf_pc: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
+	var rf_enemy: Combatant = EnemyLibrary.make(&"rat")
+	rf_inst._pcs = [rf_pc]
+	rf_inst._enemies = [rf_enemy]
+	rf_inst._dummies = []
+	rf_inst._turn_manager.combatants = [rf_pc, rf_enemy]
+	rf_inst._panels[rf_pc] = CombatantPanel.new()
+	rf_inst._panels[rf_enemy] = CombatantPanel.new()
+	rf_inst._attacker = rf_pc
+	rf_inst._defender = rf_enemy
+	rf_inst._plan = MainPhasePlan.new(rf_pc, rf_pc.ability_cost, 5, 2, null)
+	rf_inst._plan.toggle_flee()
+	rf_inst._plan.commit()
+	var fail_face: ReelFace = null
+	for f: ReelFace in rf_pc.flee_reel.faces:
+		if f.result_tier == ReelFace.ResultTier.FAILURE:
+			fail_face = f
+			break
+	rf_pc.flee_reel.faces = [fail_face]
+	rf_inst._prepare_strips(rf_pc.turn_reels)
+	rf_inst._do_spin()
+
+	var rf_guard: int = 0
+	while rf_inst._pending_strips > 0 and rf_guard < 2000:
+		rf_guard += 1
+		await process_frame
+	_check(rf_inst._pending_strips <= 0, "real-spin failure: the Flee spin's strip settled without hanging (no script error)")
+	_check(not rf_inst._fled_this_encounter, "real-spin failure: a forced FAILURE flee tier does NOT end the encounter")
+	_check(rf_inst._awaiting_end_turn, "real-spin failure: the turn ends normally (End Turn is reachable) instead of hanging")
+
+	var rf_plan2: MainPhasePlan = MainPhasePlan.new(rf_pc, rf_pc.ability_cost, 5, 2, null)
+	_check(rf_plan2.can_stage_flee(), "real-spin failure: Flee is stageable again on a later turn")
+
+	rf_inst.free()
+	await process_frame
+
 	print(("COMBAT FLEE TEST PASSED" if _failures == 0 else "COMBAT FLEE TEST FAILED: %d" % _failures))
 	quit(_failures)

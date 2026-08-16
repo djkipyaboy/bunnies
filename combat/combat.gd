@@ -225,6 +225,8 @@ func _build_combatants() -> void:
 	_fight_loot_names = []
 	_fight_overflow_items = []
 	_fight_granted_gear = []
+	_fled_this_encounter = false  # per-fight flag (2026-08-16 review finding, Minor) — a rematch
+	_flee_tier = -1               # after a prior Flee must not carry over stale flee state
 	if _arrived_via_handoff:
 		# Overworld handoff (spec §3.4): the party is already real, already-equipped Combatants — no
 		# ClassLibrary build, no ENDGAME scaling (that's a fresh-spawn testing aid, not appropriate for
@@ -2768,6 +2770,13 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 ## which always keeps whatever was earned).
 func _on_combat_fled() -> void:
 	_fled_this_encounter = true
+	# Tally what's about to be forfeited BEFORE reverting/zeroing the trackers below, so the
+	# compensating Event Log line (2026-08-16 review finding, Important #3) can report accurate
+	# numbers. _on_enemy_defeated() already wrote a "<enemy> defeated — party gains N Amber"-style
+	# line into the persistent cross-scene Event Log at kill time; without this, that stale
+	# positive line survives a Flee even though the Amber/XP it announced is being clawed back.
+	var forfeited_xp: int = _fight_xp_gained
+	var forfeited_amber: int = _fight_amber_gained
 	# Revert XP/Amber/Loot already granted from enemies defeated earlier THIS fight (2026-08-16
 	# review finding, Critical #1): _on_enemy_defeated() applies these to PERMANENT party state
 	# immediately at kill-time, so a Flee after an earlier kill must undo that state, not merely
@@ -2781,6 +2790,12 @@ func _on_combat_fled() -> void:
 		_party_inventory.amber -= _fight_amber_gained
 		for g: Gear in _fight_granted_gear:
 			_party_inventory.take_gear(g)
+	# Defensive: zero the trackers now that they've been applied, in case of an unexpected
+	# double-call (e.g. a stray second Flee-tier check) — a repeat call must not double-revert.
+	_fight_xp_gained = 0
+	_fight_amber_gained = 0
+	_fight_xp_gained_per_pc = {}
+	_fight_granted_gear = []
 	for c: Combatant in _pcs:
 		c.clear_combat_effects()
 		if _panels.has(c):
@@ -2802,6 +2817,8 @@ func _on_combat_fled() -> void:
 		for e: Combatant in _enemies:
 			enemy_names.append(e.display_name)
 		_handoff().log_event("Fled from: %s" % ", ".join(enemy_names), &"combat")
+		if forfeited_xp > 0 or forfeited_amber > 0:
+			_handoff().log_event("Fled — forfeited %d XP, %d Amber." % [forfeited_xp, forfeited_amber], &"combat")
 	_log("Combat over — the party fled.")
 	move_child(_overlay, get_child_count() - 1)
 	_overlay.visible = true

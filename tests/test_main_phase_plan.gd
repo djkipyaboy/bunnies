@@ -208,6 +208,13 @@ func _initialize() -> void:
 	_check(plan_seer.ability_staged, "stage_select_fate() stages the ability")
 	_check(plan_seer.staged_item_type == &"", "stage_select_fate() un-stages the item (mutual exclusion)")
 
+	# stage_select_fate() must also un-stage Flee (2026-08-16 final-review fix wave, Important #2 —
+	# the 4 toggle_* methods already cleared flee_staged; these 2 modal-picker entry points were missed).
+	plan_seer.toggle_flee()
+	_check(plan_seer.flee_staged, "sanity: flee staged before stage_select_fate()")
+	plan_seer.stage_select_fate(slashing)
+	_check(not plan_seer.flee_staged, "stage_select_fate() un-stages a previously-staged flee")
+
 	# stage_big_bang() (Seer Ultimate alternate entry point)
 	var item_inv3: PartyInventory = PartyInventory.new()
 	var potion3: ConsumableItem = ConsumableItem.new()
@@ -228,6 +235,12 @@ func _initialize() -> void:
 	plan_seer2.stage_big_bang(slashing)
 	_check(plan_seer2.fire_ultimate_staged, "stage_big_bang() stages the ultimate")
 	_check(plan_seer2.staged_item_type == &"", "stage_big_bang() un-stages the item (mutual exclusion)")
+
+	# stage_big_bang() must also un-stage Flee (2026-08-16 final-review fix wave, Important #2).
+	plan_seer2.toggle_flee()
+	_check(plan_seer2.flee_staged, "sanity: flee staged before stage_big_bang()")
+	plan_seer2.stage_big_bang(slashing)
+	_check(not plan_seer2.flee_staged, "stage_big_bang() un-stages a previously-staged flee")
 
 	# toggle_ultimate()
 	var item_inv4: PartyInventory = PartyInventory.new()

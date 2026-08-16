@@ -229,6 +229,7 @@ func stage_select_fate(type: DamageType) -> void:
 		selected_fate_type = type
 		ability_staged = true
 		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
+		flee_staged = false  # same mutual-exclusion family (2026-08-16 flee combat option spec §1)
 
 ## Stages The Big Bang with a player-chosen damage type (from the Ultimate's type-picker modal — the same
 ## 6-type chooser as Select your Fate, but free). No-op unless this is the Seer's big_bang and it's armed.
@@ -241,6 +242,7 @@ func stage_big_bang(type: DamageType) -> void:
 		if _ultimate_subsumes_ability():
 			ability_staged = false   # Big Bang provides type choice + reels — don't also pay Select your Fate
 		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
+		flee_staged = false  # same mutual-exclusion family (2026-08-16 flee combat option spec §1)
 
 func toggle_ultimate() -> void:
 	if fire_ultimate_staged:
