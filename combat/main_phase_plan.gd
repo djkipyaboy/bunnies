@@ -94,7 +94,7 @@ func _ability_cost_dict() -> Dictionary:
 ## Whether this ability adds a reel to the attacker's own loadout (previewable as an extra strip).
 ## Select your Fate adds a reel too — and unlike Flurry/Rend its reel JOINS the payline grid.
 func _ability_adds_reel() -> bool:
-	return ability_id == &"flurry" or ability_id == &"rend" or ability_id == &"select_fate" or ability_id == &"rallying_cry"
+	return ability_id == &"flurry" or ability_id == &"rend" or ability_id == &"select_fate" or ability_id == &"rallying_cry" or ability_id == &"ember_minion"
 
 ## True if the ability can be newly STAGED: there IS an ability, it's affordable, and (for reel-adding
 ## abilities) the loadout is under the cap. Un-staging is always allowed.
@@ -315,6 +315,8 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_ability_attack(selected_fate_type))  # joins paylines (a weapon-attack reel)
 			&"rallying_cry":
 				reels.append(ActionReel.make_rallying_cry(combatant.weapon_type()))  # utility reel (out of paylines, tail)
+			&"ember_minion":
+				reels.append(ActionReel.make_summon_reel())  # utility reel (out of paylines, tail)
 	if staged_extra_ability_id != &"" and staged_extra_ability_id in REEL_ADDING_EXTRA_IDS and reels.size() < reel_cap:
 		match staged_extra_ability_id:
 			&"sundering_strike":
@@ -435,6 +437,8 @@ func commit() -> void:
 				combatant.apply_select_fate(selected_fate_type, talent_cost)  # +1 reel, retype loadout (Seer)
 			&"rallying_cry":
 				combatant.apply_rallying_cry(talent_cost, reel_cap)  # +1 utility reel; orchestrator shields the party
+			&"ember_minion":
+				combatant.apply_summon_minion(talent_cost, reel_cap)  # +1 utility reel; orchestrator builds the minion
 			&"warden_support_heal":
 				combatant.stage_warden_support_heal(talent_cost)
 			&"warden_support_curse":

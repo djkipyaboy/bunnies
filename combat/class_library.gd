@@ -5,7 +5,7 @@ extends RefCounted
 ## returns a FRESH CharacterClass each call. Values are [ASSUMPTION] placeholders — tune by playtest.
 ## (CharacterClass is a Resource, so these can migrate to authored .tres later.)
 
-const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer", &"ranger", &"seer", &"warden"]
+const IDS: Array[StringName] = [&"warrior", &"vanguard", &"skirmisher", &"chancer", &"ranger", &"seer", &"warden", &"summoner"]
 
 static func _stats(mi: int, fi: int, vi: int, fo: int, gr: int, lu: int) -> Stats:
 	var s: Stats = Stats.new()
@@ -193,6 +193,28 @@ static func make(id: StringName) -> CharacterClass:
 				_ability(&"regrowth", 3, 4, &"mana", 0),
 				_ability(&"bastion", 4, 6, &"mana", 4),
 			]
+			return c
+		&"summoner":
+			# Minion-summoning caster (2026-08-16 minion-summoning-class spec §3): 2-reel Warden's
+			# Staff (mana-only), Earth-typed. Base ability Ember Minion appends a no-damage summon
+			# reel (ActionReel.make_summon_reel, Task 2) whose landed tier is read post-spin by a
+			# future orchestrator task to build a baseline or crit-success minion.
+			var c: CharacterClass = CharacterClass.new()
+			c.class_id = &"summoner"
+			c.display_name = "Summoner"   # placeholder — naming still open
+			c.base_stats = _stats(0, 1, 2, 5, 1, 0)
+			c.weapon_base_damage = 6.0; c.weapon_type = earth; c.reel_count = 2
+			c.weapon_display_name = "Warden's Staff"
+			c.combat_role = &"support"
+			c.defense_type = earth
+			# [ASSUMPTION] HP 300 for testing (matches other casters); meter_cap 15 (standard).
+			c.base_max_hp = 300; c.base_max_stamina = 0; c.base_meter_floor = 3; c.meter_cap = 15
+			# Mana-only: max = base 8 + Focus 5 = 13, starts full, +1/turn. [ASSUMPTION] tune by playtest.
+			c.base_max_mana = 8; c.start_mana = 13; c.mana_regen = 1
+			c.ability_id = &"ember_minion"; c.ability_cost = 4; c.ability_resource = &"mana"
+			c.ultimate_id = &"sticky_wild"   # placeholder — real Ultimate variants are future work
+			c.extra_abilities = []           # no extra abilities in this plan's scope
+			c.payline_profile_id = &"default"
 			return c
 		_:
 			return null

@@ -48,7 +48,7 @@ func _initialize() -> void:
 	_check(seer.base_max_stamina == 0 and seer.base_max_mana == 9, "seer is mana-only (sta 0, mana base 9)")
 
 	_check(ClassLibrary.make(&"nope") == null, "unknown id -> null")
-	_check(ClassLibrary.IDS.size() == 7, "7 classes registered (full roster incl. Warden)")
+	_check(ClassLibrary.IDS.size() == 8, "8 classes registered (full roster incl. Warden + Summoner)")
 
 	# Warden: Earth Earthstave, 3 reels, mana-only 12, Rallying Cry (mana) + Earthquake.
 	var warden: CharacterClass = ClassLibrary.make(&"warden")

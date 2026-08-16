@@ -379,6 +379,12 @@ var minion_stage: int = 0
 ## next turn.
 var flee_reel: ActionReel = null
 
+## The minion-summon reel staged this turn, or null (2026-08-16 minion-summoning-class spec §3).
+## Mirrors rallying_cry_reel/item_use_reel/flee_reel exactly: set once on commit, its landed tier
+## read by the orchestrator post-spin to decide whether the summoned minion is baseline or the
+## tankier crit-success variant.
+var summon_reel: ActionReel = null
+
 ## Warden "Earthquake" Ultimate state (spec 2026-06-29 §4): while > 0, this combatant added a 4th
 ## weapon-attack reel, made all weapon-attack reels WILD, and its spin splashes half its primary total
 ## to every OTHER enemy + force-stuns every damaged enemy. Like Collateral (primary takes FULL; not an
@@ -1365,6 +1371,7 @@ func begin_turn() -> void:
 	rallying_cry_reel = null  # Warden: clear last turn's recorded Rallying Cry reel
 	item_use_reel = null      # clear last turn's recorded item-use reel (2026-07-16 design)
 	flee_reel = null          # clear last turn's recorded Flee reel (2026-08-16 design)
+	summon_reel = null        # clear last turn's recorded Ember Minion summon reel (2026-08-16 design)
 	pending_item_base_heal = 0
 	pending_item_name = ""
 
@@ -1764,6 +1771,22 @@ func apply_rallying_cry(cost: int, cap: int) -> bool:
 	var reel: ActionReel = ActionReel.make_rallying_cry(weapon_type())
 	turn_reels.append(reel)
 	rallying_cry_reel = reel
+	return true
+
+## Summoner "Ember Minion" base ability (2026-08-16 minion-summoning-class spec §3): spends
+## [param cost] Mana and appends one no-damage summon reel ([method ActionReel.make_summon_reel])
+## onto THIS turn, recording it on [member summon_reel] so the orchestrator can read its post-spin
+## tier and build the minion. Respects the [param cap]-reel ceiling, mirroring
+## apply_rallying_cry() exactly. Returns false (and changes nothing) if at the cap or the Mana is
+## unaffordable.
+func apply_summon_minion(cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	var summon: ActionReel = ActionReel.make_summon_reel()
+	turn_reels.append(summon)
+	summon_reel = summon
 	return true
 
 ## Index of the single worst reel to re-roll (Chancer): priority CRIT_FAILURE > FAILURE > NEUTRAL,

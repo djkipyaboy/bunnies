@@ -309,5 +309,18 @@ func _initialize() -> void:
 	_check(committer.flee_reel == committer.turn_reels[0], "commit: flee_reel points at the committed reel")
 	_check(committer.resource_pool.stamina == 3, "commit: flee costs no resource (got %d)" % committer.resource_pool.stamina)
 
+	# --- Summon Minion base ability: appends the summon reel, previewed but not committed ---
+	var summoner: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	summoner.resource_pool.mana = 10
+	var plan_summon: MainPhasePlan = MainPhasePlan.new(summoner, summoner.ability_cost, 5, 2)
+	_check(plan_summon.can_stage_ability(), "ember_minion ability stageable when affordable")
+	plan_summon.toggle_ability()
+	_check(plan_summon.ability_staged, "ember_minion staged after toggle")
+	var preview: Array[ActionReel] = plan_summon.preview_reels()
+	_check(not preview.is_empty() and not preview[preview.size() - 1].is_weapon_attack, "previewed summon reel is out of paylines (trailing utility reel)")
+	plan_summon.commit()
+	_check(summoner.summon_reel != null, "commit(): summon_reel is set on the combatant")
+	_check(summoner.resource_pool.mana == 10 - summoner.ability_cost, "commit(): mana was spent (got %d)" % summoner.resource_pool.mana)
+
 	print(("MAIN PHASE PLAN TEST PASSED" if _failures == 0 else "MAIN PHASE PLAN TEST FAILED: %d" % _failures))
 	quit(_failures)
