@@ -747,6 +747,17 @@ func _build_minion_panel(minion: Combatant) -> void:
 	panel.bind(minion)
 	_panels[minion] = panel
 	minion.defeated.connect(_on_minion_panel_death.bind(minion))
+	# Permanent green ally-colored border (playtest 2026-08-16): the panel's position sits right next
+	# to the enemy column (the only free sliver clear of the reel strips — see this method's doc
+	# comment), which read as "the enemy's side" in a human playtest despite the minion being a real
+	# ally. A persistent green border (same hue as CombatantPanel.set_ally_targeted's own ally-color
+	# convention, but applied once here rather than toggled, so it never gets cleared by that method)
+	# marks it as friendly regardless of screen position.
+	var ally_marker := StyleBoxFlat.new()
+	ally_marker.bg_color = Color(0.12, 0.17, 0.12)
+	ally_marker.border_color = Color(0.4, 0.85, 0.4)
+	ally_marker.set_border_width_all(3)
+	panel.add_theme_stylebox_override("panel", ally_marker)
 
 ## A minion's panel-hide-on-death handler (2026-08-16 spec §3) — mirrors _on_enemy_panel_death()
 ## exactly (hide, don't remove from _panels; other code dereferences that dict without existence
@@ -1144,8 +1155,8 @@ func _select_ally_target(ally: Combatant) -> void:
 ## _ally_target is null — the state during an enemy's turn.
 func _refresh_ally_target_highlight() -> void:
 	for c: Combatant in _turn_manager.combatants:
-		if not c.is_player or not _panels.has(c):
-			continue
+		if not c.is_player or not _panels.has(c) or c.is_minion:
+			continue  # minions keep their own permanent ally-colored border (see _build_minion_panel) — never an item-target
 		(_panels[c] as CombatantPanel).set_ally_targeted(c == _ally_target)
 
 ## Picks which living PC an enemy attacks this turn (spec 2026-06-28 §3.1): EnemyAI prefers a

@@ -12,7 +12,7 @@ func _initialize() -> void:
 	var baseline: Combatant = MinionLibrary.make(false)
 	_check(baseline.is_player, "baseline minion is_player = true (ally side)")
 	_check(baseline.is_minion, "baseline minion is_minion = true")
-	_check(baseline.acts_last, "baseline minion acts_last = true")
+	_check(not baseline.acts_last, "baseline minion acts_last = false (sorts into turn order purely by its own rolled initiative, playtest 2026-08-16)")
 	_check(baseline.weapon == null, "baseline minion has no weapon (weaponless, like a target dummy)")
 	_check(baseline.is_alive(), "baseline minion starts alive")
 	_check(baseline.max_hp == 15, "baseline minion max_hp = 15 (got %d)" % baseline.max_hp)

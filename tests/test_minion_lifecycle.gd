@@ -214,17 +214,19 @@ func _run_second_summon_replaces_first() -> void:
 
 	inst._on_end_turn_pressed()
 
-	# Drive real frames back to the Summoner's NEXT own turn. The minion is acts_last (always
-	# sorted after both real combatants within a round, per TurnManager.get_turn_order()), so the
-	# Summoner's next turn is guaranteed to arrive before the first minion ever gets its own turn —
-	# it is summoned over WHILE it's still on stage 1, exactly as the brief asks for.
+	# Drive real frames back to the Summoner's NEXT own turn. Minions sort into the turn order
+	# purely by their own rolled initiative (playtest 2026-08-16 fixed a bug where they were
+	# incorrectly forced acts_last) — so unlike an earlier draft of this test, we can no longer
+	# assume the first minion is still on stage 1 by the time the Summoner acts again; it may have
+	# already taken its own turn if it rolled higher initiative than the Summoner. That's fine —
+	# what this case actually tests is REPLACEMENT (the old minion expires, a new one takes over),
+	# which holds regardless of what stage the old minion had reached.
 	var guard: int = 0
 	while is_instance_valid(inst) and not (inst._awaiting_player_spin and inst._attacker == pc) and guard < 2000:
 		guard += 1
 		_pump_one_frame(inst, pc)
 		await process_frame
 	_check(inst._awaiting_player_spin and inst._attacker == pc, "case5: reached the Summoner's second pre-spin window")
-	_check(first_minion.is_alive() and first_minion.minion_stage == 1, "case5: sanity — the first minion still hasn't acted (still stage 1) when the second summon is cast")
 
 	await _stage_and_force_summon(inst, pc, ReelFace.ResultTier.SUCCESS, "case5-second")
 

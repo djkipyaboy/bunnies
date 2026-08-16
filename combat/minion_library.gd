@@ -19,7 +19,6 @@ static func make(tanky: bool) -> Combatant:
 	c.display_name = "Ember Minion"
 	c.is_player = true
 	c.is_minion = true
-	c.acts_last = true
 	c.defense_type = earth
 	c.weapon = null
 	c.base_max_hp = TANKY_HP if tanky else BASELINE_HP
