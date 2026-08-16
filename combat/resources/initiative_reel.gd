@@ -25,3 +25,15 @@ static func roll_percentile(tens: InitiativeReel, ones: InitiativeReel) -> int:
 	if raw == 0:
 		return 100
 	return raw
+
+## Recovers the (tens, ones) digit pair for a raw percentile [param value] (1-100, 00-as-100
+## convention), so a visual strip can be told which face index to land on WITHOUT needing the
+## actual spun Reel instance (roll_initiative() spins the SAME shared tens/ones reels
+## sequentially for every combatant, so by animation time only the last spin's landed face
+## survives on those shared objects). Since make_default() builds faces in strict digit order
+## (faces[i].digit == i), a digit IS its own face index on a fresh make_default() reel.
+## 2026-08-16 visible-initiative-reels spec §2.
+static func digits_for_value(value: int) -> Vector2i:
+	if value == 100:
+		return Vector2i(0, 0)
+	return Vector2i(value / 10, value % 10)
