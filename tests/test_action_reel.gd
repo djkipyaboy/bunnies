@@ -49,5 +49,27 @@ func _initialize() -> void:
 			T.CRIT_SUCCESS:
 				_check(is_equal_approx(f.multiplier, 2.0), "crit-success multiplier 2.0")
 
+	# --- make_flee(): no-damage utility reel, ABILITY_COMPOSITION tier counts, out of paylines ---
+	var flee_reel: ActionReel = ActionReel.make_flee()
+	_check(flee_reel.faces.size() == 50, "make_flee: 50 faces (got %d)" % flee_reel.faces.size())
+	_check(not flee_reel.is_weapon_attack, "make_flee: is_weapon_attack = false (out of paylines)")
+	_check(not flee_reel.charges_meter, "make_flee: charges_meter = false")
+	var flee_crit_fail: int = 0
+	var flee_fail: int = 0
+	var flee_success: int = 0
+	var flee_crit_success: int = 0
+	for f: ReelFace in flee_reel.faces:
+		_check(f.multiplier == 0.0, "make_flee: every face has multiplier 0.0")
+		_check(f.rider_effect_id == &"", "make_flee: no face carries a rider")
+		match f.result_tier:
+			ReelFace.ResultTier.CRIT_FAILURE: flee_crit_fail += 1
+			ReelFace.ResultTier.FAILURE: flee_fail += 1
+			ReelFace.ResultTier.SUCCESS: flee_success += 1
+			ReelFace.ResultTier.CRIT_SUCCESS: flee_crit_success += 1
+	_check(flee_crit_fail == 5, "make_flee: 5 crit-failure faces (got %d)" % flee_crit_fail)
+	_check(flee_fail == 10, "make_flee: 10 failure faces (got %d)" % flee_fail)
+	_check(flee_success == 30, "make_flee: 30 success faces (got %d)" % flee_success)
+	_check(flee_crit_success == 5, "make_flee: 5 crit-success faces (got %d)" % flee_crit_success)
+
 	print(("ACTION REEL TEST PASSED" if _failures == 0 else "ACTION REEL TEST FAILED: %d" % _failures))
 	quit(_failures)

@@ -22,6 +22,11 @@ const SCORING_TIERS: Array = [
 static func evaluate(grid: Array, lines: Array) -> Array:
 	var hits: Array = []
 	for line: Array in lines:
+		if line.is_empty():
+			# Defensive, mirroring evaluate_left_align()'s guard below: a 0-width grid (Flee-only
+			# loadout) can hand back an empty line — line[0] would be a runtime error otherwise
+			# (2026-08-16 flee-combat-option final review, Critical #1).
+			continue
 		var first: ReelFace = _cell(grid, line[0])
 		if first == null or not (first.result_tier in SCORING_TIERS):
 			continue

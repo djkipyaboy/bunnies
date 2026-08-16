@@ -147,6 +147,12 @@ func reresolve_reel(reel: ActionReel, base_damage: float, target_type: DamageTyp
 func evaluate_paylines(reels: Array[ActionReel], attacks: Array[AttackResult], weapon_reel_count: int, extra_lines: Array = []) -> Array:
 	var wcount: int = mini(weapon_reel_count, reels.size())
 	last_grid = _build_grid(reels, attacks, wcount)
+	if wcount <= 0:
+		# A 0-weapon-attack-reel loadout (Flee, 2026-08-16 spec §1 — its reel is is_weapon_attack =
+		# false) has no payline grid worth scoring at all. Short-circuit here rather than relying
+		# solely on PaylineLibrary/PaylineResolver's own empty-line guards — nothing meaningful can
+		# score a width-0 grid regardless of extra_lines.
+		return []
 	var lines: Array = PaylineLibrary.lines_for(wcount)
 	lines.append_array(extra_lines)
 	return PaylineResolver.evaluate(last_grid, lines)

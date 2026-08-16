@@ -181,6 +181,28 @@ static func make_item_use(type: DamageType = null) -> ActionReel:
 	reel.faces.shuffle()
 	return reel
 
+## Builds the Flee-attempt reel (2026-08-16 combat-encounter-revamp spec §1): a no-damage
+## utility reel reusing ABILITY_COMPOSITION's tier counts/odds (5 crit-fail / 10 fail / 30
+## success / 5 crit-success, out of 50) — same shape already approved for resource-costed
+## abilities, no new numbers invented. Every face has multiplier 0 (Flee never deals damage)
+## and no rider. is_weapon_attack = false (out of paylines, same convention as Rallying Cry/
+## item-use); charges_meter = false (attempting to escape shouldn't fuel the Bonus Meter).
+## The orchestrator reads the landed tier post-spin: SUCCESS/CRIT_SUCCESS ends the encounter,
+## FAILURE/CRIT_FAILURE just wastes the turn. [ASSUMPTION] tune tier weights by playtest,
+## same as every other reel composition.
+static func make_flee() -> ActionReel:
+	var reel: ActionReel = ActionReel.new()
+	reel.damage_type = null
+	reel.is_weapon_attack = false
+	reel.charges_meter = false
+	for entry: Array in ABILITY_COMPOSITION:
+		var tier: ReelFace.ResultTier = entry[0]
+		var count: int = entry[2]
+		for i: int in range(count):
+			reel.faces.append(_make_face(tier, 0.0))
+	reel.faces.shuffle()
+	return reel
+
 static func _make_face(tier: ReelFace.ResultTier, multiplier: float) -> ReelFace:
 	var face: ReelFace = ReelFace.new()
 	face.result_tier = tier

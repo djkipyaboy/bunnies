@@ -208,6 +208,13 @@ func _initialize() -> void:
 	_check(plan_seer.ability_staged, "stage_select_fate() stages the ability")
 	_check(plan_seer.staged_item_type == &"", "stage_select_fate() un-stages the item (mutual exclusion)")
 
+	# stage_select_fate() must also un-stage Flee (2026-08-16 final-review fix wave, Important #2 —
+	# the 4 toggle_* methods already cleared flee_staged; these 2 modal-picker entry points were missed).
+	plan_seer.toggle_flee()
+	_check(plan_seer.flee_staged, "sanity: flee staged before stage_select_fate()")
+	plan_seer.stage_select_fate(slashing)
+	_check(not plan_seer.flee_staged, "stage_select_fate() un-stages a previously-staged flee")
+
 	# stage_big_bang() (Seer Ultimate alternate entry point)
 	var item_inv3: PartyInventory = PartyInventory.new()
 	var potion3: ConsumableItem = ConsumableItem.new()
@@ -228,6 +235,12 @@ func _initialize() -> void:
 	plan_seer2.stage_big_bang(slashing)
 	_check(plan_seer2.fire_ultimate_staged, "stage_big_bang() stages the ultimate")
 	_check(plan_seer2.staged_item_type == &"", "stage_big_bang() un-stages the item (mutual exclusion)")
+
+	# stage_big_bang() must also un-stage Flee (2026-08-16 final-review fix wave, Important #2).
+	plan_seer2.toggle_flee()
+	_check(plan_seer2.flee_staged, "sanity: flee staged before stage_big_bang()")
+	plan_seer2.stage_big_bang(slashing)
+	_check(not plan_seer2.flee_staged, "stage_big_bang() un-stages a previously-staged flee")
 
 	# toggle_ultimate()
 	var item_inv4: PartyInventory = PartyInventory.new()
@@ -264,6 +277,37 @@ func _initialize() -> void:
 	pce.toggle_extra_ability(&"riposte_storm")
 	_check(pce.staged_extra_ability_id == &"riposte_storm", "toggle_extra_ability() stages the extra ability")
 	_check(pce.staged_item_type == &"", "toggle_extra_ability() un-stages the item (mutual exclusion)")
+
+	# --- Flee: stages as a whole-turn replacement, mutually exclusive with everything else ---
+	var fleeing: Combatant = _mk_pc(3, 0)
+	var plan_flee: MainPhasePlan = MainPhasePlan.new(fleeing, 2, 5, 2)
+	_check(plan_flee.can_stage_flee(), "flee stageable with no boss enemy present")
+	plan_flee.toggle_flee()
+	_check(plan_flee.flee_staged, "flee staged after toggle")
+	_check(plan_flee.preview_reels().size() == 1, "flee preview REPLACES the loadout with 1 reel (got %d)" % plan_flee.preview_reels().size())
+	_check(not plan_flee.preview_reels()[0].is_weapon_attack, "previewed flee reel is out of paylines")
+	_check(fleeing.turn_reels.size() == 3, "PREVIEW DID NOT MUTATE turn_reels (got %d)" % fleeing.turn_reels.size())
+
+	# --- Staging an ability un-stages Flee ---
+	plan_flee.toggle_ability()
+	_check(plan_flee.ability_staged, "ability staged")
+	_check(not plan_flee.flee_staged, "staging ability un-stages flee")
+
+	# --- Staging Flee un-stages a prior ability ---
+	plan_flee.toggle_ability()  # un-stage the ability first
+	plan_flee.toggle_ability()  # re-stage it
+	plan_flee.toggle_flee()
+	_check(plan_flee.flee_staged, "flee staged")
+	_check(not plan_flee.ability_staged, "staging flee un-stages a previously-staged ability")
+
+	# --- Commit: replaces turn_reels with exactly the flee reel, sets flee_reel, no resource spent ---
+	var committer: Combatant = _mk_pc(3, 0)
+	var plan_commit: MainPhasePlan = MainPhasePlan.new(committer, 2, 5, 2)
+	plan_commit.toggle_flee()
+	plan_commit.commit()
+	_check(committer.turn_reels.size() == 1, "commit: turn_reels replaced with 1 reel (got %d)" % committer.turn_reels.size())
+	_check(committer.flee_reel == committer.turn_reels[0], "commit: flee_reel points at the committed reel")
+	_check(committer.resource_pool.stamina == 3, "commit: flee costs no resource (got %d)" % committer.resource_pool.stamina)
 
 	print(("MAIN PHASE PLAN TEST PASSED" if _failures == 0 else "MAIN PHASE PLAN TEST FAILED: %d" % _failures))
 	quit(_failures)

@@ -56,6 +56,7 @@ var _items_button: Button
 var _ultimate_button: Button
 var _paylines_button: Button
 var _team_up_button: Button
+var _flee_button: Button
 var _team_up_panel: TeamUpPanel
 var _jackpot_bar: ProgressBar
 var _jackpot_caption: Label
@@ -117,6 +118,13 @@ var _handoff_continue_resolved: bool = false
 ## enough) — reset per _build_combatants() call, surfaced on the result card in _on_combat_ended().
 var _fight_xp_gained: int = 0
 var _fight_amber_gained: int = 0
+## Per-PC XP actually credited THIS fight (Combatant -> int), tracked alongside _fight_xp_gained
+## so a Flee can revert it precisely. NOT simply _fight_xp_gained applied to every PC: the flat
+## per-kill XP loop in _on_enemy_defeated() only credits PCs who were is_alive() AT THAT KILL, so
+## a PC who died/revived mid-fight can have a different running total than another PC — a single
+## fight-wide total subtracted uniformly would either under- or over-revert whichever PC's actual
+## total differs (2026-08-16 review finding). Reset alongside _fight_xp_gained.
+var _fight_xp_gained_per_pc: Dictionary = {}
 ## The real overworld party's shared inventory (2026-07-12 combat loot drops) — set ONLY in the
 ## handoff launch path (_build_combatants()); stays null for a standalone "Choose your Party"
 ## launch, since there's no real PartyInventory (or any UI to view one) behind that flow. Every
@@ -129,6 +137,11 @@ var _fight_loot_names: Array[String] = []
 ## _fight_loot_names in _build_combatants(). Copied into CombatHandoff.pending_ground_drops on
 ## Continue (2026-07-14-ground-item-pickups-design.md §3.3).
 var _fight_overflow_items: Array[Gear] = []
+## The actual Gear Resources successfully granted into _party_inventory THIS fight (parallel to
+## _fight_loot_names, which only keeps display-name strings) — needed so a Flee can call
+## take_gear() to reverse the grant precisely (2026-08-16 review finding). Reset alongside
+## _fight_loot_names.
+var _fight_granted_gear: Array[Gear] = []
 var _rerolled_indices: Array[int] = []   # strip indices changed by the Chancer post-spin reroll/gamble (for the RE-ROLL tag)
 var _collateral_total: int = 0           # this spin's primary-target total, for the Ranger Collateral splash (half to other enemies)
 var _big_bang_total: int = 0             # this spin's total damage, for the Seer Big Bang party heal (1/6 to each ally)
@@ -136,6 +149,8 @@ var _earthquake_total: int = 0           # this spin's primary-target total, for
 var _darkness_rampage_total: int = 0      # this spin's total damage, for the Hollow Warden's Darkness Rampage self-heal (half of total)
 var _rallying_cry_tier: int = -1         # the Warden Rallying Cry reel's landed tier this spin (-1 = none)
 var _item_use_tier: int = -1             # the item-use reel's landed tier this spin (-1 = none)
+var _flee_tier: int = -1         # this spin's Flee reel landed tier (-1 = none staged)
+var _fled_this_encounter: bool = false  # true once a Flee attempt has succeeded this fight
 var _fate_picker: Panel                  # Seer "Select your Fate!" 6-damage-type picker modal (hidden until staged)
 var _fate_picker_mode: StringName = &"ability"  # which staging the picker feeds: &"ability" (Select your Fate) | &"ultimate" (The Big Bang)
 var _fate_picker_title: Label            # picker heading, re-captioned per mode
@@ -206,8 +221,12 @@ func _build_combatants() -> void:
 	_enemies.clear()
 	_fight_xp_gained = 0
 	_fight_amber_gained = 0
+	_fight_xp_gained_per_pc = {}
 	_fight_loot_names = []
 	_fight_overflow_items = []
+	_fight_granted_gear = []
+	_fled_this_encounter = false  # per-fight flag (2026-08-16 review finding, Minor) — a rematch
+	_flee_tier = -1               # after a prior Flee must not carry over stale flee state
 	if _arrived_via_handoff:
 		# Overworld handoff (spec §3.4): the party is already real, already-equipped Combatants — no
 		# ClassLibrary build, no ENDGAME scaling (that's a fresh-spawn testing aid, not appropriate for
@@ -477,6 +496,17 @@ func _build_ui() -> void:
 	_team_up_button.disabled = true
 	_team_up_button.tooltip_text = "Free action: spend a full Jackpot Meter on a party-wide bonus round."
 	add_child(_team_up_button)
+
+	# Flee button (2026-08-16 combat-encounter-revamp spec §1) — same 3rd-row convention as
+	# Items/Team-Up!; gating (staged-state text + boss-disable) computed in
+	# _refresh_main1_preview() alongside them.
+	_flee_button = Button.new()
+	_flee_button.text = "Flee"
+	_flee_button.position = Vector2(col_x.call(2), ROW3_Y)
+	_flee_button.custom_minimum_size = Vector2(BTN_W, 44)
+	_flee_button.disabled = true
+	_flee_button.tooltip_text = "Attempt to escape the fight — a single reel spin decides for the whole party. Replaces your attack this turn. All loot/XP is forfeited on success."
+	add_child(_flee_button)
 
 	# Jackpot Meter HUD (2026-07-29 spec §2) — same translucent-bar convention as the world scenes.
 	# A small caption above the bar (final-review fix 2026-07-30): previously an unlabeled gold bar
@@ -1134,6 +1164,7 @@ func _bind_signals() -> void:
 	_items_button.pressed.connect(_on_items_pressed)
 	_item_menu.item_pressed.connect(_on_item_menu_item_pressed)
 	_team_up_button.pressed.connect(_on_team_up_pressed)
+	_flee_button.pressed.connect(_on_flee_pressed)
 	_ultimate_button.pressed.connect(_on_ultimate_pressed)
 	_paylines_button.pressed.connect(_on_paylines_pressed)
 	_dummy_toggle_button.pressed.connect(_on_dummy_toggle_pressed)
@@ -1275,6 +1306,7 @@ func _on_turn_started(c: Combatant) -> void:
 		_ultimate_button.disabled = true
 		_items_button.disabled = true
 		_team_up_button.disabled = true
+		_flee_button.disabled = true
 		_prepare_strips(c.turn_reels)  # show the reels (idle) behind the gate
 		_log("  %s is STUNNED — %s a shake-off roll." % [c.display_name, "press SPIN for" if c.is_player else "rolling"])
 		if c.is_player:
@@ -1301,6 +1333,7 @@ func _take_dummy_turn(c: Combatant) -> void:
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	var none: Array[ActionReel] = []
 	_prepare_strips(none)  # no reels — the dummy doesn't spin
 	var missing: int = c.max_hp - c.hp
@@ -1419,6 +1452,7 @@ func _on_spin_pressed() -> void:
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	_ability_menu.hide()
 	_item_menu.hide()
 	_abilities_button.modulate = Color(1, 1, 1)
@@ -1467,6 +1501,13 @@ func _on_abilities_pressed() -> void:
 	_item_menu.hide()  # the two menus float at the same spot (2026-07-14 final review) — only one at a time
 	_ability_menu.open_for(_attacker, _plan)
 	move_child(_ability_menu, get_child_count() - 1)  # draw over the reel strips while up
+
+## Toggles Flee directly (no sub-menu — there's nothing to choose, unlike Abilities/Items).
+func _on_flee_pressed() -> void:
+	if not _awaiting_player_spin or _plan == null:
+		return
+	_plan.toggle_flee()
+	_refresh_main1_preview()
 
 ## One menu row pressed: dispatch to the existing model (base slot vs extra slot — mutual exclusivity
 ## is model-enforced, never policed here). A SUCCESSFUL stage/un-stage closes the menu so the reel/
@@ -1528,6 +1569,7 @@ func _on_team_up_pressed() -> void:
 	_items_button.disabled = true
 	_ultimate_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	_ability_menu.hide()
 	_item_menu.hide()
 	move_child(_team_up_panel, get_child_count() - 1)
@@ -1645,6 +1687,15 @@ func _refresh_main1_preview() -> void:
 		_items_button.modulate = Color(1, 1, 1)
 	_items_button.disabled = not (is_player_main1 and _party_inventory != null and not _party_inventory.items.is_empty())
 	_team_up_button.disabled = not (is_player_main1 and _party_inventory != null and _party_inventory.jackpot_meter >= PartyInventory.JACKPOT_CAP)
+	# Flee button (2026-08-16 spec §1): staged-green + label convention matching Items/Abilities;
+	# disabled entirely against a Boss/Elite encounter regardless of staged state.
+	if _plan.flee_staged:
+		_flee_button.text = "Flee ✓"
+		_flee_button.modulate = Color(0.6, 1.0, 0.6)
+	else:
+		_flee_button.text = "Flee"
+		_flee_button.modulate = Color(1, 1, 1)
+	_flee_button.disabled = not (is_player_main1 and _plan.can_stage_flee() and not _any_enemy_is_boss())
 	if _item_menu.visible:
 		_item_menu.open_for(_plan, _party_inventory, _ally_target)  # keep an open menu's row states live
 
@@ -1717,6 +1768,15 @@ func _weapon_attack_count(reels: Array[ActionReel]) -> int:
 		else:
 			break
 	return n
+
+## True if any enemy in this encounter is a Boss/Elite (2026-08-16 spec §1: Flee is disabled
+## entirely against a scripted boss fight — reuses is_boss, the same flag that already gates
+## Bonus Meter visibility per CLAUDE.md §4.9, rather than introducing a separate Elite flag).
+func _any_enemy_is_boss() -> bool:
+	for e: Combatant in _enemies:
+		if e.is_boss:
+			return true
+	return false
 
 ## Clears any payline-preview highlight on all strips.
 func _clear_payline_preview() -> void:
@@ -1950,6 +2010,14 @@ func _do_spin() -> void:
 		var iu_idx: int = reels.find(_attacker.item_use_reel)
 		if iu_idx >= 0 and iu_idx < attacks.size():
 			_item_use_tier = attacks[iu_idx].face.result_tier
+	# Flee reel (2026-08-16 spec §1): read the utility reel's resolved tier the same way, so
+	# _finish_spin can decide whether the whole party escapes. flee_reel is null unless Flee was
+	# staged this turn.
+	_flee_tier = -1
+	if _attacker.flee_reel != null:
+		var flee_idx: int = reels.find(_attacker.flee_reel)
+		if flee_idx >= 0 and flee_idx < attacks.size():
+			_flee_tier = attacks[flee_idx].face.result_tier
 	# Re-score paylines on the FINAL grid and emit with the attacker's profile: Chancer uses the ~20
 	# casino lines + left-aligned runs; every other class keeps the default whole-line set. (The resolver
 	# deferred the emit above.) `extra_lines` (Loaded Dice's bonus line, built above) must be folded
@@ -2547,6 +2615,18 @@ func _finish_spin() -> void:
 		_log("  ✚ %s uses %s%s — %s heals %d HP (%d/%d)." % [_attacker.display_name, item_name, tier_text, _ally_target.display_name, amount, _ally_target.hp, _ally_target.max_hp])
 		if _panels.has(_ally_target):
 			(_panels[_ally_target] as CombatantPanel).refresh_status()
+	# Flee attempt (2026-08-16 spec §1): SUCCESS/CRIT_SUCCESS ends the encounter for the whole
+	# party immediately (no further turns, no XP/loot); FAILURE/CRIT_FAILURE just wastes this
+	# turn — fall through to the normal end-of-spin flow below exactly like any non-damaging
+	# action, and the party may attempt Flee again on a later round.
+	if _attacker.flee_reel != null and _flee_tier != -1:
+		if _flee_tier == ReelFace.ResultTier.SUCCESS or _flee_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			var tier_text2: String = "CRITICAL SUCCESS" if _flee_tier == ReelFace.ResultTier.CRIT_SUCCESS else "SUCCESS"
+			_log("  🏃 %s attempts to Flee — %s! The party escapes." % [_attacker.display_name, tier_text2])
+			_on_combat_fled()
+			return
+		else:
+			_log("  🏃 %s attempts to Flee — fails! The turn is wasted." % _attacker.display_name)
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	if _attacker.is_boss and _attacker.weapon.base_damage == 18.0:
@@ -2566,6 +2646,7 @@ func _finish_spin() -> void:
 	_ultimate_button.disabled = true
 	_items_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	_abilities_button.modulate = Color(1, 1, 1)
 	_ultimate_button.modulate = Color(1, 1, 1)
 	_items_button.modulate = Color(1, 1, 1)
@@ -2599,6 +2680,7 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 	for pc: Combatant in _pcs:
 		if pc.is_alive():
 			pc.xp += ENEMY_XP_REWARD
+			_fight_xp_gained_per_pc[pc] = _fight_xp_gained_per_pc.get(pc, 0) + ENEMY_XP_REWARD
 	_fight_xp_gained += ENEMY_XP_REWARD
 	_log("%s defeated — party gains %d XP! (total this fight: %d)" % [enemy.display_name, ENEMY_XP_REWARD, _fight_xp_gained])
 	# Amber (2026-07-17 general store design): standalone launches (_party_inventory == null) skip
@@ -2617,6 +2699,7 @@ func _on_enemy_defeated(enemy: Combatant) -> void:
 				var g: Gear = item as Gear
 				if _party_inventory.try_give_gear(g):
 					_fight_loot_names.append(g.display_name)
+					_fight_granted_gear.append(g)
 					_log("Loot: %s" % g.display_name)
 				else:
 					_fight_overflow_items.append(g)
@@ -2636,6 +2719,7 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 	_spin_button.disabled = true
 	_end_turn_button.disabled = true
 	_team_up_button.disabled = true
+	_flee_button.disabled = true
 	_awaiting_player_spin = false
 	_awaiting_end_turn = false
 	var label: Label = _overlay.get_node("ResultLabel")
@@ -2677,6 +2761,66 @@ func _on_combat_ended(winner_is_player: bool) -> void:
 			_handoff().log_event("Looted: %s" % ", ".join(_fight_loot_names), &"combat")
 	_log("Combat over — %s wins." % ("you" if winner_is_player else "the enemy"))
 	move_child(_overlay, get_child_count() - 1)  # ensure the result card draws over everything
+	_overlay.visible = true
+
+## A Flee attempt succeeded (2026-08-16 spec §1): ends the encounter for the whole party without
+## going through the normal win/loss attrition check. Mirrors _on_combat_ended()'s overlay/label
+## bookkeeping but shows "FLED!" and deliberately shows NO XP/Amber/Loot — those are forfeited
+## entirely, even for enemies already defeated earlier in this same fight (unlike a real win,
+## which always keeps whatever was earned).
+func _on_combat_fled() -> void:
+	_fled_this_encounter = true
+	# Tally what's about to be forfeited BEFORE reverting/zeroing the trackers below, so the
+	# compensating Event Log line (2026-08-16 review finding, Important #3) can report accurate
+	# numbers. _on_enemy_defeated() already wrote a "<enemy> defeated — party gains N Amber"-style
+	# line into the persistent cross-scene Event Log at kill time; without this, that stale
+	# positive line survives a Flee even though the Amber/XP it announced is being clawed back.
+	var forfeited_xp: int = _fight_xp_gained
+	var forfeited_amber: int = _fight_amber_gained
+	# Revert XP/Amber/Loot already granted from enemies defeated earlier THIS fight (2026-08-16
+	# review finding, Critical #1): _on_enemy_defeated() applies these to PERMANENT party state
+	# immediately at kill-time, so a Flee after an earlier kill must undo that state, not merely
+	# suppress its display. XP is reverted per-PC via _fight_xp_gained_per_pc (NOT a uniform
+	# _fight_xp_gained subtraction from every PC) because the flat-XP-per-kill loop only credits
+	# PCs who were is_alive() at that specific kill — a PC who died/revived mid-fight can have a
+	# different running total than another PC.
+	for pc: Combatant in _fight_xp_gained_per_pc:
+		pc.xp -= int(_fight_xp_gained_per_pc[pc])
+	if _party_inventory != null:
+		_party_inventory.amber -= _fight_amber_gained
+		for g: Gear in _fight_granted_gear:
+			_party_inventory.take_gear(g)
+	# Defensive: zero the trackers now that they've been applied, in case of an unexpected
+	# double-call (e.g. a stray second Flee-tier check) — a repeat call must not double-revert.
+	_fight_xp_gained = 0
+	_fight_amber_gained = 0
+	_fight_xp_gained_per_pc = {}
+	_fight_granted_gear = []
+	for c: Combatant in _pcs:
+		c.clear_combat_effects()
+		if _panels.has(c):
+			(_panels[c] as CombatantPanel).refresh_riposte()
+	_last_result_won = true  # routes _resolve_handoff_continue() to return_scene_path (overworld), same as a win
+	_spin_button.disabled = true
+	_end_turn_button.disabled = true
+	_team_up_button.disabled = true
+	_flee_button.disabled = true
+	_awaiting_player_spin = false
+	_awaiting_end_turn = false
+	var label: Label = _overlay.get_node("ResultLabel")
+	label.text = "FLED!"
+	var continue_button: Button = _overlay.get_node_or_null("ContinueButton")
+	if continue_button != null:
+		continue_button.tooltip_text = "Return to the overworld. All loot and XP from this encounter were forfeited."
+	if _arrived_via_handoff:
+		var enemy_names: Array[String] = []
+		for e: Combatant in _enemies:
+			enemy_names.append(e.display_name)
+		_handoff().log_event("Fled from: %s" % ", ".join(enemy_names), &"combat")
+		if forfeited_xp > 0 or forfeited_amber > 0:
+			_handoff().log_event("Fled — forfeited %d XP, %d Amber." % [forfeited_xp, forfeited_amber], &"combat")
+	_log("Combat over — the party fled.")
+	move_child(_overlay, get_child_count() - 1)
 	_overlay.visible = true
 
 ## Shared by _on_continue_after_handoff_pressed() and press_continue_for_test() so the two can't
@@ -2749,7 +2893,9 @@ func _resolve_handoff_continue() -> String:
 		return ""
 	_handoff_continue_resolved = true
 	var handoff: Node = _handoff()
-	if _last_result_won:
+	if _fled_this_encounter:
+		pass  # no mark_defeated, no recovery, no defeat reset — the encounter is simply left behind
+	elif _last_result_won:
 		handoff.mark_defeated(handoff.pending_encounter_id)
 		_apply_post_combat_recovery()
 	else:
@@ -2760,9 +2906,13 @@ func _resolve_handoff_continue() -> String:
 	# gdscript-typed-array-node-set-gotcha: `as` only reliably retypes a fresh/untyped array literal,
 	# not an already concretely-typed Array[Gear]). Build a genuinely Array[Resource]-typed array
 	# instead.
+	# On a Flee, overflow loot must NOT leak through as a ground drop either (2026-08-16 review
+	# finding, Critical #2) — that loot was never earned, same as the XP/Amber/bag-loot reverted in
+	# _on_combat_fled() above. Leave overflow_drops empty in that case.
 	var overflow_drops: Array[Resource] = []
-	for g: Gear in _fight_overflow_items:
-		overflow_drops.append(g)
+	if not _fled_this_encounter:
+		for g: Gear in _fight_overflow_items:
+			overflow_drops.append(g)
 	handoff.pending_ground_drops = overflow_drops
 	var return_path: String = handoff.return_scene_path if _last_result_won else handoff.last_town_scene_path
 	handoff.clear_combat_data()

@@ -12,6 +12,12 @@ const ROWS: int = 3
 
 static func lines_for(width: int) -> Array:
 	var lines: Array = []
+	if width <= 0:
+		# A 0-width grid (e.g. a Flee-only loadout, 2026-08-16 flee-combat-option review finding)
+		# has no columns to score. Without this guard the ROWS loop below still appends 3 EMPTY
+		# row lines ([]) even though `width` produced nothing to put in them, and PaylineResolver
+		# then indexes line[0] on an empty Array — a runtime error. Return no lines at all instead.
+		return lines
 	for c: int in range(width):  # columns
 		lines.append([Vector2i(c, 0), Vector2i(c, 1), Vector2i(c, 2)])
 	for r: int in range(ROWS):  # rows

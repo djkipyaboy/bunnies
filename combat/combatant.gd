@@ -356,6 +356,12 @@ var big_bang_spins_remaining: int = 0
 ## each turn by begin_turn.
 var rallying_cry_reel: ActionReel = null
 
+## The Flee-attempt reel staged this turn, or null if Flee wasn't chosen (2026-08-16 combat-
+## encounter-revamp spec §1). Mirrors rallying_cry_reel/item_use_reel: set once on commit, read
+## by the orchestrator post-spin to find this reel's landed tier, cleared at the start of the
+## next turn.
+var flee_reel: ActionReel = null
+
 ## Warden "Earthquake" Ultimate state (spec 2026-06-29 §4): while > 0, this combatant added a 4th
 ## weapon-attack reel, made all weapon-attack reels WILD, and its spin splashes half its primary total
 ## to every OTHER enemy + force-stuns every damaged enemy. Like Collateral (primary takes FULL; not an
@@ -1341,6 +1347,7 @@ func begin_turn() -> void:
 		turn_reels.clear()
 	rallying_cry_reel = null  # Warden: clear last turn's recorded Rallying Cry reel
 	item_use_reel = null      # clear last turn's recorded item-use reel (2026-07-16 design)
+	flee_reel = null          # clear last turn's recorded Flee reel (2026-08-16 design)
 	pending_item_base_heal = 0
 	pending_item_name = ""
 
