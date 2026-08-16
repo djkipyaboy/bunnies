@@ -72,6 +72,11 @@ var staged_item_rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON
 ## enemy's turn — can_stage_item() always returns false when null.
 var party_inventory: PartyInventory = null
 
+## Whether Flee is staged this turn (2026-08-16 combat-encounter-revamp spec §1). Mutually
+## exclusive with every other staged choice — same "one special action per turn" slot as
+## staged_item_type — because Flee REPLACES the whole turn's loadout, not just adds to it.
+var flee_staged: bool = false
+
 func _init(c: Combatant, p_ability_cost: int = 2, p_reel_cap: int = 5, p_wild_spins: int = 2, p_party_inventory: PartyInventory = null) -> void:
 	combatant = c
 	ability_id = c.ability_id if c != null else &""
@@ -140,6 +145,7 @@ func toggle_extra_ability(id: StringName) -> void:
 		if _ultimate_conflicts_with_extra_ability(id):
 			fire_ultimate_staged = false  # e.g. staging Loaded Dice un-stages an armed Wildcard Gamble
 		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
+		flee_staged = false  # same mutual-exclusion family (2026-08-16 flee combat option spec §1)
 
 ## True when the active Ultimate is a crit-bias WILD variant (Warrior 1-spin / Skirmisher 2-spin sticky).
 func _is_wild_ultimate() -> bool:
@@ -212,6 +218,7 @@ func toggle_ability() -> void:
 			                                # a failed attempt (unaffordable/at cap) must not silently drop an
 			                                # already-staged extra ability (2026-07-01 finding on commit 76e4099)
 			staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
+			flee_staged = false  # same mutual-exclusion family (2026-08-16 flee combat option spec §1)
 
 ## Stages Select your Fate! with a player-chosen damage type (from the orchestrator's type-picker modal).
 ## No-op unless this is the Seer's ability and it can currently be staged.
@@ -252,6 +259,7 @@ func toggle_ultimate() -> void:
 		if _ultimate_conflicts_with_extra_ability(staged_extra_ability_id):
 			staged_extra_ability_id = &""  # e.g. staging Wildcard Gamble un-stages an armed Loaded Dice
 		staged_item_type = &""  # same mutual-exclusion family (2026-07-14 combat items menu)
+		flee_staged = false  # same mutual-exclusion family (2026-08-16 flee combat option spec §1)
 
 ## True iff the party owns at least one of (item_type, rarity). Un-staging is always allowed.
 func can_stage_item(item_type: StringName, rarity: RarityVisuals.Rarity = RarityVisuals.Rarity.COMMON) -> bool:
@@ -269,11 +277,31 @@ func toggle_item(item_type: StringName, rarity: RarityVisuals.Rarity = RarityVis
 		ability_staged = false
 		staged_extra_ability_id = &""
 		fire_ultimate_staged = false
+		flee_staged = false  # same mutual-exclusion family (2026-08-16 flee combat option spec §1)
+
+## True if Flee can be newly staged. Un-staging is always allowed. Boss/Elite exclusion
+## (2026-08-16 spec §1) is enforced by the caller (combat.gd), which alone knows the enemy
+## roster — MainPhasePlan only ever sees its own combatant.
+func can_stage_flee() -> bool:
+	return combatant != null
+
+func toggle_flee() -> void:
+	if flee_staged:
+		flee_staged = false
+	elif can_stage_flee():
+		flee_staged = true
+		ability_staged = false
+		staged_extra_ability_id = &""
+		fire_ultimate_staged = false
+		selected_fate_type = null
+		staged_item_type = &""
 
 ## The reels the spin WOULD use. A staged reel-adding ability (flurry/rend) appends a previewed
 ## own-type reel (rend's preview reel is a no-damage BLEED reel). Heft edits faces in place on commit,
 ## so it does not change the previewed COUNT. Read-only — never mutates the combatant.
 func preview_reels() -> Array[ActionReel]:
+	if flee_staged:
+		return [ActionReel.make_flee()]
 	var reels: Array[ActionReel] = combatant.turn_reels.duplicate()
 	if ability_staged and _ability_adds_reel() and reels.size() < reel_cap:
 		match ability_id:
@@ -382,6 +410,11 @@ func _weapon_reel_count() -> int:
 ## Applies the staged choices via committed Combatant methods. Called once, on SPIN. The methods
 ## carry their own guards; staging already validated, so they succeed. No-op when nothing is staged.
 func commit() -> void:
+	if flee_staged:
+		var reel: ActionReel = ActionReel.make_flee()
+		combatant.turn_reels = [reel]
+		combatant.flee_reel = reel
+		return  # Flee replaces the whole turn — no ability/ultimate/item commit runs
 	# When Heft is free-via-Rampage, skip the paid ability commit — fire_rampage applies the Heft itself.
 	var talent_cost: int = ability_cost + combatant.ability_talent_cost_delta(ability_id)
 	if ability_staged and not ability_is_free():
