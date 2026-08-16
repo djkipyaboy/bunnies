@@ -368,9 +368,12 @@ var rallying_cry_reel: ActionReel = null
 ## (via take_damage(hp), the existing self-defeat pattern — see apply_summon_minion()).
 var active_minion: Combatant = null
 
-## How many post-summon stages THIS combatant (when is_minion is true) has completed on its OWN
-## turns. Stage 1 always fires synchronously at summon time (2026-08-16 spec §3) and is NOT
-## counted here; this tracks stage 2/3 on the minion's subsequent turns. Expires after stage 3.
+## Total number of post-summon stages THIS combatant (when is_minion is true) has completed so
+## far, across BOTH the synchronous summon-time fire and its own subsequent turns (2026-08-16
+## spec §3). Stage 1 fires synchronously at summon time, and the summon-payoff code sets this to
+## 1 immediately afterward; the minion's own-turn handler then does `minion_stage += 1` before
+## calling `_run_minion_stage()`, producing 2 on its first real turn and 3 (which expires it) on
+## its second. Starts at 0 only transiently, before stage 1 has run.
 var minion_stage: int = 0
 
 ## The Flee-attempt reel staged this turn, or null if Flee wasn't chosen (2026-08-16 combat-

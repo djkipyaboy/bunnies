@@ -2750,13 +2750,13 @@ func _finish_spin() -> void:
 		var tanky: bool = _summon_tier == ReelFace.ResultTier.CRIT_SUCCESS
 		var minion: Combatant = MinionLibrary.make(tanky)
 		_attacker.active_minion = minion
-		minion.minion_stage = 0
 		_turn_manager.roll_initiative_for(minion)
 		_turn_manager.combatants.append(minion)  # NOT insert_acting_this_round() — see comment above
 		_build_minion_panel(minion)
 		var tier_text: String = "CRITICAL SUCCESS — a stronger" if tanky else "SUCCESS — a"
 		_log("  🔥 %s summons Ember Minion — %s minion appears! (%d HP)" % [_attacker.display_name, tier_text, minion.max_hp])
 		_run_minion_stage(minion, 1)
+		minion.minion_stage = 1  # stage 1 has now run; Task 6's own-turn handler does `+= 1` to reach stage 2 next
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	if _attacker.is_boss and _attacker.weapon.base_damage == 18.0:
