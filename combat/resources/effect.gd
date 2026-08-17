@@ -68,7 +68,11 @@ enum Kind { INITIATIVE_MOD, DAMAGE_OVER_TIME, MULTIPLIER_EDIT, REEL_FACE_EDIT }
 @export var grants_stun_immunity: bool = false
 
 ## Live stack count on an attached effect (a freshly made effect is 1 stack). Grown by add_stack().
-var stacks: int = 1
+## Exported (2026-08-17 fix) so Resource.duplicate() — which only copies @export'ed/STORAGE
+## properties — actually carries a pre-set stack count through Combatant.attach_effect()'s
+## defensive duplicate(); previously a bare non-exported var, this silently reset any
+## pre-stacked Effect (e.g. Grand Sacrifice's improved Cursed) back to 1 stack on attach.
+@export var stacks: int = 1
 
 ## Decrements the remaining duration by one bearer-turn (clamped at 0).
 func tick() -> void:

@@ -909,12 +909,23 @@ const GRAND_SACRIFICE_HASTY_TURNS: int = 2
 func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 	match variant:
 		&"ember":
-			if _defender != null and _defender.is_alive():
+			# _splash_half_to_others() excludes whichever combatant the `_defender` MEMBER points to
+			# (it splashes to every OTHER enemy) — so if the primary target had already died this
+			# round, _defender must be re-pointed at the fallback target too, not just a local var,
+			# or the fallback target would wrongly get counted as an "other" and take splash on top
+			# of its own burst. Mirrors the existing _on_team_up_resolved dead-target retarget idiom
+			# (search "Team-Up is the first mechanic that can kill an enemy").
+			if _defender == null or not _defender.is_alive():
+				_defender = Combat.first_living(_enemies_of(caster))
+			if _defender != null:
 				_defender.take_damage(GRAND_SACRIFICE_EMBER_BURST)
 				var splashed: Array[Combatant] = _splash_half_to_others(caster, GRAND_SACRIFICE_EMBER_BURST, "Piercing", 0.5)
 				_log("  🔥 Grand Sacrifice (Ember): %d burst damage, splashed to %d other enemies." % [GRAND_SACRIFICE_EMBER_BURST, splashed.size()])
 				if _panels.has(_defender):
 					(_panels[_defender] as CombatantPanel).refresh_status()
+				_refresh_target_highlight()
+			else:
+				_log("  🔥 Grand Sacrifice (Ember) whiffs: no living enemy to burst.")
 		&"dew":
 			for ally: Combatant in _allies_of(caster):
 				if not ally.is_alive():
@@ -925,6 +936,12 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				thorns.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — thorns_pct is read directly regardless of kind
 				thorns.thorns_pct = GRAND_SACRIFICE_DEW_THORNS_PCT
 				thorns.duration = GRAND_SACRIFICE_DEW_TURNS
+				# Caster acts THIS turn, so its own End ticks the buff once immediately — +1 duration
+				# so it still benefits over 2 FRESH turns (same fix as Inspirational, see combat.gd's
+				# CRIT LINE handler). Non-caster allies haven't had their own turn yet this round, so
+				# they tick normally.
+				if ally == caster:
+					thorns.duration += 1
 				thorns.beneficial = true
 				ally.attach_effect(thorns)
 				# The "cleansing buff that removes one debuff EVERY turn for 2 turns" (not a one-time
@@ -934,6 +951,8 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				cleanse.id = &"grand_sacrifice_cleanse"
 				cleanse.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — checked by id, not by kind
 				cleanse.duration = GRAND_SACRIFICE_DEW_TURNS
+				if ally == caster:
+					cleanse.duration += 1
 				cleanse.beneficial = true
 				ally.attach_effect(cleanse)
 				if _panels.has(ally):
@@ -963,20 +982,24 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 			for ally: Combatant in _allies_of(caster):
 				if not ally.is_alive():
 					continue
+				# Caster acts THIS turn, so its own End ticks each buff once immediately — +1 duration
+				# so it still benefits over 2 FRESH turns (same fix as Inspirational/Dew's Thorns
+				# above). Non-caster allies haven't had their own turn yet this round.
+				var bonus_turns: int = 1 if ally == caster else 0
 				var regen := Effect.new()
 				regen.id = &"grand_sacrifice_regen"
 				regen.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — regen_bonus is read directly
 				regen.regen_bonus = HASTY_REGEN_BONUS
-				regen.duration = GRAND_SACRIFICE_HASTY_TURNS
+				regen.duration = GRAND_SACRIFICE_HASTY_TURNS + bonus_turns
 				regen.beneficial = true
 				ally.attach_effect(regen)
 				var empowered: Effect = EffectLibrary.make(&"empowered")
-				empowered.duration = GRAND_SACRIFICE_HASTY_TURNS
+				empowered.duration = GRAND_SACRIFICE_HASTY_TURNS + bonus_turns
 				ally.attach_effect(empowered)
 				var surge := Effect.new()
 				surge.id = &"reel_surge"
 				surge.kind = Effect.Kind.REEL_FACE_EDIT
-				surge.duration = GRAND_SACRIFICE_HASTY_TURNS
+				surge.duration = GRAND_SACRIFICE_HASTY_TURNS + bonus_turns
 				surge.beneficial = true
 				ally.attach_effect(surge)
 				if _panels.has(ally):

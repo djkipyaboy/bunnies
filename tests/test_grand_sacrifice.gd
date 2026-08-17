@@ -113,6 +113,25 @@ func _run_ember_variant() -> void:
 
 	await _free_combat(inst)
 
+# --- Ember variant: falls back to another living enemy when the primary _defender already died
+#     earlier this same round, rather than silently no-oping after the meter/minion cost is paid ---
+func _run_ember_variant_defender_dead_fallback() -> void:
+	var pc: Combatant = _make_summoner(&"ember", true)
+	var enemy1: Combatant = Combatant.new(); enemy1.base_max_hp = 300; enemy1.apply_stats(); enemy1.start_combat()
+	var enemy2: Combatant = Combatant.new(); enemy2.base_max_hp = 300; enemy2.apply_stats(); enemy2.start_combat()
+	var inst: Combat = await _build_combat(pc, [], [enemy1, enemy2])
+	enemy1.take_damage(enemy1.hp)  # primary _defender died earlier this same round
+	_check(not enemy1.is_alive(), "fallback setup: primary _defender is already dead")
+
+	var hp2_before: int = enemy2.hp
+	inst._plan.toggle_ultimate()
+	inst._commit_main1()
+
+	_check(enemy2.hp == hp2_before - Combat.GRAND_SACRIFICE_EMBER_BURST, "ember fallback: burst damage falls back to the other living enemy instead of silently no-oping")
+	_check(pc.bonus_meter.value == 0, "ember fallback: meter still consumed even though _defender was dead")
+
+	await _free_combat(inst)
+
 # --- Dew variant: large AoE heal + improved Thorns + a repeating per-turn cleanse for 2 turns ---
 func _run_dew_variant() -> void:
 	var pc: Combatant = _make_summoner(&"dew", true)
@@ -150,6 +169,60 @@ func _run_misfortune_variant() -> void:
 	for enemy: Combatant in [enemy1, enemy2]:
 		_check(enemy.has_effect(&"jinxed"), "misfortune: every living enemy is Jinxed")
 		_check(enemy.has_effect(&"cursed"), "misfortune: every living enemy carries the improved Curse")
+		# The "improved" part is the pre-stacked magnitude, not just presence of the id — this is the
+		# assertion that would have caught a duplicate()-drops-non-exported-stacks regression (Effect.stacks
+		# is not @export'ed by default; attach_effect()'s defensive duplicate() would otherwise silently
+		# reset a pre-stacked Effect back to 1 stack). Find the LIVE attached instance (not the local
+		# `curse` var built in combat.gd, which is a different object after duplicate()).
+		var attached: Effect = null
+		for e: Effect in enemy.active_effects:
+			if e.id == &"cursed":
+				attached = e
+		_check(attached != null, "misfortune: found the live attached Cursed instance")
+		_check(attached.stacks == 3, "misfortune: improved Cursed lands at 3 stacks, not reset to 1 (got %d)" % attached.stacks)
+		_check(attached.dot_damage() == ceili(2.0 * 1.15), "misfortune: improved Cursed ticks for the STRONGEST fraction (got %d)" % attached.dot_damage())
+
+	await _free_combat(inst)
+
+# --- Dew variant: the repeating cleanse fires EXACTLY twice for the CASTER (who cast on their own
+#     Main 1, so their own End ticks the marker once immediately this same round — the exact
+#     off-by-one Important #1 called out) before expiring, never degenerating into a one-shot. ---
+func _run_dew_repeating_cleanse_full_cycle() -> void:
+	var pc: Combatant = _make_summoner(&"dew", true)
+	# Long-duration debuffs (NOT weakened/sundered's own default duration=2) so only the repeating
+	# cleanse — never the debuffs' own natural expiry — can remove them inside the tested window.
+	var debuff1 := Effect.new()
+	debuff1.id = &"test_debuff_1"; debuff1.kind = Effect.Kind.MULTIPLIER_EDIT; debuff1.duration = 10; debuff1.beneficial = false
+	var debuff2 := Effect.new()
+	debuff2.id = &"test_debuff_2"; debuff2.kind = Effect.Kind.MULTIPLIER_EDIT; debuff2.duration = 10; debuff2.beneficial = false
+	pc.attach_effect(debuff1)
+	pc.attach_effect(debuff2)
+	_check(pc.has_effect(&"test_debuff_1") and pc.has_effect(&"test_debuff_2"), "cleanse-cycle setup: caster carries 2 long-lived debuffs before the cast")
+	var enemy: Combatant = Combatant.new(); enemy.base_max_hp = 300; enemy.apply_stats(); enemy.start_combat()
+	var inst: Combat = await _build_combat(pc, [], [enemy])
+
+	inst._plan.toggle_ultimate()
+	inst._commit_main1()
+	_check(pc.has_effect(&"grand_sacrifice_cleanse"), "cleanse-cycle: marker attached after cast")
+
+	# Round N (the cast turn itself): caster's own End ticks the marker once immediately.
+	inst._on_phase_changed(PhaseManager.Phase.END)
+	_check(pc.has_effect(&"test_debuff_1") and pc.has_effect(&"test_debuff_2"), "cleanse-cycle: no tick yet, both debuffs still present after the cast turn's End")
+
+	# Round N+1: caster's own Upkeep — 1st REAL cleanse tick.
+	inst._on_phase_changed(PhaseManager.Phase.UPKEEP)
+	_check(not pc.has_effect(&"test_debuff_1"), "cleanse-cycle: 1st tick removes the OLDEST debuff (test_debuff_1)")
+	_check(pc.has_effect(&"test_debuff_2"), "cleanse-cycle: the 2nd debuff survives the 1st tick")
+	inst._on_phase_changed(PhaseManager.Phase.END)
+
+	# Round N+2: caster's own Upkeep — 2nd REAL cleanse tick (this is the tick the one-shot bug lost).
+	inst._on_phase_changed(PhaseManager.Phase.UPKEEP)
+	_check(not pc.has_effect(&"test_debuff_2"), "cleanse-cycle: 2nd tick removes the 2nd debuff (the caster got 2 real ticks, not 1)")
+	_check(pc.has_effect(&"grand_sacrifice_cleanse"), "cleanse-cycle: marker still active immediately after delivering its 2nd tick")
+	inst._on_phase_changed(PhaseManager.Phase.END)
+
+	# Round N+3: the marker must now be expired — it does not linger for a 3rd tick.
+	_check(not pc.has_effect(&"grand_sacrifice_cleanse"), "cleanse-cycle: marker has expired after exactly 2 ticks, not still active")
 
 	await _free_combat(inst)
 
@@ -176,7 +249,9 @@ func _initialize() -> void:
 	_run_can_stage_with_minion_and_meter()
 	_run_firing_consumes_meter_and_minion()
 	await _run_ember_variant()
+	await _run_ember_variant_defender_dead_fallback()
 	await _run_dew_variant()
+	await _run_dew_repeating_cleanse_full_cycle()
 	await _run_misfortune_variant()
 	await _run_hasty_variant()
 
