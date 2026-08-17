@@ -134,6 +134,13 @@ var heal_boss_pending: bool = false
 ## a freshly-seeded warden_curse to every living PC. Spec 2026-07-19 §3.2.
 var curse_party_pending: bool = false
 
+## Set by [method fire_grand_sacrifice] to the SACRIFICED minion's own minion_type (ember/dew/
+## misfortune/hasty); consumed by the orchestrator (combat.gd's _commit_main1 -> _apply_grand_
+## sacrifice) to apply that variant's effect, which needs enemy/ally target lists Combatant doesn't
+## have. Mirrors heal_boss_pending/curse_party_pending's pending-flag pattern. "" = none pending.
+## 2026-08-16 summoner-ability-kit spec §8.
+var grand_sacrifice_variant_pending: StringName = &""
+
 ## Spins remaining of the Hollow Warden's phase-locked Darkness Rampage AoE attack (spec 2026-07-19
 ## §3.5) — set directly by the phase-transition orchestrator (NOT a meter-gated fire_X(), since
 ## Darkness Rampage auto-replaces the boss's normal attack rather than being player/AI-staged).
@@ -2258,6 +2265,24 @@ func is_earthquake_active() -> bool:
 func consume_earthquake_spin() -> void:
 	if earthquake_spins_remaining > 0:
 		earthquake_spins_remaining -= 1
+
+# ---------------------------------------------------------------------------
+# Summoner "Grand Sacrifice" Ultimate (2026-08-16 summoner-ability-kit spec §8) — no fire_X() reel/
+# spin component (same shape as the Hollow Warden's Dark Reinforcements). can_stage_ultimate()
+# already confirmed an active, alive minion exists before this is ever called.
+# ---------------------------------------------------------------------------
+
+## Fires Grand Sacrifice: consumes the Bonus Meter and sacrifices the active minion (self-inflicted
+## fatal damage — the same expiry idiom used everywhere else a minion is replaced/expires, e.g.
+## combat.gd's Ember Minion re-summon). Reads the minion's OWN minion_type (not whichever ability
+## was most recently pressed) into grand_sacrifice_variant_pending, for the orchestrator to apply
+## immediately after this call (combat.gd's _commit_main1 -> _apply_grand_sacrifice) — the actual
+## per-variant effect needs enemy/ally target lists this class doesn't have.
+func fire_grand_sacrifice() -> void:
+	bonus_meter.consume()
+	grand_sacrifice_variant_pending = active_minion.minion_type
+	active_minion.take_damage(active_minion.hp)
+	active_minion = null
 
 # ---------------------------------------------------------------------------
 # Ranger "Hunter's Mark" base ability (spec §3.4) — costs Stamina; applied by the orchestrator

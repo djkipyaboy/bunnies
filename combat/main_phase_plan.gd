@@ -114,8 +114,15 @@ func can_stage_ability() -> bool:
 	return true
 
 ## True if the Ultimate can be newly STAGED: the Bonus Meter is armed. Un-staging is always allowed.
+## Grand Sacrifice (2026-08-16 summoner-ability-kit spec §8) additionally requires an active, alive
+## minion — it's the sacrifice cost, not just the meter. Every other ultimate_id keeps the plain
+## meter-only gate.
 func can_stage_ultimate() -> bool:
-	return combatant != null and combatant.bonus_meter != null and combatant.bonus_meter.is_armed()
+	if combatant == null or combatant.bonus_meter == null or not combatant.bonus_meter.is_armed():
+		return false
+	if combatant.ultimate_id == &"grand_sacrifice":
+		return combatant.active_minion != null and combatant.active_minion.is_alive()
+	return true
 
 ## True if [param id] can be newly staged: unlocked at this combatant's level, affordable on its
 ## rail, and not on cooldown. Un-staging (passing the already-staged id to toggle) is always allowed.
@@ -539,6 +546,12 @@ func commit() -> void:
 				# Warden "Lasting Quake" talent (Task 21): the crit bias lasts 2 spins instead of 1.
 				var earthquake_spins: int = (EARTHQUAKE_SPINS + 1) if combatant.has_ability_talent(&"quake_lasting") else EARTHQUAKE_SPINS
 				combatant.fire_earthquake(combatant.weapon_type(), earthquake_spins)  # +1 WILD reel; orchestrator splashes + stuns, +1 spin with Lasting Quake
+			&"grand_sacrifice":
+				# Summoner Ultimate (2026-08-16 spec §8): no reel/spin component (can_stage_ultimate()
+				# already confirmed an active, alive minion exists) — fire_grand_sacrifice() consumes
+				# the meter and sacrifices the minion; the orchestrator applies the variant effect
+				# immediately after commit() via the grand_sacrifice_variant_pending flag (combat.gd).
+				combatant.fire_grand_sacrifice()
 	# The Big Bang's own type picker (free) retypes the FINAL loadout — including the reels fire_big_bang
 	# just appended. Runs after the Ultimate fires. Standalone Select your Fate already retyped in
 	# apply_select_fate (and is locked out while Big Bang is staged), so this is the Big Bang path only.

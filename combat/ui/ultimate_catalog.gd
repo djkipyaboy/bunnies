@@ -17,6 +17,7 @@ static func display_name(id: StringName) -> String:
 		&"big_bang": return "THE BIG BANG (4 wild reels, AoE, party heal)"
 		&"earthquake": return "EARTHQUAKE (+1 wild reel, splash, stun all hit)"
 		&"dark_reinforcements": return "DARK REINFORCEMENTS (summon 2 acolytes)"
+		&"grand_sacrifice": return "GRAND SACRIFICE (sacrifice your minion)"
 		_: return "Ultimate"
 
 static func description(id: StringName) -> String:
@@ -29,4 +30,5 @@ static func description(id: StringName) -> String:
 		&"big_bang": return "The Big Bang (full meter): pick a damage type, then 4 crit-biased WILD reels of it hit ALL enemies; heals each ally 1/6 of the total, excess → a shield. (Type choice is free — no need to also cast Select your Fate.)"
 		&"earthquake": return "Earthquake (full meter): +1 reel, all 4 reels crit-biased WILD and feeding the 4-line paylines. Primary enemy takes full damage, all others take half (Earth). Every enemy hit is STUNNED next turn — its initiative (turn order) is unchanged."
 		&"dark_reinforcements": return "Dark Reinforcements (boss-only): summons 2 Dark acolytes to fight alongside the boss."
+		&"grand_sacrifice": return "Grand Sacrifice (full meter, requires an active minion): sacrifices your minion for an effect that depends on its type — Ember bursts + splashes the enemies, Dew heals the party and grants Thorns + a repeating cleanse, Misfortune curses every enemy, Hasty hastens the whole party."
 		_: return ""

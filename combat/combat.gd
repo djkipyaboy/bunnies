@@ -893,6 +893,96 @@ func _run_hasty_stage(minion: Combatant, stage: int) -> void:
 			(_panels[ally] as CombatantPanel).refresh_status()
 	_log("  💨 Hasty Minion (stage %d) buffs the party." % stage)
 
+## Applies the Grand Sacrifice Ultimate's variant effect, keyed on which minion type was sacrificed
+## (2026-08-16 summoner-ability-kit spec §8). [ASSUMPTION] every magnitude/duration below — tune by
+## playtest; the STRUCTURE (which variant does what) is locked. Reuses _splash_half_to_others (the
+## Ranger Collateral splash mechanic) for Ember rather than reimplementing splash math, and reuses
+## HASTY_REGEN_BONUS (above) for Hasty's regen amount rather than a second, possibly-divergent constant.
+const GRAND_SACRIFICE_EMBER_BURST: int = 40
+const GRAND_SACRIFICE_DEW_HEAL: int = 30
+const GRAND_SACRIFICE_DEW_THORNS_PCT: float = 0.35
+const GRAND_SACRIFICE_DEW_TURNS: int = 2
+const GRAND_SACRIFICE_MISFORTUNE_TURNS: int = 2
+const GRAND_SACRIFICE_CURSE_TURNS: int = 3
+const GRAND_SACRIFICE_HASTY_TURNS: int = 2
+
+func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
+	match variant:
+		&"ember":
+			if _defender != null and _defender.is_alive():
+				_defender.take_damage(GRAND_SACRIFICE_EMBER_BURST)
+				var splashed: Array[Combatant] = _splash_half_to_others(caster, GRAND_SACRIFICE_EMBER_BURST, "Piercing", 0.5)
+				_log("  🔥 Grand Sacrifice (Ember): %d burst damage, splashed to %d other enemies." % [GRAND_SACRIFICE_EMBER_BURST, splashed.size()])
+				if _panels.has(_defender):
+					(_panels[_defender] as CombatantPanel).refresh_status()
+		&"dew":
+			for ally: Combatant in _allies_of(caster):
+				if not ally.is_alive():
+					continue
+				ally.heal(GRAND_SACRIFICE_DEW_HEAL)
+				var thorns := Effect.new()
+				thorns.id = &"grand_sacrifice_thorns"
+				thorns.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — thorns_pct is read directly regardless of kind
+				thorns.thorns_pct = GRAND_SACRIFICE_DEW_THORNS_PCT
+				thorns.duration = GRAND_SACRIFICE_DEW_TURNS
+				thorns.beneficial = true
+				ally.attach_effect(thorns)
+				# The "cleansing buff that removes one debuff EVERY turn for 2 turns" (not a one-time
+				# cleanse) needs its own repeating marker, checked once per bearer's own Upkeep
+				# alongside the existing DoT-tick loop (see _apply_dot's grand_sacrifice_cleanse check).
+				var cleanse := Effect.new()
+				cleanse.id = &"grand_sacrifice_cleanse"
+				cleanse.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — checked by id, not by kind
+				cleanse.duration = GRAND_SACRIFICE_DEW_TURNS
+				cleanse.beneficial = true
+				ally.attach_effect(cleanse)
+				if _panels.has(ally):
+					(_panels[ally] as CombatantPanel).refresh_status()
+			_log("  💧 Grand Sacrifice (Dew): large party heal + improved Thorns + repeating cleanse.")
+		&"misfortune":
+			for enemy: Combatant in _enemies_of(caster):
+				if not enemy.is_alive():
+					continue
+				var jinx: Effect = EffectLibrary.make(&"jinxed")
+				jinx.duration = GRAND_SACRIFICE_MISFORTUNE_TURNS
+				enemy.attach_effect(jinx)
+				# "Improved" cursed: bigger starting stacks (pre-stacked to max instead of starting at
+				# 1) AND a bigger flat baseline (2.0 vs Misfortune Minion's own stage-3 1.0), plus a
+				# longer duration (3 vs the base effect's own 3 — same, but locked here explicitly
+				# rather than left to EffectLibrary's default in case that default ever changes).
+				var curse: Effect = EffectLibrary.make(&"cursed")
+				curse.dot_base_damage = 2.0
+				curse.duration = GRAND_SACRIFICE_CURSE_TURNS
+				curse.add_stack()
+				curse.add_stack()
+				enemy.attach_effect(curse)
+				if _panels.has(enemy):
+					(_panels[enemy] as CombatantPanel).refresh_status()
+			_log("  🌑 Grand Sacrifice (Misfortune): Jinxed + improved Curse on every enemy.")
+		&"hasty":
+			for ally: Combatant in _allies_of(caster):
+				if not ally.is_alive():
+					continue
+				var regen := Effect.new()
+				regen.id = &"grand_sacrifice_regen"
+				regen.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — regen_bonus is read directly
+				regen.regen_bonus = HASTY_REGEN_BONUS
+				regen.duration = GRAND_SACRIFICE_HASTY_TURNS
+				regen.beneficial = true
+				ally.attach_effect(regen)
+				var empowered: Effect = EffectLibrary.make(&"empowered")
+				empowered.duration = GRAND_SACRIFICE_HASTY_TURNS
+				ally.attach_effect(empowered)
+				var surge := Effect.new()
+				surge.id = &"reel_surge"
+				surge.kind = Effect.Kind.REEL_FACE_EDIT
+				surge.duration = GRAND_SACRIFICE_HASTY_TURNS
+				surge.beneficial = true
+				ally.attach_effect(surge)
+				if _panels.has(ally):
+					(_panels[ally] as CombatantPanel).refresh_status()
+			_log("  💨 Grand Sacrifice (Hasty): party-wide regen + Empowered + reel surge, 2 turns.")
+
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
 ## membership in [param selected] (ordered, max [param max_n]) via [RosterSelection]; each button
@@ -1696,6 +1786,15 @@ func _apply_dot(c: Combatant) -> void:
 					var resisted: int = ceili(amount * c.dot_damage_multiplier())
 					c.take_damage(resisted)
 					_log("  %s suffers %d %s damage (×%d)." % [c.display_name, resisted, String(e.id).to_upper(), e.stacks])
+	# Grand Sacrifice (Dew variant, 2026-08-16 spec §8): a repeating cleanse — "removes one debuff
+	# EVERY turn for 2 turns," not a one-time cleanse_oldest_debuff() call. Piggybacks on this same
+	# per-bearer Upkeep loop (the &"grand_sacrifice_cleanse" marker's own duration ticks down in
+	# on_end() exactly like every other effect, so it fires on each of the bearer's own next 2
+	# Upkeeps, then expires — no bespoke countdown needed).
+	if c.is_alive() and c.has_effect(&"grand_sacrifice_cleanse"):
+		var cleansed: Effect = c.cleanse_oldest_debuff()
+		if cleansed != null:
+			_log("  💧 Grand Sacrifice's repeating cleanse removes %s's %s." % [c.display_name, String(cleansed.id).to_upper()])
 	(_panels[c] as CombatantPanel).refresh_status()
 
 func _on_spin_pressed() -> void:
@@ -2173,6 +2272,13 @@ func _commit_main1() -> void:
 				(_panels[target] as CombatantPanel).refresh_status()
 		_log("  ☾ %s afflicts the party with a curse." % _attacker.display_name)
 		_attacker.curse_party_pending = false
+	# Summoner "Grand Sacrifice" Ultimate (2026-08-16 spec §8): same pending-flag pattern as the
+	# Warden Acolyte blocks above — fire_grand_sacrifice() (called from MainPhasePlan.commit()'s
+	# ultimate match) already consumed the meter and sacrificed the minion; the orchestrator applies
+	# the variant effect here, keyed on which minion type was sacrificed.
+	if _attacker.grand_sacrifice_variant_pending != &"":
+		_apply_grand_sacrifice(_attacker, _attacker.grand_sacrifice_variant_pending)
+		_attacker.grand_sacrifice_variant_pending = &""
 
 func _do_spin() -> void:
 	# Enemy turns commit Main 1 here (PCs committed in _on_spin_pressed). Decide ability use, then
