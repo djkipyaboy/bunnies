@@ -215,7 +215,8 @@ static func make(id: StringName) -> CharacterClass:
 			c.ultimate_id = &"sticky_wild"   # placeholder — real Ultimate variants are future work
 			c.extra_abilities = [
 				_ability(&"dew_minion", 2, 5, &"mana", 0),
-					_ability(&"misfortune_minion", 3, 4, &"mana", 0),
+				_ability(&"misfortune_minion", 3, 4, &"mana", 0),
+				_ability(&"hasty_minion", 4, 6, &"mana", 0),
 			]
 			c.payline_profile_id = &"default"
 			return c

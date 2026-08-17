@@ -21,6 +21,7 @@ static func display_name(id: StringName) -> String:
 		&"ember_minion": return "Ember Minion"
 		&"dew_minion": return "Dew Minion"
 		&"misfortune_minion": return "Misfortune Minion"
+		&"hasty_minion": return "Hasty Minion"
 		# --- passives (L5+) ---
 		&"last_stand": return "Last Stand"
 		&"bulwark": return "Bulwark"
@@ -72,6 +73,7 @@ static func description(id: StringName) -> String:
 		&"ember_minion": return "Summon a minion that pulses AoE damage, escalating each round it survives."
 		&"dew_minion": return "Summon a minion that heals the party, cleansing the oldest debuff and granting Thorns as it escalates."
 		&"misfortune_minion": return "Summon a minion that debuffs every enemy, escalating from Weakened to Weakened+Sundered to a Curse."
+		&"hasty_minion": return "Summon a minion that hastens the party, escalating from +20 Initiative to also granting resource regen to also granting Empowered and an extra reel."
 		# --- passives (L5+) ---
 		&"last_stand": return "Passive: deals +20% damage while at or below 30% HP."
 		&"bulwark": return "Passive: takes 15% less damage while above 50% HP."

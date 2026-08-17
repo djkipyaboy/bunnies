@@ -849,8 +849,49 @@ func _run_misfortune_stage(minion: Combatant, stage: int) -> void:
 			(_panels[enemy] as CombatantPanel).refresh_status()
 	_log("  🌑 Misfortune Minion (stage %d) afflicts every enemy." % stage)
 
+## Hasty Minion's 3-stage effect (2026-08-16 spec §2): a party-wide +20 Initiative buff (3 turns)
+## at stage 1, adds the resource-regen buff (Task 2) at stage 2, adds Empowered (1 turn) + the
+## reel-surge buff (Task 3, 3 turns [ASSUMPTION] — the spec doesn't give this an explicit
+## duration at the base-ability tier) at stage 3.
+const HASTY_INITIATIVE_BONUS: float = 20.0
+const HASTY_INITIATIVE_TURNS: int = 3
+const HASTY_REGEN_BONUS: int = 3
+const HASTY_REGEN_TURNS: int = 3
+const HASTY_REEL_SURGE_TURNS: int = 3
+
 func _run_hasty_stage(minion: Combatant, stage: int) -> void:
-	pass  # implemented by Task 8
+	for ally: Combatant in _allies_of(minion):
+		if not ally.is_alive():
+			continue
+		if stage == 1:
+			var haste := Effect.new()
+			haste.id = &"hasty_initiative"
+			haste.kind = Effect.Kind.INITIATIVE_MOD
+			haste.magnitude = HASTY_INITIATIVE_BONUS
+			haste.duration = HASTY_INITIATIVE_TURNS
+			haste.beneficial = true
+			ally.attach_effect(haste)
+		if stage == 2:
+			var regen := Effect.new()
+			regen.id = &"hasty_regen"
+			regen.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — regen_bonus is read directly
+			regen.regen_bonus = HASTY_REGEN_BONUS
+			regen.duration = HASTY_REGEN_TURNS
+			regen.beneficial = true
+			ally.attach_effect(regen)
+		if stage == 3:
+			var empowered: Effect = EffectLibrary.make(&"empowered")
+			empowered.duration = 1  # spec §5 locks this specific stage's Empowered to 1 turn
+			ally.attach_effect(empowered)
+			var surge := Effect.new()
+			surge.id = &"reel_surge"
+			surge.kind = Effect.Kind.REEL_FACE_EDIT
+			surge.duration = HASTY_REEL_SURGE_TURNS
+			surge.beneficial = true
+			ally.attach_effect(surge)
+		if _panels.has(ally):
+			(_panels[ally] as CombatantPanel).refresh_status()
+	_log("  💨 Hasty Minion (stage %d) buffs the party." % stage)
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
