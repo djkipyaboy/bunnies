@@ -2286,6 +2286,17 @@ func _apply_attack(attack) -> void:
 	if attack.final_damage > 0:
 		for t: Combatant in targets:
 			t.take_damage(attack.final_damage)
+			# Summoner "reel_surge" overflow fallback (2026-08-16 summoner-ability-kit spec §6):
+			# the buff normally splices an extra reel onto the turn, but at the 5-reel cap there's
+			# no room, so the FIRST successful hit that lands this spin gets its damage doubled
+			# instead (a second identical take_damage() call — simplest correct way to double
+			# without mutating attack.final_damage, which logging/AoE-total code below still reads).
+			# Cleared immediately so only one hit per spin is ever doubled.
+			if _attacker.reel_surge_overflow_pending and (attack.face.result_tier == ReelFace.ResultTier.SUCCESS or attack.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS):
+				var surge_bonus: int = attack.final_damage
+				t.take_damage(surge_bonus)
+				_log("  ⚡ %s's reel surge overflow doubles this hit's damage (would-be 6th reel converted to +%d bonus damage)." % [_attacker.display_name, surge_bonus])
+				_attacker.reel_surge_overflow_pending = false
 			var thorns: float = t.thorns_pct()
 			if thorns > 0.0 and _attacker.is_alive():
 				var reflected: int = ceili(attack.final_damage * thorns)

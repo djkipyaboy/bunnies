@@ -393,6 +393,12 @@ var flee_reel: ActionReel = null
 ## tankier crit-success variant.
 var summon_reel: ActionReel = null
 
+## True for exactly one turn when the reel_surge buff (2026-08-16 summoner-ability-kit spec §6)
+## was active but this combatant was ALREADY at the 5-reel cap, so no reel could be added. The
+## orchestrator (combat.gd) reads this to double the first successful hit's damage instead, then
+## clears it. Reset to false at the top of every begin_turn().
+var reel_surge_overflow_pending: bool = false
+
 ## Warden "Earthquake" Ultimate state (spec 2026-06-29 §4): while > 0, this combatant added a 4th
 ## weapon-attack reel, made all weapon-attack reels WILD, and its spin splashes half its primary total
 ## to every OTHER enemy + force-stuns every damaged enemy. Like Collateral (primary takes FULL; not an
@@ -1391,6 +1397,13 @@ func begin_turn() -> void:
 	summon_reel = null        # clear last turn's recorded Ember Minion summon reel (2026-08-16 design)
 	pending_item_base_heal = 0
 	pending_item_name = ""
+	reel_surge_overflow_pending = false
+	if has_effect(&"reel_surge"):
+		const REEL_CAP: int = 5   # matches the 5-cap used everywhere MainPhasePlan is constructed
+		if turn_reels.size() < REEL_CAP:
+			turn_reels.append(ActionReel.make_ability_attack(weapon_type()))
+		else:
+			reel_surge_overflow_pending = true
 
 ## Splices one extra [param type]-typed reel onto THIS turn (additive, never overwrites the weapon).
 ## Spends [param cost] Stamina and respects the [param cap]-reel band ceiling. Returns false (and
