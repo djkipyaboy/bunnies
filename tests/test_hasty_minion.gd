@@ -122,10 +122,15 @@ func _run_stage1_to_3_buffs() -> void:
 	await _stage_and_force_hasty(inst, pc, ReelFace.ResultTier.SUCCESS, "case1")
 
 	# --- Case 1: stage 1 fires immediately in the summon's own spin — every ally gets +20
-	# Initiative for 3 turns. ---
+	# Initiative for 3 turns. Final-review fix (2026-08-17): stage 1 fires SYNCHRONOUSLY inside the
+	# summoning caster's own Combat phase, so the caster's own upcoming End phase ticks this buff
+	# once immediately this same turn — the caster specifically gets +1 duration (4, not 3) so it
+	# still benefits over 3 FRESH turns, same as every other ally who hasn't acted yet this round
+	# (mirrors the identical fix already applied to Grand Sacrifice's Hasty variant/Dew's Thorns). pc
+	# IS the summoning caster here, so it's the +1 case. ---
 	var haste_effect: Effect = _find_initiative_mod(pc, 20.0)
 	_check(haste_effect != null, "case1: PC has an INITIATIVE_MOD effect with magnitude +20 immediately after stage 1")
-	_check(haste_effect != null and haste_effect.duration == 3, "case1: the +20 Initiative buff has duration 3 (got %s)" % (str(haste_effect.duration) if haste_effect != null else "null"))
+	_check(haste_effect != null and haste_effect.duration == 4, "case1: the +20 Initiative buff has duration 4 for the caster (3 base + 1 caster-tick-timing fix, got %s)" % (str(haste_effect.duration) if haste_effect != null else "null"))
 	_check(pc._effect_regen_bonus() == 0, "case1: no regen bonus yet")
 	_check(not pc.has_effect(&"empowered"), "case1: PC does NOT have &empowered yet")
 	_check(not pc.has_effect(&"reel_surge"), "case1: PC does NOT have &reel_surge yet")
@@ -171,19 +176,61 @@ func _run_stage1_to_3_buffs() -> void:
 	_check(pc.is_alive() and enemy.is_alive(), "case3: sanity — both the real PC and enemy are still alive")
 	_check(not inst._turn_manager.is_combat_over(), "case3: is_combat_over() is false — the minion's own death did not trigger a loss/win check")
 
-	# --- Case 4: drive one more real full turn for the PC — begin_turn() resets turn_reels to the
-	# bare weapon baseline THEN reel_surge's handling splices on a real extra reel (the Summoner's
-	# 2-reel weapon is well under the 5-cap), so turn_reels should be exactly weapon-reel-count + 1
-	# this turn (comparing against the pre-summon turn_reels count would be misleading — last turn's
-	# extra reel was the summon reel, not reel_surge's, and begin_turn() resets from scratch anyway). ---
+	# --- Case 4: drive one more real full turn for the PC. Final-review fix (2026-08-17): the
+	# reel_surge cap check moved from Combatant.begin_turn() to combat.gd's _commit_main1(), run
+	# AFTER this turn's staged reel additions commit — so at the bare pre-spin window (before the
+	# player has pressed Spin) turn_reels is still just the weapon baseline; the extra reel only
+	# appears once _commit_main1() actually runs. Drive a real _on_spin_pressed() (rather than
+	# asserting on the pre-commit state, which the old test did via begin_turn() directly) to
+	# exercise the real post-commit check. ---
 	var weapon_reel_count: int = pc.weapon.reels.size()
 	while not (inst._awaiting_player_spin and inst._attacker == pc) and stage3_guard < 6000:
 		stage3_guard += 1
 		_pump_one_frame(inst, pc)
 		await process_frame
 	_check(inst._awaiting_player_spin and inst._attacker == pc, "case4: reached the PC's next real pre-spin window")
+	_check(pc.turn_reels.size() == weapon_reel_count, "case4: pre-commit turn_reels is still the bare weapon baseline (got %d)" % pc.turn_reels.size())
+
+	inst._on_spin_pressed()
 	_check(not pc.reel_surge_overflow_pending, "case4: PC is well under the 5-reel cap, so no overflow flag is set")
-	_check(pc.turn_reels.size() == weapon_reel_count + 1, "case4: reel_surge added a real extra reel this turn (weapon baseline %d, got %d)" % [weapon_reel_count, pc.turn_reels.size()])
+	_check(pc.turn_reels.size() == weapon_reel_count + 1, "case4: reel_surge added a real extra reel this turn after _commit_main1() (weapon baseline %d, got %d)" % [weapon_reel_count, pc.turn_reels.size()])
+
+	var spin_guard4: int = 0
+	while inst._pending_strips > 0 and spin_guard4 < 2000:
+		spin_guard4 += 1
+		await process_frame
+	_check(inst._pending_strips <= 0, "case4: the spin's strips settled without hanging")
+
+	# --- Case 5 (final-review fix, 2026-08-17): construct a realistic overflow scenario rather than
+	# leaving the overflow fallback exercised only by a synthetic begin_turn() unit test. reel_surge
+	# is still active (3 turns from stage 3, ticked once by case 4's own End phase) — grow the
+	# Summoner's own weapon baseline to 5 reels for this turn so the turn is ALREADY at the 5-cap
+	# before reel_surge's post-_commit_main1() check runs, then drive a real spin through the actual
+	# _on_spin_pressed()/_commit_main1() pipeline and confirm the double-damage overflow fallback
+	# fires. Growing the weapon (rather than stacking real reel-adding abilities the Summoner's own
+	# kit doesn't have outside minions) is the least-synthetic way to reach a genuine 5-reel turn
+	# with this class while still exercising the real orchestrator code path end-to-end. ---
+	_check(pc.has_effect(&"reel_surge"), "case5 precondition: reel_surge is still active going into this turn")
+	while pc.weapon.reels.size() < 5:
+		pc.weapon.reels.append(pc.weapon.reels[0].duplicate())
+	_check(pc.weapon.reels.size() == 5, "case5: weapon baseline grown to 5 reels (got %d)" % pc.weapon.reels.size())
+
+	while not (inst._awaiting_player_spin and inst._attacker == pc) and stage3_guard < 9000:
+		stage3_guard += 1
+		_pump_one_frame(inst, pc)
+		await process_frame
+	_check(inst._awaiting_player_spin and inst._attacker == pc, "case5: reached the PC's next real pre-spin window")
+	_check(pc.turn_reels.size() == 5, "case5: begin_turn() seeded turn_reels from the now-5-reel weapon baseline (got %d)" % pc.turn_reels.size())
+
+	inst._on_spin_pressed()
+	_check(pc.reel_surge_overflow_pending, "case5: reel_surge's post-commit check correctly sets the overflow flag at the real 5-reel cap")
+	_check(pc.turn_reels.size() == 5, "case5: no 6th reel was appended (got %d)" % pc.turn_reels.size())
+
+	var spin_guard5: int = 0
+	while inst._pending_strips > 0 and spin_guard5 < 2000:
+		spin_guard5 += 1
+		await process_frame
+	_check(inst._pending_strips <= 0, "case5: the spin's strips settled without hanging")
 
 	inst.queue_free()
 	await process_frame

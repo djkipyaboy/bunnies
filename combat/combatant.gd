@@ -1425,12 +1425,14 @@ func begin_turn() -> void:
 	pending_item_base_heal = 0
 	pending_item_name = ""
 	reel_surge_overflow_pending = false
-	if has_effect(&"reel_surge"):
-		const REEL_CAP: int = 5   # matches the 5-cap used everywhere MainPhasePlan is constructed
-		if turn_reels.size() < REEL_CAP:
-			turn_reels.append(ActionReel.make_ability_attack(weapon_type()))
-		else:
-			reel_surge_overflow_pending = true
+	# NOTE (final-review fix, 2026-08-16 summoner-ability-kit): the reel_surge cap check used to
+	# live here, evaluated against ONLY the weapon baseline before any Main-1 ability/Ultimate has
+	# added its own reel(s). Since no weapon carries 5+ baseline reels, turn_reels.size() < 5 was
+	# ALWAYS true at this point — the overflow fallback below could never trigger in real play, and
+	# a real reel-adding ability staged LATER the same turn could get blocked by the reel cap even
+	# though the surge's own reel wasn't really "needed" yet. The check now runs in combat.gd's
+	# _commit_main1(), AFTER all of this turn's staged reel additions have committed, against the
+	# TRUE final reel count. See combat.gd for the real check.
 
 ## Splices one extra [param type]-typed reel onto THIS turn (additive, never overwrites the weapon).
 ## Spends [param cost] Stamina and respects the [param cap]-reel band ceiling. Returns false (and

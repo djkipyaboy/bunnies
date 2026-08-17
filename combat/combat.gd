@@ -770,14 +770,21 @@ func _on_minion_panel_death(minion: Combatant) -> void:
 ## spec — this class ships 4 distinct minion types sharing the same 3-stage-then-expire
 ## mechanism). Expiry-on-stage-3-completion is handled HERE, once, rather than duplicated in each
 ## per-type helper below.
-func _run_minion_stage(minion: Combatant, stage: int) -> void:
+## [param caster] is only meaningful (and only ever passed) for the SYNCHRONOUS stage-1 call from
+## _finish_spin() — stage 1 fires inside the summoning caster's own Combat phase, so a
+## duration-based buff attached to the caster specifically there gets ticked once immediately by
+## that same caster's own upcoming End phase, while every other ally (who hasn't acted yet this
+## round) doesn't. Stages 2/3 fire on the MINION's own later turn, not the caster's, so no ally
+## (including the caster) has already ticked that round by then — callers from _take_minion_turn()
+## correctly omit it (defaults to null).
+func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	match minion.minion_type:
 		&"dew":
 			_run_dew_stage(minion, stage)
 		&"misfortune":
 			_run_misfortune_stage(minion, stage)
 		&"hasty":
-			_run_hasty_stage(minion, stage)
+			_run_hasty_stage(minion, stage, caster)
 		_:
 			_run_ember_stage(minion, stage)
 	if stage >= 3 and minion.is_alive():
@@ -859,7 +866,7 @@ const HASTY_REGEN_BONUS: int = 3
 const HASTY_REGEN_TURNS: int = 3
 const HASTY_REEL_SURGE_TURNS: int = 3
 
-func _run_hasty_stage(minion: Combatant, stage: int) -> void:
+func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	for ally: Combatant in _allies_of(minion):
 		if not ally.is_alive():
 			continue
@@ -868,7 +875,12 @@ func _run_hasty_stage(minion: Combatant, stage: int) -> void:
 			haste.id = &"hasty_initiative"
 			haste.kind = Effect.Kind.INITIATIVE_MOD
 			haste.magnitude = HASTY_INITIATIVE_BONUS
-			haste.duration = HASTY_INITIATIVE_TURNS
+			# Stage 1 fires synchronously in the summoning caster's own Combat phase (see
+			# _run_minion_stage's [param caster] doc) — its own upcoming End phase ticks this buff
+			# once immediately, while other allies haven't acted yet this round. +1 duration so the
+			# caster still benefits over 3 FRESH turns too (same fix as Grand Sacrifice's Hasty
+			# variant / Dew's Thorns / Inspirational — see _apply_grand_sacrifice's &"hasty" branch).
+			haste.duration = HASTY_INITIATIVE_TURNS + (1 if ally == caster else 0)
 			haste.beneficial = true
 			ally.attach_effect(haste)
 		if stage == 2:
@@ -2302,6 +2314,18 @@ func _commit_main1() -> void:
 	if _attacker.grand_sacrifice_variant_pending != &"":
 		_apply_grand_sacrifice(_attacker, _attacker.grand_sacrifice_variant_pending)
 		_attacker.grand_sacrifice_variant_pending = &""
+	# reel_surge cap check (final-review fix, 2026-08-16 summoner-ability-kit): moved from
+	# Combatant.begin_turn() to HERE — after every Main-1 ability/Ultimate reel addition for this
+	# turn has committed above — so the 5-reel cap is evaluated against the TRUE final reel count,
+	# not just the weapon baseline. If a 6th reel would be generated, set the overflow-pending flag
+	# instead of appending (the double-damage-on-first-hit fallback, applied elsewhere off this
+	# flag) rather than silently exceeding the cap.
+	const REEL_SURGE_CAP: int = 5   # matches the 5-cap used everywhere MainPhasePlan is constructed
+	if _attacker.has_effect(&"reel_surge"):
+		if _attacker.turn_reels.size() < REEL_SURGE_CAP:
+			_attacker.turn_reels.append(ActionReel.make_ability_attack(_attacker.weapon_type()))
+		else:
+			_attacker.reel_surge_overflow_pending = true
 
 func _do_spin() -> void:
 	# Enemy turns commit Main 1 here (PCs committed in _on_spin_pressed). Decide ability use, then
@@ -3055,8 +3079,8 @@ func _finish_spin() -> void:
 		_turn_manager.combatants.append(minion)  # NOT insert_acting_this_round() — see comment above
 		_build_minion_panel(minion)
 		var tier_text: String = "CRITICAL SUCCESS — a stronger" if tanky else "SUCCESS — a"
-		_log("  🔥 %s summons Ember Minion — %s minion appears! (%d HP)" % [_attacker.display_name, tier_text, minion.max_hp])
-		_run_minion_stage(minion, 1)
+		_log("  🔥 %s summons %s — %s minion appears! (%d HP)" % [_attacker.display_name, minion.display_name, tier_text, minion.max_hp])
+		_run_minion_stage(minion, 1, _attacker)
 		minion.minion_stage = 1  # stage 1 has now run; Task 6's own-turn handler does `+= 1` to reach stage 2 next
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
