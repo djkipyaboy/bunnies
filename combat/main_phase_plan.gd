@@ -373,6 +373,14 @@ func preview_reels() -> Array[ActionReel]:
 			if reels[i].is_weapon_attack:
 				pos = i + 1
 		reels.insert(pos, ActionReel.make_ability_attack(combatant.weapon_type()))
+	# Hasty Minion's reel-surge buff (2026-08-16 summoner-ability-kit spec, playtest fix
+	# 2026-08-17): an ALREADY-ACTIVE passive buff from a prior turn, not a staged ability — so it's
+	# keyed on has_effect() like the Rampage/Collateral/Earthquake block above, not on
+	# staged_extra_ability_id. Must mirror _commit_main1()'s 5-reel cap exactly so the preview never
+	# promises a reel that commit-time will actually reject in favor of the overflow fallback.
+	const PREVIEW_REEL_SURGE_CAP: int = 5
+	if combatant.has_effect(&"reel_surge") and reels.size() < PREVIEW_REEL_SURGE_CAP:
+		reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
 	# The Big Bang tops the loadout up to 4 reels (the Seer's 2 → 4) — preview the added strips.
 	if fire_ultimate_staged and ultimate_id == &"big_bang":
 		while reels.size() < mini(BIG_BANG_REELS, reel_cap):

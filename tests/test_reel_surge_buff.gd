@@ -84,6 +84,12 @@ func _run_under_cap() -> void:
 	buff.beneficial = true
 	pc.attach_effect(buff)
 
+	# Regression (2026-08-17 playtest): the reel-surge reel must appear in the PRE-spin preview,
+	# not just after commit — otherwise the player picks their spin blind to the extra reel.
+	var plan_preview: MainPhasePlan = MainPhasePlan.new(pc, pc.ability_cost, 5, 2, null)
+	var previewed: Array[ActionReel] = plan_preview.preview_reels()
+	_check(previewed.size() == pc.turn_reels.size() + 1, "preview_reels() includes the reel-surge bonus reel before commit (got %d, base was %d)" % [previewed.size(), pc.turn_reels.size()])
+
 	# No ability staged this turn — just the weapon baseline + reel_surge.
 	inst._commit_main1()
 	_check(pc.turn_reels.size() == weapon_reel_count + 1, "under-cap: reel_surge's post-commit check adds a real 5th reel (got %d)" % pc.turn_reels.size())
