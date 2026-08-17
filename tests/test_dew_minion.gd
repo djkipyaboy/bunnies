@@ -167,6 +167,8 @@ func _run_stage1_immediate_heal() -> void:
 	_check(pc.hp == mini(hp_snapshot3 + Combat.DEW_STAGE3_HEAL, pc.max_hp), "case3: PC healed by the stage-3 amount (%d) before the minion expired (hp %d -> %d)" % [Combat.DEW_STAGE3_HEAL, hp_snapshot3, pc.hp])
 	_check(minion.minion_stage == 3, "case3: minion_stage is 3 (got %d)" % minion.minion_stage)
 	_check(pc.thorns_pct() > 0.0, "case3: the PC carries a Thorns buff after stage 3 (thorns_pct = %f)" % pc.thorns_pct())
+	var log_text: String = inst._log_box.get_parsed_text()
+	_check(log_text.contains("Thorns"), "case3: the log records the Thorns buff's application (playtest 2026-08-17 clarity fix)")
 
 	_check(pc.is_alive() and enemy.is_alive(), "case3: sanity — both the real PC and enemy are still alive")
 	_check(not inst._turn_manager.is_combat_over(), "case3: is_combat_over() is false — the minion's own death did not trigger a loss/win check")

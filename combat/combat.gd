@@ -839,6 +839,7 @@ func _run_dew_stage(minion: Combatant, stage: int) -> void:
 			thorns.duration = DEW_THORNS_TURNS
 			thorns.beneficial = true
 			ally.attach_effect(thorns)
+			_log("  🛡 Dew Minion wraps %s in Thorns (%d%% reflected, %d turns)." % [ally.display_name, roundi(DEW_THORNS_PCT * 100), DEW_THORNS_TURNS])
 		if _panels.has(ally):
 			(_panels[ally] as CombatantPanel).refresh_status()
 	_log("  💧 Dew Minion (stage %d) heals the party for %d." % [stage, heal_amount])
@@ -900,6 +901,7 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 			regen.duration = HASTY_REGEN_TURNS
 			regen.beneficial = true
 			ally.attach_effect(regen)
+			_log("  💨 Hasty Minion grants %s +%d resource regen (%d turns)." % [ally.display_name, HASTY_REGEN_BONUS, HASTY_REGEN_TURNS])
 		if stage == 3:
 			var empowered: Effect = EffectLibrary.make(&"empowered")
 			empowered.duration = 1  # spec §5 locks this specific stage's Empowered to 1 turn
@@ -2471,7 +2473,7 @@ func _do_spin() -> void:
 		var attack = attacks[i]
 		var strip: ReelStrip = strips[i]
 		strip.set_rerolled(i in _rerolled_indices)  # visible RE-ROLL tag on changed strips (legibility)
-		strip.strip_settled.connect(_apply_attack.bind(attack), CONNECT_ONE_SHOT)
+		strip.strip_settled.connect(_apply_attack.bind(attack, i), CONNECT_ONE_SHOT)
 		strip.play_to(attack.landed_index, float(i) * STRIP_STAGGER)  # resolver owns the index (screen == grid)
 
 ## Runs the Chancer's post-spin Re-roll (base ability) and/or Wildcard Gamble (Ultimate) on the resolved
@@ -2543,7 +2545,7 @@ func _gain_jackpot_logged(amount: int) -> void:
 	if before < PartyInventory.JACKPOT_CAP and _party_inventory.jackpot_meter >= PartyInventory.JACKPOT_CAP:
 		_log("  ✦ Jackpot Meter FULL — Team-Up! available!")
 
-func _apply_attack(attack) -> void:
+func _apply_attack(attack, reel_index: int = -1) -> void:
 	var tier_name: String = ReelFace.ResultTier.keys()[attack.face.result_tier]
 	# Rampage Ultimate makes the spin AoE: each reel hits every enemy. Otherwise just the defender.
 	# (final_damage was computed vs the primary defender's type; per-target type recompute is a future
@@ -2566,7 +2568,7 @@ func _apply_attack(attack) -> void:
 			if _attacker.reel_surge_overflow_pending and (attack.face.result_tier == ReelFace.ResultTier.SUCCESS or attack.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS):
 				var surge_bonus: int = attack.final_damage
 				t.take_damage(surge_bonus)
-				_log("  ⚡ %s's reel surge overflow doubles this hit's damage (would-be 6th reel converted to +%d bonus damage)." % [_attacker.display_name, surge_bonus])
+				_log("  ⚡ %s's reel surge overflow DOUBLES reel %d's hit on %s: +%d bonus damage (%d/%d HP)." % [_attacker.display_name, reel_index + 1, t.display_name, surge_bonus, t.hp, t.max_hp])
 				_attacker.reel_surge_overflow_pending = false
 			var thorns: float = t.thorns_pct()
 			if thorns > 0.0 and _attacker.is_alive():

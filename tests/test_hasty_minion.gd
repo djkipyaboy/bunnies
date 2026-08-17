@@ -154,6 +154,8 @@ func _run_stage1_to_3_buffs() -> void:
 	_check(not pc.has_effect(&"empowered"), "case2: PC does NOT have &empowered yet")
 	_check(not pc.has_effect(&"reel_surge"), "case2: PC does NOT have &reel_surge yet")
 	_check(minion.is_alive(), "case2: the minion is still alive after stage 2")
+	var log_text_stage2: String = inst._log_box.get_parsed_text()
+	_check(log_text_stage2.contains("resource regen"), "case2: the log records the resource-regen buff's application (playtest 2026-08-17 clarity fix)")
 
 	# --- Case 3: the minion's NEXT own turn fires stage 3 — Empowered (1 turn) + reel_surge
 	# (3 turns) are applied, then the minion expires. ---

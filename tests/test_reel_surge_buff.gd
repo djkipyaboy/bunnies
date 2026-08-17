@@ -154,6 +154,8 @@ func _run_at_cap_with_flurry() -> void:
 
 	var log_text: String = inst._log_box.get_parsed_text()
 	_check(log_text.contains("reel surge overflow"), "the log records the reel-surge overflow's damage-double line")
+	_check(log_text.contains("DOUBLES reel"), "the log names which reel got the bonus damage (playtest 2026-08-17 clarity fix)")
+	_check(log_text.contains("HP)"), "the log shows the target's before/after HP (playtest 2026-08-17 clarity fix)")
 
 	inst.queue_free()
 	await process_frame
