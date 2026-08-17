@@ -601,9 +601,10 @@ func _build_ui() -> void:
 	_team_up_panel.completed.connect(_on_team_up_completed)
 
 ## Places combatant panels in a vertical column at [param x] (top-down, in [param members] order) and
-## binds each. Panel height 312 + 14px gap (spec §2; grew from 238 on 2026-07-04 for the taller
-## status-effects reservation, then 278→312 on 2026-07-31 to stop the status row itself clipping —
-## see CombatantPanel._ready). Used for both party columns.
+## binds each. Panel height 332 + 14px gap (spec §2; grew from 238 on 2026-07-04 for the taller
+## status-effects reservation, then 278→312 on 2026-07-31 to stop the status row itself clipping,
+## then 312→332 on 2026-08-17 so the status label can scroll instead of clip when many buffs/debuffs
+## stack at once — see CombatantPanel._ready). Used for both party columns.
 func _place_party_column(members: Array[Combatant], x: float) -> void:
 	var y: float = 80.0
 	for c: Combatant in members:
@@ -612,7 +613,7 @@ func _place_party_column(members: Array[Combatant], x: float) -> void:
 		add_child(p)
 		_panels[c] = p
 		p.bind(c)
-		y += 312.0 + 14.0
+		y += 332.0 + 14.0
 
 ## Spawns a NEW enemy Combatant mid-fight, after _build_combatants() has already run once (spec
 ## 2026-07-19 §3.6 — the boss's phase-transition/Ultimate summons). Fully playable the SAME round it
@@ -633,7 +634,7 @@ func _spawn_enemy_mid_combat(id: StringName) -> Combatant:
 	c.defeated.connect(_on_enemy_panel_death.bind(c))
 	var column_index: int = _enemies.size() + _dummies.size() - 1
 	var p := CombatantPanel.new()
-	p.position = Vector2(1276.0, 80.0 + column_index * (312.0 + 14.0))
+	p.position = Vector2(1276.0, 80.0 + column_index * (332.0 + 14.0))
 	add_child(p)
 	_panels[c] = p
 	p.bind(c)
@@ -645,8 +646,8 @@ func _spawn_enemy_mid_combat(id: StringName) -> Combatant:
 	hit.flat = true
 	hit.modulate = Color(1, 1, 1, 0)  # invisible; input is gated by mouse_filter, not alpha
 	hit.position = p.position
-	hit.custom_minimum_size = Vector2(300, 312)   # full panel height (spec §3 targeting)
-	hit.size = Vector2(300, 312)
+	hit.custom_minimum_size = Vector2(300, 332)   # full panel height (spec §3 targeting)
+	hit.size = Vector2(300, 332)
 	hit.tooltip_text = "Click to make %s the active PC's primary target." % c.display_name
 	hit.pressed.connect(_select_target.bind(c))
 	add_child(hit)
@@ -691,7 +692,7 @@ func _relayout_enemy_column() -> void:
 			(_click_catchers[m] as Button).visible = false
 	var view: Vector2 = get_viewport_rect().size
 	const TOP_Y: float = 80.0
-	const PANEL_H: float = 312.0
+	const PANEL_H: float = 332.0
 	const GAP: float = 14.0
 	const ROW_H: float = PANEL_H + GAP
 	const BOTTOM_MARGIN: float = 20.0
@@ -1342,8 +1343,8 @@ func _build_target_click_catchers() -> void:
 		hit.flat = true
 		hit.modulate = Color(1, 1, 1, 0)  # invisible; input is gated by mouse_filter, not alpha
 		hit.position = panel.position
-		hit.custom_minimum_size = Vector2(300, 312)   # full panel height (spec §3 targeting)
-		hit.size = Vector2(300, 312)
+		hit.custom_minimum_size = Vector2(300, 332)   # full panel height (spec §3 targeting)
+		hit.size = Vector2(300, 332)
 		hit.tooltip_text = "Click to make %s the active PC's primary target." % c.display_name
 		hit.pressed.connect(_select_target.bind(c))
 		add_child(hit)
@@ -1379,8 +1380,8 @@ func _build_ally_target_click_catchers() -> void:
 		hit.flat = true
 		hit.modulate = Color(1, 1, 1, 0)
 		hit.position = panel.position
-		hit.custom_minimum_size = Vector2(300, 312)
-		hit.size = Vector2(300, 312)
+		hit.custom_minimum_size = Vector2(300, 332)
+		hit.size = Vector2(300, 332)
 		hit.tooltip_text = "Click to make %s the active ally's item-use target." % c.display_name
 		hit.pressed.connect(_select_ally_target.bind(c))
 		add_child(hit)
