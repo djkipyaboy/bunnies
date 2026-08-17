@@ -376,6 +376,11 @@ var active_minion: Combatant = null
 ## its second. Starts at 0 only transiently, before stage 1 has run.
 var minion_stage: int = 0
 
+## Which minion type this combatant is, when is_minion is true (2026-08-16 summoner-ability-kit
+## spec). Read by combat.gd's _run_minion_stage() dispatcher and the Grand Sacrifice Ultimate's
+## variant dispatch. Meaningless/unused on a non-minion combatant.
+var minion_type: StringName = &"ember"
+
 ## The Flee-attempt reel staged this turn, or null if Flee wasn't chosen (2026-08-16 combat-
 ## encounter-revamp spec §1). Mirrors rallying_cry_reel/item_use_reel: set once on commit, read
 ## by the orchestrator post-spin to find this reel's landed tier, cleared at the start of the

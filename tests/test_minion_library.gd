@@ -21,5 +21,24 @@ func _initialize() -> void:
 	_check(tanky.max_hp == 25, "tanky (crit-summoned) minion max_hp = 25 (got %d)" % tanky.max_hp)
 	_check(tanky.max_hp > baseline.max_hp, "tanky minion has more HP than baseline")
 
+	var dew: Combatant = MinionLibrary.make(false, &"dew")
+	_check(dew.minion_type == &"dew", "MinionLibrary.make(false, &dew) sets minion_type = &dew (got %s)" % dew.minion_type)
+	_check(dew.display_name == "Dew Minion", "dew minion display name is 'Dew Minion' (got %s)" % dew.display_name)
+	_check(dew.is_minion and dew.is_player, "dew minion is still is_minion/is_player like every other type")
+
+	var misfortune: Combatant = MinionLibrary.make(false, &"misfortune")
+	_check(misfortune.minion_type == &"misfortune", "misfortune minion_type set correctly (got %s)" % misfortune.minion_type)
+	_check(misfortune.display_name == "Misfortune Minion", "misfortune display name correct (got %s)" % misfortune.display_name)
+
+	var hasty: Combatant = MinionLibrary.make(false, &"hasty")
+	_check(hasty.minion_type == &"hasty", "hasty minion_type set correctly (got %s)" % hasty.minion_type)
+	_check(hasty.display_name == "Hasty Minion", "hasty display name correct (got %s)" % hasty.display_name)
+
+	# Backward-compat: the default-argument call (used by the already-shipped Ember summon path)
+	# still produces an Ember minion with no changes to its own behavior.
+	var default_call: Combatant = MinionLibrary.make(false)
+	_check(default_call.minion_type == &"ember", "make(tanky) with no type arg still defaults to &ember (got %s)" % default_call.minion_type)
+	_check(default_call.display_name == "Ember Minion", "default-call display name unchanged (got %s)" % default_call.display_name)
+
 	print(("MINION LIBRARY TEST PASSED" if _failures == 0 else "MINION LIBRARY TEST FAILED: %d" % _failures))
 	quit(_failures)
