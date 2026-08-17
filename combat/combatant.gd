@@ -1246,6 +1246,15 @@ func thorns_pct() -> float:
 			best = 0.10
 	return best
 
+## Sums the regen_bonus field across every active effect (2026-08-16 summoner-ability-kit spec §7).
+## Additive across multiple sources, unlike thorns_pct's max-across-effects rule — there's no
+## reason two regen buffs shouldn't stack.
+func _effect_regen_bonus() -> int:
+	var total: int = 0
+	for e: Effect in active_effects:
+		total += e.regen_bonus
+	return total
+
 ## Recomputes current_initiative as base + the sum of active INITIATIVE_MOD magnitudes (rounded).
 func recompute_initiative() -> void:
 	var total: float = 0.0
@@ -1964,7 +1973,7 @@ func _heft_turn_reels(conversions: int) -> void:
 ## Start-of-turn bookkeeping: resource regen (Wave B) + refresh the derived sort key.
 func on_upkeep() -> void:
 	if resource_pool != null:
-		resource_pool.regen()
+		resource_pool.regen(_effect_regen_bonus())
 	tick_cooldowns()
 	recompute_initiative()
 

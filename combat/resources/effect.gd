@@ -51,6 +51,12 @@ enum Kind { INITIATIVE_MOD, DAMAGE_OVER_TIME, MULTIPLIER_EDIT, REEL_FACE_EDIT }
 ## thorns_pct of the damage dealt, same type (Task 6). 0 = no thorns. [ASSUMPTION] data.
 @export var thorns_pct: float = 0.0
 
+## While active, this combatant regenerates [member regen_bonus] EXTRA Stamina/Mana per turn, on
+## top of their normal per-turn regen (2026-08-16 summoner-ability-kit spec §7 — Hasty Minion/
+## Grand Sacrifice). Zero for every effect that doesn't grant this. Mirrors thorns_pct: an extra
+## payload field any Effect can carry regardless of its Kind, not a new Kind value.
+@export var regen_bonus: int = 0
+
 ## MULTIPLIER_EDIT only: false (default) = an OUTGOING multiplier the bearer applies when IT is the
 ## attacker (Empowered/Bloodwrath). true = an INCOMING multiplier applied when the bearer is the
 ## DEFENDER (Sundered/Guarded). See Combatant.outgoing_damage_multiplier / incoming_damage_multiplier.

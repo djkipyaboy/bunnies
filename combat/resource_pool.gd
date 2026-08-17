@@ -54,13 +54,16 @@ func refund(cost: Dictionary) -> void:
 		if mana != before_m:
 			pool_changed.emit(&"mana", mana, max_mana)
 
-## Upkeep regeneration: bumps each rail by its per-turn amount, clamped at its maximum.
-func regen() -> void:
+## Upkeep regeneration: bumps each rail by its per-turn amount (plus [param bonus], from active
+## regen-buff Effects — 2026-08-16 summoner-ability-kit spec §7), clamped at its maximum. A bonus is
+## harmless/no-op on a rail this combatant's class doesn't use, since that rail's own base values
+## are already 0.
+func regen(bonus: int = 0) -> void:
 	var before_s: int = stamina
-	stamina = mini(stamina + regen_per_turn, max_stamina)
+	stamina = mini(stamina + regen_per_turn + bonus, max_stamina)
 	if stamina != before_s:
 		pool_changed.emit(&"stamina", stamina, max_stamina)
 	var before_m: int = mana
-	mana = mini(mana + mana_regen_per_turn, max_mana)
+	mana = mini(mana + mana_regen_per_turn + bonus, max_mana)
 	if mana != before_m:
 		pool_changed.emit(&"mana", mana, max_mana)
