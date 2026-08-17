@@ -213,7 +213,9 @@ static func make(id: StringName) -> CharacterClass:
 			c.base_max_mana = 8; c.start_mana = 13; c.mana_regen = 1
 			c.ability_id = &"ember_minion"; c.ability_cost = 4; c.ability_resource = &"mana"
 			c.ultimate_id = &"sticky_wild"   # placeholder — real Ultimate variants are future work
-			c.extra_abilities = []           # no extra abilities in this plan's scope
+			c.extra_abilities = [
+				_ability(&"dew_minion", 2, 5, &"mana", 0),
+			]
 			c.payline_profile_id = &"default"
 			return c
 		_:

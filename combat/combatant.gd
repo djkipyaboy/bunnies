@@ -393,6 +393,13 @@ var flee_reel: ActionReel = null
 ## tankier crit-success variant.
 var summon_reel: ActionReel = null
 
+## Which minion_type the summon_reel (above) should build once it lands, when a NON-Ember summon
+## ability staged it (2026-08-16 summoner-ability-kit spec — Dew/Misfortune/Hasty Minion). Mirrors
+## summon_reel exactly: set on commit (apply_summon_minion sets it back to &"ember" explicitly,
+## apply_summon_dew sets &"dew"), read by the orchestrator's summon-payoff block instead of
+## hardcoding &"ember", cleared to &"ember" at the start of every begin_turn().
+var pending_minion_type: StringName = &"ember"
+
 ## True for exactly one turn when the reel_surge buff (2026-08-16 summoner-ability-kit spec §6)
 ## was active but this combatant was ALREADY at the 5-reel cap, so no reel could be added. The
 ## orchestrator (combat.gd) reads this to double the first successful hit's damage instead, then
@@ -1407,6 +1414,7 @@ func begin_turn() -> void:
 	item_use_reel = null      # clear last turn's recorded item-use reel (2026-07-16 design)
 	flee_reel = null          # clear last turn's recorded Flee reel (2026-08-16 design)
 	summon_reel = null        # clear last turn's recorded Ember Minion summon reel (2026-08-16 design)
+	pending_minion_type = &"ember"  # clear last turn's staged minion-type signal (2026-08-16 summoner-ability-kit)
 	pending_item_base_heal = 0
 	pending_item_name = ""
 	reel_surge_overflow_pending = false
@@ -1829,6 +1837,22 @@ func apply_summon_minion(cost: int, cap: int) -> bool:
 	var summon: ActionReel = ActionReel.make_summon_reel()
 	turn_reels.append(summon)
 	summon_reel = summon
+	pending_minion_type = &"ember"
+	return true
+
+## Stages the Summoner's "Dew Minion" extra ability (2026-08-16 spec §2): spends [param cost]
+## Mana, appends the SAME generic ActionReel.make_summon_reel() Ember uses (it's not
+## Ember-specific), records it on summon_reel. Mirrors apply_summon_minion() exactly — only the
+## resource cost differs (this is an EXTRA ability, not the base ability).
+func apply_summon_dew(cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	var reel: ActionReel = ActionReel.make_summon_reel()
+	turn_reels.append(reel)
+	summon_reel = reel
+	pending_minion_type = &"dew"
 	return true
 
 ## Index of the single worst reel to re-roll (Chancer): priority CRIT_FAILURE > FAILURE > NEUTRAL,

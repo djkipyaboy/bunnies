@@ -46,6 +46,10 @@ const REEL_ADDING_EXTRA_IDS: Array[StringName] = [&"sundering_strike", &"quake_s
 ## reels, so these are never gated in can_stage_extra_ability, only previewed/appended best-effort.
 const TWO_REEL_BONUS_EXTRA_IDS: Array[StringName] = [&"mana_surge", &"double_or_nothing"]
 
+## Extra-ability ids whose summon reel is gated by the reel cap the same way the base-ability
+## summon reels are (2026-08-16 summoner-ability-kit spec) — grown by each new minion-type task.
+const SUMMON_EXTRA_IDS: Array[StringName] = [&"dew_minion"]
+
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
 
@@ -133,6 +137,8 @@ func can_stage_extra_ability(id: StringName) -> bool:
 	if not combatant.resource_pool.can_afford({def.resource: def.cost}):
 		return false
 	if id in REEL_ADDING_EXTRA_IDS and combatant.turn_reels.size() >= reel_cap:
+		return false
+	if id in SUMMON_EXTRA_IDS and combatant.turn_reels.size() >= reel_cap:
 		return false
 	return true
 
@@ -333,6 +339,10 @@ func preview_reels() -> Array[ActionReel]:
 				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"cursed"))
 			&"entangle":
 				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"rooted"))
+	if staged_extra_ability_id in SUMMON_EXTRA_IDS and reels.size() < reel_cap:
+		match staged_extra_ability_id:
+			&"dew_minion":
+				reels.append(ActionReel.make_summon_reel())
 	if staged_extra_ability_id in TWO_REEL_BONUS_EXTRA_IDS:
 		# Double or Nothing's bonus reels preview as the wild gambler's spread (playtest 2026-07-04) —
 		# it also converts the caster's EXISTING reels the same way, but (matching the evasion_reels/
@@ -489,6 +499,8 @@ func commit() -> void:
 				combatant.apply_mana_surge(combatant.weapon_type(), extra_talent_cost, reel_cap)
 			&"double_or_nothing":
 				combatant.fire_double_or_nothing(combatant.weapon_type(), reel_cap)
+			&"dew_minion":
+				combatant.apply_summon_dew(extra_talent_cost, reel_cap)
 		if def != null and def.cooldown_turns > 0:
 			var talent_cd: int = maxi(1, def.cooldown_turns + combatant.ability_talent_cooldown_delta(staged_extra_ability_id))
 			combatant.start_cooldown(staged_extra_ability_id, talent_cd)

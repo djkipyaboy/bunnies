@@ -797,8 +797,35 @@ func _run_ember_stage(minion: Combatant, stage: int) -> void:
 			(_panels[enemy] as CombatantPanel).refresh_status()
 	_log("  🔥 %s (stage %d) pulses %d damage to every enemy." % [minion.display_name, stage, amount])
 
+## Dew Minion's 3-stage effect (2026-08-16 spec §2): AoE heal every stage, cleanse the OLDEST
+## debuff off every ally starting stage 2, a party-wide Thorns buff on stage 3. [ASSUMPTION]
+## heal amounts (8/8/16) and thorns_pct (0.20) — tune by playtest.
+const DEW_STAGE1_HEAL: int = 8
+const DEW_STAGE3_HEAL: int = 16
+const DEW_THORNS_PCT: float = 0.20
+const DEW_THORNS_TURNS: int = 2
+
 func _run_dew_stage(minion: Combatant, stage: int) -> void:
-	pass  # implemented by Task 6
+	var heal_amount: int = DEW_STAGE3_HEAL if stage == 3 else DEW_STAGE1_HEAL
+	for ally: Combatant in _allies_of(minion):
+		if not ally.is_alive():
+			continue
+		ally.heal(heal_amount)
+		if stage >= 2:
+			var cleansed: Effect = ally.cleanse_oldest_debuff()
+			if cleansed != null:
+				_log("  💧 Dew Minion cleanses %s's %s." % [ally.display_name, String(cleansed.id).to_upper()])
+		if stage >= 3:
+			var thorns := Effect.new()
+			thorns.id = &"dew_thorns"
+			thorns.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — thorns_pct is read directly regardless of kind
+			thorns.thorns_pct = DEW_THORNS_PCT
+			thorns.duration = DEW_THORNS_TURNS
+			thorns.beneficial = true
+			ally.attach_effect(thorns)
+		if _panels.has(ally):
+			(_panels[ally] as CombatantPanel).refresh_status()
+	_log("  💧 Dew Minion (stage %d) heals the party for %d." % [stage, heal_amount])
 
 func _run_misfortune_stage(minion: Combatant, stage: int) -> void:
 	pass  # implemented by Task 7
@@ -2833,7 +2860,7 @@ func _finish_spin() -> void:
 		if _attacker.active_minion != null and _attacker.active_minion.is_alive():
 			_attacker.active_minion.take_damage(_attacker.active_minion.hp)
 		var tanky: bool = _summon_tier == ReelFace.ResultTier.CRIT_SUCCESS
-		var minion: Combatant = MinionLibrary.make(tanky)
+		var minion: Combatant = MinionLibrary.make(tanky, _attacker.pending_minion_type)
 		_attacker.active_minion = minion
 		_turn_manager.roll_initiative_for(minion)
 		_turn_manager.combatants.append(minion)  # NOT insert_acting_this_round() — see comment above
