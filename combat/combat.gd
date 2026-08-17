@@ -272,6 +272,14 @@ func _build_combatants() -> void:
 		# Enemy party (§5.1): one Combatant per selected enemy id, in selection order.
 		for id: StringName in _enemy_ids:
 			_enemies.append(EnemyLibrary.make(id))
+	# Combat-only transient state must not survive across encounters even though the Combatant
+	# itself does (CombatHandoff carries the same PC/companion instances forward). A minion still
+	# alive when a fight ended would otherwise let the NEXT fight's Ultimate check
+	# (MainPhasePlan.can_stage_ultimate()) wrongly see a live active_minion from last time
+	# (2026-08-17 playtest fix). Reset unconditionally — covers both the handoff path and the
+	# standalone "Choose your Party" launch path alike.
+	for p: Combatant in _pcs:
+		p.active_minion = null
 	# Anchors = first member of each side (defaults / first-panel references; control reads the active one).
 	_pc = _pcs[0]
 	_enemy = _enemies[0]
