@@ -20,6 +20,7 @@ static func display_name(id: StringName) -> String:
 		&"rallying_cry": return "Rallying Cry"
 		&"ember_minion": return "Ember Minion"
 		&"dew_minion": return "Dew Minion"
+		&"misfortune_minion": return "Misfortune Minion"
 		# --- passives (L5+) ---
 		&"last_stand": return "Last Stand"
 		&"bulwark": return "Bulwark"
@@ -70,6 +71,7 @@ static func description(id: StringName) -> String:
 		&"rallying_cry": return "Adds a no-damage reel; on a hit, shields every ally for 3 turns — half your weapon's damage on a success, full on a crit. Usable alongside Earthquake."
 		&"ember_minion": return "Summon a minion that pulses AoE damage, escalating each round it survives."
 		&"dew_minion": return "Summon a minion that heals the party, cleansing the oldest debuff and granting Thorns as it escalates."
+		&"misfortune_minion": return "Summon a minion that debuffs every enemy, escalating from Weakened to Weakened+Sundered to a Curse."
 		# --- passives (L5+) ---
 		&"last_stand": return "Passive: deals +20% damage while at or below 30% HP."
 		&"bulwark": return "Passive: takes 15% less damage while above 50% HP."

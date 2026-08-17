@@ -1855,6 +1855,21 @@ func apply_summon_dew(cost: int, cap: int) -> bool:
 	pending_minion_type = &"dew"
 	return true
 
+## Stages the Summoner's "Misfortune Minion" extra ability (2026-08-16 spec §2): spends [param cost]
+## Mana, appends the SAME generic ActionReel.make_summon_reel() Ember/Dew use (it's not
+## type-specific), records it on summon_reel. Mirrors apply_summon_dew() exactly — only the
+## resource cost and pending_minion_type differ.
+func apply_summon_misfortune(cost: int, cap: int) -> bool:
+	if turn_reels.size() >= cap:
+		return false
+	if resource_pool == null or not resource_pool.spend({&"mana": cost}):
+		return false
+	var reel: ActionReel = ActionReel.make_summon_reel()
+	turn_reels.append(reel)
+	summon_reel = reel
+	pending_minion_type = &"misfortune"
+	return true
+
 ## Index of the single worst reel to re-roll (Chancer): priority CRIT_FAILURE > FAILURE > NEUTRAL,
 ## first occurrence on a tie. Returns -1 when no reel landed any of those tiers (nothing to re-roll).
 ## Static + pure (operates on an Array of CombatResolver.AttackResult) so it is trivially testable.

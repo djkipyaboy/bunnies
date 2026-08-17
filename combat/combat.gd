@@ -827,8 +827,27 @@ func _run_dew_stage(minion: Combatant, stage: int) -> void:
 			(_panels[ally] as CombatantPanel).refresh_status()
 	_log("  💧 Dew Minion (stage %d) heals the party for %d." % [stage, heal_amount])
 
+## Misfortune Minion's 3-stage effect (2026-08-16 spec §2): a Weakened debuff on every enemy at
+## stage 1, adds Sundered at stage 2, applies Cursed (flat-scaled, not weapon-scaled, since the
+## minion itself is weaponless — mirrors the existing Warden-Acolyte "curse the party" pattern's
+## flat dot_base_damage convention) at stage 3. [ASSUMPTION] whether stage 3 also reapplies
+## Weakened/Sundered — currently Curse-only per the spec's own stated default; revisit after
+## playtest if the debuffs expire before the minion's own lifespan does.
 func _run_misfortune_stage(minion: Combatant, stage: int) -> void:
-	pass  # implemented by Task 7
+	for enemy: Combatant in _enemies_of(minion):
+		if not enemy.is_alive():
+			continue
+		if stage == 1 or stage == 2:
+			enemy.attach_effect(EffectLibrary.make(&"weakened"))
+		if stage == 2:
+			enemy.attach_effect(EffectLibrary.make(&"sundered"))
+		if stage == 3:
+			var curse: Effect = EffectLibrary.make(&"cursed")
+			curse.dot_base_damage = 1.0  # flat, not weapon-scaled — mirrors the Warden Acolyte curse pattern
+			enemy.attach_effect(curse)
+		if _panels.has(enemy):
+			(_panels[enemy] as CombatantPanel).refresh_status()
+	_log("  🌑 Misfortune Minion (stage %d) afflicts every enemy." % stage)
 
 func _run_hasty_stage(minion: Combatant, stage: int) -> void:
 	pass  # implemented by Task 8

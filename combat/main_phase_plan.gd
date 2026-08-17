@@ -48,7 +48,7 @@ const TWO_REEL_BONUS_EXTRA_IDS: Array[StringName] = [&"mana_surge", &"double_or_
 
 ## Extra-ability ids whose summon reel is gated by the reel cap the same way the base-ability
 ## summon reels are (2026-08-16 summoner-ability-kit spec) — grown by each new minion-type task.
-const SUMMON_EXTRA_IDS: Array[StringName] = [&"dew_minion"]
+const SUMMON_EXTRA_IDS: Array[StringName] = [&"dew_minion", &"misfortune_minion"]
 
 var ability_staged: bool = false
 var fire_ultimate_staged: bool = false
@@ -343,6 +343,8 @@ func preview_reels() -> Array[ActionReel]:
 		match staged_extra_ability_id:
 			&"dew_minion":
 				reels.append(ActionReel.make_summon_reel())
+			&"misfortune_minion":
+				reels.append(ActionReel.make_summon_reel())
 	if staged_extra_ability_id in TWO_REEL_BONUS_EXTRA_IDS:
 		# Double or Nothing's bonus reels preview as the wild gambler's spread (playtest 2026-07-04) —
 		# it also converts the caster's EXISTING reels the same way, but (matching the evasion_reels/
@@ -501,6 +503,8 @@ func commit() -> void:
 				combatant.fire_double_or_nothing(combatant.weapon_type(), reel_cap)
 			&"dew_minion":
 				combatant.apply_summon_dew(extra_talent_cost, reel_cap)
+			&"misfortune_minion":
+				combatant.apply_summon_misfortune(extra_talent_cost, reel_cap)
 		if def != null and def.cooldown_turns > 0:
 			var talent_cd: int = maxi(1, def.cooldown_turns + combatant.ability_talent_cooldown_delta(staged_extra_ability_id))
 			combatant.start_cooldown(staged_extra_ability_id, talent_cd)
