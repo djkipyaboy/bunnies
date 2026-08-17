@@ -241,10 +241,28 @@ func _run_second_summon_replaces_first() -> void:
 	CombatHandoff.clear_party()
 	CombatHandoff.clear_pending()
 
+## Regression (2026-08-17 playtest): a minion killed by expiry or replacement must be removed
+## from TurnManager.combatants, not just left dead in the list forever.
+func _run_remove_dead_combatant_regression() -> void:
+	var tm2: TurnManager = TurnManager.new()
+	var caster2: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	var enemy2: Combatant = EnemyLibrary.make(&"rat")
+	tm2.combatants = [caster2, enemy2]
+	tm2.roll_initiative()
+	var minion_a: Combatant = MinionLibrary.make(false, &"ember")
+	caster2.active_minion = minion_a
+	tm2.roll_initiative_for(minion_a)
+	tm2.combatants.append(minion_a)
+	_check(tm2.combatants.has(minion_a), "minion_a starts in TurnManager.combatants")
+	minion_a.take_damage(minion_a.hp)
+	tm2.remove_dead_combatant(minion_a)
+	_check(not tm2.combatants.has(minion_a), "expired minion_a is removed from TurnManager.combatants (got size %d)" % tm2.combatants.size())
+
 func _initialize() -> void:
 	await _run_summon_escalation_and_expiry()
 	await _run_crit_success_summon_is_tanky()
 	await _run_second_summon_replaces_first()
+	_run_remove_dead_combatant_regression()
 
 	print(("MINION LIFECYCLE TEST PASSED" if _failures == 0 else "MINION LIFECYCLE TEST FAILED: %d" % _failures))
 	quit(_failures)

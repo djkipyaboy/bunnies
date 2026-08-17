@@ -89,6 +89,16 @@ func insert_acting_this_round(c: Combatant) -> void:
 	combatants.append(c)
 	_order.append(c)
 
+## Removes a dead combatant (an expired or replaced minion) from both the master list and the
+## current round's fixed order, so it stops appearing in any turn-order-derived view immediately
+## instead of lingering until the list is next rebuilt (2026-08-17 playtest fix).
+func remove_dead_combatant(c: Combatant) -> void:
+	combatants.erase(c)
+	var idx: int = _order.find(c)
+	if idx != -1 and idx < _turn_index:
+		_turn_index -= 1  # keep the cursor pointing at the same logical next-actor after the shrink
+	_order.erase(c)
+
 # ---------------------------------------------------------------------------
 # Combat-end queries
 # ---------------------------------------------------------------------------

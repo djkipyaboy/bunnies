@@ -790,6 +790,7 @@ func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) 
 	if stage >= 3 and minion.is_alive():
 		_log("  %s completes its final stage and fades away." % minion.display_name)
 		minion.take_damage(minion.hp)
+		_turn_manager.remove_dead_combatant(minion)
 
 const MINION_BASE_STAGE_DAMAGE: int = 8
 
@@ -3072,6 +3073,7 @@ func _finish_spin() -> void:
 	if _attacker.summon_reel != null and _summon_tier != -1:
 		if _attacker.active_minion != null and _attacker.active_minion.is_alive():
 			_attacker.active_minion.take_damage(_attacker.active_minion.hp)
+			_turn_manager.remove_dead_combatant(_attacker.active_minion)
 		var tanky: bool = _summon_tier == ReelFace.ResultTier.CRIT_SUCCESS
 		var minion: Combatant = MinionLibrary.make(tanky, _attacker.pending_minion_type)
 		_attacker.active_minion = minion
