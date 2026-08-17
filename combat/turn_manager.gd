@@ -95,8 +95,13 @@ func insert_acting_this_round(c: Combatant) -> void:
 func remove_dead_combatant(c: Combatant) -> void:
 	combatants.erase(c)
 	var idx: int = _order.find(c)
-	if idx != -1 and idx < _turn_index:
-		_turn_index -= 1  # keep the cursor pointing at the same logical next-actor after the shrink
+	if idx != -1 and idx <= _turn_index:
+		# Removing the entry AT or BEFORE the cursor shifts every following entry down one slot,
+		# including whichever entry now slides into the cursor's own index — decrement so the
+		# pending advance_turn()'s `_turn_index += 1` still lands on the correct next actor instead
+		# of skipping it (2026-08-17 fix round 1: idx == _turn_index was previously missed, which
+		# is exactly the case a minion's own stage-3 expiry hits during its own turn_started).
+		_turn_index -= 1
 	_order.erase(c)
 
 # ---------------------------------------------------------------------------

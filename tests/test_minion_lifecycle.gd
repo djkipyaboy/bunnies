@@ -258,11 +258,97 @@ func _run_remove_dead_combatant_regression() -> void:
 	tm2.remove_dead_combatant(minion_a)
 	_check(not tm2.combatants.has(minion_a), "expired minion_a is removed from TurnManager.combatants (got size %d)" % tm2.combatants.size())
 
+## Regression (2026-08-17 fix round 1 — task review Critical finding): removing the combatant the
+## turn cursor is CURRENTLY pointed at (idx == _turn_index, the exact case a minion's own stage-3
+## expiry hits during its own turn_started) must not skip the combatant scheduled to act right
+## after it. Drives a REAL fixed order via begin()/advance_turn() (not a bare combatants.erase()
+## check) so the _turn_index-adjustment branch in remove_dead_combatant() is actually exercised,
+## per the task reviewer's exact reproduction trace: _order = [A, B, M, D], _turn_index pointing at
+## M, remove M mid-turn, then advance_turn() must reach D, not skip straight to a new round.
+func _run_remove_dead_combatant_cursor_regression() -> void:
+	# One real player and one real enemy keep is_combat_over() false for the whole test (minions and
+	# extra combatants are excluded from the living-count via is_minion / are just extra players).
+	var a: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	var b: Combatant = EnemyLibrary.make(&"rat")
+	var m: Combatant = MinionLibrary.make(false, &"ember")
+	var d: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	a.current_initiative = 100
+	b.current_initiative = 90
+	m.current_initiative = 80
+	d.current_initiative = 70
+
+	var turns_seen: Array[Combatant] = []
+	var tm3: TurnManager = TurnManager.new()
+	tm3.combatants = [a, b, m, d]
+	tm3.turn_started.connect(func(c: Combatant) -> void: turns_seen.append(c))
+
+	tm3.begin()  # round 1: _order = [a, b, m, d] (sorted desc by current_initiative), _turn_index 0 -> a
+	_check(turns_seen.size() == 1 and turns_seen[0] == a, "cursor-regression: round 1 opens on a")
+
+	tm3.advance_turn()  # idx 0 -> 1 -> b
+	_check(turns_seen.size() == 2 and turns_seen[1] == b, "cursor-regression: advance_turn reaches b")
+
+	tm3.advance_turn()  # idx 1 -> 2 -> m (the case under test: cursor now AT m's own index)
+	_check(turns_seen.size() == 3 and turns_seen[2] == m, "cursor-regression: advance_turn reaches m (cursor now at m's index)")
+
+	# Simulate m's own stage-3 expiry firing DURING m's own turn_started, exactly like _take_minion_turn():
+	# idx == _turn_index here (both 2) — the case the off-by-one guard originally missed.
+	tm3.remove_dead_combatant(m)
+	tm3.advance_turn()  # must land on d, not skip it and not roll into round 2 early
+	_check(turns_seen.size() == 4 and turns_seen[3] == d, "cursor-regression: removing the CURRENT cursor's combatant (m) still lets d take its turn next, not skipped (got %s)" % [turns_seen[3].display_name if turns_seen.size() > 3 else "<none>"])
+
+	# Sanity: a second round then opens cleanly (no leftover corruption from the removal).
+	tm3.advance_turn()  # idx 3 -> 4 == _order.size() -> rolls into round 2, re-sorts [a, b, d]
+	_check(turns_seen.size() == 5 and turns_seen[4] == a, "cursor-regression: round 2 opens correctly on a after the mid-round removal (got %s)" % [turns_seen[4].display_name if turns_seen.size() > 4 else "<none>"])
+
+	# --- Companion case: removing an entry BEFORE the cursor still decrements correctly (no regression). ---
+	var turns_seen2: Array[Combatant] = []
+	var a2: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	var b2: Combatant = EnemyLibrary.make(&"rat")
+	var m2: Combatant = MinionLibrary.make(false, &"ember")
+	var d2: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	a2.current_initiative = 100
+	b2.current_initiative = 90
+	m2.current_initiative = 80
+	d2.current_initiative = 70
+	var tm4: TurnManager = TurnManager.new()
+	tm4.combatants = [a2, b2, m2, d2]
+	tm4.turn_started.connect(func(c: Combatant) -> void: turns_seen2.append(c))
+	tm4.begin()          # idx 0 -> a2
+	tm4.advance_turn()   # idx 1 -> b2
+	tm4.advance_turn()   # idx 2 -> m2 (cursor now at m2)
+	# Remove a2 (BEFORE the cursor) while the cursor sits on m2 — must decrement so the cursor still
+	# logically tracks m2, and a subsequent advance_turn() must reach d2, not re-visit m2.
+	tm4.remove_dead_combatant(a2)
+	tm4.advance_turn()
+	_check(turns_seen2.size() == 4 and turns_seen2[3] == d2, "cursor-regression (before-cursor case): removing a2 (before the cursor) still lets advance_turn reach d2 next (got %s)" % [turns_seen2[3].display_name if turns_seen2.size() > 3 else "<none>"])
+
+	# --- Companion case: removing an entry AFTER the cursor causes no adjustment (no regression). ---
+	var turns_seen3: Array[Combatant] = []
+	var a3: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	var b3: Combatant = EnemyLibrary.make(&"rat")
+	var m3: Combatant = MinionLibrary.make(false, &"ember")
+	var d3: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	a3.current_initiative = 100
+	b3.current_initiative = 90
+	m3.current_initiative = 80
+	d3.current_initiative = 70
+	var tm5: TurnManager = TurnManager.new()
+	tm5.combatants = [a3, b3, m3, d3]
+	tm5.turn_started.connect(func(c: Combatant) -> void: turns_seen3.append(c))
+	tm5.begin()          # idx 0 -> a3
+	tm5.advance_turn()   # idx 1 -> b3 (cursor now at b3, BEFORE m3/d3)
+	# Remove d3 (AFTER the cursor) — must NOT adjust the cursor; the next advance_turn() reaches m3.
+	tm5.remove_dead_combatant(d3)
+	tm5.advance_turn()
+	_check(turns_seen3.size() == 3 and turns_seen3[2] == m3, "cursor-regression (after-cursor case): removing d3 (after the cursor) causes no cursor shift — advance_turn still reaches m3 next (got %s)" % [turns_seen3[2].display_name if turns_seen3.size() > 2 else "<none>"])
+
 func _initialize() -> void:
 	await _run_summon_escalation_and_expiry()
 	await _run_crit_success_summon_is_tanky()
 	await _run_second_summon_replaces_first()
 	_run_remove_dead_combatant_regression()
+	_run_remove_dead_combatant_cursor_regression()
 
 	print(("MINION LIFECYCLE TEST PASSED" if _failures == 0 else "MINION LIFECYCLE TEST FAILED: %d" % _failures))
 	quit(_failures)
