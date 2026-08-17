@@ -150,7 +150,7 @@ func _run_stage1_immediate_heal() -> void:
 		_pump_one_frame(inst, pc)
 		await process_frame
 	_check(minion.minion_stage == 2, "case2: minion_stage automatically became 2 on the minion's own turn (got %d)" % minion.minion_stage)
-	_check(pc.hp == mini(hp_before_stage2 + Combat.DEW_STAGE1_HEAL, pc.max_hp), "case2: PC healed by the stage-2 amount automatically (hp %d -> %d)" % [hp_before_stage2, pc.hp])
+	_check(pc.hp == mini(hp_before_stage2 + Combat.DEW_STAGE2_HEAL, pc.max_hp), "case2: PC healed by the stage-2 amount automatically (hp %d -> %d)" % [hp_before_stage2, pc.hp])
 	_check(not pc.has_effect(&"weakened"), "case2: stage 2 cleansed the PC's oldest debuff")
 	_check(minion.is_alive(), "case2: the minion is still alive after stage 2")
 

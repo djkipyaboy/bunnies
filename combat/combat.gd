@@ -815,14 +815,15 @@ func _run_ember_stage(minion: Combatant, stage: int) -> void:
 
 ## Dew Minion's 3-stage effect (2026-08-16 spec §2): AoE heal every stage, cleanse the OLDEST
 ## debuff off every ally starting stage 2, a party-wide Thorns buff on stage 3. [ASSUMPTION]
-## heal amounts (8/8/16) and thorns_pct (0.20) — tune by playtest.
+## heal amounts (8/12/16) and thorns_pct (0.20) — tune by playtest.
 const DEW_STAGE1_HEAL: int = 8
+const DEW_STAGE2_HEAL: int = 12  # 2026-08-17 playtest: bumped from 8 (unconditional, not tied to cleanse)
 const DEW_STAGE3_HEAL: int = 16
 const DEW_THORNS_PCT: float = 0.20
 const DEW_THORNS_TURNS: int = 2
 
 func _run_dew_stage(minion: Combatant, stage: int) -> void:
-	var heal_amount: int = DEW_STAGE3_HEAL if stage == 3 else DEW_STAGE1_HEAL
+	var heal_amount: int = DEW_STAGE3_HEAL if stage == 3 else (DEW_STAGE2_HEAL if stage == 2 else DEW_STAGE1_HEAL)
 	for ally: Combatant in _allies_of(minion):
 		if not ally.is_alive():
 			continue
@@ -860,7 +861,7 @@ func _run_misfortune_stage(minion: Combatant, stage: int) -> void:
 			enemy.attach_effect(EffectLibrary.make(&"sundered"))
 		if stage == 3:
 			var curse: Effect = EffectLibrary.make(&"cursed")
-			curse.dot_base_damage = 1.0  # flat, not weapon-scaled — mirrors the Warden Acolyte curse pattern
+			curse.dot_base_damage = 12.0  # flat, not weapon-scaled — 6 dmg/turn at stacks=1 (2026-08-17 playtest: was 1 dmg/turn)
 			enemy.attach_effect(curse)
 		if _panels.has(enemy):
 			(_panels[enemy] as CombatantPanel).refresh_status()
@@ -989,11 +990,11 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				jinx.duration = GRAND_SACRIFICE_MISFORTUNE_TURNS
 				enemy.attach_effect(jinx)
 				# "Improved" cursed: bigger starting stacks (pre-stacked to max instead of starting at
-				# 1) AND a bigger flat baseline (2.0 vs Misfortune Minion's own stage-3 1.0), plus a
+				# 1) AND a bigger flat baseline (15.0 vs Misfortune Minion's own stage-3 12.0), plus a
 				# longer duration (3 vs the base effect's own 3 — same, but locked here explicitly
 				# rather than left to EffectLibrary's default in case that default ever changes).
 				var curse: Effect = EffectLibrary.make(&"cursed")
-				curse.dot_base_damage = 2.0
+				curse.dot_base_damage = 15.0  # 18 dmg/turn at stacks=3 (2026-08-17 playtest: was 3 dmg/turn)
 				curse.duration = GRAND_SACRIFICE_CURSE_TURNS
 				curse.add_stack()
 				curse.add_stack()
