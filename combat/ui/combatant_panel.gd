@@ -38,13 +38,17 @@ func _ready() -> void:
 	# wraps past its old 20px reservation, and — since nothing clipped this panel — the overflow used
 	# to paint onto the panel of the NEXT combatant in the column (looked like "debuffs are covered by
 	# the character beneath the target"). clip_contents is a hard backstop for any stacking this taller
-	# reservation still doesn't cover.
-	custom_minimum_size = Vector2(PANEL_W, 312)
+	# reservation still doesn't cover. Grew a further 20px (playtest 2026-08-17): the status label's
+	# own reservation went 60->80 so it scrolls internally instead of clipping when several
+	# buffs/debuffs stack at once (Summoner minions can stack Thorns + cleanse-eligible debuffs +
+	# regen + reel_surge + Empowered) — the panel must grow to match, or the VBox's combined
+	# minimum height would exceed it again.
+	custom_minimum_size = Vector2(PANEL_W, 332)
 	size = custom_minimum_size
 	clip_contents = true
 	var box := VBoxContainer.new()
 	box.position = Vector2(10, 8)
-	box.custom_minimum_size = Vector2(ROW_W, 296)
+	box.custom_minimum_size = Vector2(ROW_W, 316)
 	add_child(box)
 
 	# NOT a child of `box` — deliberately kept OUT of the VBoxContainer layout flow (final-review
@@ -118,9 +122,9 @@ func _ready() -> void:
 
 	_status_label = RichTextLabel.new()
 	_status_label.bbcode_enabled = true
-	_status_label.fit_content = true
-	_status_label.scroll_active = false
-	_status_label.custom_minimum_size = Vector2(ROW_W, 60)  # room for ~3 wrapped lines of active effects
+	_status_label.fit_content = false  # bounded height + internal scroll instead of growing past the panel (2026-08-17 playtest fix)
+	_status_label.scroll_active = true
+	_status_label.custom_minimum_size = Vector2(ROW_W, 80)  # room for ~4 wrapped lines visible at once; more scrolls internally
 	box.add_child(_status_label)
 
 ## Binds this panel to [param c] and wires its signals.

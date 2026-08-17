@@ -67,5 +67,36 @@ func _initialize() -> void:
 
 	full_panel.free()
 
+	# --- Status-area overflow: scroll internally instead of clipping (2026-08-17 playtest fix) ---
+	# Player report: with several simultaneous buffs/debuffs stacked (Summoner minions can stack
+	# Thorns + cleanse-eligible debuffs + regen + reel_surge + Empowered at once), the status
+	# RichTextLabel's old fit_content=true/scroll_active=false setup grew past its fixed 60px
+	# reservation while the PARENT Panel stayed a fixed 312px tall — the overflow was silently
+	# clipped rather than reflowed. Fix: bounded height + scroll_active=true so it scrolls instead.
+	var stacked_c: Combatant = Combatant.new()
+	stacked_c.display_name = "StackedEffectsCombatant"
+	stacked_c.base_stats = Stats.new()
+	stacked_c.base_max_hp = 100
+	stacked_c.apply_stats()
+	stacked_c.start_combat()
+	for i: int in range(6):
+		var e := Effect.new()
+		e.id = StringName("stack_test_%d" % i)
+		e.beneficial = true
+		e.duration = 3
+		stacked_c.attach_effect(e)
+
+	var stacked_panel: CombatantPanel = CombatantPanel.new()
+	root.add_child(stacked_panel)
+	await process_frame
+	await process_frame
+	stacked_panel.bind(stacked_c)
+	await process_frame
+
+	_check(stacked_panel._status_label.scroll_active, "status label scrolls internally instead of clipping when overloaded with effects")
+	_check(not stacked_panel._status_label.fit_content, "status label no longer grows past its allotted space (fit_content off)")
+
+	stacked_panel.free()
+
 	print(("COMBATANT PANEL TEST PASSED" if _failures == 0 else "COMBATANT PANEL TEST FAILED: %d" % _failures))
 	quit(_failures)
