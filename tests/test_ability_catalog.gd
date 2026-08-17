@@ -18,7 +18,7 @@ func _init() -> void:
 			seen += 1
 			_check(AbilityCatalog.display_name(id) != "", "%s/%s: display_name non-empty" % [cid, id])
 			_check(AbilityCatalog.description(id) != "", "%s/%s: description non-empty" % [cid, id])
-	_check(seen == 29, "roster carries 29 ability ids (8 base + 21 extra), saw %d" % seen)
+	_check(seen == 32, "roster carries 32 ability ids (8 base + 24 extra), saw %d" % seen)
 	_check(AbilityCatalog.display_name(&"nope") == "", "unknown id -> empty name")
 	_check(AbilityCatalog.description(&"nope") == "", "unknown id -> empty description")
 	quit()
