@@ -766,23 +766,45 @@ func _on_minion_panel_death(minion: Combatant) -> void:
 	if _panels.has(minion):
 		(_panels[minion] as CombatantPanel).visible = false
 
-## Runs the Ember Minion's fixed 3-stage AoE effect (2026-08-16 spec §3): a scaling AoE damage
-## pulse, stage N deals N x BASE_STAGE_DAMAGE to every living enemy of the minion's side (Earth
-## typed, matching its defense_type). [ASSUMPTION] damage numbers — tune by playtest. Expires the
-## minion (self-inflicted fatal damage, same pattern as _sacrifice_reinforcements()) once stage 3
-## completes.
+## Runs a minion's stage effect, dispatching by its minion_type (2026-08-16 summoner-ability-kit
+## spec — this class ships 4 distinct minion types sharing the same 3-stage-then-expire
+## mechanism). Expiry-on-stage-3-completion is handled HERE, once, rather than duplicated in each
+## per-type helper below.
+func _run_minion_stage(minion: Combatant, stage: int) -> void:
+	match minion.minion_type:
+		&"dew":
+			_run_dew_stage(minion, stage)
+		&"misfortune":
+			_run_misfortune_stage(minion, stage)
+		&"hasty":
+			_run_hasty_stage(minion, stage)
+		_:
+			_run_ember_stage(minion, stage)
+	if stage >= 3 and minion.is_alive():
+		_log("  %s completes its final stage and fades away." % minion.display_name)
+		minion.take_damage(minion.hp)
+
 const MINION_BASE_STAGE_DAMAGE: int = 8
 
-func _run_minion_stage(minion: Combatant, stage: int) -> void:
+## Ember Minion's stage effect (unchanged from the original shipped mechanism — the expiry check
+## that used to live at the end of this function now lives in the _run_minion_stage() dispatcher
+## above, shared across all 4 types).
+func _run_ember_stage(minion: Combatant, stage: int) -> void:
 	var amount: int = MINION_BASE_STAGE_DAMAGE * stage
 	for enemy: Combatant in _enemies_of(minion):
 		enemy.take_damage(amount)
 		if _panels.has(enemy):
 			(_panels[enemy] as CombatantPanel).refresh_status()
-	_log("  🔥 Ember Minion (stage %d) pulses %d damage to every enemy." % [stage, amount])
-	if stage >= 3 and minion.is_alive():
-		_log("  Ember Minion completes its final stage and fades away.")
-		minion.take_damage(minion.hp)
+	_log("  🔥 %s (stage %d) pulses %d damage to every enemy." % [minion.display_name, stage, amount])
+
+func _run_dew_stage(minion: Combatant, stage: int) -> void:
+	pass  # implemented by Task 6
+
+func _run_misfortune_stage(minion: Combatant, stage: int) -> void:
+	pass  # implemented by Task 7
+
+func _run_hasty_stage(minion: Combatant, stage: int) -> void:
+	pass  # implemented by Task 8
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
