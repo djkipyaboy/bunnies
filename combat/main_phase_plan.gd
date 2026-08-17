@@ -373,14 +373,6 @@ func preview_reels() -> Array[ActionReel]:
 			if reels[i].is_weapon_attack:
 				pos = i + 1
 		reels.insert(pos, ActionReel.make_ability_attack(combatant.weapon_type()))
-	# Hasty Minion's reel-surge buff (2026-08-16 summoner-ability-kit spec, playtest fix
-	# 2026-08-17): an ALREADY-ACTIVE passive buff from a prior turn, not a staged ability — so it's
-	# keyed on has_effect() like the Rampage/Collateral/Earthquake block above, not on
-	# staged_extra_ability_id. Must mirror _commit_main1()'s 5-reel cap exactly so the preview never
-	# promises a reel that commit-time will actually reject in favor of the overflow fallback.
-	const PREVIEW_REEL_SURGE_CAP: int = 5
-	if combatant.has_effect(&"reel_surge") and reels.size() < PREVIEW_REEL_SURGE_CAP:
-		reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
 	# The Big Bang tops the loadout up to 4 reels (the Seer's 2 → 4) — preview the added strips.
 	if fire_ultimate_staged and ultimate_id == &"big_bang":
 		while reels.size() < mini(BIG_BANG_REELS, reel_cap):
@@ -389,6 +381,22 @@ func preview_reels() -> Array[ActionReel]:
 	# 2026-07-16 design §2) — staging an item always adds its reel regardless of loadout size.
 	if staged_item_type != &"":
 		reels.append(ActionReel.make_item_use(combatant.weapon_type()))
+	# Hasty Minion's reel-surge buff (2026-08-16 summoner-ability-kit spec, playtest fix
+	# 2026-08-17; ordering fix round 2 same date): an ALREADY-ACTIVE passive buff from a prior
+	# turn, not a staged ability, so it's keyed on has_effect(), not staged_extra_ability_id. Must
+	# run LAST here -- after the item-use append AND the Big Bang top-up above -- to mirror the
+	# REAL commit-time order: MainPhasePlan.commit() (which appends the item reel and fires Big
+	# Bang's top-up) runs to completion first, and only THEN does combat.gd's _commit_main1()
+	# evaluate the reel_surge 5-reel cap against the truly-final turn_reels.size() (see
+	# _commit_main1's reel_surge-cap-check block, which runs right after _plan.commit() returns).
+	# Evaluating this block early (before those other additions, as a prior version of this
+	# preview did) either overpromises a surge reel that a same-turn item will actually crowd out
+	# at the cap, or undercounts a surge reel that only opens up room after Big Bang's top-up --
+	# see the task-4 fix-round-1 report for the two traced repro cases (Skirmisher+item, Seer+Big
+	# Bang).
+	const PREVIEW_REEL_SURGE_CAP: int = 5
+	if combatant.has_effect(&"reel_surge") and reels.size() < PREVIEW_REEL_SURGE_CAP:
+		reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
 	return reels
 
 ## The combatant's value on the ABILITY's rail after committing (current minus a staged cost).
