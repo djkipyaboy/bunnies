@@ -238,8 +238,34 @@ func _run_stage1_to_3_buffs() -> void:
 	CombatHandoff.clear_party()
 	CombatHandoff.clear_pending()
 
+## Regression repro (2026-08-17 playtest): does a Hasty-buffed minion whose current_initiative
+## exceeds 100 still get a turn? Force a high base roll so the +20 buff pushes it over 100.
+func _run_over_100_initiative_repro() -> void:
+	var tm3: TurnManager = TurnManager.new()
+	var caster3: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	var enemy3: Combatant = EnemyLibrary.make(&"rat")
+	tm3.combatants = [caster3, enemy3]
+	tm3.roll_initiative()
+	var hasty3: Combatant = MinionLibrary.make(false, &"hasty")
+	hasty3.base_initiative = 95  # force high; +20 Hasty buff will push current_initiative to 115
+	hasty3.recompute_initiative()
+	var haste_buff := Effect.new()
+	haste_buff.id = &"hasty_initiative"
+	haste_buff.kind = Effect.Kind.INITIATIVE_MOD
+	haste_buff.magnitude = 20.0
+	haste_buff.duration = 3
+	haste_buff.beneficial = true
+	hasty3.attach_effect(haste_buff)
+	_check(hasty3.current_initiative > 100, "test setup: current_initiative is actually over 100 (got %d)" % hasty3.current_initiative)
+	tm3.combatants.append(hasty3)
+	tm3.begin()
+	var order3: Array[Combatant] = tm3.get_turn_order()
+	_check(order3.has(hasty3), "a >100-current_initiative minion still appears in get_turn_order() (size %d)" % order3.size())
+	_check(order3[0] == hasty3, "it sorts to the FRONT of turn order, not dropped (front is %s)" % order3[0].display_name)
+
 func _initialize() -> void:
 	_run_stage_commit_wiring()
+	_run_over_100_initiative_repro()
 	await _run_stage1_to_3_buffs()
 
 	print(("HASTY MINION TEST PASSED" if _failures == 0 else "HASTY MINION TEST FAILED: %d" % _failures))
