@@ -180,7 +180,7 @@ func _run_misfortune_variant() -> void:
 				attached = e
 		_check(attached != null, "misfortune: found the live attached Cursed instance")
 		_check(attached.stacks == 3, "misfortune: improved Cursed lands at 3 stacks, not reset to 1 (got %d)" % attached.stacks)
-		_check(attached.dot_damage() == ceili(2.0 * 1.15), "misfortune: improved Cursed ticks for the STRONGEST fraction (got %d)" % attached.dot_damage())
+		_check(attached.dot_damage() == ceili(15.0 * 1.15), "misfortune: improved Cursed ticks for the STRONGEST fraction (got %d)" % attached.dot_damage())
 		_check(attached.dot_damage() == 18, "Grand Sacrifice's improved curse deals 18 damage/turn (got %d)" % attached.dot_damage())
 
 	await _free_combat(inst)

@@ -153,7 +153,7 @@ func _run_stage1_to_3_debuffs() -> void:
 			curse = e
 			break
 	var reference: Effect = EffectLibrary.make(&"cursed")
-	_check(curse != null and curse.dot_base_damage == 1.0, "case3: cursed's dot_base_damage is flat 1.0 (got %s)" % (str(curse.dot_base_damage) if curse != null else "null"))
+	_check(curse != null and curse.dot_base_damage == 12.0, "case3: cursed's dot_base_damage is flat 12.0 (got %s)" % (str(curse.dot_base_damage) if curse != null else "null"))
 	_check(curse != null and curse.dot_fractions == reference.dot_fractions, "case3: cursed's dot_fractions match EffectLibrary.make(&cursed)'s own defaults (got %s vs %s)" % [str(curse.dot_fractions) if curse != null else "null", str(reference.dot_fractions)])
 	_check(curse.dot_damage() == 6, "Misfortune stage-3 curse deals 6 damage/turn (got %d)" % curse.dot_damage())
 
