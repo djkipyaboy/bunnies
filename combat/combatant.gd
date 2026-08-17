@@ -1326,6 +1326,18 @@ func cleanse() -> int:
 	recompute_initiative()
 	return before - active_effects.size()
 
+## Removes and returns the OLDEST (first-attached) active debuff, or null if this combatant has
+## none (2026-08-16 summoner-ability-kit spec §4 — Dew Minion/Grand Sacrifice). Unlike cleanse()
+## (which removes ALL debuffs at once, the Warden Ultimate's shape), this removes exactly one.
+## Safe because nothing in this file reorders active_effects — append-order IS attach-order.
+func cleanse_oldest_debuff() -> Effect:
+	for e: Effect in active_effects:
+		if e != null and not e.beneficial:
+			active_effects.erase(e)
+			recompute_initiative()
+			return e
+	return null
+
 ## Clears every active effect (buff AND debuff) plus any residual shield, for a fresh start in a
 ## brand-new encounter (player decision 2026-07-31 — CombatHandoff reuses the same real Combatant
 ## instances across sequential fights, so without this, Guarded/Taunt/Evasion/etc. would silently
