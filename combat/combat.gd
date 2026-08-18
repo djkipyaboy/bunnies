@@ -328,6 +328,7 @@ func _scale_up_for_endgame(pc: Combatant) -> void:
 ## enemy click-catchers. Called at BEGIN after [method _build_combatants].
 func _build_party_columns() -> void:
 	_place_party_column(_pcs, 24.0)
+	_relayout_party_column()
 	var right: Array[Combatant] = _enemies.duplicate()
 	right.append_array(_dummies)
 	_place_party_column(right, 1276.0)
@@ -614,6 +615,39 @@ func _place_party_column(members: Array[Combatant], x: float) -> void:
 		p.bind(c)
 		y += 312.0 + 14.0
 
+## Fixes the "3rd ally panel unreachable" bug (playtest 2026-08-18): _place_party_column() gives
+## the PC column the exact same fixed absolute-position layout the enemy column originally had
+## before _relayout_enemy_column() (2026-07-19) introduced a shared-scale-factor fit for the SAME
+## off-screen-column problem on the other side — but no equivalent was ever added for the PC side.
+## At the project's fixed 1600x900 logical canvas (canvas_items stretch mode rescales that whole
+## logical canvas uniformly on window resize, so resizing the real window can never reveal more
+## logical vertical space — this is why resizing didn't help in the playtest), a full 3-PC party
+## (326px/row) already exceeds the ~800px available band, so the 3rd panel's Bonus-Meter-and-below
+## content sits off the bottom of the canvas. Mirrors _relayout_enemy_column()'s scale-factor
+## approach (same player direction there: shrink panels rather than scroll or add a column) for
+## consistency. Party size never changes mid-fight, so — unlike the enemy column — this only needs
+## to run once, right after _place_party_column(_pcs, ...) and before _build_ally_target_click_catchers()
+## so its click-catchers inherit the same scale.
+func _relayout_party_column() -> void:
+	var view: Vector2 = get_viewport_rect().size
+	const TOP_Y: float = 80.0
+	const PANEL_H: float = 312.0
+	const GAP: float = 14.0
+	const ROW_H: float = PANEL_H + GAP
+	const BOTTOM_MARGIN: float = 20.0
+	var available: float = view.y - TOP_Y - BOTTOM_MARGIN
+	var scale_factor: float = 1.0
+	if _pcs.size() * ROW_H > available:
+		scale_factor = clampf(available / (_pcs.size() * ROW_H), 0.4, 1.0)
+	for i: int in range(_pcs.size()):
+		var member: Combatant = _pcs[i]
+		if not _panels.has(member):
+			continue
+		var y: float = TOP_Y + i * (ROW_H * scale_factor)
+		var panel: CombatantPanel = _panels[member]
+		panel.position = Vector2(24.0, y)
+		panel.scale = Vector2(scale_factor, scale_factor)
+
 ## Spawns a NEW enemy Combatant mid-fight, after _build_combatants() has already run once (spec
 ## 2026-07-19 §3.6 — the boss's phase-transition/Ultimate summons). Fully playable the SAME round it
 ## appears: appended to _enemies/_turn_manager.combatants (so _enemies_of()/_allies_of()/win-check
@@ -797,7 +831,7 @@ func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) 
 			_run_ember_stage(minion, stage)
 	if stage >= 3 and minion.is_alive():
 		_log("  %s completes its final stage and fades away." % minion.display_name)
-		minion.take_damage(minion.hp)
+		minion.force_expire()
 		_turn_manager.remove_dead_combatant(minion)
 
 const MINION_BASE_STAGE_DAMAGE: int = 8
@@ -1379,6 +1413,7 @@ func _build_ally_target_click_catchers() -> void:
 		hit.flat = true
 		hit.modulate = Color(1, 1, 1, 0)
 		hit.position = panel.position
+		hit.scale = panel.scale  # tracks _relayout_party_column()'s shrink-to-fit, same as the enemy column's click-catchers
 		hit.custom_minimum_size = Vector2(300, 312)
 		hit.size = Vector2(300, 312)
 		hit.tooltip_text = "Click to make %s the active ally's item-use target." % c.display_name

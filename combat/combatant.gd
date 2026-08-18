@@ -466,6 +466,20 @@ func take_damage(amount: int) -> void:
 	if hp == 0:
 		defeated.emit()
 
+## Forces hp to 0 unconditionally, bypassing SHIELDED (playtest 2026-08-18: a minion's scripted
+## stage-3 self-expiry used take_damage(hp), which a shield picked up as an "ally" absorbed,
+## leaving the minion alive — gone from turn order via the caller's unconditional cleanup, but its
+## panel-hide, gated on [signal defeated], never fired). No-op if already dead.
+func force_expire() -> void:
+	if hp <= 0:
+		return
+	shield_hp = 0
+	shield_turns = 0
+	shield_changed.emit(shield_hp, shield_turns)
+	hp = 0
+	hp_changed.emit(hp, max_hp)
+	defeated.emit()
+
 ## Applies a SHIELDED buff of [param amount] HP for [param turns] turns. Higher-total-overrides
 ## (spec §1.2 / §3.3): replaces the current shield only if [param amount] exceeds it; otherwise no-op.
 func apply_shield(amount: int, turns: int) -> void:

@@ -179,9 +179,39 @@ func _run_stage1_immediate_heal() -> void:
 	CombatHandoff.clear_party()
 	CombatHandoff.clear_pending()
 
+## Playtest 2026-08-18: a minion holding a SHIELDED buff at its stage-3 expiry absorbed the
+## self-damage take_damage(minion.hp) applies, so hp never reached 0 and [signal defeated] never
+## fired — the minion vanished from turn order (remove_dead_combatant runs unconditionally) but its
+## panel (gated on the defeated signal) stayed visible forever. Expiry must guarantee death
+## regardless of shield.
+func _run_stage3_expiry_bypasses_shield() -> void:
+	var setup: Array = await _new_summoner_encounter(&"DewMinionShieldExpiry")
+	var inst: Combat = setup[0]
+	var pc: Combatant = setup[1]
+	await _stage_and_force_dew(inst, pc, ReelFace.ResultTier.SUCCESS, "shield_case")
+
+	var minion: Combatant = pc.active_minion
+	_check(minion != null and minion.is_alive(), "shield_case: minion summoned and alive")
+	minion.minion_stage = 2
+	minion.apply_shield(999, 5)
+	_check(minion.shield_hp == 999, "shield_case: minion carries a 999 HP shield before its stage-3 turn")
+
+	inst._run_minion_stage(minion, 3)
+
+	_check(not minion.is_alive(), "shield_case: minion is dead after stage-3 expiry despite the shield (hp=%d, shield_hp=%d)" % [minion.hp, minion.shield_hp])
+	_check(not inst._turn_manager.combatants.has(minion), "shield_case: minion removed from TurnManager.combatants")
+	_check(inst._panels.has(minion) and not (inst._panels[minion] as CombatantPanel).visible, "shield_case: minion's panel is hidden")
+
+	inst.queue_free()
+	await process_frame
+	var CombatHandoff: Node = get_root().get_node("CombatHandoff")
+	CombatHandoff.clear_party()
+	CombatHandoff.clear_pending()
+
 func _initialize() -> void:
 	_run_stage_commit_wiring()
 	await _run_stage1_immediate_heal()
+	await _run_stage3_expiry_bypasses_shield()
 
 	print(("DEW MINION TEST PASSED" if _failures == 0 else "DEW MINION TEST FAILED: %d" % _failures))
 	quit(_failures)
