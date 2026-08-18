@@ -96,6 +96,20 @@ func _initialize() -> void:
 	_check(stacked_panel._status_label.scroll_active, "status label scrolls internally instead of clipping when overloaded with effects")
 	_check(not stacked_panel._status_label.fit_content, "status label no longer grows past its allotted space (fit_content off)")
 
+	# Behavioral check (finding 3, 2026-08-17 final-review fix): the two property assertions above
+	# only prove the FLAGS are set, not that overflow actually stays visually contained. Confirm the
+	# label's own content genuinely overflows its visible box (proving this fixture really exercises
+	# the overflow case, not a no-op with room to spare) AND that neither the label nor the
+	# containing Panel grew to accommodate it — scroll_active is doing the containment, not growth.
+	_check(stacked_panel._status_label.get_content_height() > stacked_panel._status_label.size.y,
+		"sanity: 6 stacked effects genuinely overflow the label's visible box (content %.1f > box %.1f) — proves this fixture exercises real overflow" %
+		[stacked_panel._status_label.get_content_height(), stacked_panel._status_label.size.y])
+	_check(stacked_panel._status_label.size.y == 60.0,
+		"the label's own box stayed at its allotted 60px slot instead of growing to fit the overflow (got %.1f)" % stacked_panel._status_label.size.y)
+	_check(stacked_panel.size.y == stacked_panel.custom_minimum_size.y,
+		"the containing Panel's own size did not grow to accommodate the overflow (size.y %.1f, custom_minimum_size.y %.1f)" %
+		[stacked_panel.size.y, stacked_panel.custom_minimum_size.y])
+
 	stacked_panel.free()
 
 	print(("COMBATANT PANEL TEST PASSED" if _failures == 0 else "COMBATANT PANEL TEST FAILED: %d" % _failures))

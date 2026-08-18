@@ -103,6 +103,27 @@ func remove_dead_combatant(c: Combatant) -> void:
 		# is exactly the case a minion's own stage-3 expiry hits during its own turn_started).
 		_turn_index -= 1
 	_order.erase(c)
+	# NOTE: removing _order[0] while _turn_index == 0 leaves _turn_index at -1 here. Harmless
+	# today -- advance_turn() is the sole consumer and only ever does `_turn_index += 1`, which
+	# correctly lands back on index 0 (the entry that slid down into the removed slot). Don't
+	# "fix" this into clamping at 0 without re-checking that call site.
+
+## Drops any dead (expired/replaced/killed) minion from [member combatants] at the start of each
+## round, regardless of HOW it died. remove_dead_combatant() above handles the same-round,
+## mid-cursor case (a minion dying DURING the current round, before this next runs) -- this sweep
+## is the belt-and-suspenders catch-all for every other kill path a minion can go through that
+## doesn't call remove_dead_combatant() directly (an enemy's ordinary attack killing it, or
+## Combatant.fire_grand_sacrifice() self-inflicting fatal damage -- neither holds a reference to
+## this TurnManager to prune itself). Since get_turn_order() is always called fresh at round start
+## (see below), a dead minion left in [member combatants] would otherwise keep a permanent chip in
+## every TurnOrderBar.set_order() call this round (2026-08-17 final-review fix).
+func _prune_dead_minions() -> void:
+	var alive: Array[Combatant] = []
+	for c: Combatant in combatants:
+		if c.is_minion and not c.is_alive():
+			continue
+		alive.append(c)
+	combatants = alive
 
 # ---------------------------------------------------------------------------
 # Combat-end queries
@@ -144,6 +165,7 @@ func advance_turn() -> void:
 	_announce_current()
 
 func _start_next_round() -> void:
+	_prune_dead_minions()
 	if is_combat_over():
 		combat_ended.emit(winner_is_player())
 		return

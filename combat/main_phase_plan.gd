@@ -394,6 +394,10 @@ func preview_reels() -> Array[ActionReel]:
 	# at the cap, or undercounts a surge reel that only opens up room after Big Bang's top-up --
 	# see the task-4 fix-round-1 report for the two traced repro cases (Skirmisher+item, Seer+Big
 	# Bang).
+	# Intentionally a literal, not reel_cap, mirroring combat.gd's own hardcoded 5 in
+	# _commit_main1()'s REEL_SURGE_CAP (final-review fix, 2026-08-16 summoner-ability-kit plan) —
+	# this preview must match that exact real-commit cap, not whatever reel_cap this plan instance
+	# happens to be constructed with.
 	const PREVIEW_REEL_SURGE_CAP: int = 5
 	if combatant.has_effect(&"reel_surge") and reels.size() < PREVIEW_REEL_SURGE_CAP:
 		reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
@@ -434,9 +438,20 @@ func effective_wild_indices() -> Array[int]:
 		out.sort()
 	# Earthquake makes every weapon-attack reel WILD — glow the leading attack run (the previewed
 	# weapon-attack reels; the trailing utility reel is excluded).
+	# Final-review fix (2026-08-17): also exclude the trailing reel-surge preview reel (appended
+	# LAST by preview_reels() when Hasty Minion's reel_surge buff is active — see that function's
+	# comment). It's an is_weapon_attack reel too, so without this exclusion it glowed as wild here,
+	# but Combatant.fire_earthquake() computes sticky_wild_count from turn_reels BEFORE combat.gd's
+	# _commit_main1() appends the surge reel (that append happens in a completely separate step,
+	# after MainPhasePlan.commit() returns), so the surge reel never actually resolves wild. Capping
+	# the loop at preview.size() - 1 (when reel_surge is active) keeps the glow set matching what
+	# commit-time actually makes wild.
 	elif fire_ultimate_staged and ultimate_id == &"earthquake":
 		var preview: Array[ActionReel] = preview_reels()
-		for i: int in range(preview.size()):
+		var limit: int = preview.size()
+		if combatant.has_effect(&"reel_surge") and limit > 0:
+			limit -= 1
+		for i: int in range(limit):
 			if preview[i].is_weapon_attack and not (i in out):
 				out.append(i)
 		out.sort()

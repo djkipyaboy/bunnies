@@ -322,5 +322,45 @@ func _initialize() -> void:
 	_check(summoner.summon_reel != null, "commit(): summon_reel is set on the combatant")
 	_check(summoner.resource_pool.mana == 10 - summoner.ability_cost, "commit(): mana was spent (got %d)" % summoner.resource_pool.mana)
 
+	# --- Finding 2 (2026-08-17 final-review fix): Earthquake's wild-glow preview must NOT include
+	# the trailing reel-surge preview reel. Combatant.fire_earthquake() computes sticky_wild_count
+	# from turn_reels BEFORE combat.gd's _commit_main1() appends the reel_surge reel (a completely
+	# separate step, after MainPhasePlan.commit() returns) -- so a player staging Earthquake while
+	# Hasty Minion's reel_surge buff is active must see the SAME wild set in preview as what
+	# actually resolves wild at commit, not one extra glowing reel.
+	var warden: Combatant = ClassLibrary.make(&"warden").build_combatant(true)
+	warden.begin_turn()  # seeds turn_reels from the weapon (3 reels) — build_combatant() doesn't
+	warden.bonus_meter.value = warden.bonus_meter.cap  # pre-arm Earthquake for this turn
+	var surge_buff := Effect.new()
+	surge_buff.id = &"reel_surge"
+	surge_buff.kind = Effect.Kind.REEL_FACE_EDIT
+	surge_buff.duration = 3
+	surge_buff.beneficial = true
+	warden.attach_effect(surge_buff)
+
+	var weapon_reel_count: int = warden.weapon.reels.size()
+	_check(weapon_reel_count == 3, "sanity: Warden weapon baseline is 3 reels (got %d)" % weapon_reel_count)
+
+	var plan_eq: MainPhasePlan = MainPhasePlan.new(warden, warden.ability_cost, 5, 2)
+	_check(plan_eq.can_stage_ultimate(), "sanity: Earthquake's meter is armed and stageable")
+	plan_eq.toggle_ultimate()
+	_check(plan_eq.fire_ultimate_staged, "Earthquake staged via the real toggle_ultimate()")
+
+	var eq_preview: Array[ActionReel] = plan_eq.preview_reels()
+	_check(eq_preview.size() == weapon_reel_count + 2, "preview: 3 weapon + 1 Earthquake reel + 1 reel_surge reel = 5 (got %d)" % eq_preview.size())
+	var previewed_wild: Array[int] = plan_eq.effective_wild_indices()
+	_check(previewed_wild == [0, 1, 2, 3], "preview glows exactly the 4 weapon-attack/Earthquake reels wild, NOT the trailing surge reel (got %s)" % str(previewed_wild))
+
+	# Real commit, mirroring combat.gd's exact two-step order: MainPhasePlan.commit() first (which
+	# internally calls fire_earthquake() and inserts its own +1 reel), THEN the reel_surge append
+	# combat.gd's _commit_main1() performs afterward as a separate step.
+	plan_eq.commit()
+	_check(warden.turn_reels.size() == weapon_reel_count + 1, "commit(): Earthquake's own reel added, surge NOT yet appended (got %d)" % warden.turn_reels.size())
+	if warden.has_effect(&"reel_surge") and warden.turn_reels.size() < 5:
+		warden.turn_reels.append(ActionReel.make_ability_attack(warden.weapon_type()))
+	_check(warden.turn_reels.size() == eq_preview.size(), "post both commit steps: real reel count matches the preview (got %d, expected %d)" % [warden.turn_reels.size(), eq_preview.size()])
+	var actual_wild: Array[int] = warden.wild_reel_indices()
+	_check(actual_wild == previewed_wild, "actual commit-time wild set matches the preview exactly (preview %s, actual %s)" % [str(previewed_wild), str(actual_wild)])
+
 	print(("MAIN PHASE PLAN TEST PASSED" if _failures == 0 else "MAIN PHASE PLAN TEST FAILED: %d" % _failures))
 	quit(_failures)

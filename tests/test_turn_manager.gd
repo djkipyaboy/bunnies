@@ -120,5 +120,26 @@ func _initialize() -> void:
 	regress_tm.roll_initiative()
 	_check(r1.current_initiative != 0 and r2.current_initiative != 0, "roll_initiative() still rolls every combatant after the refactor")
 
+	# --- Finding 1 (2026-08-17 final-review fix): a minion killed via a path that does NOT call
+	# remove_dead_combatant() directly (e.g. an ordinary enemy attack landing the killing blow, or
+	# Combatant.fire_grand_sacrifice()'s self-inflicted take_damage) must still be pruned from turn
+	# order by the very next round boundary, not linger permanently on the TurnOrderBar. Simulated
+	# here via a direct take_damage() call — no remove_dead_combatant() call at all — followed by
+	# begin(), which runs _start_next_round()'s new _prune_dead_minions() sweep.
+	var prune_tm: TurnManager = TurnManager.new()
+	var prune_pc: Combatant = _mk("PC2", true, 60, 20)
+	var prune_enemy: Combatant = _mk("Enemy2", false, 50, 20)
+	var prune_minion: Combatant = _mk("DeadMinion", true, 55, 10)
+	prune_minion.is_minion = true
+	prune_tm.combatants = [prune_pc, prune_enemy, prune_minion]
+	prune_minion.take_damage(999)  # killed directly -- NOT via remove_dead_combatant()
+	_check(prune_tm.combatants.has(prune_minion), "sanity: the dead minion is still in combatants before any round boundary runs")
+	prune_tm.begin()  # round 1 -- _start_next_round() should already have pruned it
+	_check(not prune_tm.combatants.has(prune_minion), "dead minion pruned from combatants at the very next round boundary (begin())")
+	var order_names: Array[String] = []
+	for c: Combatant in prune_tm.get_turn_order():
+		order_names.append(c.display_name)
+	_check(not order_names.has("DeadMinion"), "dead minion absent from get_turn_order()'s result too (got %s)" % str(order_names))
+
 	print(("TURN MANAGER TEST PASSED" if _failures == 0 else "TURN MANAGER TEST FAILED: %d" % _failures))
 	quit(_failures)
