@@ -53,7 +53,8 @@ func _run_summon_cast_charges_meter_and_sets_caster() -> void:
 	var enemy: Combatant = Combatant.new(); enemy.base_max_hp = 300; enemy.apply_stats(); enemy.start_combat()
 	var inst: Combat = await _build_combat(pc, [enemy])
 
-	pc.apply_summon_minion(pc.ability_cost, 5)  # base ability: stages the Ember Minion summon_reel
+	var staged: bool = pc.apply_summon_minion(pc.ability_cost, 5)  # base ability: stages the Ember Minion summon_reel
+	_check(staged, "sanity: summon minion ability staged successfully")
 	inst._summon_tier = ReelFace.ResultTier.SUCCESS  # force a baseline (non-crit) summon result
 	inst._apply_minion_summon_payoff(pc, ReelFace.ResultTier.SUCCESS)
 
@@ -69,7 +70,7 @@ func _run_natural_expiry_credits_caster() -> void:
 	var enemy: Combatant = Combatant.new(); enemy.base_max_hp = 300; enemy.apply_stats(); enemy.start_combat()
 	var inst: Combat = await _build_combat(pc, [enemy])
 
-	pc.apply_summon_minion(pc.ability_cost, 5)
+	_check(pc.apply_summon_minion(pc.ability_cost, 5), "sanity: summon minion ability staged successfully")
 	inst._apply_minion_summon_payoff(pc, ReelFace.ResultTier.SUCCESS)
 	var minion: Combatant = pc.active_minion
 	var value_after_summon: int = pc.bonus_meter.value

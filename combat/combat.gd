@@ -817,7 +817,7 @@ const SUMMON_CAST_BM_CHARGE: int = 1
 ## [ASSUMPTION] Flat Bonus Meter bonus awarded to a minion's caster when that minion completes its
 ## stage-3 action and expires NATURALLY (2026-08-18 Summoner meter economy fix) — rewards playing a
 ## minion out to its full 3-stage lifecycle rather than overwriting it early with a new summon
-## (which does NOT award this; see _apply_minion_summon_payoff's take_damage() early-expire branch).
+## (which does NOT award this; see _apply_minion_summon_payoff's force_expire() early-expire branch).
 ## Not awarded when a minion is sacrificed by Grand Sacrifice — see
 ## Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS for that separate, Ultimate-specific bonus. Tune by
 ## playtest.
@@ -832,7 +832,7 @@ const MINION_NATURAL_EXPIRY_BM_BONUS: int = 2
 ## 2026-08-18 "Option 2" design direction).
 func _apply_minion_summon_payoff(caster: Combatant, summon_tier: int) -> void:
 	if caster.active_minion != null and caster.active_minion.is_alive():
-		caster.active_minion.take_damage(caster.active_minion.hp)
+		caster.active_minion.force_expire()
 		_turn_manager.remove_dead_combatant(caster.active_minion)
 	var tanky: bool = summon_tier == ReelFace.ResultTier.CRIT_SUCCESS
 	var minion: Combatant = MinionLibrary.make(tanky, caster.pending_minion_type)
@@ -846,9 +846,11 @@ func _apply_minion_summon_payoff(caster: Combatant, summon_tier: int) -> void:
 	_run_minion_stage(minion, 1, caster)
 	minion.minion_stage = 1  # stage 1 has now run; the own-turn handler does `+= 1` to reach stage 2 next
 	if caster.bonus_meter != null:
+		var before: int = caster.bonus_meter.value
 		caster.bonus_meter.add_flat(SUMMON_CAST_BM_CHARGE)
-		if caster.bonus_meter.is_visible:
-			_log("    BM +%d  (%d/%d)  — minion summoned" % [SUMMON_CAST_BM_CHARGE, caster.bonus_meter.value, caster.bonus_meter.cap])
+		var added: int = caster.bonus_meter.value - before
+		if added > 0 and caster.bonus_meter.is_visible:
+			_log("    BM +%d  (%d/%d)  — minion summoned" % [added, caster.bonus_meter.value, caster.bonus_meter.cap])
 
 ## Runs a minion's stage effect, dispatching by its minion_type (2026-08-16 summoner-ability-kit
 ## spec — this class ships 4 distinct minion types sharing the same 3-stage-then-expire
@@ -876,9 +878,11 @@ func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) 
 		minion.force_expire()
 		_turn_manager.remove_dead_combatant(minion)
 		if minion.minion_caster != null and minion.minion_caster.is_alive() and minion.minion_caster.bonus_meter != null:
+			var before: int = minion.minion_caster.bonus_meter.value
 			minion.minion_caster.bonus_meter.add_flat(MINION_NATURAL_EXPIRY_BM_BONUS)
-			if minion.minion_caster.bonus_meter.is_visible:
-				_log("    BM +%d  (%d/%d)  — %s's minion completed its lifecycle" % [MINION_NATURAL_EXPIRY_BM_BONUS, minion.minion_caster.bonus_meter.value, minion.minion_caster.bonus_meter.cap, minion.minion_caster.display_name])
+			var added: int = minion.minion_caster.bonus_meter.value - before
+			if added > 0 and minion.minion_caster.bonus_meter.is_visible:
+				_log("    BM +%d  (%d/%d)  — %s's minion completed its lifecycle" % [added, minion.minion_caster.bonus_meter.value, minion.minion_caster.bonus_meter.cap, minion.minion_caster.display_name])
 
 const MINION_BASE_STAGE_DAMAGE: int = 8
 
@@ -2406,6 +2410,8 @@ func _commit_main1() -> void:
 	# the variant effect here, keyed on which minion type was sacrificed.
 	if _attacker.grand_sacrifice_variant_pending != &"":
 		_apply_grand_sacrifice(_attacker, _attacker.grand_sacrifice_variant_pending)
+		if _attacker.bonus_meter != null and _attacker.bonus_meter.is_visible:
+			_log("    BM +%d  (%d/%d)  — Grand Sacrifice's consumption bonus" % [Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS, _attacker.bonus_meter.value, _attacker.bonus_meter.cap])
 		_attacker.grand_sacrifice_variant_pending = &""
 	# reel_surge cap check (final-review fix, 2026-08-16 summoner-ability-kit): moved from
 	# Combatant.begin_turn() to HERE — after every Main-1 ability/Ultimate reel addition for this
