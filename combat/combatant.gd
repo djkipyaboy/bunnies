@@ -375,6 +375,13 @@ var rallying_cry_reel: ActionReel = null
 ## (via take_damage(hp), the existing self-defeat pattern — see apply_summon_minion()).
 var active_minion: Combatant = null
 
+## Set on a minion (is_minion == true) to the combatant who summoned it, or null (2026-08-18
+## Summoner meter economy fix). The forward reference (active_minion, above) lets the CASTER find
+## its minion; this back-reference lets code running on the MINION'S OWN turn (its stage-3 natural
+## expiry, which the caster isn't present for — see combat.gd's _run_minion_stage()) find the right
+## combatant to credit a Bonus Meter bonus to. Meaningless/unused on a non-minion combatant.
+var minion_caster: Combatant = null
+
 ## Total number of post-summon stages THIS combatant (when is_minion is true) has completed so
 ## far, across BOTH the synchronous summon-time fire and its own subsequent turns (2026-08-16
 ## spec §3). Stage 1 fires synchronously at summon time, and the summon-payoff code sets this to

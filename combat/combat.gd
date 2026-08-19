@@ -808,6 +808,39 @@ func _on_minion_panel_death(minion: Combatant) -> void:
 	if _panels.has(minion):
 		(_panels[minion] as CombatantPanel).visible = false
 
+## [ASSUMPTION] Flat Bonus Meter charge awarded when a minion-summon ability cast lands (2026-08-18
+## Summoner meter economy fix). Deliberately smaller than a normal hit's tier-based charge (2 for
+## SUCCESS / 3 for CRIT_SUCCESS via charge_weights) since a summon reel can never fail — tune by
+## playtest.
+const SUMMON_CAST_BM_CHARGE: int = 1
+
+## Extracted from _finish_spin()'s summon-payoff block (2026-08-18 Bonus Meter economy fix) so a
+## test can drive the real summon path without a full spin. Builds the new minion (SUCCESS =
+## baseline, CRIT_SUCCESS = the tankier variant), expires any existing minion first, and awards the
+## caster a reduced flat Bonus Meter charge — make_summon_reel() itself stays charges_meter = false
+## (a summon reel has no fail tiers, so routing it through the normal per-tier charge_weights path
+## would credit a full attack-sized 2-3 charge; this flat award is deliberately smaller, per the
+## 2026-08-18 "Option 2" design direction).
+func _apply_minion_summon_payoff(caster: Combatant, summon_tier: int) -> void:
+	if caster.active_minion != null and caster.active_minion.is_alive():
+		caster.active_minion.take_damage(caster.active_minion.hp)
+		_turn_manager.remove_dead_combatant(caster.active_minion)
+	var tanky: bool = summon_tier == ReelFace.ResultTier.CRIT_SUCCESS
+	var minion: Combatant = MinionLibrary.make(tanky, caster.pending_minion_type)
+	minion.minion_caster = caster
+	caster.active_minion = minion
+	_turn_manager.roll_initiative_for(minion)
+	_turn_manager.combatants.append(minion)  # NOT insert_acting_this_round() — see original comment
+	_build_minion_panel(minion)
+	var tier_text: String = "CRITICAL SUCCESS — a stronger" if tanky else "SUCCESS — a"
+	_log("  🔥 %s summons %s — %s minion appears! (%d HP)" % [caster.display_name, minion.display_name, tier_text, minion.max_hp])
+	_run_minion_stage(minion, 1, caster)
+	minion.minion_stage = 1  # stage 1 has now run; the own-turn handler does `+= 1` to reach stage 2 next
+	if caster.bonus_meter != null:
+		caster.bonus_meter.add_flat(SUMMON_CAST_BM_CHARGE)
+		if caster.bonus_meter.is_visible:
+			_log("    BM +%d  (%d/%d)  — minion summoned" % [SUMMON_CAST_BM_CHARGE, caster.bonus_meter.value, caster.bonus_meter.cap])
+
 ## Runs a minion's stage effect, dispatching by its minion_type (2026-08-16 summoner-ability-kit
 ## spec — this class ships 4 distinct minion types sharing the same 3-stage-then-expire
 ## mechanism). Expiry-on-stage-3-completion is handled HERE, once, rather than duplicated in each
@@ -3117,19 +3150,7 @@ func _finish_spin() -> void:
 	# act THIS round, which the locked spec decision explicitly does not want (it joins the
 	# turn order starting the FOLLOWING round only).
 	if _attacker.summon_reel != null and _summon_tier != -1:
-		if _attacker.active_minion != null and _attacker.active_minion.is_alive():
-			_attacker.active_minion.take_damage(_attacker.active_minion.hp)
-			_turn_manager.remove_dead_combatant(_attacker.active_minion)
-		var tanky: bool = _summon_tier == ReelFace.ResultTier.CRIT_SUCCESS
-		var minion: Combatant = MinionLibrary.make(tanky, _attacker.pending_minion_type)
-		_attacker.active_minion = minion
-		_turn_manager.roll_initiative_for(minion)
-		_turn_manager.combatants.append(minion)  # NOT insert_acting_this_round() — see comment above
-		_build_minion_panel(minion)
-		var tier_text: String = "CRITICAL SUCCESS — a stronger" if tanky else "SUCCESS — a"
-		_log("  🔥 %s summons %s — %s minion appears! (%d HP)" % [_attacker.display_name, minion.display_name, tier_text, minion.max_hp])
-		_run_minion_stage(minion, 1, _attacker)
-		minion.minion_stage = 1  # stage 1 has now run; Task 6's own-turn handler does `+= 1` to reach stage 2 next
+		_apply_minion_summon_payoff(_attacker, _summon_tier)
 	_attacker.consume_aoe_spin()  # Rampage AoE is single-spin
 	_attacker.consume_wild_spin()
 	if _attacker.is_boss and _attacker.weapon.base_damage == 18.0:
