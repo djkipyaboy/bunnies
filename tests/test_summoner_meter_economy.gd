@@ -63,8 +63,31 @@ func _run_summon_cast_charges_meter_and_sets_caster() -> void:
 
 	await _free_combat(inst)
 
+# --- A minion's natural stage-3 expiry credits its caster's meter, on top of the summon charge ---
+func _run_natural_expiry_credits_caster() -> void:
+	var pc: Combatant = _make_summoner()
+	var enemy: Combatant = Combatant.new(); enemy.base_max_hp = 300; enemy.apply_stats(); enemy.start_combat()
+	var inst: Combat = await _build_combat(pc, [enemy])
+
+	pc.apply_summon_minion(pc.ability_cost, 5)
+	inst._apply_minion_summon_payoff(pc, ReelFace.ResultTier.SUCCESS)
+	var minion: Combatant = pc.active_minion
+	var value_after_summon: int = pc.bonus_meter.value
+	_check(value_after_summon == Combat.SUMMON_CAST_BM_CHARGE, "sanity: summon charge already applied")
+
+	inst._run_minion_stage(minion, 2)  # minion's own 1st real turn
+	_check(minion.is_alive(), "sanity: minion survives stage 2")
+	inst._run_minion_stage(minion, 3)  # minion's own 2nd real turn — completes and expires
+
+	_check(not minion.is_alive(), "the minion is dead after its stage-3 expiry")
+	var expected: int = Combat.SUMMON_CAST_BM_CHARGE + Combat.MINION_NATURAL_EXPIRY_BM_BONUS
+	_check(pc.bonus_meter.value == expected, "natural stage-3 expiry adds the expiry bonus on top of the summon charge (got %d, want %d)" % [pc.bonus_meter.value, expected])
+
+	await _free_combat(inst)
+
 func _initialize() -> void:
 	await _run_summon_cast_charges_meter_and_sets_caster()
+	await _run_natural_expiry_credits_caster()
 
 	print(("SUMMONER METER ECONOMY TEST PASSED" if _failures == 0 else "SUMMONER METER ECONOMY TEST FAILED: %d" % _failures))
 	quit(_failures)

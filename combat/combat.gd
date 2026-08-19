@@ -814,6 +814,15 @@ func _on_minion_panel_death(minion: Combatant) -> void:
 ## playtest.
 const SUMMON_CAST_BM_CHARGE: int = 1
 
+## [ASSUMPTION] Flat Bonus Meter bonus awarded to a minion's caster when that minion completes its
+## stage-3 action and expires NATURALLY (2026-08-18 Summoner meter economy fix) — rewards playing a
+## minion out to its full 3-stage lifecycle rather than overwriting it early with a new summon
+## (which does NOT award this; see _apply_minion_summon_payoff's take_damage() early-expire branch).
+## Not awarded when a minion is sacrificed by Grand Sacrifice — see
+## Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS for that separate, Ultimate-specific bonus. Tune by
+## playtest.
+const MINION_NATURAL_EXPIRY_BM_BONUS: int = 2
+
 ## Extracted from _finish_spin()'s summon-payoff block (2026-08-18 Bonus Meter economy fix) so a
 ## test can drive the real summon path without a full spin. Builds the new minion (SUCCESS =
 ## baseline, CRIT_SUCCESS = the tankier variant), expires any existing minion first, and awards the
@@ -866,6 +875,10 @@ func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) 
 		_log("  %s completes its final stage and fades away." % minion.display_name)
 		minion.force_expire()
 		_turn_manager.remove_dead_combatant(minion)
+		if minion.minion_caster != null and minion.minion_caster.is_alive() and minion.minion_caster.bonus_meter != null:
+			minion.minion_caster.bonus_meter.add_flat(MINION_NATURAL_EXPIRY_BM_BONUS)
+			if minion.minion_caster.bonus_meter.is_visible:
+				_log("    BM +%d  (%d/%d)  — %s's minion completed its lifecycle" % [MINION_NATURAL_EXPIRY_BM_BONUS, minion.minion_caster.bonus_meter.value, minion.minion_caster.bonus_meter.cap, minion.minion_caster.display_name])
 
 const MINION_BASE_STAGE_DAMAGE: int = 8
 
