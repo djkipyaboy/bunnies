@@ -2295,6 +2295,12 @@ func consume_earthquake_spin() -> void:
 # already confirmed an active, alive minion exists before this is ever called.
 # ---------------------------------------------------------------------------
 
+## [ASSUMPTION] Flat Bonus Meter bonus credited immediately after Grand Sacrifice consumes the full
+## meter (2026-08-18 Summoner meter economy fix) — a small head-start on the NEXT Ultimate cycle,
+## separate from Combat.MINION_NATURAL_EXPIRY_BM_BONUS (that one rewards a minion completing its
+## own lifecycle; this one rewards spending the Ultimate at all). Tune by playtest.
+const GRAND_SACRIFICE_CONSUME_BM_BONUS: int = 2
+
 ## Fires Grand Sacrifice: consumes the Bonus Meter and sacrifices the active minion (self-inflicted
 ## fatal damage — the same expiry idiom used everywhere else a minion is replaced/expires, e.g.
 ## combat.gd's Ember Minion re-summon). Reads the minion's OWN minion_type (not whichever ability
@@ -2303,6 +2309,7 @@ func consume_earthquake_spin() -> void:
 ## per-variant effect needs enemy/ally target lists this class doesn't have.
 func fire_grand_sacrifice() -> void:
 	bonus_meter.consume()
+	bonus_meter.add_flat(GRAND_SACRIFICE_CONSUME_BM_BONUS)
 	grand_sacrifice_variant_pending = active_minion.minion_type
 	active_minion.take_damage(active_minion.hp)
 	active_minion = null

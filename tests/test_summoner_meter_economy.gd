@@ -85,9 +85,25 @@ func _run_natural_expiry_credits_caster() -> void:
 
 	await _free_combat(inst)
 
+# --- Firing Grand Sacrifice credits a small Bonus Meter bonus, on top of consume()'s reset to 0 ---
+func _run_grand_sacrifice_consumption_credits_bonus() -> void:
+	var pc: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	pc.ultimate_id = &"grand_sacrifice"
+	pc.bonus_meter.cap = 15
+	pc.bonus_meter.value = 15
+	pc.begin_turn()
+	pc.active_minion = MinionLibrary.make(false, &"ember")
+	var minion: Combatant = pc.active_minion
+
+	pc.fire_grand_sacrifice()
+
+	_check(not minion.is_alive(), "sanity: the sacrificed minion is dead")
+	_check(pc.bonus_meter.value == Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS, "firing Grand Sacrifice leaves the meter at the small consumption bonus, not a literal 0 (got %d, want %d)" % [pc.bonus_meter.value, Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS])
+
 func _initialize() -> void:
 	await _run_summon_cast_charges_meter_and_sets_caster()
 	await _run_natural_expiry_credits_caster()
+	_run_grand_sacrifice_consumption_credits_bonus()
 
 	print(("SUMMONER METER ECONOMY TEST PASSED" if _failures == 0 else "SUMMONER METER ECONOMY TEST FAILED: %d" % _failures))
 	quit(_failures)

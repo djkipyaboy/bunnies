@@ -88,7 +88,7 @@ func _run_firing_consumes_meter_and_minion() -> void:
 	plan.toggle_ultimate()
 	_check(plan.fire_ultimate_staged, "Grand Sacrifice staged via the real toggle_ultimate()")
 	plan.commit()
-	_check(pc.bonus_meter.value == 0, "firing Grand Sacrifice consumes the full meter")
+	_check(pc.bonus_meter.value == Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS, "firing Grand Sacrifice consumes the full meter, then credits the small consumption bonus")
 	_check(not minion.is_alive(), "firing Grand Sacrifice kills the sacrificed minion")
 	_check(pc.active_minion == null, "active_minion is cleared after the sacrifice")
 	_check(pc.grand_sacrifice_variant_pending == &"ember", "grand_sacrifice_variant_pending is set to the sacrificed minion's own type (ember)")
@@ -105,7 +105,7 @@ func _run_ember_variant() -> void:
 	inst._plan.toggle_ultimate()
 	inst._commit_main1()
 
-	_check(pc.bonus_meter.value == 0, "ember: meter consumed")
+	_check(pc.bonus_meter.value == Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS, "ember: meter consumed, then credited the consumption bonus")
 	_check(enemy1.hp == hp1_before - Combat.GRAND_SACRIFICE_EMBER_BURST, "ember: primary target takes the full burst (%d)" % Combat.GRAND_SACRIFICE_EMBER_BURST)
 	var expected_splash: int = ceili(Combat.GRAND_SACRIFICE_EMBER_BURST * 0.5)
 	_check(enemy2.hp == hp2_before - expected_splash, "ember: the OTHER enemy takes 50%% splash (%d)" % expected_splash)
@@ -128,7 +128,7 @@ func _run_ember_variant_defender_dead_fallback() -> void:
 	inst._commit_main1()
 
 	_check(enemy2.hp == hp2_before - Combat.GRAND_SACRIFICE_EMBER_BURST, "ember fallback: burst damage falls back to the other living enemy instead of silently no-oping")
-	_check(pc.bonus_meter.value == 0, "ember fallback: meter still consumed even though _defender was dead")
+	_check(pc.bonus_meter.value == Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS, "ember fallback: meter still consumed (down to the bonus amount) even though _defender was dead")
 
 	await _free_combat(inst)
 
