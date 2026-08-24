@@ -915,7 +915,7 @@ func _run_dew_stage(minion: Combatant, stage: int) -> void:
 		if stage >= 2:
 			var cleansed: Effect = ally.cleanse_oldest_debuff()
 			if cleansed != null:
-				_log("  💧 Dew Minion cleanses %s's %s." % [ally.display_name, String(cleansed.id).to_upper()])
+				_log("  💧 Lotus cleanses %s's %s." % [ally.display_name, String(cleansed.id).to_upper()])
 		if stage >= 3:
 			var thorns := Effect.new()
 			thorns.id = &"dew_thorns"
@@ -924,10 +924,10 @@ func _run_dew_stage(minion: Combatant, stage: int) -> void:
 			thorns.duration = DEW_THORNS_TURNS
 			thorns.beneficial = true
 			ally.attach_effect(thorns)
-			_log("  🛡 Dew Minion wraps %s in Thorns (%d%% reflected, %d turns)." % [ally.display_name, roundi(DEW_THORNS_PCT * 100), DEW_THORNS_TURNS])
+			_log("  🛡 Lotus wraps %s in Thorns (%d%% reflected, %d turns)." % [ally.display_name, roundi(DEW_THORNS_PCT * 100), DEW_THORNS_TURNS])
 		if _panels.has(ally):
 			(_panels[ally] as CombatantPanel).refresh_status()
-	_log("  💧 Dew Minion (stage %d) heals the party for %d." % [stage, heal_amount])
+	_log("  💧 Lotus (stage %d) heals the party for %d." % [stage, heal_amount])
 
 ## Misfortune Minion's 3-stage effect (2026-08-16 spec §2): a Weakened debuff on every enemy at
 ## stage 1, adds Sundered at stage 2, applies Cursed (flat-scaled, not weapon-scaled, since the
@@ -949,7 +949,7 @@ func _run_misfortune_stage(minion: Combatant, stage: int) -> void:
 			enemy.attach_effect(curse)
 		if _panels.has(enemy):
 			(_panels[enemy] as CombatantPanel).refresh_status()
-	_log("  🌑 Misfortune Minion (stage %d) afflicts every enemy." % stage)
+	_log("  🌑 Nightshade (stage %d) afflicts every enemy." % stage)
 
 ## Hasty Minion's 3-stage effect (2026-08-16 spec §2): a party-wide +20 Initiative buff (3 turns)
 ## at stage 1, adds the resource-regen buff (Task 2) at stage 2, adds Empowered (1 turn) + the
@@ -986,7 +986,7 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 			regen.duration = HASTY_REGEN_TURNS
 			regen.beneficial = true
 			ally.attach_effect(regen)
-			_log("  💨 Hasty Minion grants %s +%d resource regen (%d turns)." % [ally.display_name, HASTY_REGEN_BONUS, HASTY_REGEN_TURNS])
+			_log("  💨 Wheat grants %s +%d resource regen (%d turns)." % [ally.display_name, HASTY_REGEN_BONUS, HASTY_REGEN_TURNS])
 		if stage == 3:
 			var empowered: Effect = EffectLibrary.make(&"empowered")
 			empowered.duration = 1  # spec §5 locks this specific stage's Empowered to 1 turn
@@ -999,7 +999,7 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 			ally.attach_effect(surge)
 		if _panels.has(ally):
 			(_panels[ally] as CombatantPanel).refresh_status()
-	_log("  💨 Hasty Minion (stage %d) buffs the party." % stage)
+	_log("  💨 Wheat (stage %d) buffs the party." % stage)
 
 ## Applies the Grand Sacrifice Ultimate's variant effect, keyed on which minion type was sacrificed
 ## (2026-08-16 summoner-ability-kit spec §8). [ASSUMPTION] every magnitude/duration below — tune by
@@ -1028,12 +1028,12 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 			if _defender != null:
 				_defender.take_damage(GRAND_SACRIFICE_EMBER_BURST)
 				var splashed: Array[Combatant] = _splash_half_to_others(caster, GRAND_SACRIFICE_EMBER_BURST, "Piercing", 0.5)
-				_log("  🔥 Grand Sacrifice (Ember): %d burst damage, splashed to %d other enemies." % [GRAND_SACRIFICE_EMBER_BURST, splashed.size()])
+				_log("  🔥 Strawfellow's Due (Touch-Me-Not): %d burst damage, splashed to %d other enemies." % [GRAND_SACRIFICE_EMBER_BURST, splashed.size()])
 				if _panels.has(_defender):
 					(_panels[_defender] as CombatantPanel).refresh_status()
 				_refresh_target_highlight()
 			else:
-				_log("  🔥 Grand Sacrifice (Ember) whiffs: no living enemy to burst.")
+				_log("  🔥 Strawfellow's Due (Touch-Me-Not) whiffs: no living enemy to burst.")
 		&"dew":
 			for ally: Combatant in _allies_of(caster):
 				if not ally.is_alive():
@@ -1065,7 +1065,7 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				ally.attach_effect(cleanse)
 				if _panels.has(ally):
 					(_panels[ally] as CombatantPanel).refresh_status()
-			_log("  💧 Grand Sacrifice (Dew): large party heal + improved Thorns + repeating cleanse.")
+			_log("  💧 Strawfellow's Due (Lotus): large party heal + improved Thorns + repeating cleanse.")
 		&"misfortune":
 			for enemy: Combatant in _enemies_of(caster):
 				if not enemy.is_alive():
@@ -1085,7 +1085,7 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				enemy.attach_effect(curse)
 				if _panels.has(enemy):
 					(_panels[enemy] as CombatantPanel).refresh_status()
-			_log("  🌑 Grand Sacrifice (Misfortune): Jinxed + improved Curse on every enemy.")
+			_log("  🌑 Strawfellow's Due (Nightshade): Jinxed + improved Curse on every enemy.")
 		&"hasty":
 			for ally: Combatant in _allies_of(caster):
 				if not ally.is_alive():
@@ -1112,7 +1112,7 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				ally.attach_effect(surge)
 				if _panels.has(ally):
 					(_panels[ally] as CombatantPanel).refresh_status()
-			_log("  💨 Grand Sacrifice (Hasty): party-wide regen + Empowered + reel surge, 2 turns.")
+			_log("  💨 Strawfellow's Due (Wheat): party-wide regen + Empowered + reel surge, 2 turns.")
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its
@@ -1926,7 +1926,7 @@ func _apply_dot(c: Combatant) -> void:
 	if c.is_alive() and c.has_effect(&"grand_sacrifice_cleanse"):
 		var cleansed: Effect = c.cleanse_oldest_debuff()
 		if cleansed != null:
-			_log("  💧 Grand Sacrifice's repeating cleanse removes %s's %s." % [c.display_name, String(cleansed.id).to_upper()])
+			_log("  💧 Strawfellow's Due's repeating cleanse removes %s's %s." % [c.display_name, String(cleansed.id).to_upper()])
 	(_panels[c] as CombatantPanel).refresh_status()
 
 func _on_spin_pressed() -> void:
@@ -2411,7 +2411,7 @@ func _commit_main1() -> void:
 	if _attacker.grand_sacrifice_variant_pending != &"":
 		_apply_grand_sacrifice(_attacker, _attacker.grand_sacrifice_variant_pending)
 		if _attacker.bonus_meter != null and _attacker.bonus_meter.is_visible:
-			_log("    BM +%d  (%d/%d)  — Grand Sacrifice's consumption bonus" % [Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS, _attacker.bonus_meter.value, _attacker.bonus_meter.cap])
+			_log("    BM +%d  (%d/%d)  — Strawfellow's Due's consumption bonus" % [Combatant.GRAND_SACRIFICE_CONSUME_BM_BONUS, _attacker.bonus_meter.value, _attacker.bonus_meter.cap])
 		_attacker.grand_sacrifice_variant_pending = &""
 	# reel_surge cap check (final-review fix, 2026-08-16 summoner-ability-kit): moved from
 	# Combatant.begin_turn() to HERE — after every Main-1 ability/Ultimate reel addition for this
