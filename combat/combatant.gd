@@ -616,11 +616,17 @@ func unequip_gear(slot: Gear.Slot) -> Gear:
 			return existing
 	return null
 
-## Straight swap — Combatant.weapon is a single field, not a slotted array. Returns the previous weapon.
+## Straight swap — Combatant.weapon is a single field, not a slotted array. Returns the previous
+## weapon. Re-applies apply_luck()/apply_finesse_accuracy() to the newly-equipped weapon's reels —
+## safe here specifically because [param w] is always a freshly-assigned Weapon resource neither
+## hook has touched yet (2026-08-14 bug: without this, equipping ANY new weapon silently discarded
+## a combatant's accumulated Luck/Finesse reel conversions).
 func equip_weapon(w: Weapon) -> Weapon:
 	var previous: Weapon = weapon
 	weapon = w
 	apply_stats()
+	apply_luck()
+	apply_finesse_accuracy()
 	return previous
 
 ## Removes and returns the currently-equipped weapon (null if the previous one was already the
@@ -633,6 +639,8 @@ func unequip_weapon() -> Weapon:
 	var previous: Weapon = weapon
 	weapon = Weapon.make_unarmed()
 	apply_stats()
+	apply_luck()
+	apply_finesse_accuracy()
 	return null if (previous != null and previous.is_unarmed) else previous
 
 ## Recomputes the stat-derived values (max HP / pool max / meter floor / per-Upkeep resource regen).
