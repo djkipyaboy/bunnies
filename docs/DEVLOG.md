@@ -2256,3 +2256,40 @@ sdd session `.superpowers/sdd/2026-08-13-reel-scale-and-accuracy-stat/`):
   CRIT_SUCCESS landed face the same way `test_rend_reel.gd` does, confirming real damage + rider
   reporting through the actual pipeline), and stale docs (`CLAUDE.md`'s "5 result tiers" combat-facts
   line, `DESIGN.md`'s "default 10 faces" line, this entry).
+
+**SHIPPED 2026-08-24 — HARVESTER REFLAVOR (Summoner rename + Scythe weapon fix), code-complete,
+test-green, 5-task plan + final whole-branch review closed** (spec
+`docs/superpowers/specs/2026-08-23-harvester-reflavor-design.md`, plan
+`docs/superpowers/plans/2026-08-24-harvester-reflavor.md`). Closes out the "placeholder — naming
+still open" flag the minion-summoning class had carried since it shipped:
+- **Class rename** — Summoner → **Harvester** (`class_id` stays `&"summoner"`, an internal key
+  with no player-facing surface).
+- **Weapon fix, not just a rename** — Warden's Staff → **Scythe**, same 2-reel baseline, but
+  `weapon_base_damage` retuned 6.0 → 14.0. Investigation found the real cause of a 2026-08-21
+  playtest complaint ("2-reel stick hitter") wasn't the reel count — the class's weapon was dealing
+  under half the expected damage/turn of every other class, including the other two 2-reel "heavy
+  hitters" (Vanguard 18.0, Seer 15.6 expected dmg/turn vs. the old 7.2). 14.0 lands it at ~16.8,
+  back in line with its peers.
+- **Minion renames** — Ember → **Touch-Me-Not**, Dew → **Lotus**, Misfortune → **Nightshade**,
+  Hasty → **Wheat** (a plant/nature-spirit theme replacing the original elemental-ish names),
+  applied consistently across the minion's own nameplate (`MinionLibrary.DISPLAY_NAMES`) and the
+  ability-menu copy that summons it (`AbilityCatalog`). `minion_type`/ability-id StringName keys
+  unchanged. Runner-up names (Thistle, Water Lily, Foxglove, Dandelion) intentionally reserved for
+  a possible future talent-tree/end-game plant-swap variant system — not built, just flagged.
+- **Ultimate rename** — Grand Sacrifice → **Strawfellow's Due**, after Old Strawfellow, an
+  original whimsical wandering-scarecrow-spirit figure for this setting (confirmed via web search
+  to not already exist in fiction/folklore) — the scarecrow-as-effigy image mirrors the Ultimate's
+  actual mechanic (consume the active minion for a burst effect) more directly than the generic
+  name did. `&"grand_sacrifice"` ability id unchanged.
+- **A real gap found during execution, not in the original plan**: `combat/combat.gd` had 13
+  hardcoded `_log()` calls narrating combat events into the player-facing Event Log using the OLD
+  minion/Ultimate names — the original task list only covered the ability/minion catalog files, not
+  combat.gd's own log narration. Fixed as an added Task 5 (13 precise literal-string swaps, no
+  logic changes), confirmed byte-exact correct by both its task review and the final whole-branch
+  review.
+- **Final whole-branch review**: Ready to merge, zero Critical/Important findings. 4 Minor items
+  (a stale doc comment, a fire emoji on Touch-Me-Not text that worked against the "deliberately not
+  fire-themed" naming rationale, a wording nit on the generic minion-summon log line, and this
+  DEVLOG entry itself) were cleaned up in the same session, same-day follow-up.
+- No mechanism/behavior changes anywhere in this work — minion stage effects, costs, cooldowns, the
+  summon-reel mechanism, and the Bonus Meter economy are all exactly as shipped 2026-08-19.

@@ -842,7 +842,7 @@ func _apply_minion_summon_payoff(caster: Combatant, summon_tier: int) -> void:
 	_turn_manager.combatants.append(minion)  # NOT insert_acting_this_round() — see original comment
 	_build_minion_panel(minion)
 	var tier_text: String = "CRITICAL SUCCESS — a stronger" if tanky else "SUCCESS — a"
-	_log("  🔥 %s summons %s — %s minion appears! (%d HP)" % [caster.display_name, minion.display_name, tier_text, minion.max_hp])
+	_log("  🌱 %s summons %s — %s spirit appears! (%d HP)" % [caster.display_name, minion.display_name, tier_text, minion.max_hp])
 	_run_minion_stage(minion, 1, caster)
 	minion.minion_stage = 1  # stage 1 has now run; the own-turn handler does `+= 1` to reach stage 2 next
 	if caster.bonus_meter != null:
@@ -895,7 +895,7 @@ func _run_ember_stage(minion: Combatant, stage: int) -> void:
 		enemy.take_damage(amount)
 		if _panels.has(enemy):
 			(_panels[enemy] as CombatantPanel).refresh_status()
-	_log("  🔥 %s (stage %d) pulses %d damage to every enemy." % [minion.display_name, stage, amount])
+	_log("  💥 %s (stage %d) pulses %d damage to every enemy." % [minion.display_name, stage, amount])
 
 ## Dew Minion's 3-stage effect (2026-08-16 spec §2): AoE heal every stage, cleanse the OLDEST
 ## debuff off every ally starting stage 2, a party-wide Thorns buff on stage 3. [ASSUMPTION]
@@ -1028,12 +1028,12 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 			if _defender != null:
 				_defender.take_damage(GRAND_SACRIFICE_EMBER_BURST)
 				var splashed: Array[Combatant] = _splash_half_to_others(caster, GRAND_SACRIFICE_EMBER_BURST, "Piercing", 0.5)
-				_log("  🔥 Strawfellow's Due (Touch-Me-Not): %d burst damage, splashed to %d other enemies." % [GRAND_SACRIFICE_EMBER_BURST, splashed.size()])
+				_log("  💥 Strawfellow's Due (Touch-Me-Not): %d burst damage, splashed to %d other enemies." % [GRAND_SACRIFICE_EMBER_BURST, splashed.size()])
 				if _panels.has(_defender):
 					(_panels[_defender] as CombatantPanel).refresh_status()
 				_refresh_target_highlight()
 			else:
-				_log("  🔥 Strawfellow's Due (Touch-Me-Not) whiffs: no living enemy to burst.")
+				_log("  💥 Strawfellow's Due (Touch-Me-Not) whiffs: no living enemy to burst.")
 		&"dew":
 			for ally: Combatant in _allies_of(caster):
 				if not ally.is_alive():

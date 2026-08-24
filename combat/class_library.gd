@@ -195,8 +195,8 @@ static func make(id: StringName) -> CharacterClass:
 			]
 			return c
 		&"summoner":
-			# Minion-summoning caster (2026-08-16 minion-summoning-class spec §3): 2-reel Warden's
-			# Staff (mana-only), Earth-typed. Base ability Ember Minion appends a no-damage summon
+			# Minion-summoning caster (2026-08-16 minion-summoning-class spec §3): 2-reel Scythe
+			# (mana-only), Earth-typed. Base ability Touch-Me-Not appends a no-damage summon
 			# reel (ActionReel.make_summon_reel, Task 2) whose landed tier is read post-spin by a
 			# future orchestrator task to build a baseline or crit-success minion.
 			var c: CharacterClass = CharacterClass.new()

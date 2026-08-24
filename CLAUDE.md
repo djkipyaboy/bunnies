@@ -181,8 +181,10 @@ The vertical-slice loop (Initiative spin → fixed-order round → MTG-style pha
 independent Action-reel attacks → 6-damage-type chart → Bonus Meter → win/lose) is built and
 has been playtested across many rounds with no outstanding functional bugs. On top of it:
 
-- **All 7 classes LIVE**, each with a full 4-ability + Ultimate kit (Warrior, Vanguard,
-  Skirmisher, Chancer, Ranger, Seer, Warden) plus a talent/perk tree (levels 1–10).
+- **All 8 classes LIVE**, each with a full 4-ability + Ultimate kit (Warrior, Vanguard,
+  Skirmisher, Chancer, Ranger, Seer, Warden, **Harvester** — a minion-summoning nature caster,
+  formerly "Summoner"; wields the Scythe, summons plant-spirit minions Touch-Me-Not/Lotus/
+  Nightshade/Wheat, Ultimate is Strawfellow's Due) plus a talent/perk tree (levels 1–10).
 - **8 damage types** (added Light/Dark for the boss fight), full type chart, live UI.
 - **N-vs-M party combat** — vertical-column layout, per-PC targeting, enemy AI (matchup + lowest-
   HP targeting), a real boss fight (**The Hollow Warden**, multi-phase, mid-combat minion spawns,
