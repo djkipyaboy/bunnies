@@ -16,10 +16,10 @@ const TANKY_HP: int = 25
 ## values above — nothing in the spec calls for per-type HP differences, so reuse Ember's numbers
 ## rather than inventing new ones; revisit after playtest if a type needs more/less durability.
 const DISPLAY_NAMES: Dictionary = {
-	&"ember": "Ember Minion",
-	&"dew": "Dew Minion",
-	&"misfortune": "Misfortune Minion",
-	&"hasty": "Hasty Minion",
+	&"ember": "Touch-Me-Not",
+	&"dew": "Lotus",
+	&"misfortune": "Nightshade",
+	&"hasty": "Wheat",
 }
 
 ## [param tanky] is true for a Critical-Success summon (crit success ALWAYS means more HP only,
