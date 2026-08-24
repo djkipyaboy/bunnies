@@ -40,5 +40,10 @@ func _initialize() -> void:
 	_check(hasty.cost == 6, "hasty_minion costs 6 (got %d)" % hasty.cost)
 	_check(hasty.resource == &"mana", "hasty_minion resource is mana (got %s)" % hasty.resource)
 
+	_check(cls.display_name == "Harvester", "summoner class display_name is now Harvester (got %s)" % cls.display_name)
+	_check(cls.weapon_display_name == "Scythe", "summoner weapon_display_name is now Scythe (got %s)" % cls.weapon_display_name)
+	_check(is_equal_approx(cls.weapon_base_damage, 14.0), "summoner weapon_base_damage retuned to 14.0 (got %f)" % cls.weapon_base_damage)
+	_check(cls.reel_count == 2, "summoner keeps its 2-reel baseline (got %d)" % cls.reel_count)
+
 	print(("SUMMONER CLASS TEST PASSED" if _failures == 0 else "SUMMONER CLASS TEST FAILED: %d" % _failures))
 	quit(_failures)

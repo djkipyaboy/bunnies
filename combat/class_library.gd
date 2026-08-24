@@ -201,10 +201,14 @@ static func make(id: StringName) -> CharacterClass:
 			# future orchestrator task to build a baseline or crit-success minion.
 			var c: CharacterClass = CharacterClass.new()
 			c.class_id = &"summoner"
-			c.display_name = "Summoner"   # placeholder — naming still open
+			c.display_name = "Harvester"
 			c.base_stats = _stats(0, 1, 2, 5, 1, 0)
-			c.weapon_base_damage = 6.0; c.weapon_type = earth; c.reel_count = 2
-			c.weapon_display_name = "Warden's Staff"
+			# Retuned from 6.0 (2026-08-24 harvester-reflavor spec §2) — the old value was under
+			# half the expected dmg/turn of every other class's weapon, including the other two
+			# 2-reel "heavy hitters" (Vanguard 18.0, Seer 15.6 expected dmg/turn). 14.0 lands this
+			# class at ~16.8 expected dmg/turn, in line with its peers.
+			c.weapon_base_damage = 14.0; c.weapon_type = earth; c.reel_count = 2
+			c.weapon_display_name = "Scythe"
 			c.combat_role = &"caster"
 			c.defense_type = earth
 			# [ASSUMPTION] HP 300 for testing (matches other casters); meter_cap 15 (standard).
