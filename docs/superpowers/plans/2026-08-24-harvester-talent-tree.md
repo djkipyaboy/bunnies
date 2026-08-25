@@ -722,9 +722,10 @@ In `combat/combatant.gd`, near `reel_surge_overflow_pending` (~line 421), add:
 var pending_delayed_bloom_damage: int = 0
 ```
 
-Also clear it in `begin_turn()` AFTER it's consumed (do NOT clear it at `begin_turn()` itself — it
-must survive from the turn it was queued until the Upkeep handler reads it; only the Upkeep handler
-added in Step 5 below clears it).
+Do NOT add any reset of this field to `begin_turn()` — it must survive from the turn it was queued
+until the Upkeep handler reads it (Upkeep runs before `begin_turn()`'s own-turn reset logic for the
+same combatant, so a `begin_turn()` reset would always wipe it first). Only the Upkeep handler added
+in Step 5 below ever clears it, immediately after applying the echo.
 
 - [ ] **Step 4: Update `_run_minion_stage`/`_run_ember_stage` in `combat.gd`**
 
@@ -753,9 +754,27 @@ func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) 
 				_log("    BM +%d  (%d/%d)  — %s's minion completed its lifecycle" % [added, minion.minion_caster.bonus_meter.value, minion.minion_caster.bonus_meter.cap, minion.minion_caster.display_name])
 ```
 
-`_run_misfortune_stage` now takes `caster` (needed by Task 6); `_dew_evergreen_active()` is added
-in Task 5 — for THIS task, add a placeholder-free minimal version now (Task 5 doesn't need to
-change this function again):
+The dispatcher above calls all four stage functions with `(minion, stage, caster)`, but
+`_run_dew_stage` and `_run_misfortune_stage` don't accept a third argument in the current code —
+without a matching signature change THIS task would break compilation (and
+`tests/test_dew_minion.gd`/`tests/test_misfortune_minion.gd`) before Tasks 5/6 ever run. Fix this
+now by adding the same optional `caster` parameter to both signatures, bodies UNCHANGED (Tasks 5
+and 6 replace these same functions again, at which point the bodies start actually using `caster`):
+
+In `combat/combat.gd`, change the `_run_dew_stage` signature line only:
+```gdscript
+func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
+```
+(everything else in that function's body is untouched by this task).
+
+In `combat/combat.gd`, change the `_run_misfortune_stage` signature line only:
+```gdscript
+func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
+```
+(everything else in that function's body is untouched by this task — Task 6 gives it real use).
+
+`_dew_evergreen_active()` is also added in this task (Task 5 doesn't need to change this function
+again):
 
 ```gdscript
 ## Evergreen Bloom (2026-08-24 harvester-talent-tree spec §5): true when [param minion] is Lotus,
