@@ -1321,19 +1321,21 @@ func attach_effect(effect: Effect) -> void:
 			return  # an active immunity (Mountain Stance) blocks this attach entirely
 	# Merge by id: re-applying an effect already active never creates a second instance (this is
 	# what prevents unbounded additive stacking). A stacking effect adds a stack (diminishing,
-	# capped); a non-stacking one is a no-op on stacks. Either way the duration is refreshed.
-	#
-	# NOTE (final-review M1, currently unreachable but latent): this is a REFRESH, not a REPLACE.
-	# On merge, only `duration`/`stacks` are taken from the incoming `effect` — the EXISTING active
-	# effect's other fields (magnitude, immune_effect_ids, thorns_pct, grants_stun_immunity, etc.)
-	# are kept as-is; a stronger/weaker incoming `effect` sharing that id will NOT overwrite them.
-	# No ability in this feature currently reapplies the same effect id at two different strengths
-	# (e.g. two differently-sized `guarded` effects), so this hasn't bitten anyone yet — but a future
-	# ability author stacking/refreshing an id with a different magnitude should check this first.
+	# capped); a non-stacking one is a no-op on stacks. Duration always refreshes to the incoming
+	# value; dot_base_damage/magnitude keep whichever side is STRONGER (2026-08-24 harvester-talent-
+	# tree spec §2 fix) — other fields (immune_effect_ids, thorns_pct, grants_stun_immunity, etc.)
+	# are still kept from the EXISTING instance, not the incoming one.
 	var existing: Effect = _find_effect(effect.id)
 	if existing != null:
 		existing.add_stack()                 # no-op at cap / for max_stacks == 1
 		existing.duration = effect.duration   # refresh to the incoming duration
+		# Merge-strength fix (2026-08-24 harvester-talent-tree spec §2): keep whichever side is
+		# STRONGER, not whichever was attached first — a later, weaker reapplication must not
+		# downgrade an already-stronger active effect, and a later, stronger one must win.
+		if existing.kind == Effect.Kind.DAMAGE_OVER_TIME:
+			existing.dot_base_damage = maxf(existing.dot_base_damage, effect.dot_base_damage)
+		else:
+			existing.magnitude = maxf(existing.magnitude, effect.magnitude)
 		recompute_initiative()
 		return
 	# New id: defensively duplicate so a shared (.tres-loaded) Effect can't share a live counter
