@@ -924,7 +924,7 @@ func _run_ember_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 					(_panels[splash_target] as CombatantPanel).refresh_status()
 				_log("  🍂 Overripe splashes %d overkill damage onto %s." % [overkill, splash_target.display_name])
 	if delayed_bloom and caster != null:
-		caster.pending_delayed_bloom_damage += int(roundf(amount * 0.5))
+		caster.pending_delayed_bloom_damage += ceili(amount * 0.5)
 	_log("  💥 %s (stage %d) pulses %d damage to every enemy." % [minion.display_name, stage, amount])
 
 ## Dew Minion's 3-stage effect (2026-08-16 spec §2): AoE heal every stage, cleanse the OLDEST
@@ -1984,7 +1984,7 @@ func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 						(_panels[enemy] as CombatantPanel).refresh_status()
 			_log("  🌱 Delayed Bloom echoes %d damage to every enemy." % echo)
 		if _attacker.passive_ability_id == &"harvest_favor" and _attacker.is_alive():
-			_attacker.harvest_favor_spirit_surge_proc(_allies_of(_attacker))
+			_attacker.harvest_favor_spirit_surge_proc(Combat.first_living(_enemies_of(_attacker)), _allies_of(_attacker))
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	elif phase == PhaseManager.Phase.END:
@@ -2292,6 +2292,12 @@ func _highlight_preview_wild() -> void:
 ## Glows the reel strips that are currently WILD (forced crit-success) for the active attacker.
 func _highlight_wild_strips() -> void:
 	var wild: Array[int] = _attacker.wild_reel_indices() if _attacker != null else []
+	# Wheat "Charged Growth" (Task 4, Wheat row): forces one reel to crit-success outside the
+	# normal WILD-Ultimate machinery — merge it in here too, matching _do_spin()'s
+	# forced_crit_indices merge, so the strip visibly glows instead of secretly guaranteeing a crit
+	# (CLAUDE.md §3.3 "hidden math kills the fun").
+	if _attacker != null and _attacker.charged_growth_reel_index >= 0 and not (_attacker.charged_growth_reel_index in wild):
+		wild.append(_attacker.charged_growth_reel_index)
 	for i: int in range(_strips.size()):
 		_strips[i].set_wild(i in wild)
 

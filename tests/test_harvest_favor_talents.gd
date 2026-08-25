@@ -55,17 +55,57 @@ func _test_favor_unleashed_required_for_neutral_trigger() -> void:
 	_check(target.hp == target.max_hp, "without harvest_favor_unleashed: a NEUTRAL-tier hit does NOT trigger")
 
 func _test_spirit_surge_guarantees_proc() -> void:
+	# Dew branch: doesn't take a target at all, only allies -- proves the proc fires unconditionally.
 	var c: Combatant = _mk_harvester()
 	_check(c.pick_ability_talent(&"passive", &"harvest_favor_spirit_surge"), "picks harvest_favor_spirit_surge")
 	c.active_minion = MinionLibrary.make(false, &"dew")
 	var low_ally: Combatant = Combatant.new()
 	low_ally.base_max_hp = 50; low_ally.apply_stats(); low_ally.start_combat(); low_ally.hp = 10
-	c.harvest_favor_spirit_surge_proc([c, low_ally])
+	var enemy_unused: Combatant = Combatant.new()
+	enemy_unused.base_max_hp = 100; enemy_unused.apply_stats(); enemy_unused.start_combat()
+	c.harvest_favor_spirit_surge_proc(enemy_unused, [c, low_ally])
 	_check(low_ally.hp > 10, "harvest_favor_spirit_surge: Upkeep proc healed the lowest-HP ally with no hit landed")
+
+func _test_spirit_surge_ember_hits_enemy_not_ally() -> void:
+	# Regression for the Finding-1 friendly-fire bug: an ember minion's Spirit Surge proc must
+	# damage the passed-in ENEMY target, never a party ally.
+	var c: Combatant = _mk_harvester()
+	_check(c.pick_ability_talent(&"passive", &"harvest_favor_spirit_surge"), "picks harvest_favor_spirit_surge (ember)")
+	c.active_minion = MinionLibrary.make(false, &"ember")
+	var ally: Combatant = Combatant.new()
+	ally.base_max_hp = 100; ally.apply_stats(); ally.start_combat()
+	var enemy: Combatant = Combatant.new()
+	enemy.base_max_hp = 100; enemy.apply_stats(); enemy.start_combat()
+	c.harvest_favor_spirit_surge_proc(enemy, [c, ally])
+	_check(enemy.hp < enemy.max_hp, "harvest_favor_spirit_surge (ember): the ENEMY target takes the bonus damage")
+	_check(ally.hp == ally.max_hp, "harvest_favor_spirit_surge (ember): the party ally is untouched (no friendly fire)")
+
+func _test_spirit_surge_misfortune_debuffs_enemy_not_ally() -> void:
+	# Regression for the Finding-1 friendly-fire bug: a misfortune minion's Spirit Surge proc must
+	# extend/Jinx the passed-in ENEMY's debuffs, never an ally's.
+	var c: Combatant = _mk_harvester()
+	_check(c.pick_ability_talent(&"passive", &"harvest_favor_spirit_surge"), "picks harvest_favor_spirit_surge (misfortune)")
+	_check(c.pick_ability_talent(&"ability_l3", &"misfortune_ill_fortune"), "picks misfortune_ill_fortune")
+	c.active_minion = MinionLibrary.make(false, &"misfortune")
+	var ally: Combatant = Combatant.new()
+	ally.base_max_hp = 100; ally.apply_stats(); ally.start_combat()
+	ally.attach_effect(EffectLibrary.make(&"cursed"))
+	var ally_cursed_duration_before: int = ally._find_effect(&"cursed").duration
+	var enemy: Combatant = Combatant.new()
+	enemy.base_max_hp = 100; enemy.apply_stats(); enemy.start_combat()
+	enemy.attach_effect(EffectLibrary.make(&"cursed"))
+	var enemy_cursed_duration_before: int = enemy._find_effect(&"cursed").duration
+	c.harvest_favor_spirit_surge_proc(enemy, [c, ally])
+	_check(enemy._find_effect(&"cursed").duration > enemy_cursed_duration_before, "harvest_favor_spirit_surge (misfortune): the ENEMY's Cursed duration is extended")
+	_check(enemy._find_effect(&"jinxed") != null, "harvest_favor_spirit_surge (misfortune): the ENEMY is Jinxed")
+	_check(ally._find_effect(&"cursed").duration == ally_cursed_duration_before, "harvest_favor_spirit_surge (misfortune): the party ally's Cursed duration is untouched (no friendly fire)")
+	_check(ally._find_effect(&"jinxed") == null, "harvest_favor_spirit_surge (misfortune): the party ally is NOT Jinxed (no friendly fire)")
 
 func _init() -> void:
 	_test_amplified_bond_scales_with_stage()
 	_test_favor_unleashed_triggers_on_neutral()
 	_test_favor_unleashed_required_for_neutral_trigger()
 	_test_spirit_surge_guarantees_proc()
+	_test_spirit_surge_ember_hits_enemy_not_ally()
+	_test_spirit_surge_misfortune_debuffs_enemy_not_ally()
 	quit(_failures)

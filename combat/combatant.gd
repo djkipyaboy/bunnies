@@ -1321,17 +1321,12 @@ func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant], is_neutra
 ## Spirit Surge (2026-08-24 harvester-talent-tree spec §8): guarantees one free harvest_favor_on_hit
 ## proc at this combatant's own Upkeep, regardless of whether any hit landed that turn. No-op if
 ## the talent isn't picked (called unconditionally from combat.gd's UPKEEP handler; cheap no-op).
-func harvest_favor_spirit_surge_proc(allies: Array[Combatant]) -> void:
+func harvest_favor_spirit_surge_proc(enemy_target: Combatant, allies: Array[Combatant]) -> void:
 	if not has_ability_talent(&"harvest_favor_spirit_surge"):
 		return
 	if active_minion == null or not active_minion.is_alive():
 		return
-	var primary_target: Combatant = null
-	for a: Combatant in allies:
-		if a != null and a.is_alive() and a != self and not a.is_minion:
-			primary_target = a
-			break
-	harvest_favor_on_hit(primary_target, allies)
+	harvest_favor_on_hit(enemy_target, allies)
 
 ## Seer "Foresight" (L7) shield amount: 20% of max Mana with Deeper Foresight, else 15%. Read by
 ## combat.gd's foresight_pending block (Task 20) so the math stays directly unit-testable.
@@ -1416,6 +1411,11 @@ func attach_effect(effect: Effect) -> void:
 			existing.dot_base_damage = maxf(existing.dot_base_damage, effect.dot_base_damage)
 		else:
 			existing.magnitude = maxf(existing.magnitude, effect.magnitude)
+		# heal_multiplier (Task 6, Nightshade "Withering Touch"): LOWER is stronger here (it's a
+		# healing-received debuff, default 1.0 = no reduction), so the merge keeps the min, not the
+		# max — otherwise a plain `cursed` re-application could silently overwrite an already-active
+		# 0.5 Withering Touch back up to 1.0 (final-review finding 4, 2026-08-24).
+		existing.heal_multiplier = minf(existing.heal_multiplier, effect.heal_multiplier)
 		recompute_initiative()
 		return
 	# New id: defensively duplicate so a shared (.tres-loaded) Effect can't share a live counter

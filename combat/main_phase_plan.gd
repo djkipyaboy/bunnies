@@ -455,6 +455,15 @@ func effective_wild_indices() -> Array[int]:
 			if preview[i].is_weapon_attack and not (i in out):
 				out.append(i)
 		out.sort()
+	# Wheat "Charged Growth" (Task 4, Wheat row): forces one reel to crit-success outside the
+	# Ultimate-wild machinery above — merge it in too, mirroring _do_spin()'s forced_crit_indices
+	# merge, so the preview never hides a guaranteed crit (CLAUDE.md §3.3 "hidden math kills the
+	# fun"). combatant.charged_growth_reel_index is only populated at commit time (combat.gd's
+	# _commit_main1()), so this is a no-op during Main-1 planning and only matters once commit has
+	# run — kept here so this preview stays correct if that timing ever changes.
+	if combatant != null and combatant.charged_growth_reel_index >= 0 and not (combatant.charged_growth_reel_index in out):
+		out.append(combatant.charged_growth_reel_index)
+		out.sort()
 	return out
 
 ## How many WEAPON reels the Ultimate would make wild (splices/ability reels excluded).

@@ -17,6 +17,8 @@ func _init() -> void:
 	_test_dot_stronger_then_weaker()
 	_test_multiplier_edit_weaker_then_stronger()
 	_test_duration_and_stacks_still_refresh()
+	_test_heal_multiplier_plain_then_withering()
+	_test_heal_multiplier_withering_then_plain()
 	quit(_failures)
 
 func _test_dot_weaker_then_stronger() -> void:
@@ -73,3 +75,32 @@ func _test_duration_and_stacks_still_refresh() -> void:
 	_check(merged.duration == 5, "duration still refreshes to the incoming value even when strength doesn't (got %d)" % merged.duration)
 	_check(merged.stacks == 2, "stacks still increments on merge (got %d)" % merged.stacks)
 	_check(is_equal_approx(merged.dot_base_damage, 12.0), "weaker second attach doesn't downgrade dot_base_damage (got %.1f)" % merged.dot_base_damage)
+
+## Final-review finding 4 (2026-08-24): heal_multiplier (Task 6, Withering Touch) must merge to
+## whichever side is LOWER (more debuffing), the opposite polarity from dot_base_damage/magnitude,
+## since 1.0 = no reduction and a lower value is the stronger debuff. Proven both merge orders.
+func _test_heal_multiplier_plain_then_withering() -> void:
+	var c: Combatant = Combatant.new()
+	var plain := Effect.new()
+	plain.id = &"cursed"; plain.kind = Effect.Kind.DAMAGE_OVER_TIME; plain.dot_base_damage = 12.0
+	plain.duration = 3; plain.heal_multiplier = 1.0
+	c.attach_effect(plain)
+	var withering := Effect.new()
+	withering.id = &"cursed"; withering.kind = Effect.Kind.DAMAGE_OVER_TIME; withering.dot_base_damage = 12.0
+	withering.duration = 3; withering.heal_multiplier = 0.5
+	c.attach_effect(withering)
+	var merged: Effect = c._find_effect(&"cursed")
+	_check(is_equal_approx(merged.heal_multiplier, 0.5), "plain(1.0) then Withering(0.5): the stronger 0.5 heal_multiplier survives (got %.2f)" % merged.heal_multiplier)
+
+func _test_heal_multiplier_withering_then_plain() -> void:
+	var c: Combatant = Combatant.new()
+	var withering := Effect.new()
+	withering.id = &"cursed"; withering.kind = Effect.Kind.DAMAGE_OVER_TIME; withering.dot_base_damage = 12.0
+	withering.duration = 3; withering.heal_multiplier = 0.5
+	c.attach_effect(withering)
+	var plain := Effect.new()
+	plain.id = &"cursed"; plain.kind = Effect.Kind.DAMAGE_OVER_TIME; plain.dot_base_damage = 12.0
+	plain.duration = 3; plain.heal_multiplier = 1.0
+	c.attach_effect(plain)
+	var merged: Effect = c._find_effect(&"cursed")
+	_check(is_equal_approx(merged.heal_multiplier, 0.5), "Withering(0.5) then plain(1.0): does NOT get overwritten back to 1.0 (got %.2f)" % merged.heal_multiplier)

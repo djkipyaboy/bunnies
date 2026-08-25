@@ -14,11 +14,13 @@ func _init() -> void:
 		var ids: Array[StringName] = [cc.ability_id]
 		for def: AbilityDef in cc.extra_abilities:
 			ids.append(def.id)
+		if cc.passive_ability_id != &"":
+			ids.append(cc.passive_ability_id)
 		for id: StringName in ids:
 			seen += 1
 			_check(AbilityCatalog.display_name(id) != "", "%s/%s: display_name non-empty" % [cid, id])
 			_check(AbilityCatalog.description(id) != "", "%s/%s: description non-empty" % [cid, id])
-	_check(seen == 32, "roster carries 32 ability ids (8 base + 24 extra), saw %d" % seen)
+	_check(seen == 40, "roster carries 40 ability ids (8 base + 24 extra + 8 passives), saw %d" % seen)
 	_check(AbilityCatalog.display_name(&"nope") == "", "unknown id -> empty name")
 	_check(AbilityCatalog.description(&"nope") == "", "unknown id -> empty description")
 	quit()
