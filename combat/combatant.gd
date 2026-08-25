@@ -1274,18 +1274,27 @@ func passive_on_payline_scored(_tier: ReelFace.ResultTier) -> void:
 		_:
 			pass
 
-## Harvest's Favor (Harvester passive, 2026-08-24 harvester-talent-tree spec §1) — fires once per
-## landed SUCCESS/CRIT_SUCCESS weapon-reel hit while a minion is active. No-op with no active
-## minion. [param target] is the hit's target; [param allies] is every ally to consider for the
-## Lotus branch (pass the party including this combatant). Row-5 talent upgrades (Amplified Bond,
-## Favor Unleashed, Spirit Surge) extend this method in Task 9.
-func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant]) -> void:
+## [ASSUMPTION] Favor Unleashed's reduced NEUTRAL-tier trigger fraction — tune by playtest.
+const HARVEST_FAVOR_UNLEASHED_FRACTION: float = 0.5
+
+## Harvest's Favor (Harvester passive, 2026-08-24 harvester-talent-tree spec §1, upgraded §8) —
+## fires once per landed SUCCESS/CRIT_SUCCESS weapon-reel hit while a minion is active (or on a
+## NEUTRAL-tier hit too, at reduced value, if [param is_neutral] is true AND
+## harvest_favor_unleashed is picked). No-op with no active minion. [param target] is the hit's
+## target; [param allies] is every ally to consider for the Lotus branch (pass the party including
+## this combatant).
+func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant], is_neutral: bool = false) -> void:
 	if passive_ability_id != &"harvest_favor" or active_minion == null or not active_minion.is_alive():
 		return
+	if is_neutral and not has_ability_talent(&"harvest_favor_unleashed"):
+		return
+	var scale: float = HARVEST_FAVOR_UNLEASHED_FRACTION if is_neutral else 1.0
+	if has_ability_talent(&"harvest_favor_amplified_bond"):
+		scale *= float(active_minion.minion_stage)
 	match active_minion.minion_type:
 		&"ember":
 			if target != null and target.is_alive():
-				target.take_damage(HARVEST_FAVOR_EMBER_BONUS_DAMAGE)
+				target.take_damage(ceili(HARVEST_FAVOR_EMBER_BONUS_DAMAGE * scale))
 		&"dew":
 			var lowest: Combatant = null
 			for a: Combatant in allies:
@@ -1294,7 +1303,7 @@ func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant]) -> void:
 				if lowest == null or a.hp < lowest.hp:
 					lowest = a
 			if lowest != null:
-				lowest.heal(HARVEST_FAVOR_DEW_HEAL)
+				lowest.heal(ceili(HARVEST_FAVOR_DEW_HEAL * scale))
 		&"misfortune":
 			if target == null or not target.is_alive():
 				return
@@ -1308,6 +1317,21 @@ func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant]) -> void:
 			for e: Effect in active_effects:
 				if e != null and e.beneficial:
 					e.duration += 1
+
+## Spirit Surge (2026-08-24 harvester-talent-tree spec §8): guarantees one free harvest_favor_on_hit
+## proc at this combatant's own Upkeep, regardless of whether any hit landed that turn. No-op if
+## the talent isn't picked (called unconditionally from combat.gd's UPKEEP handler; cheap no-op).
+func harvest_favor_spirit_surge_proc(allies: Array[Combatant]) -> void:
+	if not has_ability_talent(&"harvest_favor_spirit_surge"):
+		return
+	if active_minion == null or not active_minion.is_alive():
+		return
+	var primary_target: Combatant = null
+	for a: Combatant in allies:
+		if a != null and a.is_alive() and a != self and not a.is_minion:
+			primary_target = a
+			break
+	harvest_favor_on_hit(primary_target, allies)
 
 ## Seer "Foresight" (L7) shield amount: 20% of max Mana with Deeper Foresight, else 15%. Read by
 ## combat.gd's foresight_pending block (Task 20) so the math stays directly unit-testable.

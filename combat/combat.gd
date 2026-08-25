@@ -1977,6 +1977,8 @@ func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 					if _panels.has(enemy):
 						(_panels[enemy] as CombatantPanel).refresh_status()
 			_log("  🌱 Delayed Bloom echoes %d damage to every enemy." % echo)
+		if _attacker.passive_ability_id == &"harvest_favor" and _attacker.is_alive():
+			_attacker.harvest_favor_spirit_surge_proc(_allies_of(_attacker))
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	elif phase == PhaseManager.Phase.END:
@@ -2853,6 +2855,13 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 	# LONE reel landing NEUTRAL also grants House Edge's flat charge without needing to complete a
 	# payline — the chosen reading of the approved wording (NEUTRAL is itself CLAUDE.md §4's "utility"
 	# tier, not a separate reel subtype).
+	# Favor Unleashed (2026-08-24 harvester-talent-tree spec §8): a NEUTRAL-tier weapon-reel hit also
+	# procs Harvest's Favor (at reduced value via is_neutral — see harvest_favor_on_hit). No per-target
+	# loop exists for NEUTRAL (it deals no damage), so — matching the Wider Edge check right below,
+	# which is scoped the same way — this fires once against the primary defender rather than a
+	# `targets` loop.
+	if attack.face.result_tier == ReelFace.ResultTier.NEUTRAL and _attacker.passive_ability_id == &"harvest_favor":
+		_attacker.harvest_favor_on_hit(_defender, _allies_of(_attacker), true)
 	if attack.face.result_tier == ReelFace.ResultTier.NEUTRAL and _attacker.passive_ability_id == &"house_edge" and _attacker.has_ability_talent(&"edge_wider") and _attacker.bonus_meter != null:
 		_attacker.bonus_meter.add_flat(1)
 		_log("  🎰 %s's WIDER EDGE triggers — +1 Bonus Meter." % _attacker.display_name)
