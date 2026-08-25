@@ -1100,6 +1100,8 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				_defender = Combat.first_living(_enemies_of(caster))
 			if _defender != null:
 				_defender.take_damage(GRAND_SACRIFICE_EMBER_BURST)
+				if caster.has_ability_talent(&"strawfellow_petrifying_burst"):
+					_defender.force_stun_next_turn = true
 				var splashed: Array[Combatant] = _splash_half_to_others(caster, GRAND_SACRIFICE_EMBER_BURST, "Piercing", 0.5)
 				_log("  💥 Strawfellow's Due (Touch-Me-Not): %d burst damage, splashed to %d other enemies." % [GRAND_SACRIFICE_EMBER_BURST, splashed.size()])
 				if _panels.has(_defender):
@@ -1136,6 +1138,8 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 					cleanse.duration += 1
 				cleanse.beneficial = true
 				ally.attach_effect(cleanse)
+				if caster.has_ability_talent(&"strawfellow_undying_bloom"):
+					ally.cleanse()
 				if _panels.has(ally):
 					(_panels[ally] as CombatantPanel).refresh_status()
 			_log("  💧 Strawfellow's Due (Lotus): large party heal + improved Thorns + repeating cleanse.")
@@ -1152,6 +1156,8 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				# rather than left to EffectLibrary's default in case that default ever changes).
 				var curse: Effect = EffectLibrary.make(&"cursed")
 				curse.dot_base_damage = 15.0  # 18 dmg/turn at stacks=3 (2026-08-17 playtest: was 3 dmg/turn)
+				if caster.has_ability_talent(&"strawfellow_withering_doom") and (enemy.has_effect(&"weakened") or enemy.has_effect(&"sundered")):
+					curse.dot_base_damage *= 2.0
 				curse.duration = GRAND_SACRIFICE_CURSE_TURNS
 				curse.add_stack()
 				curse.add_stack()
