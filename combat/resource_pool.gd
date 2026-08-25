@@ -42,11 +42,16 @@ func spend(cost: Dictionary) -> bool:
 		mana -= man
 		pool_changed.emit(&"mana", mana, max_mana)
 	if pending_ability_refund > 0:
+		# Single shared budget across both rails — never refund more than
+		# pending_ability_refund total, even when a cost spans stamina AND mana.
+		var remaining_refund: int = pending_ability_refund
 		var refund_cost: Dictionary = {}
-		if sta > 0:
-			refund_cost[&"stamina"] = mini(pending_ability_refund, sta)
-		if man > 0:
-			refund_cost[&"mana"] = mini(pending_ability_refund, man)
+		if sta > 0 and remaining_refund > 0:
+			var sta_refund: int = mini(remaining_refund, sta)
+			refund_cost[&"stamina"] = sta_refund
+			remaining_refund -= sta_refund
+		if man > 0 and remaining_refund > 0:
+			refund_cost[&"mana"] = mini(remaining_refund, man)
 		pending_ability_refund = 0
 		if not refund_cost.is_empty():
 			refund(refund_cost)

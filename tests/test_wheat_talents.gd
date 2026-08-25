@@ -81,8 +81,26 @@ func _test_charged_growth_marks_surge_reel() -> void:
 	_check(pc.charged_growth_reel_index == pc.turn_reels.size() - 1, "hasty_charged_growth: the surge-appended reel's index was recorded (got %d, expected %d)" % [pc.charged_growth_reel_index, pc.turn_reels.size() - 1])
 	inst.queue_free()
 
+func _test_pending_refund_is_one_shared_budget_across_rails() -> void:
+	# Regression for the Task 7 review finding: pending_ability_refund must be ONE flat budget
+	# shared across stamina+mana, never applied independently per rail (which would double-dip).
+	var pool: ResourcePool = ResourcePool.new()
+	pool.stamina = 10
+	pool.max_stamina = 10
+	pool.mana = 10
+	pool.max_mana = 10
+	pool.pending_ability_refund = 2
+	var sta_before: int = pool.stamina
+	var man_before: int = pool.mana
+	pool.spend({&"stamina": 3, &"mana": 3})
+	var sta_refunded: int = pool.stamina - (sta_before - 3)
+	var man_refunded: int = pool.mana - (man_before - 3)
+	_check(sta_refunded + man_refunded <= 2, "pending_ability_refund: total refund across both rails does not exceed the flat budget (got %d, expected <= 2)" % (sta_refunded + man_refunded))
+	_check(pool.pending_ability_refund == 0, "pending_ability_refund: consumed after the spend")
+
 func _init() -> void:
 	await _test_bountiful_harvest_refunds_next_cast()
 	await _test_unshakeable_roots_grants_immunity()
 	await _test_charged_growth_marks_surge_reel()
+	_test_pending_refund_is_one_shared_budget_across_rails()
 	quit(_failures)
