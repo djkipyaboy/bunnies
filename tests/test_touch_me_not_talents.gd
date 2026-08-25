@@ -90,9 +90,59 @@ func _test_overripe_splashes_overkill() -> void:
 	_check(bystander.hp == bystander.max_hp - 43, "ember_overripe: overkill splashed onto the bystander on top of its own base hit (got %d/%d)" % [bystander.hp, bystander.max_hp])
 	inst.queue_free()
 
+## Generic one-frame turn driver used while waiting for a non-caster event (the enemy's own turn,
+## or a later round) to occur (mirrors test_dew_minion.gd's/test_hasty_minion.gd's _pump_one_frame
+## exactly).
+func _pump_one_frame(inst: Combat, pc: Combatant) -> void:
+	if inst._awaiting_player_spin and inst._attacker == pc:
+		inst._on_spin_pressed()
+	elif inst._awaiting_end_turn and inst._attacker == pc:
+		inst._on_end_turn_pressed()
+
+## Review finding fix (2026-08-24 Task 4 review): the existing _test_delayed_bloom_echo above only
+## asserts the field is queued after _run_minion_stage() runs — it never drives a real phase
+## transition to UPKEEP, so the UPKEEP handler in combat.gd's _on_phase_changed() (which actually
+## applies the echo damage and clears the field) was unverified. UPKEEP fires automatically and
+## synchronously at the START of every combatant's own turn (PhaseManager.start_turn() -> UPKEEP ->
+## MAIN_1, called from combat.gd's _on_turn_started()) — so the queued echo, set immediately after
+## combat starts (i.e. after pc's FIRST Upkeep already ran with pending_delayed_bloom_damage == 0),
+## is only consumed at pc's NEXT own Upkeep. Drive a full turn cycle (through the enemy's turn, then
+## back to pc) using the same _pump_one_frame guarded-loop pattern test_hasty_minion.gd/
+## test_dew_minion.gd use, so a fresh Upkeep genuinely fires for pc before asserting.
+func _test_delayed_bloom_upkeep_consumption() -> void:
+	var setup: Array = await _new_combat_with_harvester()
+	var inst: Combat = setup[0]
+	var pc: Combatant = setup[1]
+	pc.weapon.base_damage = 0.0  # isolate the echo — pc's own spin must not also damage the enemy
+	var enemy: Combatant = inst._enemies[0]
+	_check(pc.pick_ability_talent(&"base_ability", &"ember_delayed_bloom"), "picks ember_delayed_bloom")
+	var minion: Combatant = MinionLibrary.make(false, &"ember")
+	minion.minion_caster = pc
+	inst._run_minion_stage(minion, 1, pc)  # stage 1 = 8 base damage, echo = 4
+	_check(pc.pending_delayed_bloom_damage == 4, "setup: queued a 4-damage echo before driving to Upkeep")
+
+	var hp_before: int = enemy.hp
+	# Drive frames through a full turn cycle (the enemy's turn, then back to pc's own turn) so pc's
+	# NEXT Upkeep actually fires and consumes the queued echo.
+	var seen_enemy_turn: bool = false
+	var guard: int = 0
+	while guard < 6000:
+		guard += 1
+		_pump_one_frame(inst, pc)
+		await process_frame
+		if inst._attacker != null and inst._attacker != pc:
+			seen_enemy_turn = true
+		if seen_enemy_turn and inst._awaiting_player_spin and inst._attacker == pc:
+			break
+	_check(seen_enemy_turn and inst._awaiting_player_spin and inst._attacker == pc, "reached pc's next own turn (a fresh Upkeep) after the enemy acted")
+	_check(enemy.hp == hp_before - 4, "ember_delayed_bloom: the Upkeep echo dealt 4 damage to the enemy (got %d, expected %d)" % [enemy.hp, hp_before - 4])
+	_check(pc.pending_delayed_bloom_damage == 0, "ember_delayed_bloom: pending_delayed_bloom_damage was cleared after Upkeep consumed it")
+	inst.queue_free()
+
 func _initialize() -> void:
 	await _test_overgrown_roots()
 	await _test_no_talent_no_rooted()
 	await _test_delayed_bloom_echo()
 	await _test_overripe_splashes_overkill()
+	await _test_delayed_bloom_upkeep_consumption()
 	quit(_failures)
