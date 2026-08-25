@@ -935,17 +935,36 @@ const DEW_STAGE2_HEAL: int = 12  # 2026-08-17 playtest: bumped from 8 (unconditi
 const DEW_STAGE3_HEAL: int = 16
 const DEW_THORNS_PCT: float = 0.20
 const DEW_THORNS_TURNS: int = 2
+## [ASSUMPTION] Evergreen Bloom's looping post-stage-3 heal (2026-08-24 spec §5) — tune by playtest.
+const DEW_EVERGREEN_LOOP_HEAL: int = 6
+## [ASSUMPTION] Guardian Bloom's flat shield alongside stage-3 Thorns — tune by playtest.
+const DEW_GUARDIAN_SHIELD: int = 10
+const DEW_GUARDIAN_SHIELD_TURNS: int = 2
 
 func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
+	var twin_petal: bool = caster != null and caster.has_ability_talent(&"dew_twin_petal")
+	var guardian_bloom: bool = caster != null and caster.has_ability_talent(&"dew_guardian_bloom")
+	if stage >= 4:
+		# Evergreen Bloom loop (2026-08-24 spec §5): a reduced heal only, no cleanse/Thorns re-trigger.
+		for ally: Combatant in _allies_of(minion):
+			if not ally.is_alive():
+				continue
+			ally.heal(DEW_EVERGREEN_LOOP_HEAL)
+			if _panels.has(ally):
+				(_panels[ally] as CombatantPanel).refresh_status()
+		_log("  💧 Lotus's Evergreen Bloom loops a %d heal to the party." % DEW_EVERGREEN_LOOP_HEAL)
+		return
 	var heal_amount: int = DEW_STAGE3_HEAL if stage == 3 else (DEW_STAGE2_HEAL if stage == 2 else DEW_STAGE1_HEAL)
 	for ally: Combatant in _allies_of(minion):
 		if not ally.is_alive():
 			continue
 		ally.heal(heal_amount)
 		if stage >= 2:
-			var cleansed: Effect = ally.cleanse_oldest_debuff()
-			if cleansed != null:
-				_log("  💧 Lotus cleanses %s's %s." % [ally.display_name, String(cleansed.id).to_upper()])
+			var cleanse_count: int = 2 if twin_petal else 1
+			for i: int in range(cleanse_count):
+				var cleansed: Effect = ally.cleanse_oldest_debuff()
+				if cleansed != null:
+					_log("  💧 Lotus cleanses %s's %s." % [ally.display_name, String(cleansed.id).to_upper()])
 		if stage >= 3:
 			var thorns := Effect.new()
 			thorns.id = &"dew_thorns"
@@ -955,6 +974,9 @@ func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> 
 			thorns.beneficial = true
 			ally.attach_effect(thorns)
 			_log("  🛡 Lotus wraps %s in Thorns (%d%% reflected, %d turns)." % [ally.display_name, roundi(DEW_THORNS_PCT * 100), DEW_THORNS_TURNS])
+			if guardian_bloom:
+				ally.apply_shield(DEW_GUARDIAN_SHIELD, DEW_GUARDIAN_SHIELD_TURNS)
+				_log("  🛡 Guardian Bloom shields %s for %d." % [ally.display_name, DEW_GUARDIAN_SHIELD])
 		if _panels.has(ally):
 			(_panels[ally] as CombatantPanel).refresh_status()
 	_log("  💧 Lotus (stage %d) heals the party for %d." % [stage, heal_amount])
