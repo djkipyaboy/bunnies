@@ -516,7 +516,7 @@ func heal(amount: int) -> int:
 	for e: Effect in active_effects:
 		if e != null and e.heal_multiplier < mult:
 			mult = e.heal_multiplier
-	var effective: int = int(roundf(amount * mult))
+	var effective: int = ceili(amount * mult)
 	var before: int = hp
 	hp = mini(hp + effective, max_hp)
 	if hp != before:

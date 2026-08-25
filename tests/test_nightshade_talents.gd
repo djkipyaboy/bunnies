@@ -91,9 +91,25 @@ func _test_harvest_favor_ill_fortune_synergy() -> void:
 	_check(target._find_effect(&"jinxed") != null, "harvest_favor + Ill Fortune: Nightshade branch also applies Jinxed on top of the duration extension")
 	inst.queue_free()
 
+func _test_heal_rounds_up_not_to_nearest() -> void:
+	# Direct unit-level check of Combatant.heal()'s rounding convention, independent of any real
+	# combat/ability wiring. 0.5 is a tie either way (roundf and ceili agree), which is why the
+	# task-6 review flagged that the existing suite couldn't distinguish the two functions — a
+	# non-tie-breaking multiplier is needed to actually pin the ceili() convention down. amount=15,
+	# mult=0.75 -> 11.25: roundf would give 11 (regression), ceili must give 12.
+	var c: Combatant = Combatant.new()
+	c.max_hp = 100
+	c.hp = 50
+	var e: Effect = Effect.new()
+	e.heal_multiplier = 0.75
+	c.active_effects.append(e)
+	c.heal(15)
+	_check(c.hp == 62, "heal() rounds UP (ceili), not to-nearest: amount=15, mult=0.75 -> expected hp 62, got %d" % c.hp)
+
 func _init() -> void:
 	await _test_withering_touch_reduces_healing()
 	await _test_creeping_blight_reapplies_debuffs()
 	await _test_ill_fortune_applies_jinxed_at_stage2()
 	await _test_harvest_favor_ill_fortune_synergy()
+	_test_heal_rounds_up_not_to_nearest()
 	quit(_failures)
