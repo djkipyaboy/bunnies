@@ -987,7 +987,13 @@ func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> 
 ## flat dot_base_damage convention) at stage 3. [ASSUMPTION] whether stage 3 also reapplies
 ## Weakened/Sundered — currently Curse-only per the spec's own stated default; revisit after
 ## playtest if the debuffs expire before the minion's own lifespan does.
+## [ASSUMPTION] Withering Touch's heal-reduction on the target while Cursed — tune by playtest.
+const MISFORTUNE_WITHERING_TOUCH_HEAL_MULT: float = 0.5
+
 func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
+	var withering_touch: bool = caster != null and caster.has_ability_talent(&"misfortune_withering_touch")
+	var creeping_blight: bool = caster != null and caster.has_ability_talent(&"misfortune_creeping_blight")
+	var ill_fortune: bool = caster != null and caster.has_ability_talent(&"misfortune_ill_fortune")
 	for enemy: Combatant in _enemies_of(minion):
 		if not enemy.is_alive():
 			continue
@@ -995,9 +1001,16 @@ func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = nu
 			enemy.attach_effect(EffectLibrary.make(&"weakened"))
 		if stage == 2:
 			enemy.attach_effect(EffectLibrary.make(&"sundered"))
+			if ill_fortune:
+				enemy.attach_effect(EffectLibrary.make(&"jinxed"))
 		if stage == 3:
+			if creeping_blight:
+				enemy.attach_effect(EffectLibrary.make(&"weakened"))
+				enemy.attach_effect(EffectLibrary.make(&"sundered"))
 			var curse: Effect = EffectLibrary.make(&"cursed")
 			curse.dot_base_damage = 12.0  # flat, not weapon-scaled — 6 dmg/turn at stacks=1 (2026-08-17 playtest: was 1 dmg/turn)
+			if withering_touch:
+				curse.heal_multiplier = MISFORTUNE_WITHERING_TOUCH_HEAL_MULT
 			enemy.attach_effect(curse)
 		if _panels.has(enemy):
 			(_panels[enemy] as CombatantPanel).refresh_status()

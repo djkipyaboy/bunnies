@@ -505,16 +505,23 @@ func apply_shield(amount: int, turns: int) -> void:
 	shield_turns = turns
 	shield_changed.emit(shield_hp, shield_turns)
 
-## Restores [param amount] HP, clamped to max_hp. Returns the OVERFLOW (amount that exceeded max) so a
-## caller (e.g. Big Bang) can convert it to a shield. No-op (returns 0) if dead or amount ≤ 0.
+## Restores [param amount] HP, clamped to max_hp. The lowest active heal_multiplier across
+## active_effects is applied first (2026-08-24 harvester-talent-tree spec §6 — Withering Touch).
+## Returns the OVERFLOW (amount that exceeded max) so a caller (e.g. Big Bang) can convert it to a
+## shield. No-op (returns 0) if dead or amount ≤ 0.
 func heal(amount: int) -> int:
 	if amount <= 0 or hp <= 0:
 		return 0
+	var mult: float = 1.0
+	for e: Effect in active_effects:
+		if e != null and e.heal_multiplier < mult:
+			mult = e.heal_multiplier
+	var effective: int = int(roundf(amount * mult))
 	var before: int = hp
-	hp = mini(hp + amount, max_hp)
+	hp = mini(hp + effective, max_hp)
 	if hp != before:
 		hp_changed.emit(hp, max_hp)
-	return amount - (hp - before)
+	return effective - (hp - before)
 
 ## Restores HP to max and (if present) Stamina/Mana to their max — the Old Well's effect (spec
 ## 2026-07-23). Does NOT touch active_effects, bonus_meter, shield_hp, cooldowns, or xp; those are
@@ -1290,6 +1297,8 @@ func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant]) -> void:
 				var e: Effect = target._find_effect(debuff_id)
 				if e != null:
 					e.duration += 1
+			if has_ability_talent(&"misfortune_ill_fortune"):
+				target.attach_effect(EffectLibrary.make(&"jinxed"))
 		&"hasty":
 			for e: Effect in active_effects:
 				if e != null and e.beneficial:

@@ -57,6 +57,10 @@ enum Kind { INITIATIVE_MOD, DAMAGE_OVER_TIME, MULTIPLIER_EDIT, REEL_FACE_EDIT }
 ## payload field any Effect can carry regardless of its Kind, not a new Kind value.
 @export var regen_bonus: int = 0
 
+## Multiplies healing RECEIVED by the bearer while active (2026-08-24 harvester-talent-tree spec
+## §6 — Withering Touch). 1.0 = no change. Read directly by Combatant.heal(), regardless of kind.
+@export var heal_multiplier: float = 1.0
+
 ## MULTIPLIER_EDIT only: false (default) = an OUTGOING multiplier the bearer applies when IT is the
 ## attacker (Empowered/Bloodwrath). true = an INCOMING multiplier applied when the bearer is the
 ## DEFENDER (Sundered/Guarded). See Combatant.outgoing_damage_multiplier / incoming_damage_multiplier.
