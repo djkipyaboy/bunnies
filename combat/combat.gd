@@ -1025,8 +1025,12 @@ const HASTY_INITIATIVE_TURNS: int = 3
 const HASTY_REGEN_BONUS: int = 3
 const HASTY_REGEN_TURNS: int = 3
 const HASTY_REEL_SURGE_TURNS: int = 3
+## [ASSUMPTION] Bountiful Harvest's next-ability refund — tune by playtest.
+const HASTY_BOUNTIFUL_HARVEST_REFUND: int = 2
 
 func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
+	var bountiful_harvest: bool = caster != null and caster.has_ability_talent(&"hasty_bountiful_harvest")
+	var unshakeable_roots: bool = caster != null and caster.has_ability_talent(&"hasty_unshakeable_roots")
 	for ally: Combatant in _allies_of(minion):
 		if not ally.is_alive():
 			continue
@@ -1042,6 +1046,8 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 			# variant / Dew's Thorns / Inspirational — see _apply_grand_sacrifice's &"hasty" branch).
 			haste.duration = HASTY_INITIATIVE_TURNS + (1 if ally == caster else 0)
 			haste.beneficial = true
+			if unshakeable_roots:
+				haste.immune_effect_ids = [&"slow", &"rooted"]
 			ally.attach_effect(haste)
 		if stage == 2:
 			var regen := Effect.new()
@@ -1052,6 +1058,8 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 			regen.beneficial = true
 			ally.attach_effect(regen)
 			_log("  💨 Wheat grants %s +%d resource regen (%d turns)." % [ally.display_name, HASTY_REGEN_BONUS, HASTY_REGEN_TURNS])
+			if bountiful_harvest and ally.resource_pool != null:
+				ally.resource_pool.pending_ability_refund = HASTY_BOUNTIFUL_HARVEST_REFUND
 		if stage == 3:
 			var empowered: Effect = EffectLibrary.make(&"empowered")
 			empowered.duration = 1  # spec §5 locks this specific stage's Empowered to 1 turn
@@ -2497,6 +2505,8 @@ func _commit_main1() -> void:
 	if _attacker.has_effect(&"reel_surge"):
 		if _attacker.turn_reels.size() < REEL_SURGE_CAP:
 			_attacker.turn_reels.append(ActionReel.make_ability_attack(_attacker.weapon_type()))
+			if _attacker.class_id == &"summoner" and _attacker.has_ability_talent(&"hasty_charged_growth"):
+				_attacker.charged_growth_reel_index = _attacker.turn_reels.size() - 1
 		else:
 			_attacker.reel_surge_overflow_pending = true
 
@@ -2551,7 +2561,10 @@ func _do_spin() -> void:
 	if _attacker.loaded_dice_pending:
 		extra_lines.append(PaylineLibrary.bonus_line(weapon_count))
 	extra_lines.append_array(_attacker.luck_extra_lines(weapon_count))
-	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon_effective_base_damage(), _defender.defense_type, _attacker.wild_reel_indices(), weapon_count, _attacker.might_damage_bonus_per_reel(reels.size()), extra_lines, true, dmg_mult)
+	var forced_crit_indices: Array[int] = _attacker.wild_reel_indices()
+	if _attacker.charged_growth_reel_index >= 0:
+		forced_crit_indices.append(_attacker.charged_growth_reel_index)
+	var attacks: Array[CombatResolver.AttackResult] = _resolver.resolve_combat_phase(reels, _attacker.weapon_effective_base_damage(), _defender.defense_type, forced_crit_indices, weapon_count, _attacker.might_damage_bonus_per_reel(reels.size()), extra_lines, true, dmg_mult)
 	_attacker.loaded_dice_pending = false
 	# Post-spin Chancer pass (no-op for every other class — their flags are false). Overwrites attacks[i]
 	# IN PLACE so strips animate to the final index and damage applies once on settle.

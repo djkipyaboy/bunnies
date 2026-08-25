@@ -424,6 +424,11 @@ var pending_minion_type: StringName = &"ember"
 ## clears it. Reset to false at the top of every begin_turn().
 var reel_surge_overflow_pending: bool = false
 
+## Charged Growth (2026-08-24 harvester-talent-tree spec §7): index into turn_reels of the reel
+## reel_surge appended this turn, or -1 if none/not picked. Read once by combat.gd's _do_spin() to
+## fold into the forced-crit reel list alongside wild_reel_indices(). Reset at begin_turn().
+var charged_growth_reel_index: int = -1
+
 ## Delayed Bloom (2026-08-24 harvester-talent-tree spec §4): flat damage queued by a Touch-Me-Not
 ## burst, applied as an AoE echo at this combatant's own next Upkeep, then cleared to 0. Accumulates
 ## if multiple stages fire before the next Upkeep (e.g. re-summoning mid-round).
@@ -1507,6 +1512,7 @@ func begin_turn() -> void:
 	pending_item_base_heal = 0
 	pending_item_name = ""
 	reel_surge_overflow_pending = false
+	charged_growth_reel_index = -1
 	# NOTE (final-review fix, 2026-08-16 summoner-ability-kit): the reel_surge cap check used to
 	# live here, evaluated against ONLY the weapon baseline before any Main-1 ability/Ultimate has
 	# added its own reel(s). Since no weapon carries 5+ baseline reels, turn_reels.size() < 5 was

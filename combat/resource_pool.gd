@@ -21,6 +21,10 @@ var mana: int = 0
 var max_mana: int = 0
 var mana_regen_per_turn: int = 0
 
+## Bountiful Harvest (2026-08-24 harvester-talent-tree spec §7): a one-time flat refund applied to
+## the NEXT successful spend() call, then cleared. [ASSUMPTION] amount — tune by playtest.
+var pending_ability_refund: int = 0
+
 ## True if every entry in [param cost] is currently affordable on its rail.
 func can_afford(cost: Dictionary) -> bool:
 	return stamina >= int(cost.get(&"stamina", 0)) and mana >= int(cost.get(&"mana", 0))
@@ -37,6 +41,15 @@ func spend(cost: Dictionary) -> bool:
 	if man != 0:
 		mana -= man
 		pool_changed.emit(&"mana", mana, max_mana)
+	if pending_ability_refund > 0:
+		var refund_cost: Dictionary = {}
+		if sta > 0:
+			refund_cost[&"stamina"] = mini(pending_ability_refund, sta)
+		if man > 0:
+			refund_cost[&"mana"] = mini(pending_ability_refund, man)
+		pending_ability_refund = 0
+		if not refund_cost.is_empty():
+			refund(refund_cost)
 	return true
 
 ## Adds resources back on each rail, clamped to that rail's maximum.
