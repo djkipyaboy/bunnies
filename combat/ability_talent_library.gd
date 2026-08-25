@@ -625,6 +625,94 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [q1, q2, q3]
 				_:
 					return []
+		&"summoner":
+			match row_id:
+				&"base_ability":
+					var e1: AbilityTalentOption = AbilityTalentOption.new()
+					e1.id = &"ember_delayed_bloom"; e1.row_id = row_id
+					e1.display_name = "Delayed Bloom"
+					e1.description = "Touch-Me-Not's burst echoes for 50% of its value at the start of your next turn."
+					var e2: AbilityTalentOption = AbilityTalentOption.new()
+					e2.id = &"ember_overripe"; e2.row_id = row_id
+					e2.display_name = "Overripe"
+					e2.description = "If Touch-Me-Not's burst kills an enemy, the overkill damage splashes onto another random living enemy."
+					var e3: AbilityTalentOption = AbilityTalentOption.new()
+					e3.id = &"ember_overgrown_roots"; e3.row_id = row_id
+					e3.display_name = "Overgrown Roots"
+					e3.description = "Touch-Me-Not's stage-3 burst also applies Rooted to every enemy hit."
+					return [e1, e2, e3]
+				&"ability_l2":
+					var d1: AbilityTalentOption = AbilityTalentOption.new()
+					d1.id = &"dew_evergreen_bloom"; d1.row_id = row_id
+					d1.display_name = "Evergreen Bloom"
+					d1.description = "Lotus doesn't expire after stage 3 — it loops a reduced heal every round until killed or replaced."
+					var d2: AbilityTalentOption = AbilityTalentOption.new()
+					d2.id = &"dew_twin_petal"; d2.row_id = row_id
+					d2.display_name = "Twin Petal Cleanse"
+					d2.description = "From stage 2 onward, Lotus cleanses the two oldest debuffs per ally instead of one."
+					var d3: AbilityTalentOption = AbilityTalentOption.new()
+					d3.id = &"dew_guardian_bloom"; d3.row_id = row_id
+					d3.display_name = "Guardian Bloom"
+					d3.description = "Lotus's stage-3 Thorns buff also grants a small flat damage shield."
+					return [d1, d2, d3]
+				&"ability_l3":
+					var m1: AbilityTalentOption = AbilityTalentOption.new()
+					m1.id = &"misfortune_withering_touch"; m1.row_id = row_id
+					m1.display_name = "Withering Touch"
+					m1.description = "Nightshade's stage-3 Cursed also reduces the target's healing received."
+					var m2: AbilityTalentOption = AbilityTalentOption.new()
+					m2.id = &"misfortune_creeping_blight"; m2.row_id = row_id
+					m2.display_name = "Creeping Blight"
+					m2.description = "Nightshade's stage 3 also reapplies Weakened and Sundered alongside Cursed."
+					var m3: AbilityTalentOption = AbilityTalentOption.new()
+					m3.id = &"misfortune_ill_fortune"; m3.row_id = row_id
+					m3.display_name = "Ill Fortune"
+					m3.description = "Nightshade's stage 2 also applies Jinxed to every enemy hit."
+					return [m1, m2, m3]
+				&"ability_l4":
+					var h1: AbilityTalentOption = AbilityTalentOption.new()
+					h1.id = &"hasty_bountiful_harvest"; h1.row_id = row_id
+					h1.display_name = "Bountiful Harvest"
+					h1.description = "Wheat's stage-2 regen buff also refunds part of the cost of each affected ally's next ability."
+					var h2: AbilityTalentOption = AbilityTalentOption.new()
+					h2.id = &"hasty_charged_growth"; h2.row_id = row_id
+					h2.display_name = "Charged Growth"
+					h2.description = "Wheat's stage-3 extra reel is crit-biased for its duration."
+					var h3: AbilityTalentOption = AbilityTalentOption.new()
+					h3.id = &"hasty_unshakeable_roots"; h3.row_id = row_id
+					h3.display_name = "Unshakeable Roots"
+					h3.description = "Wheat's stage-1 Initiative buff also grants immunity to Slow and Rooted."
+					return [h1, h2, h3]
+				&"passive":
+					var p1: AbilityTalentOption = AbilityTalentOption.new()
+					p1.id = &"harvest_favor_amplified_bond"; p1.row_id = row_id
+					p1.display_name = "Amplified Bond"
+					p1.description = "Harvest's Favor's bonus scales up with your active minion's current stage."
+					var p2: AbilityTalentOption = AbilityTalentOption.new()
+					p2.id = &"harvest_favor_unleashed"; p2.row_id = row_id
+					p2.display_name = "Favor Unleashed"
+					p2.description = "Harvest's Favor also triggers, at reduced value, on a NEUTRAL-tier hit."
+					var p3: AbilityTalentOption = AbilityTalentOption.new()
+					p3.id = &"harvest_favor_spirit_surge"; p3.row_id = row_id
+					p3.display_name = "Spirit Surge"
+					p3.description = "Harvest's Favor guarantees one free proc at your own Upkeep each turn."
+					return [p1, p2, p3]
+				&"ultimate":
+					var u1: AbilityTalentOption = AbilityTalentOption.new()
+					u1.id = &"strawfellow_petrifying_burst"; u1.row_id = row_id
+					u1.display_name = "Petrifying Burst"
+					u1.description = "Strawfellow's Due (Touch-Me-Not) also guarantees a 1-turn Stun on the primary target."
+					var u2: AbilityTalentOption = AbilityTalentOption.new()
+					u2.id = &"strawfellow_undying_bloom"; u2.row_id = row_id
+					u2.display_name = "Undying Bloom"
+					u2.description = "Strawfellow's Due (Lotus) also cleanses all active debuffs from the whole party immediately."
+					var u3: AbilityTalentOption = AbilityTalentOption.new()
+					u3.id = &"strawfellow_withering_doom"; u3.row_id = row_id
+					u3.display_name = "Withering Doom"
+					u3.description = "Strawfellow's Due (Nightshade)'s improved Curse deals double damage if the target already carries Weakened or Sundered."
+					return [u1, u2, u3]
+				_:
+					return []
 		_:
 			return []
 
