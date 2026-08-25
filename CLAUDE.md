@@ -184,7 +184,9 @@ has been playtested across many rounds with no outstanding functional bugs. On t
 - **All 8 classes LIVE**, each with a full 4-ability + Ultimate kit (Warrior, Vanguard,
   Skirmisher, Chancer, Ranger, Seer, Warden, **Harvester** — a minion-summoning nature caster,
   formerly "Summoner"; wields the Scythe, summons plant-spirit minions Touch-Me-Not/Lotus/
-  Nightshade/Wheat, Ultimate is Strawfellow's Due) plus a talent/perk tree (levels 1–10).
+  Nightshade/Wheat, Ultimate is Strawfellow's Due) plus a talent/perk tree (levels 1–10) —
+  **the Harvester's own tree (6 rows, 18 options, plus the new Harvest's Favor passive) is
+  code-complete and test-green (2026-08-24)**.
 - **8 damage types** (added Light/Dark for the boss fight), full type chart, live UI.
 - **N-vs-M party combat** — vertical-column layout, per-PC targeting, enemy AI (matchup + lowest-
   HP targeting), a real boss fight (**The Hollow Warden**, multi-phase, mid-combat minion spawns,
