@@ -193,6 +193,10 @@ const UNIVERSAL_PERK_LEVELS: Array[int] = [2, 4, 6, 8, 10]
 ## currently has any reason to exceed it.
 const MAX_LEVEL: int = 10
 
+## [ASSUMPTION] Harvest's Favor per-hit bonuses — tune by playtest (2026-08-24 spec §10).
+const HARVEST_FAVOR_EMBER_BONUS_DAMAGE: int = 4
+const HARVEST_FAVOR_DEW_HEAL: int = 3
+
 ## Character level — gates extra_abilities (L2/L3/L4, spec 2026-07-23) and unlocks the L5 passive
 ## + L5-10 talent points (talent_points_earned()). Clamped to [1, MAX_LEVEL] on assignment — a real,
 ## enforced cap (spec 2026-07-23 §2), unlike the pre-2026-07-23 unbounded field. Still a test/tester
@@ -1252,6 +1256,39 @@ func passive_on_payline_scored(_tier: ReelFace.ResultTier) -> void:
 				resource_pool.refund({&"mana": 1})
 		_:
 			pass
+
+## Harvest's Favor (Harvester passive, 2026-08-24 harvester-talent-tree spec §1) — fires once per
+## landed SUCCESS/CRIT_SUCCESS weapon-reel hit while a minion is active. No-op with no active
+## minion. [param target] is the hit's target; [param allies] is every ally to consider for the
+## Lotus branch (pass the party including this combatant). Row-5 talent upgrades (Amplified Bond,
+## Favor Unleashed, Spirit Surge) extend this method in Task 9.
+func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant]) -> void:
+	if passive_ability_id != &"harvest_favor" or active_minion == null or not active_minion.is_alive():
+		return
+	match active_minion.minion_type:
+		&"ember":
+			if target != null and target.is_alive():
+				target.take_damage(HARVEST_FAVOR_EMBER_BONUS_DAMAGE)
+		&"dew":
+			var lowest: Combatant = null
+			for a: Combatant in allies:
+				if a == null or not a.is_alive() or a.is_minion:
+					continue
+				if lowest == null or a.hp < lowest.hp:
+					lowest = a
+			if lowest != null:
+				lowest.heal(HARVEST_FAVOR_DEW_HEAL)
+		&"misfortune":
+			if target == null or not target.is_alive():
+				return
+			for debuff_id: StringName in [&"weakened", &"sundered", &"cursed"]:
+				var e: Effect = target._find_effect(debuff_id)
+				if e != null:
+					e.duration += 1
+		&"hasty":
+			for e: Effect in active_effects:
+				if e != null and e.beneficial:
+					e.duration += 1
 
 ## Seer "Foresight" (L7) shield amount: 20% of max Mana with Deeper Foresight, else 15%. Read by
 ## combat.gd's foresight_pending block (Task 20) so the math stays directly unit-testable.

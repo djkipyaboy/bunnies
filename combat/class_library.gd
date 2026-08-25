@@ -216,6 +216,7 @@ static func make(id: StringName) -> CharacterClass:
 			# Mana-only: max = base 8 + Focus 5 = 13, starts full, +1/turn. [ASSUMPTION] tune by playtest.
 			c.base_max_mana = 8; c.start_mana = 13; c.mana_regen = 1
 			c.ability_id = &"ember_minion"; c.ability_cost = 4; c.ability_resource = &"mana"
+			c.passive_ability_id = &"harvest_favor"
 			c.ultimate_id = &"grand_sacrifice"  # was &"sticky_wild" placeholder (2026-08-16 spec §8)
 			c.extra_abilities = [
 				_ability(&"dew_minion", 2, 5, &"mana", 0),

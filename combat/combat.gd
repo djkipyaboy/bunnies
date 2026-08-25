@@ -2715,6 +2715,13 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				t.attach_effect(EffectLibrary.make(&"slow"))
 				_log("  🐌 %s's RAMPAGE lashes %s with a stack of SLOW." % [_attacker.display_name, t.display_name])
 				(_panels[t] as CombatantPanel).refresh_status()
+			# Harvest's Favor (2026-08-24 harvester-talent-tree spec §1): fires once per landed
+			# SUCCESS/CRIT_SUCCESS hit on EVERY reel this turn, including ability/buff-granted extra
+			# reels (reel_surge, etc.) since this loop runs once per _apply_attack() call and
+			# _apply_attack() is bound per-reel for the whole turn_reels array, not just the base
+			# weapon loadout.
+			if _attacker.passive_ability_id == &"harvest_favor" and (attack.face.result_tier == ReelFace.ResultTier.SUCCESS or attack.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS):
+				_attacker.harvest_favor_on_hit(t, _allies_of(_attacker))
 		# Surface the type matchup (vs the primary defender, which final_damage was computed against) so
 		# the player can see WHY a number is high/low — the percentage + a Pokémon-style phrase.
 		var mult: float = attack.damage_type.multiplier_against(_defender.defense_type) if attack.damage_type != null else 1.0
