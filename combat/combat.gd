@@ -866,14 +866,14 @@ func _apply_minion_summon_payoff(caster: Combatant, summon_tier: int) -> void:
 func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	match minion.minion_type:
 		&"dew":
-			_run_dew_stage(minion, stage)
+			_run_dew_stage(minion, stage, caster)
 		&"misfortune":
-			_run_misfortune_stage(minion, stage)
+			_run_misfortune_stage(minion, stage, caster)
 		&"hasty":
 			_run_hasty_stage(minion, stage, caster)
 		_:
-			_run_ember_stage(minion, stage)
-	if stage >= 3 and minion.is_alive():
+			_run_ember_stage(minion, stage, caster)
+	if stage >= 3 and minion.is_alive() and not _dew_evergreen_active(minion):
 		_log("  %s completes its final stage and fades away." % minion.display_name)
 		minion.force_expire()
 		_turn_manager.remove_dead_combatant(minion)
@@ -884,17 +884,47 @@ func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) 
 			if added > 0 and minion.minion_caster.bonus_meter.is_visible:
 				_log("    BM +%d  (%d/%d)  — %s's minion completed its lifecycle" % [added, minion.minion_caster.bonus_meter.value, minion.minion_caster.bonus_meter.cap, minion.minion_caster.display_name])
 
+## Evergreen Bloom (2026-08-24 harvester-talent-tree spec §5): true when [param minion] is Lotus,
+## already past its natural stage-3 expiry, and its caster picked dew_evergreen_bloom — prevents
+## the dispatcher above from expiring it. False for every other minion type/pick.
+func _dew_evergreen_active(minion: Combatant) -> bool:
+	return minion.minion_type == &"dew" and minion.minion_caster != null and minion.minion_caster.has_ability_talent(&"dew_evergreen_bloom")
+
 const MINION_BASE_STAGE_DAMAGE: int = 8
 
 ## Ember Minion's stage effect (unchanged from the original shipped mechanism — the expiry check
 ## that used to live at the end of this function now lives in the _run_minion_stage() dispatcher
 ## above, shared across all 4 types).
-func _run_ember_stage(minion: Combatant, stage: int) -> void:
+## 2026-08-24 harvester-talent-tree spec §4 adds 3 Touch-Me-Not talent branches on top of the base
+## pulse: Overgrown Roots (stage-3 burst also Roots every enemy hit), Overripe (overkill damage
+## splashes onto a random surviving enemy), and Delayed Bloom (queues a 50%-of-damage echo that
+## fires at the caster's next Upkeep via Combatant.pending_delayed_bloom_damage).
+func _run_ember_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	var amount: int = MINION_BASE_STAGE_DAMAGE * stage
-	for enemy: Combatant in _enemies_of(minion):
+	var overripe: bool = caster != null and caster.has_ability_talent(&"ember_overripe")
+	var overgrown_roots: bool = stage == 3 and caster != null and caster.has_ability_talent(&"ember_overgrown_roots")
+	var delayed_bloom: bool = caster != null and caster.has_ability_talent(&"ember_delayed_bloom")
+	var enemies: Array[Combatant] = _enemies_of(minion)
+	for enemy: Combatant in enemies:
+		if not enemy.is_alive():
+			continue
+		var hp_before: int = enemy.hp
 		enemy.take_damage(amount)
 		if _panels.has(enemy):
 			(_panels[enemy] as CombatantPanel).refresh_status()
+		if overgrown_roots:
+			enemy.attach_effect(EffectLibrary.make(&"rooted"))
+		if overripe and hp_before > 0 and not enemy.is_alive() and hp_before < amount:
+			var overkill: int = amount - hp_before
+			var others: Array[Combatant] = enemies.filter(func(e: Combatant) -> bool: return e != enemy and e.is_alive())
+			if others.size() > 0:
+				var splash_target: Combatant = others[randi() % others.size()]
+				splash_target.take_damage(overkill)
+				if _panels.has(splash_target):
+					(_panels[splash_target] as CombatantPanel).refresh_status()
+				_log("  🍂 Overripe splashes %d overkill damage onto %s." % [overkill, splash_target.display_name])
+	if delayed_bloom and caster != null:
+		caster.pending_delayed_bloom_damage += int(roundf(amount * 0.5))
 	_log("  💥 %s (stage %d) pulses %d damage to every enemy." % [minion.display_name, stage, amount])
 
 ## Dew Minion's 3-stage effect (2026-08-16 spec §2): AoE heal every stage, cleanse the OLDEST
@@ -906,7 +936,7 @@ const DEW_STAGE3_HEAL: int = 16
 const DEW_THORNS_PCT: float = 0.20
 const DEW_THORNS_TURNS: int = 2
 
-func _run_dew_stage(minion: Combatant, stage: int) -> void:
+func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	var heal_amount: int = DEW_STAGE3_HEAL if stage == 3 else (DEW_STAGE2_HEAL if stage == 2 else DEW_STAGE1_HEAL)
 	for ally: Combatant in _allies_of(minion):
 		if not ally.is_alive():
@@ -935,7 +965,7 @@ func _run_dew_stage(minion: Combatant, stage: int) -> void:
 ## flat dot_base_damage convention) at stage 3. [ASSUMPTION] whether stage 3 also reapplies
 ## Weakened/Sundered — currently Curse-only per the spec's own stated default; revisit after
 ## playtest if the debuffs expire before the minion's own lifespan does.
-func _run_misfortune_stage(minion: Combatant, stage: int) -> void:
+func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	for enemy: Combatant in _enemies_of(minion):
 		if not enemy.is_alive():
 			continue
@@ -1895,6 +1925,15 @@ func _on_phase_changed(phase: PhaseManager.Phase) -> void:
 		if passive_heal > 0 and _attacker.is_alive():
 			_attacker.heal(passive_heal)
 			_log("  %s regenerates %d HP from Deep Roots." % [_attacker.display_name, passive_heal])
+		if _attacker.pending_delayed_bloom_damage > 0 and _attacker.is_alive():
+			var echo: int = _attacker.pending_delayed_bloom_damage
+			_attacker.pending_delayed_bloom_damage = 0
+			for enemy: Combatant in _enemies_of(_attacker):
+				if enemy.is_alive():
+					enemy.take_damage(echo)
+					if _panels.has(enemy):
+						(_panels[enemy] as CombatantPanel).refresh_status()
+			_log("  🌱 Delayed Bloom echoes %d damage to every enemy." % echo)
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 		(_panels[_attacker] as CombatantPanel).refresh_resources()
 	elif phase == PhaseManager.Phase.END:

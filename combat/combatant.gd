@@ -424,6 +424,11 @@ var pending_minion_type: StringName = &"ember"
 ## clears it. Reset to false at the top of every begin_turn().
 var reel_surge_overflow_pending: bool = false
 
+## Delayed Bloom (2026-08-24 harvester-talent-tree spec §4): flat damage queued by a Touch-Me-Not
+## burst, applied as an AoE echo at this combatant's own next Upkeep, then cleared to 0. Accumulates
+## if multiple stages fire before the next Upkeep (e.g. re-summoning mid-round).
+var pending_delayed_bloom_damage: int = 0
+
 ## Warden "Earthquake" Ultimate state (spec 2026-06-29 §4): while > 0, this combatant added a 4th
 ## weapon-attack reel, made all weapon-attack reels WILD, and its spin splashes half its primary total
 ## to every OTHER enemy + force-stuns every damaged enemy. Like Collateral (primary takes FULL; not an
