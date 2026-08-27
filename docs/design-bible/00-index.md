@@ -68,7 +68,7 @@ build** (exactly how combat features ship). Status is tracked in the table below
 | `24-equipment` | ⚙️ | Gear that edits reels/stats | ✅ LOCKED 2026-07-10, graduated to spec |
 | `25-inventory-and-storage` | ⚙️ | Personal + cross-character inventory | ✅ LOCKED 2026-07-10, graduated to spec |
 | `26-banking-cross-character` | ⚙️ | The cross-character vault (replayability spine) | ✅ LOCKED 2026-07-10, graduated to spec |
-| `27-crafting` | ⚙️ | Reel-mod crafting + salvage | 📝 seeded |
+| `27-crafting` | ⚙️ | Reel-mod crafting + salvage | ✅ 4 professions (Foraging/Fishing gathering + Salvaging/Cooking crafting) BUILT + playtested; the Reelforge/Essence economy proposals are the future-depth direction, still 📝 |
 | `28-encounter-design-framework` | ⚙️ | Boss parts/phases, multi-target, encounter variety | 🟨 first worked example (ch.1 combat tutorial) added — awaiting your reaction |
 | `40-enemy-roster` | 🗂️ | Hundreds of designed enemies | 🟨 "Wildcat's Talon" locked as ch.1 faction — awaiting more |
 | `41-npc-roster` | 🗂️ | Static merchants / townsfolk / quest-givers | 🟨 first draft rows added — awaiting your reaction |

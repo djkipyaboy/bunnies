@@ -222,8 +222,9 @@ chain below.
    life. Their residual innate magic is now read as the cause of the biome's own unnaturally **exponential
    growth**, not just their own continued existence. At dusk, pollen drifts glow faintly and locals read
    weather by which way they stream — this is where the **day/night cycle** open question first came up, see
-   §7. The underground burrow-warrens (below) surface most visibly here, poking through the grass like a
-   second landscape.
+   §8. The underground burrow-warrens (below) surface most visibly here, poking through the grass like a
+   second landscape — now confirmed as an inhabited community and the planned home of the fast-travel
+   system, see §7.
 6. **Rolling farmland/hedgerow country.** Self-trimming hedge-mazes + scarecrow guardians (ties to the
    Harvester's "Old Strawfellow" lore, `docs/superpowers/specs/2026-08-24-harvester-talent-tree-design.md`);
    hedges that have grown into odd shapes mark old disputes — a living record of local history.
@@ -257,7 +258,108 @@ old-growth forest) · ashen/blighted wasteland · volcanic badlands + forced-lab
 ruins, and straight from the Schism lore) · a fortress-crater or sunken citadel (the Wildcat's seat) · toxic
 bog (↔ wetlands) · storm-wracked shipwreck coast (↔ the port town) · slave-labor tunnels (↔ burrow-warrens).
 
-### 7. Open questions
+### 7. Overworld path design (rough pass, LOCKED 2026-08-27)
+
+**Purpose:** a first pass at *how a player actually travels* through each of the 12 populated-coast
+biome slots (§6) — not just the abstract north-to-south adjacency already locked there. Built to find
+natural drop points for towns/settlements along the campaign route, one zone at a time, top (north
+icecap) to bottom (south icecap). Style reference: **WoW-style organic paths** — routes read as worn in
+by generations of foot/cart traffic finding the natural line, not laid out efficiently the way a modern
+engineer would. Every zone also gets **sporadic smaller settlements/compounds** (single-family or small-
+group scale) scattered along its route, separate from the two anchor towns below — those aren't
+individually authored yet, just confirmed as a standing rule for every zone.
+
+**Two anchor town candidates locked from this pass:** the farmland/hedgerow zone (#6) and the orchard/
+terrace zone (#10) — both sit at a natural crossroads/hub point their own path design produces (a lane
+crossroads and a switchback loading-platform level, respectively). Neither is a chapter-authored dossier
+yet (§5 pattern still applies: full town dossiers get written up as chapters reach them).
+
+1. **Northern icecap.** No built road — ice doesn't hold generations of wear. A fading line of cairns +
+   expedition wreckage marks the one entry from #2, petering out into nothing. One hand-authored offshoot:
+   a stranded expedition camp (survivors or remains). No dwellings — confirmed too hostile for permanent
+   settlement. **New:** the frost-forest ruin (#3, the 6's destroyed settlement) hides a First-9-built
+   secret passage straight through to this icecap — the real reason no *conventional* crossing has ever
+   succeeded; the only real way across is through the ruin.
+2. **Northern peaks.** Foot-only switchback trail (too steep for carts) with worn-smooth First-9-era
+   waystations at the switchbacks — this is the first sign the eventual cart route doesn't start until the
+   terrain flattens further south. One offshoot scramble to an aurora-watch perch, tended by a hermit/
+   small-order watch-post (the zone's one dwelling).
+3. **Frost-forest transition.** A quick, still foot-only corridor — travelers navigate the "safe line"
+   through frost-laced trees by *ear*, following the singing icicles' chime pattern rather than sight (a
+   blind/low-vision traveler could out-navigate a sighted one here). The 6's ruined settlement sits just
+   off the corridor at the #2/#4 border — now confirmed as a hub connecting the surface corridor, its own
+   dungeon, and the secret icecap passage (#1, above). A trapper/woodcutter camp sits at the warm southern
+   edge, working both biomes.
+4. **Old-growth hollow-tree forest.** The chain's **first real cart road** — a track that weaves between
+   the hollow trees' surface roots rather than cutting through them, worn in by generations detouring
+   around the same roots. The biome's existing "firefly streetlight tree-towns" (plural) are this zone's
+   dwellings, linked to each other by a separate rope-and-plank canopy walkway network *above* the ground
+   road, not along it. The Towering Spire-Tree ruin stays its own dead-end offshoot (SE-entry spiral,
+   already locked, §6 #4).
+5. **Tall-grass "sea."** No built road survives the grass's own exponential regrowth — the only through-
+   route is the Hayforged's own migration wakes (the same giants retracing similar routes since this is
+   where they were grown; elephant-path logic), making this the one real break in the cart route for
+   anyone who can't time a fresh wake. **Underground burrow-warrens are made a real inhabited community
+   here** (not just flavor text) — warren-dwelling family groups, living beneath the grass, whose tunnel
+   network is a reliable (if cramped, non-cart) alternate route between #4 and #6. **This tunnel network is
+   also the planned home of the game's eventual fast-travel system** (discovered in an incomplete state on
+   first meeting the warren-dwellers, completed by campaign progress) and doubles narratively as a hidden
+   retreat/stealth route even before fast travel unlocks — cross-ref [[99-parking-lot]]'s existing "fast
+   travel / overworld navigation" item, don't design that system twice.
+6. **Rolling farmland/hedgerow.** ⭐ **Town candidate.** The chain's first *true* cart road — wide, worked
+   lanes that bend around whoever's field came first (old farm-country logic, not a grid), a deliberate
+   human-built road (unlike #4's root-road). The self-trimming hedge-maze branches off the main lanes as a
+   puzzle/exploration pocket (existing Old Strawfellow lore); some hedge-shapes mark old boundary disputes.
+   The candidate town sits at a natural lane crossroads; individual farmsteads scatter along the approach
+   lanes.
+7. **River/marsh wetlands — Frogmire.** 🏘 Town (Ch.1). The cart road continues south as a narrow raised
+   timber causeway on stilts — built to let water/wildlife pass underneath rather than damming the marsh;
+   also the in-fiction reason a raiding force could march on Frogmire at all for the opening siege (real
+   but exposed infrastructure, a natural chokepoint). Frog-folk lantern-boats run the actual water channels
+   as a parallel local-only transport layer, invisible/unusable to an outsider without a guide — this is
+   the layer that ferries wisp-light at night (existing flavor). Lily-pad hamlets sit off the channels, not
+   the causeway.
+8. **Coastal cliffs — Saltmere.** 🏘 Port town + Pirate Faction. The road upgrades into a real maintained
+   coastal highway here, befitting the continent's biggest port. Two offshoots: a cliffside scramble down
+   to the tide-pool amber flats (foraging, dangerous at high tide), and a second, unofficial network of
+   smugglers' cliff paths/sea caves that bypasses the official highway and port checkpoints — Pirate
+   Faction only shows this to the party once trust is earned. **The Pirate Faction also runs legitimate
+   sea-lane trade** up and down the coastline (Frogmire, Saltmere, and further reach), shipping higher-
+   value/faster cargo by boat as a real parallel to the overland cart road — the smuggling is their side
+   business, not their whole one. Small fishing hamlets dot the highway outside the port proper.
+9. **Inland lake/lagoon.** 🏘 Merfolk town + the Canal (crosses the spine at the #8/#9 border, co-built by
+   the merfolk and First-9). The highway continues as a shore-hugging ring-road (nothing to cross to most
+   of the year). **The merfolk town is large** — breaching to cover 70-80% of the lake's surface during its
+   once-a-season festival, and maintaining a magical breathable-air barrier that lets merfolk and surface-
+   dwellers move freely inside it during that window. The shoreline docks and their ferry fleet (varying
+   sizes) are themselves part of that submerge/surface cycle — invisible and unusable outside the festival,
+   rising only when the town does. Lakeside fishing/boating hamlets are the sporadic dwellings.
+10. **Orchard/terraced hill-country.** ⭐ **Town candidate.** The ring-road climbs the terraces via a
+    switchback cart road cut generations ago to move fruit carts to the lake trade; each switchback landing
+    doubles as a small harvest-staging platform. Above where carts stop climbing, narrow foot-only paths
+    continue up to the rarer high-terrace fruit. **Not every terrace is cultivated** — some sections sit
+    wild/abandoned, overgrown and reclaimed by wildlife, alongside the working farmland. The candidate town
+    sits at the busiest switchback level; farmer family plots scatter up and down the slope.
+11. **Southern peaks.** Mirrors #2: a foot/pack-animal switchback trail (no cart access) — this is the
+    actual origin point of the Yak trade route already referenced in the wild-coast export port's dossier
+    (§5). A twilight-gap overlook offshoot mirrors the aurora-watch perch, with its own local
+    superstition rather than a First-9 tie-in. **Sparsely populated by the other races, but genuinely lived-
+    in Yak home territory** — real generational Yak herding/family compounds along the trail, bigger and
+    more numerous than #2's single hermit-post, even though the zone reads as remote/empty to an outside
+    traveler.
+12. **Southern icecap.** Mirrors #1's no-built-road logic, but **Yak-inhabited**: a real, maintained
+    network of cairns/waypoints between the southern-peaks Yak settlements and their icecap herding/
+    hunting grounds, fading into the same fainter, untouched, no-successful-crossing interior further in.
+    A mirrored stranded-expedition offshoot exists, though the Yak likely already have their own oral
+    history about it. Yak edge-camps (closer and more numerous than #1's total absence of dwellings) are
+    the zone's settlements.
+
+**Wild coast — deferred, out of this pass's scope.** Paths there will only branch a short distance out
+from the export port town (§5) — just enough for goods to reach it — with the rest of that side of the
+continent left untouched/unmapped, traversable only through dense foliage and harsh terrain. Full wild-
+coast path design waits for its own later session alongside the rest of that coast's biome dossiers.
+
+### 8. Open questions
 - ❓ **Day/night cycle** — raised 2026-08-26 during the biome pass (dusk pollen drifts in the tall-grass
   sea, §6). Direction set: Pokémon-style time-of-day **encounter tables** (combat encounters, profession
   minigames like fishing, NPC availability/locations) — explicitly NOT meant to touch combat mechanics.
@@ -278,10 +380,16 @@ bog (↔ wetlands) · storm-wracked shipwreck coast (↔ the port town) · slave
 - ❓ Which of the remaining open companion race slots (Hare/Otter/Badger/Mouse/Turtle) is the Chancer from the Pirate Faction?
 - ❓ Does the port town double as the [ORG] hub town from [[10-storyline]] step 6, or is it a separate, later-chapter location? *(Leaning separate — the hub reads like an early, inland/central location, the port a later coastal one — but not decided.)*
 - ❓ Region count/pacing per continent — how many regions before the dark continent is reached?
+- ❓ **Fast-travel system** (§7) — direction set 2026-08-27: built on the tall-grass sea's burrow-warren
+  tunnel network, discovered incomplete on first meeting the warren-dwellers, completed by campaign
+  progress; also usable earlier as a narrative retreat/stealth route. Not designed yet — no unlock beats,
+  no UI/travel-node model. Tracked in [[99-parking-lot]]'s existing fast-travel item; don't re-scope there.
 
 ### Scope / phase
 ✅ Three-tier template + Chapter Map shape locked. The Frogmire (ch.1) and Saltmere Coast/port town/Pirate
 Faction dossiers are first-pass content, reactable like every other draft in this bible. ✅ Primary-continent
-shape (§4) and the full 12-slot biome chain + whimsy pass (§6) are locked. ⏳ Full region-by-region
-authoring (regions are still just 2 of the 12 biome slots), the wild coast, the Tainted Fleet, and the
-faction-trust mechanic content all wait on later passes.
+shape (§4) and the full 12-slot biome chain + whimsy pass (§6) are locked. ✅ **Overworld path design** (§7)
+— a full rough pass across all 12 populated-coast biome slots, locked 2026-08-27; the wild coast's own path
+pass is deferred (§7 closing note). ⏳ Full region-by-region authoring (regions are still just 2 of the 12
+biome slots), the wild coast, the Tainted Fleet, and the faction-trust mechanic content all wait on later
+passes.

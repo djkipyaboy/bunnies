@@ -24,15 +24,30 @@
 
 - 💡 **Abbey/hub upgrade system** (Paper Mario Flipside→Flopside): the hub unlocks wings/vendors as you
   progress, rewarding return trips. Pairs with [[11-world-and-overworld]] §2.
-- 💡 **Faction reputation.** Standing with woodlander orders / reformed-vermin clans changes prices, recruits,
+- 💡 **Faction trust.** Standing with woodlander orders / reformed-vermin clans changes prices, recruits,
   quests — a natural KOTOR-adjacent layer on top of [[10-storyline]] factions. 🔬 *Now has a concrete pull:
   [[13-world-atlas-and-regions]]'s Pirate Faction is explicitly "friendly once trust is earned through story
-  actions" — nudges this toward ⬆️ whenever that chapter gets built.*
+  actions" — nudges this toward ⬆️ whenever that chapter gets built.* **2026-08-24 direction: explicitly NOT
+  a numerical reputation meter** — earned via a dedicated narrative quest/sequence/dungeon per faction, with
+  concrete rewards (crafting recipes, a race-unique cosmetic outfit) rather than a stat crossing a threshold.
 - 💡 **Dialogue & choice system** (the engine itself): branching, skill/stat-gated lines, alignment. Big; it's
   the substrate for storyline + companions + NPCs. **Likely ⬆️ early if the story is branching.**
 - 💡 **Cooking** (Redwall LOVES food): consumables crafted from gathered ingredients — a flavorful sub-track of
   [[27-crafting]] with strong thematic fit.
-- 💡 **Fast travel / overworld map navigation** model.
+- 💡 **Fast travel / overworld map navigation** model. **2026-08-27 direction** (set during the overworld
+  path-design pass, [[13-world-atlas-and-regions]] §7): built on the tall-grass sea's burrow-warren tunnel
+  network — discovered in an incomplete state on first meeting the warren-dwellers, completed as a reward
+  for campaign progress. Also usable narratively before it's fully unlocked, as a hidden retreat/stealth
+  route (escaping a fight, moving unseen) rather than only a travel-menu convenience. Not designed in
+  detail — no unlock beats, no travel-node/UI model.
+- 💡 **Day/night cycle.** 2026-08-26 direction (raised during the primary-continent biome pass, see
+  [[13-world-atlas-and-regions]] §6): Pokémon-style time-of-day **encounter tables** — different random
+  combat encounters, profession minigames (e.g. fishing), and NPC availability/locations by time of day.
+  **Explicitly NOT meant to affect combat mechanics.** Not designed — no clock model, no per-biome table
+  content. 🔬 Spins off a separate class idea below.
+- 💡 **Light/Dark time-of-day class.** A cleric/paladin-archetype class whose damage type or kit shifts
+  with the day/night cycle above — player's own idea, pitched in passing, not designed. Depends on the
+  day/night cycle item existing first.
 - 💡 **Random vs. handcrafted encounters** — you emphasized handcrafted variety; decide if any overworld
   random encounters exist at all (they help pacing/grinding-for-essence but dilute curation).
 

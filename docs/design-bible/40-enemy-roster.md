@@ -56,19 +56,23 @@ These mirror what `EnemyLibrary._build` already stamps, plus the new boss fields
 
 🟦 *Rows beyond these get authored once the schema + tone are confirmed. Suggest batching by faction/chapter.*
 
-### ✅ Locked batch — "Wildcat's Talon" (Chapter 1 opening battle + combat tutorial)
+### ✅ Locked batch — "Wildcat's Talon" cell (Chapter 1 opening battle + combat tutorial)
 
-Per [[10-storyline]] §1: the prologue battle is a **relic raid** on the Frogadier camp — a small task force
-hunting the Controller (disguised as the Frogadier leader's necklace), not the Wildcat's main army; the raid
-"half-retreats, half-overcommits" when PC falls through the portal mid-fight. **"Wildcat's Talon"** — a
-scouting/raiding cell, distinct from the full-army encounters later in the campaign — confirmed 2026-07-09,
-and doubles as the roster for the **ch.1 Combat Tutorial encounter** (full design → [[28-encounter-design-framework]]).
+Per [[10-storyline]] §1/§6: the prologue battle is a **relic raid** on the Frogadier camp, part of **the
+Returned's** opening wave of raids across the primary continent — a small task force hunting the Controller
+(disguised as the Frogadier leader's necklace) and abducting captives for the dark continent's resource, not
+the Returned's main army; the raid "half-retreats, half-overcommits" when PC falls through the portal
+mid-fight. This scouting/raiding cell is led by the named lieutenant **Wildcat's Talon** *(name locked
+2026-08-25 — reassigned from a cell-name placeholder to this specific character; the cell itself is
+currently unnamed, 🟦 open — see [[10-storyline]] §9)*, distinct from the full-army encounters later in the
+campaign, and doubles as the roster for the **ch.1 Combat Tutorial encounter** (full design →
+[[28-encounter-design-framework]]).
 
 | id | display_name | species/faction | tier | weapon_type | combat_role | reel_count | ai_profile | lore |
 |---|---|---|---|---|---|---|---|---|
-| `talon_scout` | Talon Scout | Wildcat's Talon | trash | Slashing (claw-dagger) | melee | 2 | default greedy | A conscripted raider — more scared of failing the raid than of PC. |
-| `talon_archer` | Talon Archer | Wildcat's Talon | standard | Piercing (bow) | ranged | 3 | default greedy | Covers the raid's retreat once the necklace is grabbed — or thought to be. |
-| `talon_leader` | [Talon Leader — name TBD] | Wildcat's Talon | elite | Crushing (warclub) | melee | 3 | Taunt-priority ([[28-encounter-design-framework]]) — draws PC in per the "overcommit" beat; on-enter he uses **"Fight for Your Lives!"** — not a caring heal, a **forceful/intimidating command** that bullies his Scout & Archer back into the fight (💡 `[ASSUMPTION]` proposed effect: heal to full + a short Empowered buff, reusing the shipped effect, but framed in lore/log text as threat-driven, not encouragement) | The one who ordered the raid; a small ambition inside a much bigger machine. He arrives late, turning the tutorial's back half into a 2v3 — and makes his minions more scared of him than of PC. |
+| `talon_scout` | Talon Scout | 🟦 unnamed Returned raiding cell | trash | Slashing (claw-dagger) | melee | 2 | default greedy | A conscripted raider — more scared of failing the raid than of PC. |
+| `talon_archer` | Talon Archer | 🟦 unnamed Returned raiding cell | standard | Piercing (bow) | ranged | 3 | default greedy | Covers the raid's retreat once the necklace is grabbed — or thought to be. |
+| `talon_leader` | **Wildcat's Talon** | 🟦 unnamed Returned raiding cell | elite | Crushing (warclub) | melee | 3 | Taunt-priority ([[28-encounter-design-framework]]) — draws PC in per the "overcommit" beat; on-enter he uses **"Fight for Your Lives!"** — not a caring heal, a **forceful/intimidating command** that bullies his Scout & Archer back into the fight (💡 `[ASSUMPTION]` proposed effect: heal to full + a short Empowered buff, reusing the shipped effect, but framed in lore/log text as threat-driven, not encouragement) | The one who ordered the raid; a lieutenant of the Returned, not the whole machine. He arrives late, turning the tutorial's back half into a 2v3, and **escapes defeat as a dark-magic projection** — the real Wildcat's Talon was never physically present. He returns for a genuine confrontation at Ch.1's climax. |
 
 🟦 *Next batches get authored by chapter, paced with [[11-world-and-overworld]] chapter design, rather than
 front-loading a bestiary before the world needs it.*

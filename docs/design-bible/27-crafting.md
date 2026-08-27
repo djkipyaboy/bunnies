@@ -1,6 +1,11 @@
 # Crafting (reel-mod forging + salvage) — Design Bible
 
-> **Style:** ⚙️ Systems Brief (proposals AGGRESSIVE) · **Status:** 📝 seeded
+> **Style:** ⚙️ Systems Brief (proposals AGGRESSIVE) · **Status:** ✅ Foraging/Fishing (gathering) +
+> Salvaging/Cooking (crafting) — 4 professions total — are BUILT and playtest-confirmed in the prototype
+> (`ProfessionsMenuPanel`, `P` hotkey; each with its own opt-in bonus mini-game: Shake the Bush, claw-machine
+> + manual-stop catch, Break Down/Craft + Tempering Reels, Second Helping). This brief's proposals below
+> (Reelforge/Reforge/Essence economy) are the FUTURE direction for where these professions grow toward, not
+> yet implemented at that depth.
 > **Related:** [[26-banking-cross-character]] · [[24-equipment]] · [[23-talents-and-reel-points]] · [[22-leveling-and-progression]]
 
 ---

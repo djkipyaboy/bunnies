@@ -41,7 +41,7 @@ First-9 species. Same breadth goal as [[40-enemy-roster]]; only the companion ro
 
 | id | display_name | role | location | services | unlock_condition | lore |
 |---|---|---|---|---|---|---|
-| `npc_frogadier_chief` | Chief Millbrook *(random placeholder name, 2026-07-09)* | quest-giver / lore | Frogadier camp (ch.1) | Interrogates then equips PC with starter gear (weapon type only) | Always — opening sequence | Wary of outsiders after generations under the 3's shadow; the necklace PC's Frog companion later explains was hers to protect. |
+| `npc_frogadier_chief` | Chief Millbrook *(random placeholder name, 2026-07-09)* | quest-giver / lore | Frogadier camp (ch.1) | Interrogates then equips PC with starter gear (weapon type only) | Always — opening sequence | Wary of outsiders after decades believing the Wildcat's forces were gone for good, now proven wrong; the necklace PC's Frog companion later explains was hers to protect. |
 | `npc_org_leader` | Corwin Ashvale *(random placeholder name, 2026-07-09)* | quest-giver / lore / recruiter | [ORG] hub settlement | Grants PC an entry-level position; oversees the class tutorial | After ch.1, on arrival at the hub | A fellow Outlander — one of very few who know the portal's true nature ([[10-storyline]] §5). 🟦 *Could stay NPC-only or later become a companion — ties to [[12-companions-and-party]].* |
 
 🟦 *Both rows are directly implied by the locked [[10-storyline]] opening. Names above are throwaway

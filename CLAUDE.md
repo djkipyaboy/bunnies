@@ -147,15 +147,6 @@ That call is mine. **Delegate implementation, not fun.** Build the loop; I decid
 
 ---
 
-## 6. Specialist agents available
-
-These agents are installed (`~/.claude/agents/`). Use them when the task fits:
-- **Godot Gameplay Scripter** — GDScript systems, signals, scene composition, the combat loop.
-- **Game Designer** — systems/economy questions (reel spreads, meter tuning) — design reasoning, not balance-by-fiat.
-- **Narrative Designer** — lore, branching dialogue, world structure (post-prototype work).
-
----
-
 ## 7. Scope discipline
 
 - Build **only** what the current task needs (YAGNI). No speculative systems.
