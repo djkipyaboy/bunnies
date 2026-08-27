@@ -110,13 +110,15 @@ bosses hide their weaknesses (see §8).
 **Opening / tutorial flow (as scripted in the dump):**
 1. **Cutscene** — moving day; PC + Kid; the awakening portal.
 2. **The save / the pull-through** → **transformation = Character Creation screen** (→ [[20-character-creation]]).
-3. **Frogadier camp under siege** — the attackers (**Wildcat's Talon**, §6/[[40-enemy-roster]]) want the
-   **Frogadier leader's necklace** (secretly the **Controller relic**, §6); a dark summoning circle, sky
-   torn open, PC falls out. PC watches, then a nearby Frogadier — **Rrrobert** ([[42-companion-roster]]) —
-   goes down and gets back up fighting; PC picks a **starting weapon (sword / bow / staff — player's
-   choice, weapon type only, no class yet)** and joins in → **Combat Tutorial**, a 2-phase fight (PC +
-   Rrrobert vs. Talon Scout + Archer, then the Talon Leader arrives to make it 2v3 — full design →
-   [[28-encounter-design-framework]]).
+3. **Frogadier camp under siege** — the attackers (a **Returned** raiding cell, led by the boss
+   **Wildcat's Talon**, §6/[[40-enemy-roster]]) want the **Frogadier leader's necklace** (secretly the
+   **Controller relic**, §6); a dark summoning circle, sky torn open, PC falls out. PC watches, then a
+   nearby Frogadier — **Rrrobert** ([[42-companion-roster]]) — goes down and gets back up fighting; PC
+   picks a **starting weapon (sword / bow / staff — player's choice, weapon type only, no class yet)** and
+   joins in → **Combat Tutorial**, a 2-phase fight (PC + Rrrobert vs. Talon Scout + Archer, then **Wildcat's
+   Talon** arrives to make it 2v3 — full design → [[28-encounter-design-framework]]). Wildcat's Talon
+   escapes this defeat as a dark-magic **projection**, not physically present — the real confrontation with
+   him comes later, at Ch.1's climax (→ §6).
 4. **Aftermath** — Frogadiers thank PC; Rrrobert is sent to **journey with PC** to a larger settlement.
    *(The n-vs-m/party-combat teaching already happened inside step 3's 2v3 phase — this beat is now pure
    narrative, not a second tutorial.)*
@@ -155,8 +157,16 @@ starter town. The Kid is the **off-screen emotional anchor**, not a party member
 ✅ **Core conflict:** all **innocent/civilized folk (the good)** vs. **outcast/evil tribes & groups** —
 those **corrupted by dark magic** or **greedy/violent enough to be cast out**. Crucially **not one
 species** — a corrupted-soul axis, enabling the redemption theme.
-✅ **[ORG]** — a **militia** that protects the scattered hidden settlements; led by **[ORG Leader]**, who
-is themselves a **secret Outlander**. PC's entry faction.
+✅ **[ORG] — working name "The Vigilant"** *(placeholder, not final — revisit naming later)*. Not a
+standing militia defending against an ongoing occupation (see below — that framing is retired); rather a
+small, historically-doubted watch organization that formed during the long decades of peace after the War
+of the First-9, made up of those who never believed Wildcat/Fox/Weasel and their loyalists were truly gone
+for good. Led by **[ORG Leader]**, who is themselves a **secret Outlander**. General society across the
+primary continent spent those same decades growing complacent — towns organized into proper local
+governments (mayors and the like), general defense forces went soft — so **The Vigilant is a "boy who cried
+wolf" outfit**: chronically under-resourced and not taken seriously, right up until the Returned's opening
+wave of raids proves them right. PC is introduced to The Vigilant early in Ch.1 and joins their ranks
+before Ch.1's climax (see §3).
 ✅ **Lore — the First 9 (the founding myth).** Nine creatures — **one each of Hare, Otter, Badger, Mouse,
 Frog, Turtle, Fox, Weasel, Wildcat** — were the first to awaken to higher intelligence, **drawn together by
 a mysterious power**. They founded the **first community**, building architecture, written & spoken
@@ -166,18 +176,65 @@ teachings spread. The Nine then discovered their **aging had slowed** — near-i
 playable races encoded on the magical Game Cartridge.** The myth in-world dresses this up as destiny.
 ✅ **The Schism (6 vs 3).** The Nine split: the **6 (Hare, Otter, Badger, Mouse, Frog, Turtle)** wanted to
 **improve the world for all creatures**; the **3 (Fox, Weasel, Wildcat)** wanted to **hoard their secrets
-and make their immortality permanent**. The 3 left with their followers to seek power.
+and make their immortality permanent**. The 3 left with their followers to seek power — this ideological
+break is the seed of the **War of the First-9** (below), not an instant conquest.
 ⚠️ **Race ≠ alignment.** The three founding villains *happened* to be Fox/Weasel/Wildcat **individuals** —
 this does **NOT** make those races evil. There are **good and bad creatures of every race**; the conflict is
 the corruption/greed axis (§ premise), never species.
-✅ **The Return & the Fall.** The 3 each found **missing relic pieces** that granted power and command over
-followers; they raised **3 armies**, united, and **destroyed the 6's settlement** — scattering its people
-and **killing 5 of the 6 elders**. The **Frog elder survived** (→ the opening Frogadier mission). The 3 have
-ruled for **generations** since: harvesting resources, **enslaving free folk**, and using **forced labor to
-excavate for more console pieces**.
-✅ **The present antagonist — the Wildcat.** The takeover is led by the **Wildcat of the First 9**, holder of
-the **golden Game Cartridge** — the **source of the power**. The **resistance is on its last legs**; PC may
-be the **foretold hero** who can finally challenge the Wildcat.
+✅ **The War of the First-9 *(revised 2026-08-25 — supersedes the old one-battle "Return & the Fall")*.**
+Not a single decisive conquest — a **prolonged, inconclusive series of skirmishes**, with momentum swinging
+both ways, between the 6 and the 3's raised armies. Neither side achieves a clean win; the 3's side ends up
+**bitter**, not triumphant.
+
+✅ **The Final Skirmish & the Elders' Sacrifice.** The war's last battle is Wildcat's all-out assault on the
+6's settlement. The **5 non-Frog elders** manage to hold the assault back — but only by taking on a
+**curse/severe injury that drastically shortens their remaining lifespans**, sacrificing their long First-9
+lifespan to save their people. The settlement itself is left a **ruinous husk** (its remnants exist as a
+findable/explorable location in the present day). No elder dies in the battle itself. **2026-08-26:** this
+ruin's map location is now locked — see [[13-world-atlas-and-regions]] §6, the frost-forest/northern-icecap
+border First-9 ruin.
+
+✅ **A separate, earlier skirmish — the Towering Spire-Tree (2026-08-26).** Distinct site, distinct incident
+from the Final Skirmish above: elsewhere during the same War of the First-9, Wildcat's forces caught a
+remote, undefended First-9 research site unaware while marching toward the 6's main settlement, wrecking it
+and scattering its Hayforged creations into the wild. Full lore + map placement (old-growth forest) →
+[[13-world-atlas-and-regions]] §6 #4.
+
+✅ **The Scattering (both sides).** Each of the 5 injured elders sets off with their own surviving followers
+to found **new, separate settlements** — this is the in-fiction origin of the primary continent's spread-out
+civilization and the trade/travel routes connecting it, all established over the following decades by these
+founding wanderers. The 5 elders live out their shortened lives across those same peaceful decades, all
+eventually passing of natural (if hastened) causes well before the present day — **the Frog elder is the
+sole First-9 survivor among the six**, explaining her presence at the Frogadier camp in the present (→ the
+opening mission). On the losing side, Wildcat/Fox/Weasel's forces fracture too: the **larger portion
+defects**, scattering across the continent into ordinary or lowlife lives (bandits, pillagers, cultists,
+and pirates on one hand; farmers, craftsmen, peacekeepers, and community leaders — including good pirates —
+on the other; these are known to the loyalists as **"traitors"**), while a smaller, still-loyal core stays
+with the 3 and prepares to vanish into hiding. **Right before that core departs, one last small group
+defects at the final moment** — the **Threshold Defection** — a betrayal the loyalists consider far worse
+than the earlier, more understandable scattering. *(This group is a planned origin point for a future
+party companion — a former Wildcat's-forces defector.)*
+
+✅ **Decades of hiding, corruption, and the resource.** Wildcat, Fox, Weasel, and their remaining loyal core
+disappear — presumed dead by the rest of the world for decades. In secret, they discover and settle the
+**dark continent**, a smaller, twisted mirror of the primary continent whose corruption has spawned its own
+unintelligent, purely aggressive plant/creature life. Over the following decades the corruption also
+warps the loyalists themselves into **the Returned**, and they discover a resource on the dark continent —
+dangerous and bountiful enough that extracting it kills the workers who do it, demanding constant
+replenishment. *(This is the true, hidden reason behind the present-day kidnappings — unknown to the player
+and friendly NPCs at the start.)*
+
+✅ **The present antagonist — the Returned.** Decades after vanishing, Wildcat/Fox/Weasel's forces resurface
+as **the Returned**, launching a **coordinated wave of raids across the primary continent** — the goal is
+to **sow chaos and abduct people** to work the dark continent's resource (plus, opportunistically, to
+recover more console-piece relics, per the MacGuffin below). Ch.1's Frogadier-camp siege is one raid in
+this opening wave. It's led by a named boss, **Wildcat's Talon** *(reusing the design already locked in
+[[40-enemy-roster]]'s `talon_leader` slot — this is a specific lieutenant's name/title, not the raiding
+cell's name)*, who **escapes the Ch.1 combat-tutorial defeat via a dark-magic projection** — the physical
+Wildcat's Talon was never actually present — and returns for a real, physical confrontation as **Ch.1's
+climax fight**, shortly after PC joins The Vigilant. The Wildcat himself remains the top of the Returned's
+chain of command, still holding the **golden Game Cartridge** — the **source of the power** behind the
+corruption and the Returned's own strength.
 ✅ **Knowledge asymmetry (resolves the "great Evil spirit").** Only **leaders** on either side know the
 relics' true nature. **Non-leaders on both sides** believe the opening event was a **"summoning" spell** for
 a great Evil — but there is **no separate spirit.** What actually happened: an **incomplete spell channeled
@@ -195,11 +252,14 @@ cartridge from the Wildcat) and PC's personal stake (get home to the Kid) are th
 🟦 *Piece count adjustable as the story develops; chapter-mapping + any held-piece mechanics still open (§9).*
 
 ✅ **Races & the playable roster.** The world is full of peoples beyond the Nine — **Squirrels, Moles,
-Hedgehogs, Voles, merfolk, fae (fairies), canines, ferrets, bird-folk, Bat-folk, and more.** **At launch, the
-playable races are the First 9** (Hare, Otter, Badger, Mouse, Frog, Turtle, Fox, Weasel, Wildcat) — the
-roster encoded on the cartridge. **Additional races** (ferret, rat, dog-folk, bird-folk, Bat-folk, Mole,
-bear, …) are **unlockable for future playthroughs by completing parts of the campaign** — a replay-incentive
-layer.
+Hedgehogs, Voles, merfolk, fae (fairies), canines, ferrets, bird-folk, Bat-folk, Yak, and more.** **At
+launch, the playable races are the First 9** (Hare, Otter, Badger, Mouse, Frog, Turtle, Fox, Weasel,
+Wildcat) — the roster encoded on the cartridge. **Additional races** (ferret, rat, dog-folk, bird-folk,
+Bat-folk, Mole, bear, …) are **unlockable for future playthroughs by completing parts of the campaign** — a
+replay-incentive layer. **Yak, LOCKED 2026-08-27**: NPC-population flavor, not currently being designed as
+a playable/unlockable race — present in-world (the southern icecaps and spine mountain range are their home
+territory, → [[13-world-atlas-and-regions]] §4/§6) and a possible future companion origin, but no playable
+design intent behind them right now.
 ✅ **Direction (2026-07-09): widen creature-type variety across the world overall** — NPCs, enemies, and
 flavor population should draw on this larger non-First-9 list (Bat-folk explicitly called out as an
 example), not just reuse First-9 species everywhere. This is a **world-population** breadth goal, separate
@@ -245,14 +305,28 @@ asymmetry; really an incomplete far-channeled spell that opened the portal) · r
 First 9, more races unlockable across playthroughs · multiple endings out of 1.0 · class-trial-then-PERMANENT
 · relic-grants-talent-respec-not-class · Race-or-Class reel faces.)*
 
+*(Resolved 2026-08-25 — the "3 ruled the world for generations" framing is retired; now locked above:
+War of the First-9 = prolonged inconclusive skirmishes · the 5 non-Frog elders are cursed/lifespan-shortened,
+not killed, in the final skirmish · the 6's settlement is a present-day ruin · the Scattering seeds the
+primary continent's spread-out civilization + trade routes on both the loyalist and the defector side · the
+Threshold Defection as a future companion's origin · the Returned as the present antagonist faction ·
+Wildcat's Talon as a named lieutenant/boss, distinct from the raiding-cell name, who escapes Ch.1's tutorial
+fight as a projection and returns for Ch.1's real climax · [ORG] working name "The Vigilant".)*
+
 - ❓ **Relic specifics:** chapter-mapping of the 6 pieces (which chapter recovers which), final piece count
   (5+1 is the working number), and whether holding a piece grants anything beyond plot + the talent-respec one.
 - ❓ **Final bestiary:** confirm which of the listed peoples (merfolk, fae, canines, bird-folk, bear, …) fit
   the world, and the exact launch-vs-unlockable race split. *(Cross-system → [[20-character-creation]] · [[40-enemy-roster]].)*
 - ❓ **Race-unlock scope:** "unlockable for future playthroughs" implies a replay/NG+-adjacent layer — confirm
   it's in 1.0 (unlock persists to a fresh campaign) vs. deferred with the other post-1.0 replay features.
-- ❓ **Naming pass:** [ORG], [ORG Leader], the Wildcat & the other 8, the console/relics, the real-world
-  video game — all awaiting real names.
+- ❓ **Naming pass:** [ORG Leader], the Wildcat & the other 8, the console/relics, the real-world video
+  game — still awaiting real names. **"The Vigilant"** is a working placeholder for [ORG], not yet final.
+- ❓ **The Threshold Defection companion:** identity, race, and personal arc of the former-Wildcat's-forces
+  defector companion are undesigned — the origin beat is locked, the character isn't. *(Cross-system →
+  [[12-companions-and-party]] · [[42-companion-roster]].)*
+- ❓ **The raiding cell's name:** with "Wildcat's Talon" reassigned to the individual lieutenant, the
+  Ch.1 raiding cell itself needs its own label (currently just "a Returned raiding cell") — cross-check
+  against [[40-enemy-roster]]'s faction column, which still reads "Wildcat's Talon" for the whole cell.
 
 ### Scope / phase
 ✅ *Campaign-first* — fully aligned with this dump. ⏳ *Roguelite framing, New Game+, multiple-ending
