@@ -1146,6 +1146,16 @@ func might_damage_bonus_per_reel(active_reel_count: int) -> int:
 	var power: float = effective_stats().might * MIGHT_TO_POWER_RATIO
 	return ceili(power / maxf(active_reel_count, 1))
 
+## Diminishing-returns multiplier applied to reel-based damage (weapon swings AND any
+## ability-added attack reel, since both flow through the same resolve_combat_phase() spin —
+## design spec 2026-08-28 §2.2) for any combatant whose power_stat ISN'T Might. Might-power
+## combatants stay exactly 1.0 here, leaving might_damage_bonus_per_reel()'s existing flat model
+## completely untouched.
+func power_stat_weapon_multiplier() -> float:
+	if power_stat == &"might" or power_stat == &"":
+		return 1.0
+	return StatScaling.multiplier(effective_power_stat_value())
+
 # ---------------------------------------------------------------------------
 # Effects & turn-order
 # ---------------------------------------------------------------------------
@@ -1158,6 +1168,7 @@ func outgoing_damage_multiplier(defender: Combatant = null) -> float:
 		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and not e.affects_incoming:
 			total *= e.effective_magnitude()
 	total *= passive_outgoing_multiplier(defender)
+	total *= power_stat_weapon_multiplier()
 	return total
 
 ## Product of every active INCOMING MULTIPLIER_EDIT effect's magnitude (Sundered raises it, Guarded
