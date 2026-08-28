@@ -607,7 +607,8 @@ func effective_stats() -> Stats:
 ## 2026-08-28 §2.1). Resources expose exported fields to Object.get() by name, so this stays a
 ## one-line lookup rather than a per-stat match.
 func effective_power_stat_value() -> int:
-	return effective_stats().get(power_stat)
+	var v: Variant = effective_stats().get(power_stat)
+	return v if v != null else 0
 
 ## True if this combatant may equip [param g]: meets the rarity level-gate, and — if [param g]
 ## carries any reel affixes — doesn't exceed the Resonance cap of reel-affix ITEMS equipped
@@ -787,7 +788,8 @@ func ability_talent_row_unlocked(row_id: StringName) -> bool:
 ## the same row. Reuses [method ability_talent_row_unlock_level]'s existing thresholds for a
 ## second, unrelated purpose: rank 2 unlocks at exactly the level that row's talent pick does.
 func ability_talent_row_rank(row_id: StringName) -> int:
-	return 2 if level >= ability_talent_row_unlock_level(row_id) else 1
+	var unlock: int = ability_talent_row_unlock_level(row_id)
+	return 2 if unlock > 0 and level >= unlock else 1
 
 ## True if [param option_id] is the one currently picked in whichever row it belongs to (a linear
 ## scan of the picks Dictionary's values — at most 6 entries, so this stays cheap).
@@ -1158,6 +1160,11 @@ func might_damage_bonus_per_reel(active_reel_count: int) -> int:
 ## design spec 2026-08-28 §2.2) for any combatant whose power_stat ISN'T Might. Might-power
 ## combatants stay exactly 1.0 here, leaving might_damage_bonus_per_reel()'s existing flat model
 ## completely untouched.
+## HAZARD for future ability authoring: since an ability-added attack reel's damage is ALREADY
+## scaled by this multiplier via outgoing_damage_multiplier(), do not ALSO apply
+## ability_magnitude_multiplier() to that same reel's damage — that would double-scale it.
+## ability_magnitude_multiplier() is meant for non-reel ability magnitudes (heal amounts,
+## rider-effect magnitudes, minion stat values), not attack-reel damage.
 func power_stat_weapon_multiplier() -> float:
 	if power_stat == &"might" or power_stat == &"":
 		return 1.0

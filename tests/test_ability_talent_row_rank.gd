@@ -42,5 +42,10 @@ func _initialize() -> void:
 	# Rank-up is independent of talent picks: reaching level 5 doesn't touch pick_ability_talent state.
 	_check(c.ability_talent_picks.is_empty(), "no talent picks were made just by leveling (got %d entries)" % c.ability_talent_picks.size())
 
+	# Unrecognized row_id: ability_talent_row_unlock_level() returns -1 for it, which must NOT be
+	# treated as "always unlocked" (level >= -1 is always true) — it should safely default to rank 1.
+	c.level = 10
+	_check(c.ability_talent_row_rank(&"not_a_real_row") == 1, "level 10, unrecognized row_id -> rank 1, not max rank (got %d)" % c.ability_talent_row_rank(&"not_a_real_row"))
+
 	print(("ABILITY TALENT ROW RANK TEST PASSED" if _failures == 0 else "ABILITY TALENT ROW RANK TEST FAILED: %d" % _failures))
 	quit(_failures)

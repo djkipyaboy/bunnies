@@ -51,8 +51,8 @@ schedule for a **second, independent purpose**:
 | 1 | Base ability + Ultimate unlock at rank 1 (unchanged from today) |
 | 2 / 3 / 4 | Extra abilities L2/L3/L4 unlock at rank 1 (unchanged from today) |
 | 5 / 6 / 7 / 8 | Base ability / L2 / L3 / L4 each **auto-bump to rank 2** |
-| 9 | Ultimate **auto-bumps to rank 2** |
-| 10 | The class's passive ability is **amplified** |
+| 9 | The class's passive ability is **amplified** |
+| 10 | Ultimate **auto-bumps to rank 2** |
 
 Rank-up is **automatic and passive** — it fires purely off `Combatant.level`, with no player
 choice involved. The existing talent-row pick (3 mutually exclusive options, same level, same
@@ -197,8 +197,8 @@ power_stat_multiplier(stat) = 1 + stat / (stat + K)
   of `combat_role`.
 - Rank-up: a combatant at level 4 reads rank-1 values for all four main abilities; leveling to 5
   flips only the base ability to rank 2 (others stay rank 1 until their own threshold); level 9
-  flips the Ultimate; level 10 amplifies the passive. Regression: rank-up must not clear or
-  interfere with existing talent picks for the same row.
+  amplifies the passive; level 10 flips the Ultimate to rank 2. Regression: rank-up must not clear
+  or interfere with existing talent picks for the same row.
 - Weapon-attack scaling: a Might-power-stat class's weapon damage is unaffected by this spec
   (regression, existing flat-add path unchanged); a Focus/Finesse/Luck-power-stat class's weapon
   damage is multiplied per §2.3, `stat = 0` case included (no-op regression).
