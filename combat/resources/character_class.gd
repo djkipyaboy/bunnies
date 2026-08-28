@@ -15,6 +15,12 @@ extends Resource
 ## &"ranged" / &"caster". Display-only metadata — the AI reads the type chart, not this label.
 @export var combat_role: StringName = &"melee"
 
+## Explicit override of this class's power stat (design spec 2026-08-28 §2.1) — empty (default)
+## means [method resolve_power_stat] derives it from [member combat_role] instead. Set this only
+## when a class's identity stat differs from its role default (e.g. Ranger -> Finesse, Chancer ->
+## Luck).
+@export var power_stat_override: StringName = &""
+
 ## Innate stats (gear stacks on top at the Combatant level).
 @export var base_stats: Stats
 
@@ -78,6 +84,17 @@ extends Resource
 ## Optional per-class Bonus-Meter charge weights by result tier [critfail, fail, neutral, success,
 ## critsuccess]. Empty = use the BonusMeter default [0,0,1,2,3]. (Vanguard charges +2 on neutral.)
 @export var meter_charge_weights: Array[int] = []
+
+## The stat that scales this class's ability magnitudes (all classes) and its weapon attacks (only
+## when the result isn't Might — see [method Combatant.power_stat_weapon_multiplier]). Design spec
+## 2026-08-28 §2.1: an explicit [member power_stat_override] always wins; otherwise melee/ranged
+## default to Might and caster defaults to Focus.
+func resolve_power_stat() -> StringName:
+	if power_stat_override != &"":
+		return power_stat_override
+	if combat_role == &"caster":
+		return &"focus"
+	return &"might"
 
 ## Stamps a fresh [Combatant] from this class. Mirrors combat.gd's former inline _make_combatant:
 ## derive stats, edit reels for Luck, seed full HP. [param is_player] toggles meter visibility +

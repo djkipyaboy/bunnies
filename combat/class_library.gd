@@ -105,6 +105,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.weapon_base_damage = 6.0; c.weapon_type = storm; c.reel_count = 4
 			c.weapon_display_name = "Storm Sling"
 			c.combat_role = &"ranged"
+			c.power_stat_override = &"luck"  # Chancer scales off Luck, not the ranged default (Might)
 			c.defense_type = storm
 			# Mana, not Stamina (playtest 2026-07-04, player call): Storm is a magical damage type and
 			# the thrown weapon is magically imbued, so Mana fits the class identity better. base_max_mana
@@ -131,6 +132,7 @@ static func make(id: StringName) -> CharacterClass:
 			c.weapon_base_damage = 7.0; c.weapon_type = piercing; c.reel_count = 4
 			c.weapon_display_name = "Hunting Bow"
 			c.combat_role = &"ranged"
+			c.power_stat_override = &"finesse"  # Ranger scales off Finesse, not the ranged default (Might)
 			c.defense_type = piercing
 			# [ASSUMPTION] HP 300 for testing; meter_cap 30 — a 4-reel class charges fast (like Skirmisher/Chancer).
 			c.base_max_hp = 300; c.base_max_stamina = 8; c.base_meter_floor = 3; c.meter_cap = 30
