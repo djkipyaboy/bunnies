@@ -1156,6 +1156,15 @@ func power_stat_weapon_multiplier() -> float:
 		return 1.0
 	return StatScaling.multiplier(effective_power_stat_value())
 
+## Diminishing-returns multiplier for ability/heal magnitude values (design spec 2026-08-28
+## §2.2/§1.2) — applied off this combatant's power_stat regardless of WHICH stat that is (unlike
+## power_stat_weapon_multiplier(), a Might-power combatant IS scaled here). Not yet consumed by
+## any ability's own magnitude calculation: per-ability wiring (rider effect magnitudes, minion
+## stage values, flat heal amounts) is a separate future content-authoring pass — this is the
+## building block that pass will call.
+func ability_magnitude_multiplier() -> float:
+	return StatScaling.multiplier(effective_power_stat_value())
+
 # ---------------------------------------------------------------------------
 # Effects & turn-order
 # ---------------------------------------------------------------------------
