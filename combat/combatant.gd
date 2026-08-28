@@ -782,6 +782,13 @@ func ability_talent_row_unlock_level(row_id: StringName) -> int:
 func ability_talent_row_unlocked(row_id: StringName) -> bool:
 	return level >= ability_talent_row_unlock_level(row_id)
 
+## The current RANK (1 or 2) of the ability tied to [param row_id] (design spec 2026-08-28 §1.1) —
+## an AUTOMATIC, level-gated bump, entirely independent of [method pick_ability_talent]'s choice on
+## the same row. Reuses [method ability_talent_row_unlock_level]'s existing thresholds for a
+## second, unrelated purpose: rank 2 unlocks at exactly the level that row's talent pick does.
+func ability_talent_row_rank(row_id: StringName) -> int:
+	return 2 if level >= ability_talent_row_unlock_level(row_id) else 1
+
 ## True if [param option_id] is the one currently picked in whichever row it belongs to (a linear
 ## scan of the picks Dictionary's values — at most 6 entries, so this stays cheap).
 func has_ability_talent(option_id: StringName) -> bool:
