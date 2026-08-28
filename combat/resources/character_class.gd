@@ -110,6 +110,7 @@ func build_combatant(is_player: bool) -> Combatant:
 	c.ultimate_id = ultimate_id
 	c.passive_ability_id = passive_ability_id
 	c.class_id = class_id
+	c.power_stat = resolve_power_stat()
 	c.extra_abilities = extra_abilities.duplicate()
 	c.payline_profile_id = payline_profile_id
 	c.base_stats = base_stats

@@ -178,6 +178,12 @@ var passive_ability_id: StringName = &""
 ## (they don't have a talent tree).
 var class_id: StringName = &""
 
+## The stat that scales this combatant's ability magnitudes and (conditionally) weapon attacks —
+## copied from CharacterClass.resolve_power_stat() at build time (design spec 2026-08-28 §2.1).
+## Defaults to Might so a Combatant built without going through a CharacterClass (most existing
+## tests) keeps today's exact behavior.
+var power_stat: StringName = &"might"
+
 ## Track A (Ability Talents, spec 2026-07-24 §3): row_id -> the single option_id picked in that
 ## row. An absent key means no pick yet in that row (cap of 1 pick/row, enforced by
 ## pick_ability_talent()).
@@ -596,6 +602,12 @@ func effective_stats() -> Stats:
 			s = s.plus(g.stat_bonuses)
 	s = s.plus(talent_stat_bonuses())
 	return s
+
+## The live value of [member power_stat], read off effective_stats() by name (design spec
+## 2026-08-28 §2.1). Resources expose exported fields to Object.get() by name, so this stays a
+## one-line lookup rather than a per-stat match.
+func effective_power_stat_value() -> int:
+	return effective_stats().get(power_stat)
 
 ## True if this combatant may equip [param g]: meets the rarity level-gate, and — if [param g]
 ## carries any reel affixes — doesn't exceed the Resonance cap of reel-affix ITEMS equipped
