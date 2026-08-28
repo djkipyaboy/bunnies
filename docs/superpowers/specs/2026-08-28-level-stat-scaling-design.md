@@ -116,9 +116,17 @@ wiring), weapon-attack scaling, and ability scaling alike.
 ### 2.2 Two different math models — deliberately, to avoid disturbing shipped/playtested code
 
 - **Weapon attacks, when `power_stat` is Might (melee/ranged default):** **unchanged.** Stays the
-  existing flat-additive model (`docs/superpowers/specs/2026-06-20-stat-system-design.md` §7) —
-  `final_damage = ceili(base × mult × chart) + effective_stats().might`. Not touched by this spec;
-  revisit after both systems are playtested (per the player's own call, §2.4).
+  existing model, superseding the older 2026-06-20 stat-system spec: `Combatant.
+  might_damage_bonus_per_reel()` converts Might into a "Power" value (`× MIGHT_TO_POWER_RATIO`,
+  currently 2.0) and normalizes it per active reel count, fed into `CombatResolver.
+  resolve_combat_phase()`'s existing `flat_damage_bonus` param. Also note `Combatant.
+  weapon_effective_base_damage()` (the "weapon empowerment layer," commit `00782d3`, spec
+  2026-07-10 §5) already scales EVERY class's weapon base damage `+3%/level` above level 1,
+  uniformly and stat-independently — this already partly serves the "level 10 should feel
+  stronger" goal for weapon attacks specifically, but does nothing for ability magnitudes (the
+  actual gap this spec closes) and grants casters no benefit from their own identity stat. Neither
+  of these existing mechanisms is touched by this spec; revisit Might's model after both new
+  systems are playtested (per the player's own call, §2.4).
 - **Weapon attacks, when `power_stat` is NOT Might** (caster's Focus, Ranger's Finesse, Chancer's
   Luck): **new** — a diminishing-returns **multiplier** (§2.3) applied to the weapon reel's
   resolved damage, since these classes currently get no weapon-attack scaling at all from their
