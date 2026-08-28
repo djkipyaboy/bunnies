@@ -3,8 +3,9 @@
 > **Style:** 📖 Narrative/World Brief (proposals LIGHT–MEDIUM) · **Status:** 🟨 template + first region/town
 > (the port town + Pirate Faction) drafted; primary-continent shape + full 12-slot biome chain LOCKED
 > 2026-08-25/26 (§4, §6); both First-9 ruins now locked (frost-forest + old-growth's Towering Spire-Tree,
-> 2026-08-26); wild coast given real shape + a Turtle export port town + the Canal + Yak (2026-08-27) —
-> awaiting your reaction on the rest
+> 2026-08-26); wild coast given real shape + a Turtle export port town + the Canal + Yak (2026-08-27); the
+> Northern Icecap's secret passage now cross-referenced to the Icecap Reveal story beat (2026-08-28,
+> → [[10-storyline]] §6) — awaiting your reaction on the rest
 > **Related:** [[10-storyline]] · [[11-world-and-overworld]] · [[40-enemy-roster]] · [[41-npc-roster]] ·
 > [[42-companion-roster]] · [[20-character-creation]] (race passives / reel-hook pass, later)
 
@@ -191,7 +192,10 @@ the chain runs pole to pole. Rivers run the whole chain, spine to both coasts (�
 the spine's other side now has real shape and a first pass of loose terrain concepts, listed after the main
 chain below.
 
-1. **Northern icecap.**
+1. **Northern icecap.** Its far interior holds the aurora's true wellspring (§2's visible glow is only the
+   surface of it) — a First-9 song-magic pocket dense enough to still carry a First-9-era imprint. Reachable
+   only via the secret passage from the frost-forest ruin (§7 #1) — payoff for that passage LOCKED
+   2026-08-28 as **the Icecap Reveal**, a mid/late-campaign story beat → [[10-storyline]] §6.
 2. **Northern peaks** *(top of the spine).* Aurora reads in-fiction as First-9 song-magic residue.
 3. **Frost-forest transition** *(thin band).* "Singing icicles" — wind through frost-laced branches rings
    out chime-tones that shift pitch ahead of a storm. Hosts a **First-9 ruin** at its border with #2/#4 —
@@ -279,7 +283,10 @@ yet (§5 pattern still applies: full town dossiers get written up as chapters re
    a stranded expedition camp (survivors or remains). No dwellings — confirmed too hostile for permanent
    settlement. **New:** the frost-forest ruin (#3, the 6's destroyed settlement) hides a First-9-built
    secret passage straight through to this icecap — the real reason no *conventional* crossing has ever
-   succeeded; the only real way across is through the ruin.
+   succeeded; the only real way across is through the ruin. **2026-08-28:** that passage's destination is
+   now locked — it leads to the aurora's true wellspring, deep in the icecap's interior, the site of **the
+   Icecap Reveal** story beat (a vision of the War of the First-9's final clash, the Reality Tear, and the
+   dark continent's discovery) → [[10-storyline]] §6.
 2. **Northern peaks.** Foot-only switchback trail (too steep for carts) with worn-smooth First-9-era
    waystations at the switchbacks — this is the first sign the eventual cart route doesn't start until the
    terrain flattens further south. One offshoot scramble to an aurora-watch perch, tended by a hermit/

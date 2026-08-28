@@ -200,6 +200,17 @@ remote, undefended First-9 research site unaware while marching toward the 6's m
 and scattering its Hayforged creations into the wild. Full lore + map placement (old-growth forest) →
 [[13-world-atlas-and-regions]] §6 #4.
 
+✅ **The Reality Tear & the dark continent's discovery (LOCKED 2026-08-28) — the historical event behind
+the future "Icecap Reveal" story beat below.** In the same clash as the Final Skirmish above, at the exact
+moment the elders' curse-sacrifice breaks Wildcat's assault, a last desperate working attempted by
+Wildcat/the 3 misfires — tearing reality itself and forcing both battered sides into a shared, chaotic
+retreat rather than a clean win or loss for either. The tear doesn't create anything new: it cracks open
+access to the **dark continent**, a smaller, twisted mirror of the primary continent that was already
+quietly there. Wildcat discovers it in that same instant and immediately wards it shut behind a shroud —
+no vessel can find or reach it without a **Wildcat relic** (identity/mechanics TBD, → §9) acting as a key.
+This dates the dark continent's discovery to the Final Skirmish itself, retiring the older "discovered
+sometime during the decades of hiding" framing below.
+
 ✅ **The Scattering (both sides).** Each of the 5 injured elders sets off with their own surviving followers
 to found **new, separate settlements** — this is the in-fiction origin of the primary continent's spread-out
 civilization and the trade/travel routes connecting it, all established over the following decades by these
@@ -216,9 +227,9 @@ than the earlier, more understandable scattering. *(This group is a planned orig
 party companion — a former Wildcat's-forces defector.)*
 
 ✅ **Decades of hiding, corruption, and the resource.** Wildcat, Fox, Weasel, and their remaining loyal core
-disappear — presumed dead by the rest of the world for decades. In secret, they discover and settle the
-**dark continent**, a smaller, twisted mirror of the primary continent whose corruption has spawned its own
-unintelligent, purely aggressive plant/creature life. Over the following decades the corruption also
+disappear through the tear (above) — presumed dead by the rest of the world for decades. They settle into
+the **dark continent**, whose corruption has spawned its own unintelligent, purely aggressive plant/creature
+life. Over the following decades the corruption also
 warps the loyalists themselves into **the Returned**, and they discover a resource on the dark continent —
 dangerous and bountiful enough that extracting it kills the workers who do it, demanding constant
 replenishment. *(This is the true, hidden reason behind the present-day kidnappings — unknown to the player
@@ -235,12 +246,27 @@ Wildcat's Talon was never actually present — and returns for a real, physical 
 climax fight**, shortly after PC joins The Vigilant. The Wildcat himself remains the top of the Returned's
 chain of command, still holding the **golden Game Cartridge** — the **source of the power** behind the
 corruption and the Returned's own strength.
+✅ **The Icecap Reveal (story beat, LOCKED 2026-08-28, chapter TBD) — a later-campaign vision, not the
+climax reveal.** The secret First-9 passage from the frost-forest ruin into the Northern Icecap (locked
+2026-08-27, → [[13-world-atlas-and-regions]] §7 #1) finally pays off here: it leads to the aurora's true
+wellspring, a pocket of First-9 song-magic dense enough to still hold a lingering imprint of the Reality
+Tear above. When the party reaches it, they witness that clash — the Towering Spire-Tree ambush, the Final
+Skirmish, the misfired working, the tear, and Wildcat's shroud — **shown from Wildcat's own side**
+(staging/POV details TBD, a later pass). Delivery stays purely in-world: no character ever names what the
+dark continent really is. The player is meant to start connecting it to the console/cartridge conceit
+themselves here — through tone and visual wrongness in the newborn dark continent (something glitchy,
+unfinished) — not through exposition. **The explicit reveal is saved for the campaign's climax**, not this
+scene.
+
 ✅ **Knowledge asymmetry (resolves the "great Evil spirit").** Only **leaders** on either side know the
-relics' true nature. **Non-leaders on both sides** believe the opening event was a **"summoning" spell** for
-a great Evil — but there is **no separate spirit.** What actually happened: an **incomplete spell channeled
-from afar** whose **unintended side-effect** tore the portal and pulled PC into this world. The "summoning"
-is in-world misinformation; the player is in on the irony. The real antagonist is simply the **console's
-power wielded by the Wildcat.**
+relics' true nature — and that "true nature" runs deeper than plot mechanics: **PC, other Outlanders, and
+the First-9's leadership tier already know the fuller secret of their world's own existence** (its binding
+to the console/cartridge), not just what the relics do. This isn't a separate secret society — it's the
+same leaders-know clause, made explicit. **Non-leaders on both sides** believe the opening event was a
+**"summoning" spell** for a great Evil — but there is **no separate spirit.** What actually happened: an
+**incomplete spell channeled from afar** whose **unintended side-effect** tore the portal and pulled PC into
+this world. The "summoning" is in-world misinformation; the player is in on the irony. The real antagonist
+is simply the **console's power wielded by the Wildcat.**
 ✅ **MacGuffin — the relics are 6 pieces of a video game console** *(concept: `assets/console-pieces-concept.jpg`).*
 Each is **disguised/repurposed** and scattered among various holders, its true nature unknown:
 > **1. Controller** → Frogadier leader's **necklace** (the opening attack's true prize) · **2. Shell** →
@@ -313,6 +339,19 @@ Threshold Defection as a future companion's origin · the Returned as the presen
 Wildcat's Talon as a named lieutenant/boss, distinct from the raiding-cell name, who escapes Ch.1's tutorial
 fight as a projection and returns for Ch.1's real climax · [ORG] working name "The Vigilant".)*
 
+*(Resolved 2026-08-28 — now locked above: the Reality Tear dates the dark continent's discovery to the
+Final Skirmish's own climax, not sometime during the later hiding decades · the dark continent already
+existed, quietly, before the tear — it was revealed, not created · PC, other Outlanders, and the First-9's
+leadership tier already know the fuller secret of their world's binding to the console/cartridge, folded
+into the existing leaders-know-the-relics'-true-nature clause · the Icecap Reveal as the mid/late-campaign
+vision beat that lets the player start guessing this, kept dramatic-irony-only until the campaign's climax.)*
+
+- ❓ **The Wildcat relic (icecap shroud key):** identity/mechanics of the relic that lets a vessel bypass
+  Wildcat's shroud around the dark continent — separate from the 6 console pieces (§6 MacGuffin) — not
+  designed yet, your call for later.
+- ❓ **The Icecap Reveal's chapter placement and vision staging:** which chapter this vision beat lands in,
+  and exactly how "seeing through Wildcat" is directed (literal POV vs. a witnessed echo) — both deferred to
+  a later pass (§6).
 - ❓ **Relic specifics:** chapter-mapping of the 6 pieces (which chapter recovers which), final piece count
   (5+1 is the working number), and whether holding a piece grants anything beyond plot + the talent-respec one.
 - ❓ **Final bestiary:** confirm which of the listed peoples (merfolk, fae, canines, bird-folk, bear, …) fit
