@@ -51,8 +51,13 @@ schedule for a **second, independent purpose**:
 | 1 | Base ability + Ultimate unlock at rank 1 (unchanged from today) |
 | 2 / 3 / 4 | Extra abilities L2/L3/L4 unlock at rank 1 (unchanged from today) |
 | 5 / 6 / 7 / 8 | Base ability / L2 / L3 / L4 each **auto-bump to rank 2** |
-| 9 | Ultimate **auto-bumps to rank 2** |
-| 10 | The class's passive ability is **amplified** |
+| 9 | The class's passive ability is **amplified** |
+| 10 | Ultimate **auto-bumps to rank 2** |
+
+(Flipped from the player's initial framing to match the existing talent-row unlock order exactly
+— `ability_talent_row_unlock_level()` already returns `passive: 9`, `ultimate: 10` — so the
+automatic rank-up and the talent-pick unlock for a given ability land on the same level for both
+the passive and the Ultimate, not swapped.)
 
 Rank-up is **automatic and passive** — it fires purely off `Combatant.level`, with no player
 choice involved. The existing talent-row pick (3 mutually exclusive options, same level, same
