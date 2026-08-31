@@ -64,5 +64,16 @@ func _initialize() -> void:
 		var built: Combatant = ClassLibrary.make(id).build_combatant(true)
 		_check(not built.weapon.display_name.is_empty(), "%s's starting weapon has a display_name" % id)
 
+	# power_stat is copied from resolve_power_stat() at build time (design spec 2026-08-28 §2.1/§3),
+	# and its live value reads correctly off effective_stats().
+	var pc: CharacterClass = CharacterClass.new()
+	pc.combat_role = &"caster"
+	pc.weapon_type = slashing; pc.defense_type = slashing; pc.reel_count = 2
+	var ps: Stats = Stats.new(); ps.focus = 4
+	pc.base_stats = ps
+	var built_caster: Combatant = pc.build_combatant(true)
+	_check(built_caster.power_stat == &"focus", "caster combatant's power_stat is focus (got %s)" % built_caster.power_stat)
+	_check(built_caster.effective_power_stat_value() == 4, "effective_power_stat_value reads Focus 4 off effective_stats (got %d)" % built_caster.effective_power_stat_value())
+
 	print(("CHARACTER CLASS TEST PASSED" if _failures == 0 else "CHARACTER CLASS TEST FAILED: %d" % _failures))
 	quit(_failures)

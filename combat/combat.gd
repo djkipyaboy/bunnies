@@ -1444,7 +1444,7 @@ func _build_start_overlay() -> void:
 	endgame_btn.text = "ENDGAME: %s" % ("ON" if _endgame_enabled else "OFF")
 	endgame_btn.position = Vector2((view.x * 0.5) + 10.0, view.y - 48.0)
 	endgame_btn.custom_minimum_size = Vector2(240, 36)
-	endgame_btn.tooltip_text = "Spawn PCs at level 9 — unlocks every L5/L7/L9 ability + the Ultimate."
+	endgame_btn.tooltip_text = "Spawn PCs at level 10 — unlocks every ability (L2/L3/L4) + the Ultimate + every talent-track pick, all ranks maxed."
 	endgame_btn.pressed.connect(_on_endgame_toggle_pressed)
 	_start_overlay.add_child(endgame_btn)
 

@@ -202,8 +202,8 @@ power_stat_multiplier(stat) = 1 + stat / (stat + K)
   of `combat_role`.
 - Rank-up: a combatant at level 4 reads rank-1 values for all four main abilities; leveling to 5
   flips only the base ability to rank 2 (others stay rank 1 until their own threshold); level 9
-  flips the Ultimate; level 10 amplifies the passive. Regression: rank-up must not clear or
-  interfere with existing talent picks for the same row.
+  amplifies the passive; level 10 flips the Ultimate to rank 2. Regression: rank-up must not clear
+  or interfere with existing talent picks for the same row.
 - Weapon-attack scaling: a Might-power-stat class's weapon damage is unaffected by this spec
   (regression, existing flat-add path unchanged); a Focus/Finesse/Luck-power-stat class's weapon
   damage is multiplied per §2.3, `stat = 0` case included (no-op regression).

@@ -178,6 +178,12 @@ var passive_ability_id: StringName = &""
 ## (they don't have a talent tree).
 var class_id: StringName = &""
 
+## The stat that scales this combatant's ability magnitudes and (conditionally) weapon attacks —
+## copied from CharacterClass.resolve_power_stat() at build time (design spec 2026-08-28 §2.1).
+## Defaults to Might so a Combatant built without going through a CharacterClass (most existing
+## tests) keeps today's exact behavior.
+var power_stat: StringName = &"might"
+
 ## Track A (Ability Talents, spec 2026-07-24 §3): row_id -> the single option_id picked in that
 ## row. An absent key means no pick yet in that row (cap of 1 pick/row, enforced by
 ## pick_ability_talent()).
@@ -597,6 +603,13 @@ func effective_stats() -> Stats:
 	s = s.plus(talent_stat_bonuses())
 	return s
 
+## The live value of [member power_stat], read off effective_stats() by name (design spec
+## 2026-08-28 §2.1). Resources expose exported fields to Object.get() by name, so this stays a
+## one-line lookup rather than a per-stat match.
+func effective_power_stat_value() -> int:
+	var v: Variant = effective_stats().get(power_stat)
+	return v if v != null else 0
+
 ## True if this combatant may equip [param g]: meets the rarity level-gate, and — if [param g]
 ## carries any reel affixes — doesn't exceed the Resonance cap of reel-affix ITEMS equipped
 ## (see [constant RESONANCE_CAP]).
@@ -769,6 +782,14 @@ func ability_talent_row_unlock_level(row_id: StringName) -> int:
 
 func ability_talent_row_unlocked(row_id: StringName) -> bool:
 	return level >= ability_talent_row_unlock_level(row_id)
+
+## The current RANK (1 or 2) of the ability tied to [param row_id] (design spec 2026-08-28 §1.1) —
+## an AUTOMATIC, level-gated bump, entirely independent of [method pick_ability_talent]'s choice on
+## the same row. Reuses [method ability_talent_row_unlock_level]'s existing thresholds for a
+## second, unrelated purpose: rank 2 unlocks at exactly the level that row's talent pick does.
+func ability_talent_row_rank(row_id: StringName) -> int:
+	var unlock: int = ability_talent_row_unlock_level(row_id)
+	return 2 if unlock > 0 and level >= unlock else 1
 
 ## True if [param option_id] is the one currently picked in whichever row it belongs to (a linear
 ## scan of the picks Dictionary's values — at most 6 entries, so this stays cheap).
@@ -1134,6 +1155,30 @@ func might_damage_bonus_per_reel(active_reel_count: int) -> int:
 	var power: float = effective_stats().might * MIGHT_TO_POWER_RATIO
 	return ceili(power / maxf(active_reel_count, 1))
 
+## Diminishing-returns multiplier applied to reel-based damage (weapon swings AND any
+## ability-added attack reel, since both flow through the same resolve_combat_phase() spin —
+## design spec 2026-08-28 §2.2) for any combatant whose power_stat ISN'T Might. Might-power
+## combatants stay exactly 1.0 here, leaving might_damage_bonus_per_reel()'s existing flat model
+## completely untouched.
+## HAZARD for future ability authoring: since an ability-added attack reel's damage is ALREADY
+## scaled by this multiplier via outgoing_damage_multiplier(), do not ALSO apply
+## ability_magnitude_multiplier() to that same reel's damage — that would double-scale it.
+## ability_magnitude_multiplier() is meant for non-reel ability magnitudes (heal amounts,
+## rider-effect magnitudes, minion stat values), not attack-reel damage.
+func power_stat_weapon_multiplier() -> float:
+	if power_stat == &"might" or power_stat == &"":
+		return 1.0
+	return StatScaling.multiplier(effective_power_stat_value())
+
+## Diminishing-returns multiplier for ability/heal magnitude values (design spec 2026-08-28
+## §2.2/§1.2) — applied off this combatant's power_stat regardless of WHICH stat that is (unlike
+## power_stat_weapon_multiplier(), a Might-power combatant IS scaled here). Not yet consumed by
+## any ability's own magnitude calculation: per-ability wiring (rider effect magnitudes, minion
+## stage values, flat heal amounts) is a separate future content-authoring pass — this is the
+## building block that pass will call.
+func ability_magnitude_multiplier() -> float:
+	return StatScaling.multiplier(effective_power_stat_value())
+
 # ---------------------------------------------------------------------------
 # Effects & turn-order
 # ---------------------------------------------------------------------------
@@ -1146,6 +1191,7 @@ func outgoing_damage_multiplier(defender: Combatant = null) -> float:
 		if e != null and e.kind == Effect.Kind.MULTIPLIER_EDIT and not e.affects_incoming:
 			total *= e.effective_magnitude()
 	total *= passive_outgoing_multiplier(defender)
+	total *= power_stat_weapon_multiplier()
 	return total
 
 ## Product of every active INCOMING MULTIPLIER_EDIT effect's magnitude (Sundered raises it, Guarded
