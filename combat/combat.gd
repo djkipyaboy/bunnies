@@ -1131,7 +1131,19 @@ const GRAND_SACRIFICE_MISFORTUNE_TURNS: int = 2
 const GRAND_SACRIFICE_CURSE_TURNS: int = 3
 const GRAND_SACRIFICE_HASTY_TURNS: int = 2
 
+## Rank-2 (level 10+) values (2026-09-02 harvester-rank2-content spec §4).
+const GRAND_SACRIFICE_EMBER_BURST_RANK2: int = 60
+const GRAND_SACRIFICE_DEW_HEAL_RANK2: int = 45
+const GRAND_SACRIFICE_DEW_THORNS_PCT_RANK2: float = 0.45
+const GRAND_SACRIFICE_DEW_TURNS_RANK2: int = 3
+const GRAND_SACRIFICE_MISFORTUNE_CURSE_RANK2: float = 22.0
+const GRAND_SACRIFICE_MISFORTUNE_TURNS_RANK2: int = 3
+const GRAND_SACRIFICE_CURSE_TURNS_RANK2: int = 4
+const GRAND_SACRIFICE_HASTY_TURNS_RANK2: int = 3
+
 func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
+	var rank: int = caster.ability_talent_row_rank(&"ultimate")
+	var stat_mult: float = caster.ability_magnitude_multiplier()
 	match variant:
 		&"ember":
 			# _splash_half_to_others() excludes whichever combatant the `_defender` MEMBER points to
@@ -1140,29 +1152,33 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 			# or the fallback target would wrongly get counted as an "other" and take splash on top
 			# of its own burst. Mirrors the existing _on_team_up_resolved dead-target retarget idiom
 			# (search "Team-Up is the first mechanic that can kill an enemy").
+			var burst: int = ceili((GRAND_SACRIFICE_EMBER_BURST_RANK2 if rank >= 2 else GRAND_SACRIFICE_EMBER_BURST) * stat_mult)
 			if _defender == null or not _defender.is_alive():
 				_defender = Combat.first_living(_enemies_of(caster))
 			if _defender != null:
-				_defender.take_damage(GRAND_SACRIFICE_EMBER_BURST)
+				_defender.take_damage(burst)
 				if caster.has_ability_talent(&"strawfellow_petrifying_burst"):
 					_defender.force_stun_next_turn = true
-				var splashed: Array[Combatant] = _splash_half_to_others(caster, GRAND_SACRIFICE_EMBER_BURST, "Piercing", 0.5)
-				_log("  💥 Strawfellow's Due (Touch-Me-Not): %d burst damage, splashed to %d other enemies." % [GRAND_SACRIFICE_EMBER_BURST, splashed.size()])
+				var splashed: Array[Combatant] = _splash_half_to_others(caster, burst, "Piercing", 0.5)
+				_log("  💥 Strawfellow's Due (Touch-Me-Not): %d burst damage, splashed to %d other enemies." % [burst, splashed.size()])
 				if _panels.has(_defender):
 					(_panels[_defender] as CombatantPanel).refresh_status()
 				_refresh_target_highlight()
 			else:
 				_log("  💥 Strawfellow's Due (Touch-Me-Not) whiffs: no living enemy to burst.")
 		&"dew":
+			var heal: int = ceili((GRAND_SACRIFICE_DEW_HEAL_RANK2 if rank >= 2 else GRAND_SACRIFICE_DEW_HEAL) * stat_mult)
+			var thorns_pct: float = GRAND_SACRIFICE_DEW_THORNS_PCT_RANK2 if rank >= 2 else GRAND_SACRIFICE_DEW_THORNS_PCT
+			var turns: int = GRAND_SACRIFICE_DEW_TURNS_RANK2 if rank >= 2 else GRAND_SACRIFICE_DEW_TURNS
 			for ally: Combatant in _allies_of(caster):
 				if not ally.is_alive():
 					continue
-				ally.heal(GRAND_SACRIFICE_DEW_HEAL)
+				ally.heal(heal)
 				var thorns := Effect.new()
 				thorns.id = &"grand_sacrifice_thorns"
 				thorns.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — thorns_pct is read directly regardless of kind
-				thorns.thorns_pct = GRAND_SACRIFICE_DEW_THORNS_PCT
-				thorns.duration = GRAND_SACRIFICE_DEW_TURNS
+				thorns.thorns_pct = thorns_pct
+				thorns.duration = turns
 				# Caster acts THIS turn, so its own End ticks the buff once immediately — +1 duration
 				# so it still benefits over 2 FRESH turns (same fix as Inspirational, see combat.gd's
 				# CRIT LINE handler). Non-caster allies haven't had their own turn yet this round, so
@@ -1177,7 +1193,7 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				var cleanse := Effect.new()
 				cleanse.id = &"grand_sacrifice_cleanse"
 				cleanse.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — checked by id, not by kind
-				cleanse.duration = GRAND_SACRIFICE_DEW_TURNS
+				cleanse.duration = turns
 				if ally == caster:
 					cleanse.duration += 1
 				cleanse.beneficial = true
@@ -1188,21 +1204,24 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 					(_panels[ally] as CombatantPanel).refresh_status()
 			_log("  💧 Strawfellow's Due (Lotus): large party heal + improved Thorns + repeating cleanse.")
 		&"misfortune":
+			var misfortune_turns: int = GRAND_SACRIFICE_MISFORTUNE_TURNS_RANK2 if rank >= 2 else GRAND_SACRIFICE_MISFORTUNE_TURNS
+			var curse_turns: int = GRAND_SACRIFICE_CURSE_TURNS_RANK2 if rank >= 2 else GRAND_SACRIFICE_CURSE_TURNS
+			var curse_base: float = (GRAND_SACRIFICE_MISFORTUNE_CURSE_RANK2 if rank >= 2 else 15.0) * stat_mult
 			for enemy: Combatant in _enemies_of(caster):
 				if not enemy.is_alive():
 					continue
 				var jinx: Effect = EffectLibrary.make(&"jinxed")
-				jinx.duration = GRAND_SACRIFICE_MISFORTUNE_TURNS
+				jinx.duration = misfortune_turns
 				enemy.attach_effect(jinx)
 				# "Improved" cursed: bigger starting stacks (pre-stacked to max instead of starting at
 				# 1) AND a bigger flat baseline (15.0 vs Misfortune Minion's own stage-3 12.0), plus a
 				# longer duration (3 vs the base effect's own 3 — same, but locked here explicitly
 				# rather than left to EffectLibrary's default in case that default ever changes).
 				var curse: Effect = EffectLibrary.make(&"cursed")
-				curse.dot_base_damage = 15.0  # 18 dmg/turn at stacks=3 (2026-08-17 playtest: was 3 dmg/turn)
+				curse.dot_base_damage = curse_base  # 18 dmg/turn at stacks=3 (2026-08-17 playtest: was 3 dmg/turn)
 				if caster.has_ability_talent(&"strawfellow_withering_doom") and (enemy.has_effect(&"weakened") or enemy.has_effect(&"sundered")):
 					curse.dot_base_damage *= 2.0
-				curse.duration = GRAND_SACRIFICE_CURSE_TURNS
+				curse.duration = curse_turns
 				curse.add_stack()
 				curse.add_stack()
 				enemy.attach_effect(curse)
@@ -1210,6 +1229,8 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 					(_panels[enemy] as CombatantPanel).refresh_status()
 			_log("  🌑 Strawfellow's Due (Nightshade): Jinxed + improved Curse on every enemy.")
 		&"hasty":
+			var hasty_turns: int = GRAND_SACRIFICE_HASTY_TURNS_RANK2 if rank >= 2 else GRAND_SACRIFICE_HASTY_TURNS
+			var regen_bonus: int = ceili((HASTY_REGEN_BONUS_RANK2 if rank >= 2 else HASTY_REGEN_BONUS) * stat_mult)
 			for ally: Combatant in _allies_of(caster):
 				if not ally.is_alive():
 					continue
@@ -1220,22 +1241,22 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				var regen := Effect.new()
 				regen.id = &"grand_sacrifice_regen"
 				regen.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — regen_bonus is read directly
-				regen.regen_bonus = HASTY_REGEN_BONUS
-				regen.duration = GRAND_SACRIFICE_HASTY_TURNS + bonus_turns
+				regen.regen_bonus = regen_bonus
+				regen.duration = hasty_turns + bonus_turns
 				regen.beneficial = true
 				ally.attach_effect(regen)
 				var empowered: Effect = EffectLibrary.make(&"empowered")
-				empowered.duration = GRAND_SACRIFICE_HASTY_TURNS + bonus_turns
+				empowered.duration = hasty_turns + bonus_turns
 				ally.attach_effect(empowered)
 				var surge := Effect.new()
 				surge.id = &"reel_surge"
 				surge.kind = Effect.Kind.REEL_FACE_EDIT
-				surge.duration = GRAND_SACRIFICE_HASTY_TURNS + bonus_turns
+				surge.duration = hasty_turns + bonus_turns
 				surge.beneficial = true
 				ally.attach_effect(surge)
 				if _panels.has(ally):
 					(_panels[ally] as CombatantPanel).refresh_status()
-			_log("  💨 Strawfellow's Due (Wheat): party-wide regen + Empowered + reel surge, 2 turns.")
+			_log("  💨 Strawfellow's Due (Wheat): party-wide regen + Empowered + reel surge, %d turns." % hasty_turns)
 
 ## Builds one ORDERED, toggle-selectable roster list in [param parent] at column [param x] from
 ## [param top_y]: a heading, then one button per id in [param ids]. Pressing a button toggles its

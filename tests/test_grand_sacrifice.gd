@@ -26,6 +26,10 @@ func _check(c: bool, l: String) -> void:
 ## false), and (unless [param minion_type] is &"") a real active_minion of that type.
 func _make_summoner(minion_type: StringName, meter_armed: bool = true) -> Combatant:
 	var c: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	# Zeroed so ability_magnitude_multiplier() == 1.0 — this file asserts exact rank-1 constants,
+	# and stat scaling (2026-09-02 harvester-rank2-content spec §4) is covered separately by
+	# tests/test_grand_sacrifice_rank2.gd.
+	c.base_stats.focus = 0
 	c.ultimate_id = &"grand_sacrifice"
 	c.bonus_meter.cap = 15
 	c.bonus_meter.value = 15 if meter_armed else 0
@@ -231,6 +235,7 @@ func _run_dew_repeating_cleanse_full_cycle() -> void:
 func _run_hasty_variant() -> void:
 	var pc: Combatant = _make_summoner(&"hasty", true)
 	var ally: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	ally.base_stats.focus = 0  # keep ability_magnitude_multiplier() == 1.0, see _make_summoner above
 	ally.begin_turn()
 	var enemy: Combatant = Combatant.new(); enemy.base_max_hp = 300; enemy.apply_stats(); enemy.start_combat()
 	var inst: Combat = await _build_combat(pc, [ally], [enemy])
