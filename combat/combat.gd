@@ -1415,7 +1415,8 @@ func _build_start_overlay() -> void:
 
 	# LEFT — Choose your Party (7 classes); label = "<display_name> — <Class>".
 	var class_label: Callable = func(id: StringName) -> String:
-		return "%s — %s" % [ClassLibrary.make(id).display_name, String(id).capitalize()]
+		var cc: CharacterClass = ClassLibrary.make(id)
+		return "%s — %s" % [cc.display_name, cc.class_archetype_label()]
 	_build_roster_list(_start_overlay, "Choose your Party  (1–3)", 80.0, list_top_y,
 		ClassLibrary.IDS, _pc_class_ids, 3, class_label, update_begin,
 		_class_select_tooltip, func(id: StringName) -> StringName: return ClassLibrary.make(id).combat_role)

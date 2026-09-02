@@ -96,6 +96,15 @@ func resolve_power_stat() -> StringName:
 		return &"focus"
 	return &"might"
 
+## The player-facing archetype label (e.g. "Warrior", "Harvester") — distinct from [member
+## display_name] (the character's own name, e.g. "Martin (Mouse)"). Usually just [member class_id]
+## capitalized, EXCEPT the Harvester: its class_id stayed &"summoner" (2026-08-24 reflavor kept the
+## internal id to avoid touching every save/reference) even though the class itself was renamed.
+func class_archetype_label() -> String:
+	if class_id == &"summoner":
+		return "Harvester"
+	return String(class_id).capitalize()
+
 ## Stamps a fresh [Combatant] from this class. Mirrors combat.gd's former inline _make_combatant:
 ## derive stats, edit reels for Luck, seed full HP. [param is_player] toggles meter visibility +
 ## the Stamina pool (enemies have neither in the prototype).
