@@ -21,6 +21,7 @@ func _new_summoner_encounter(encounter_id: StringName) -> Array:
 	CombatHandoff.clear_pending()
 
 	var pc: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	pc.base_stats.focus = 0
 	pc.level = 2  # dew_minion (an extra ability) unlocks at level 2
 	pc.weapon.base_damage = 0.0  # isolate the minion's own effects — no weapon-attack noise
 	# Same durable TAUNT trick test_minion_lifecycle.gd uses: keeps the rat's real attacks pinned on

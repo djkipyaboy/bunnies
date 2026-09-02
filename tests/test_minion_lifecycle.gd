@@ -32,6 +32,7 @@ func _new_summoner_encounter(encounter_id: StringName) -> Array:
 	CombatHandoff.clear_pending()
 
 	var pc: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	pc.base_stats.focus = 0
 	pc.weapon.base_damage = 0.0  # isolate the minion's own damage — see file header
 	# Final-review fix (2026-08-16 minion-summoning-class, Important #3) made the minion a real,
 	# lowest-HP-tiebreak-eligible EnemyAI target once it exists — deliberately, per spec (enemies can
