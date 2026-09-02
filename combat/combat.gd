@@ -948,6 +948,11 @@ const DEW_EVERGREEN_LOOP_HEAL: int = 6
 ## [ASSUMPTION] Guardian Bloom's flat shield alongside stage-3 Thorns — tune by playtest.
 const DEW_GUARDIAN_SHIELD: int = 10
 const DEW_GUARDIAN_SHIELD_TURNS: int = 2
+## Rank-2 (level 6+) per-stage heals (2026-09-02 harvester-rank2-content spec §2.2) — +4/+6/+8
+## over rank 1, the reference delta pattern the other three minions' rank-2 values also follow.
+const DEW_STAGE1_HEAL_RANK2: int = 12
+const DEW_STAGE2_HEAL_RANK2: int = 18
+const DEW_STAGE3_HEAL_RANK2: int = 24
 
 func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	var twin_petal: bool = caster != null and caster.has_ability_talent(&"dew_twin_petal")
@@ -962,7 +967,14 @@ func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> 
 				(_panels[ally] as CombatantPanel).refresh_status()
 		_log("  💧 Lotus's Evergreen Bloom loops a %d heal to the party." % DEW_EVERGREEN_LOOP_HEAL)
 		return
-	var heal_amount: int = DEW_STAGE3_HEAL if stage == 3 else (DEW_STAGE2_HEAL if stage == 2 else DEW_STAGE1_HEAL)
+	var rank: int = caster.ability_talent_row_rank(&"ability_l2") if caster != null else 1
+	var heal_amount: int
+	if rank >= 2:
+		heal_amount = DEW_STAGE3_HEAL_RANK2 if stage == 3 else (DEW_STAGE2_HEAL_RANK2 if stage == 2 else DEW_STAGE1_HEAL_RANK2)
+	else:
+		heal_amount = DEW_STAGE3_HEAL if stage == 3 else (DEW_STAGE2_HEAL if stage == 2 else DEW_STAGE1_HEAL)
+	var stat_mult: float = caster.ability_magnitude_multiplier() if caster != null else 1.0
+	heal_amount = ceili(heal_amount * stat_mult)
 	for ally: Combatant in _allies_of(minion):
 		if not ally.is_alive():
 			continue
