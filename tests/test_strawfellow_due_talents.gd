@@ -23,6 +23,8 @@ func _new_combat_with_harvester() -> Array:
 	CombatHandoff.clear_pending()
 	var pc: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
 	pc.level = Combatant.MAX_LEVEL
+	pc.base_stats.focus = 0  # keep ability_magnitude_multiplier() == 1.0 so the rank-2 (MAX_LEVEL)
+	# dot_base_damage assertions below check the exact rank-2 constants, not a stat-scaled value.
 	var inv: PartyInventory = PartyInventory.new()
 	var vault: Vault = Vault.new()
 	var enemy_ids: Array[StringName] = [&"rat"]
@@ -66,7 +68,9 @@ func _test_withering_doom_doubles_damage_vs_debuffed() -> void:
 	enemy.attach_effect(EffectLibrary.make(&"weakened"))
 	inst._apply_grand_sacrifice(pc, &"misfortune")
 	var curse: Effect = enemy._find_effect(&"cursed")
-	_check(curse != null and is_equal_approx(curse.dot_base_damage, 30.0), "strawfellow_withering_doom: doubled Curse's dot_base_damage vs. a Weakened target (got %.1f)" % (curse.dot_base_damage if curse != null else -1.0))
+	# pc is at MAX_LEVEL (rank 2), so the Misfortune curse's rank-2 baseline is 22.0 (not rank 1's
+	# 15.0) — doubled by Withering Doom vs. a debuffed target = 44.0.
+	_check(curse != null and is_equal_approx(curse.dot_base_damage, 44.0), "strawfellow_withering_doom: doubled Curse's dot_base_damage vs. a Weakened target (got %.1f)" % (curse.dot_base_damage if curse != null else -1.0))
 	inst.queue_free()
 
 func _test_withering_doom_no_bonus_without_debuff() -> void:
@@ -77,7 +81,8 @@ func _test_withering_doom_no_bonus_without_debuff() -> void:
 	var enemy: Combatant = inst._enemies[0]
 	inst._apply_grand_sacrifice(pc, &"misfortune")
 	var curse: Effect = enemy._find_effect(&"cursed")
-	_check(curse != null and is_equal_approx(curse.dot_base_damage, 15.0), "strawfellow_withering_doom: NO bonus vs. an undebuffed target (got %.1f)" % (curse.dot_base_damage if curse != null else -1.0))
+	# pc is at MAX_LEVEL (rank 2), so the Misfortune curse's rank-2 baseline is 22.0, not rank 1's 15.0.
+	_check(curse != null and is_equal_approx(curse.dot_base_damage, 22.0), "strawfellow_withering_doom: NO bonus vs. an undebuffed target (got %.1f)" % (curse.dot_base_damage if curse != null else -1.0))
 	inst.queue_free()
 
 func _init() -> void:

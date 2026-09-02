@@ -18,6 +18,8 @@ func _new_combat_with_harvester() -> Array:
 	CombatHandoff.clear_pending()
 	var pc: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
 	pc.level = Combatant.MAX_LEVEL
+	pc.base_stats.focus = 0  # keep ability_magnitude_multiplier() == 1.0 so damage assertions below
+	# aren't also stat-scaled on top of the rank-2 (MAX_LEVEL) values these talent tests exercise.
 	var inv: PartyInventory = PartyInventory.new()
 	var vault: Vault = Vault.new()
 	var enemy_ids: Array[StringName] = [&"rat"]
@@ -62,8 +64,10 @@ func _test_delayed_bloom_echo() -> void:
 	_check(pc.pick_ability_talent(&"base_ability", &"ember_delayed_bloom"), "picks ember_delayed_bloom")
 	var minion: Combatant = MinionLibrary.make(false, &"ember")
 	minion.minion_caster = pc
-	inst._run_minion_stage(minion, 1, pc)  # stage 1 = 8 base damage, echo = 4
-	_check(pc.pending_delayed_bloom_damage == 4, "ember_delayed_bloom: queued a 4-damage echo (50%% of 8) (got %d)" % pc.pending_delayed_bloom_damage)
+	# pc is at MAX_LEVEL (rank 2) with Focus zeroed above, so stage 1 uses the rank-2 per-stage
+	# damage (12, not rank 1's 8) at a 1.0 stat multiplier — see MINION_EMBER_STAGE_DAMAGE_RANK2.
+	inst._run_minion_stage(minion, 1, pc)  # stage 1 = 12 rank-2 base damage, echo = 6
+	_check(pc.pending_delayed_bloom_damage == 6, "ember_delayed_bloom: queued a 6-damage echo (50%% of 12) (got %d)" % pc.pending_delayed_bloom_damage)
 	inst.queue_free()
 
 func _test_overripe_splashes_overkill() -> void:
@@ -75,19 +79,23 @@ func _test_overripe_splashes_overkill() -> void:
 	minion.minion_caster = pc
 	var victim: Combatant = Combatant.new()
 	victim.base_max_hp = 5; victim.apply_stats(); victim.start_combat()
+	# 100 (not rank-1-era 50): must survive BOTH the rank-2 stage-3 base hit (32) AND the overkill
+	# splash (27) — 50 would be overkilled itself and die before the mechanic could be observed.
 	var bystander: Combatant = Combatant.new()
-	bystander.base_max_hp = 50; bystander.apply_stats(); bystander.start_combat()
+	bystander.base_max_hp = 100; bystander.apply_stats(); bystander.start_combat()
 	inst._enemies = [victim, bystander]
 	# _run_minion_stage's damage path reads targets via _enemies_of(), which pulls from
 	# _turn_manager.combatants (not _enemies) — both must be kept in sync so the fresh
 	# victim/bystander pair (not the real "rat" from setup) are the ones actually hit.
 	var combatants: Array[Combatant] = [pc, victim, bystander]
 	inst._turn_manager.combatants = combatants
-	inst._run_minion_stage(minion, 3, pc)  # stage 3 = 24 damage; victim has 5 HP -> 19 overkill
+	# pc is at MAX_LEVEL (rank 2) with Focus zeroed above, so stage 3 uses the rank-2 per-stage
+	# damage (32, not rank 1's 24) at a 1.0 stat multiplier.
+	inst._run_minion_stage(minion, 3, pc)  # stage 3 = 32 damage; victim has 5 HP -> 27 overkill
 	_check(not victim.is_alive(), "ember_overripe setup: the low-HP victim died to the stage-3 burst")
-	# bystander is also a live enemy of the same AoE burst, so it eats the base 24 dmg from the
-	# main loop PLUS the 19 overkill splash -> 43 total (not just the 19 splash in isolation).
-	_check(bystander.hp == bystander.max_hp - 43, "ember_overripe: overkill splashed onto the bystander on top of its own base hit (got %d/%d)" % [bystander.hp, bystander.max_hp])
+	# bystander is also a live enemy of the same AoE burst, so it eats the base 32 dmg from the
+	# main loop PLUS the 27 overkill splash -> 59 total (not just the 27 splash in isolation).
+	_check(bystander.hp == bystander.max_hp - 59, "ember_overripe: overkill splashed onto the bystander on top of its own base hit (got %d/%d)" % [bystander.hp, bystander.max_hp])
 	inst.queue_free()
 
 ## Generic one-frame turn driver used while waiting for a non-caster event (the enemy's own turn,
@@ -118,8 +126,10 @@ func _test_delayed_bloom_upkeep_consumption() -> void:
 	_check(pc.pick_ability_talent(&"base_ability", &"ember_delayed_bloom"), "picks ember_delayed_bloom")
 	var minion: Combatant = MinionLibrary.make(false, &"ember")
 	minion.minion_caster = pc
-	inst._run_minion_stage(minion, 1, pc)  # stage 1 = 8 base damage, echo = 4
-	_check(pc.pending_delayed_bloom_damage == 4, "setup: queued a 4-damage echo before driving to Upkeep")
+	# pc is at MAX_LEVEL (rank 2) with Focus zeroed above, so stage 1 uses the rank-2 per-stage
+	# damage (12, not rank 1's 8) at a 1.0 stat multiplier.
+	inst._run_minion_stage(minion, 1, pc)  # stage 1 = 12 rank-2 base damage, echo = 6
+	_check(pc.pending_delayed_bloom_damage == 6, "setup: queued a 6-damage echo before driving to Upkeep")
 
 	var hp_before: int = enemy.hp
 	# Drive frames through a full turn cycle (the enemy's turn, then back to pc's own turn) so pc's
@@ -135,7 +145,7 @@ func _test_delayed_bloom_upkeep_consumption() -> void:
 		if seen_enemy_turn and inst._awaiting_player_spin and inst._attacker == pc:
 			break
 	_check(seen_enemy_turn and inst._awaiting_player_spin and inst._attacker == pc, "reached pc's next own turn (a fresh Upkeep) after the enemy acted")
-	_check(enemy.hp == hp_before - 4, "ember_delayed_bloom: the Upkeep echo dealt 4 damage to the enemy (got %d, expected %d)" % [enemy.hp, hp_before - 4])
+	_check(enemy.hp == hp_before - 6, "ember_delayed_bloom: the Upkeep echo dealt 6 damage to the enemy (got %d, expected %d)" % [enemy.hp, hp_before - 6])
 	_check(pc.pending_delayed_bloom_damage == 0, "ember_delayed_bloom: pending_delayed_bloom_damage was cleared after Upkeep consumed it")
 	inst.queue_free()
 

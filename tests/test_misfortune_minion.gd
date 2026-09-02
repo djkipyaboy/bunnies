@@ -21,6 +21,12 @@ func _new_summoner_encounter(encounter_id: StringName) -> Array:
 	CombatHandoff.clear_pending()
 
 	var pc: Combatant = ClassLibrary.make(&"summoner").build_combatant(true)
+	# 2026-09-02 harvester-rank2-content C1 fix: real stage-2/3 minion turns now correctly resolve
+	# rank/stat-scaling from minion.minion_caster (this pc) instead of always defaulting to
+	# rank=1/stat_mult=1.0 — zero Focus so this file's exact flat-value assertions on stage 2/3
+	# aren't also stat-scaled (same fix already applied to test_minion_lifecycle.gd/test_dew_minion.gd
+	# for the same regression class, surfaced there by Tasks 1-2's stage-1 stat scaling instead).
+	pc.base_stats.focus = 0
 	pc.level = 3  # misfortune_minion (an extra ability) unlocks at level 3
 	pc.weapon.base_damage = 0.0  # isolate the minion's own effects — no weapon-attack noise
 	# Same durable TAUNT trick test_minion_lifecycle.gd/test_dew_minion.gd use: keeps the rat's real

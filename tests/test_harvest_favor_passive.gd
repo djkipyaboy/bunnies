@@ -70,8 +70,10 @@ func _test_misfortune_active_extends_debuff() -> void:
 	weakened.duration = 1
 	target.attach_effect(weakened)
 	c.harvest_favor_on_hit(target, [c])
+	# c is at MAX_LEVEL, so the passive's rank is amplified (level 9+) regardless of talent picks —
+	# duration_extension is +2 (HARVEST_FAVOR_DURATION_EXTENSION_AMPLIFIED), not the base +1.
 	var found: Effect = target._find_effect(&"weakened")
-	_check(found != null and found.duration == 2, "Nightshade active: extended the target's Weakened duration by 1 (got %d)" % (found.duration if found != null else -1))
+	_check(found != null and found.duration == 3, "Nightshade active: extended the target's Weakened duration by 2 (amplified) (got %d)" % (found.duration if found != null else -1))
 
 func _test_hasty_active_extends_own_buff() -> void:
 	var c: Combatant = _mk_harvester()
@@ -82,5 +84,7 @@ func _test_hasty_active_extends_own_buff() -> void:
 	var target: Combatant = Combatant.new()
 	target.base_max_hp = 50; target.apply_stats(); target.start_combat()
 	c.harvest_favor_on_hit(target, [c])
+	# c is at MAX_LEVEL, so the passive's rank is amplified (level 9+) regardless of talent picks —
+	# duration_extension is +2 (HARVEST_FAVOR_DURATION_EXTENSION_AMPLIFIED), not the base +1.
 	var found: Effect = c._find_effect(&"empowered")
-	_check(found != null and found.duration == 2, "Wheat active: extended the HARVESTER'S OWN buff duration by 1 (got %d)" % (found.duration if found != null else -1))
+	_check(found != null and found.duration == 3, "Wheat active: extended the HARVESTER'S OWN buff duration by 2 (amplified) (got %d)" % (found.duration if found != null else -1))
