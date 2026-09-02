@@ -936,8 +936,8 @@ func _run_ember_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 				if _panels.has(splash_target):
 					(_panels[splash_target] as CombatantPanel).refresh_status()
 				_log("  🍂 Overripe splashes %d overkill damage onto %s." % [overkill, splash_target.display_name])
-	if delayed_bloom and caster != null:
-		caster.pending_delayed_bloom_damage += ceili(amount * 0.5)
+	if delayed_bloom and owner != null:
+		owner.pending_delayed_bloom_damage += ceili(amount * 0.5)
 	_log("  💥 %s (stage %d) pulses %d damage to every enemy." % [minion.display_name, stage, amount])
 
 ## Dew Minion's 3-stage effect (2026-08-16 spec §2): AoE heal every stage, cleanse the OLDEST

@@ -149,10 +149,31 @@ func _test_delayed_bloom_upkeep_consumption() -> void:
 	_check(pc.pending_delayed_bloom_damage == 0, "ember_delayed_bloom: pending_delayed_bloom_damage was cleared after Upkeep consumed it")
 	inst.queue_free()
 
+## 2026-09-02 fix: on a REAL stage-2/3 minion turn, _take_minion_turn() calls _run_minion_stage()
+## with NO caster (only stage 1 passes one) — Delayed Bloom's echo-queueing line still checked
+## `caster != null` after the owner-resolution fix (C1) had already updated the talent-detection
+## line above it, so the echo silently never queued past stage 1. This drives that exact
+## caster-omitted path directly (no `pc` argument) to prove the echo now queues via
+## minion.minion_caster fallback.
+func _test_delayed_bloom_echo_on_real_stage2_turn() -> void:
+	var setup: Array = await _new_combat_with_harvester()
+	var inst: Combat = setup[0]
+	var pc: Combatant = setup[1]
+	_check(pc.pick_ability_talent(&"base_ability", &"ember_delayed_bloom"), "picks ember_delayed_bloom")
+	var minion: Combatant = MinionLibrary.make(false, &"ember")
+	minion.minion_caster = pc
+	# No caster argument — mirrors _take_minion_turn()'s real stage-2/3 call exactly.
+	# pc is at MAX_LEVEL (rank 2) with Focus zeroed, so stage 2 uses the rank-2 per-stage damage
+	# (22, not rank 1's 16) at a 1.0 stat multiplier -> echo = 11.
+	inst._run_minion_stage(minion, 2)
+	_check(pc.pending_delayed_bloom_damage == 11, "ember_delayed_bloom: queued an 11-damage echo (50%% of 22) on a real caster-omitted stage-2 turn (got %d)" % pc.pending_delayed_bloom_damage)
+	inst.queue_free()
+
 func _initialize() -> void:
 	await _test_overgrown_roots()
 	await _test_no_talent_no_rooted()
 	await _test_delayed_bloom_echo()
 	await _test_overripe_splashes_overkill()
 	await _test_delayed_bloom_upkeep_consumption()
+	await _test_delayed_bloom_echo_on_real_stage2_turn()
 	quit(_failures)
