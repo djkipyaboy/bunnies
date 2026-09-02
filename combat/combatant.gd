@@ -1363,7 +1363,11 @@ func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant], is_neutra
 		&"misfortune":
 			if target == null or not target.is_alive():
 				return
-			for debuff_id: StringName in [&"weakened", &"sundered", &"cursed"]:
+			# Mutual Exhaustion's exhausted_weakened/exhausted_sundered (2026-09-02 harvester-rank2-
+			# content spec §2.3) are included here so a target Exhausted by Nightshade still gets its
+			# duration extended by Harvest's Favor — without this, picking Mutual Exhaustion silently
+			# lost 2/3 of the amplified passive's Nightshade value.
+			for debuff_id: StringName in [&"weakened", &"sundered", &"cursed", &"exhausted_weakened", &"exhausted_sundered"]:
 				var e: Effect = target._find_effect(debuff_id)
 				if e != null:
 					e.duration += duration_extension

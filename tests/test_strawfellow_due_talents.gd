@@ -85,9 +85,24 @@ func _test_withering_doom_no_bonus_without_debuff() -> void:
 	_check(curse != null and is_equal_approx(curse.dot_base_damage, 22.0), "strawfellow_withering_doom: NO bonus vs. an undebuffed target (got %.1f)" % (curse.dot_base_damage if curse != null else -1.0))
 	inst.queue_free()
 
+## 2026-09-02 fix: Withering Doom must also trigger against a target merged into Exhausted
+## (Mutual Exhaustion) — before this fix, an Exhausted target never doubled the Ultimate's curse.
+func _test_withering_doom_doubles_damage_vs_exhausted() -> void:
+	var setup: Array = await _new_combat_with_harvester()
+	var inst: Combat = setup[0]
+	var pc: Combatant = setup[1]
+	_check(pc.pick_ability_talent(&"ultimate", &"strawfellow_withering_doom"), "picks strawfellow_withering_doom")
+	var enemy: Combatant = inst._enemies[0]
+	enemy.attach_effect(EffectLibrary.make(&"exhausted_weakened"))
+	inst._apply_grand_sacrifice(pc, &"misfortune")
+	var curse: Effect = enemy._find_effect(&"cursed")
+	_check(curse != null and is_equal_approx(curse.dot_base_damage, 44.0), "strawfellow_withering_doom: doubled Curse's dot_base_damage vs. an Exhausted target (got %.1f)" % (curse.dot_base_damage if curse != null else -1.0))
+	inst.queue_free()
+
 func _init() -> void:
 	await _test_petrifying_burst_forces_stun()
 	await _test_undying_bloom_cleanses_whole_party()
 	await _test_withering_doom_doubles_damage_vs_debuffed()
 	await _test_withering_doom_no_bonus_without_debuff()
+	await _test_withering_doom_doubles_damage_vs_exhausted()
 	quit(_failures)

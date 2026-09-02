@@ -24,6 +24,7 @@ func _init() -> void:
 	_test_ember_active_deals_bonus_damage()
 	_test_dew_active_heals_lowest_hp_ally()
 	_test_misfortune_active_extends_debuff()
+	_test_misfortune_active_extends_exhausted()
 	_test_hasty_active_extends_own_buff()
 	quit(_failures)
 
@@ -74,6 +75,26 @@ func _test_misfortune_active_extends_debuff() -> void:
 	# duration_extension is +2 (HARVEST_FAVOR_DURATION_EXTENSION_AMPLIFIED), not the base +1.
 	var found: Effect = target._find_effect(&"weakened")
 	_check(found != null and found.duration == 3, "Nightshade active: extended the target's Weakened duration by 2 (amplified) (got %d)" % (found.duration if found != null else -1))
+
+## 2026-09-02 fix: a target merged into Exhausted (Mutual Exhaustion) must still get its
+## exhausted_weakened/exhausted_sundered durations extended by Harvest's Favor — before this fix,
+## picking Mutual Exhaustion silently lost 2/3 of the amplified passive's Nightshade value.
+func _test_misfortune_active_extends_exhausted() -> void:
+	var c: Combatant = _mk_harvester()
+	c.active_minion = MinionLibrary.make(false, &"misfortune")
+	var target: Combatant = Combatant.new()
+	target.base_max_hp = 50; target.apply_stats(); target.start_combat()
+	var ew: Effect = EffectLibrary.make(&"exhausted_weakened")
+	ew.duration = 1
+	target.attach_effect(ew)
+	var es: Effect = EffectLibrary.make(&"exhausted_sundered")
+	es.duration = 1
+	target.attach_effect(es)
+	c.harvest_favor_on_hit(target, [c])
+	var found_w: Effect = target._find_effect(&"exhausted_weakened")
+	var found_s: Effect = target._find_effect(&"exhausted_sundered")
+	_check(found_w != null and found_w.duration == 3, "Nightshade active: extended Exhausted's outgoing half by 2 (amplified) (got %d)" % (found_w.duration if found_w != null else -1))
+	_check(found_s != null and found_s.duration == 3, "Nightshade active: extended Exhausted's incoming half by 2 (amplified) (got %d)" % (found_s.duration if found_s != null else -1))
 
 func _test_hasty_active_extends_own_buff() -> void:
 	var c: Combatant = _mk_harvester()

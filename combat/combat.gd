@@ -1243,7 +1243,10 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				# GRAND_SACRIFICE_CURSE_TURNS_RANK2).
 				var curse: Effect = EffectLibrary.make(&"cursed")
 				curse.dot_base_damage = curse_base  # scaled by stat_mult; see curse_base above for the rank-1/rank-2 baseline
-				if caster.has_ability_talent(&"strawfellow_withering_doom") and (enemy.has_effect(&"weakened") or enemy.has_effect(&"sundered")):
+				# exhausted_weakened/exhausted_sundered (Mutual Exhaustion, 2026-09-02 harvester-
+				# rank2-content spec §2.3) also count here — without this, Withering Doom never
+				# triggered against an already-Exhausted target.
+				if caster.has_ability_talent(&"strawfellow_withering_doom") and (enemy.has_effect(&"weakened") or enemy.has_effect(&"sundered") or enemy.has_effect(&"exhausted_weakened") or enemy.has_effect(&"exhausted_sundered")):
 					curse.dot_base_damage *= 2.0
 				curse.duration = curse_turns
 				curse.add_stack()
