@@ -1004,16 +1004,20 @@ func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> 
 ## Misfortune Minion's 3-stage effect (2026-08-16 spec §2): a Weakened debuff on every enemy at
 ## stage 1, adds Sundered at stage 2, applies Cursed (flat-scaled, not weapon-scaled, since the
 ## minion itself is weaponless — mirrors the existing Warden-Acolyte "curse the party" pattern's
-## flat dot_base_damage convention) at stage 3. [ASSUMPTION] whether stage 3 also reapplies
-## Weakened/Sundered — currently Curse-only per the spec's own stated default; revisit after
-## playtest if the debuffs expire before the minion's own lifespan does.
+## flat dot_base_damage convention) at stage 3. Rank 2 (ability_talent_row_rank(&"ability_l3") >= 2,
+## 2026-09-02 harvester-rank2-content spec §2.3) bumps Cursed's dot_base_damage 12.0 -> 18.0 (scaled
+## by ability_magnitude_multiplier()) and makes stage 3's Weakened/Sundered reapply unconditional —
+## unless the Mutual Exhaustion talent is picked and the target already carries both, in which case
+## they merge into Exhausted (+ Slow) instead.
 ## [ASSUMPTION] Withering Touch's heal-reduction on the target while Cursed — tune by playtest.
 const MISFORTUNE_WITHERING_TOUCH_HEAL_MULT: float = 0.5
 
 func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	var withering_touch: bool = caster != null and caster.has_ability_talent(&"misfortune_withering_touch")
-	var creeping_blight: bool = caster != null and caster.has_ability_talent(&"misfortune_creeping_blight")
+	var mutual_exhaustion: bool = caster != null and caster.has_ability_talent(&"misfortune_mutual_exhaustion")
 	var ill_fortune: bool = caster != null and caster.has_ability_talent(&"misfortune_ill_fortune")
+	var rank: int = caster.ability_talent_row_rank(&"ability_l3") if caster != null else 1
+	var stat_mult: float = caster.ability_magnitude_multiplier() if caster != null else 1.0
 	for enemy: Combatant in _enemies_of(minion):
 		if not enemy.is_alive():
 			continue
@@ -1024,11 +1028,23 @@ func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = nu
 			if ill_fortune:
 				enemy.attach_effect(EffectLibrary.make(&"jinxed"))
 		if stage == 3:
-			if creeping_blight:
-				enemy.attach_effect(EffectLibrary.make(&"weakened"))
-				enemy.attach_effect(EffectLibrary.make(&"sundered"))
+			# Rank 2 (2026-09-02 harvester-rank2-content spec §2.3): stage 3 now unconditionally
+			# reapplies Weakened + Sundered (absorbing the old misfortune_creeping_blight talent's
+			# behavior into the baseline) — UNLESS Mutual Exhaustion is picked and the target
+			# already carries both, in which case they merge into Exhausted + Slow instead.
+			if rank >= 2:
+				if mutual_exhaustion and enemy.has_effect(&"weakened") and enemy.has_effect(&"sundered"):
+					enemy.remove_effect(&"weakened")
+					enemy.remove_effect(&"sundered")
+					enemy.attach_effect(EffectLibrary.make(&"exhausted_weakened"))
+					enemy.attach_effect(EffectLibrary.make(&"exhausted_sundered"))
+					enemy.attach_effect(EffectLibrary.make(&"slow"))
+					_log("  🌑 Nightshade merges %s's Weakened + Sundered into EXHAUSTED (+ Slow)." % enemy.display_name)
+				else:
+					enemy.attach_effect(EffectLibrary.make(&"weakened"))
+					enemy.attach_effect(EffectLibrary.make(&"sundered"))
 			var curse: Effect = EffectLibrary.make(&"cursed")
-			curse.dot_base_damage = 12.0  # flat, not weapon-scaled — 6 dmg/turn at stacks=1 (2026-08-17 playtest: was 1 dmg/turn)
+			curse.dot_base_damage = (18.0 if rank >= 2 else 12.0) * stat_mult
 			if withering_touch:
 				curse.heal_multiplier = MISFORTUNE_WITHERING_TOUCH_HEAL_MULT
 			enemy.attach_effect(curse)

@@ -52,18 +52,27 @@ func _test_withering_touch_reduces_healing() -> void:
 	_check(enemy.hp < before + 20, "misfortune_withering_touch: heal() actually respects heal_multiplier (healed to %d, expected less than %d)" % [enemy.hp, before + 20])
 	inst.queue_free()
 
-func _test_creeping_blight_reapplies_debuffs() -> void:
+func _test_mutual_exhaustion_merges_debuffs() -> void:
+	# 2026-09-02 harvester-rank2-content spec §2.3: misfortune_creeping_blight was retired (its
+	# "always reapply Weakened + Sundered at stage 3" behavior is now the rank-2 baseline,
+	# unconditionally, per tests/test_misfortune_minion_rank2.gd) and replaced by Mutual Exhaustion,
+	# which only fires when the target already carries both debuffs at stage 3.
 	var setup: Array = await _new_combat_with_harvester()
 	var inst: Combat = setup[0]
 	var pc: Combatant = setup[1]
-	_check(pc.pick_ability_talent(&"ability_l3", &"misfortune_creeping_blight"), "picks misfortune_creeping_blight")
+	_check(pc.pick_ability_talent(&"ability_l3", &"misfortune_mutual_exhaustion"), "picks misfortune_mutual_exhaustion")
 	var minion: Combatant = MinionLibrary.make(false, &"misfortune")
 	minion.minion_caster = pc
 	var enemy: Combatant = inst._enemies[0]
+	enemy.attach_effect(EffectLibrary.make(&"weakened"))
+	enemy.attach_effect(EffectLibrary.make(&"sundered"))
 	inst._run_minion_stage(minion, 3, pc)
-	_check(enemy._find_effect(&"weakened") != null, "misfortune_creeping_blight: stage 3 also applies Weakened")
-	_check(enemy._find_effect(&"sundered") != null, "misfortune_creeping_blight: stage 3 also applies Sundered")
-	_check(enemy._find_effect(&"cursed") != null, "misfortune_creeping_blight: stage 3 still applies Cursed")
+	_check(not enemy.has_effect(&"weakened"), "misfortune_mutual_exhaustion: plain Weakened was merged away")
+	_check(not enemy.has_effect(&"sundered"), "misfortune_mutual_exhaustion: plain Sundered was merged away")
+	_check(enemy.has_effect(&"exhausted_weakened"), "misfortune_mutual_exhaustion: Exhausted's outgoing half is active")
+	_check(enemy.has_effect(&"exhausted_sundered"), "misfortune_mutual_exhaustion: Exhausted's incoming half is active")
+	_check(enemy.has_effect(&"slow"), "misfortune_mutual_exhaustion: Slow was bundled in")
+	_check(enemy._find_effect(&"cursed") != null, "misfortune_mutual_exhaustion: stage 3 still applies Cursed")
 	inst.queue_free()
 
 func _test_ill_fortune_applies_jinxed_at_stage2() -> void:
@@ -108,7 +117,7 @@ func _test_heal_rounds_up_not_to_nearest() -> void:
 
 func _init() -> void:
 	await _test_withering_touch_reduces_healing()
-	await _test_creeping_blight_reapplies_debuffs()
+	await _test_mutual_exhaustion_merges_debuffs()
 	await _test_ill_fortune_applies_jinxed_at_stage2()
 	await _test_harvest_favor_ill_fortune_synergy()
 	_test_heal_rounds_up_not_to_nearest()

@@ -661,9 +661,9 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					m1.display_name = "Withering Touch"
 					m1.description = "Nightshade's stage-3 Cursed also reduces the target's healing received."
 					var m2: AbilityTalentOption = AbilityTalentOption.new()
-					m2.id = &"misfortune_creeping_blight"; m2.row_id = row_id
-					m2.display_name = "Creeping Blight"
-					m2.description = "Nightshade's stage 3 also reapplies Weakened and Sundered alongside Cursed."
+					m2.id = &"misfortune_mutual_exhaustion"; m2.row_id = row_id
+					m2.display_name = "Mutual Exhaustion"
+					m2.description = "If Nightshade's stage 3 finds a target already Weakened AND Sundered, both merge into Exhausted (same combined effect) plus Slow — reapplying either later stacks even further."
 					var m3: AbilityTalentOption = AbilityTalentOption.new()
 					m3.id = &"misfortune_ill_fortune"; m3.row_id = row_id
 					m3.display_name = "Ill Fortune"

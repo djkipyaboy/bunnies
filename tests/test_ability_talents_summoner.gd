@@ -16,7 +16,7 @@ func _check(c: bool, l: String) -> void:
 const EXPECTED_IDS: Dictionary = {
 	&"base_ability": [&"ember_delayed_bloom", &"ember_overripe", &"ember_overgrown_roots"],
 	&"ability_l2": [&"dew_evergreen_bloom", &"dew_twin_petal", &"dew_guardian_bloom"],
-	&"ability_l3": [&"misfortune_withering_touch", &"misfortune_creeping_blight", &"misfortune_ill_fortune"],
+	&"ability_l3": [&"misfortune_withering_touch", &"misfortune_mutual_exhaustion", &"misfortune_ill_fortune"],
 	&"ability_l4": [&"hasty_bountiful_harvest", &"hasty_charged_growth", &"hasty_unshakeable_roots"],
 	&"passive": [&"harvest_favor_amplified_bond", &"harvest_favor_unleashed", &"harvest_favor_spirit_surge"],
 	&"ultimate": [&"strawfellow_petrifying_burst", &"strawfellow_undying_bloom", &"strawfellow_withering_doom"],

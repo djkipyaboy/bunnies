@@ -65,6 +65,20 @@ static func make(id: StringName) -> Effect:
 			e.id = &"weakened"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 0.75
 			e.affects_incoming = false; e.duration = 2; e.beneficial = false
 			return e
+		&"exhausted_weakened":
+			# Mutual Exhaustion's outgoing half (2026-09-02 harvester-rank2-content spec §2.3) — same
+			# magnitude as plain "weakened" but a DISTINCT id, so a later plain Weakened application
+			# stacks multiplicatively on top instead of merge-by-id absorbing it (see attach_effect()).
+			var e: Effect = Effect.new()
+			e.id = &"exhausted_weakened"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 0.75
+			e.affects_incoming = false; e.duration = 2; e.beneficial = false
+			return e
+		&"exhausted_sundered":
+			# Mutual Exhaustion's incoming half — same rationale as exhausted_weakened above.
+			var e: Effect = Effect.new()
+			e.id = &"exhausted_sundered"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 1.25
+			e.affects_incoming = true; e.duration = 2; e.beneficial = false
+			return e
 		&"jinxed":
 			# Downgrades the BEARER's own success/crit-success faces (applied by the attacker's-turn
 			# orchestrator check, mirroring Hunter's Mark's REEL_FACE_EDIT precedent — no numeric payload).
