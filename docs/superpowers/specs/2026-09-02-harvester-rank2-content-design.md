@@ -36,7 +36,7 @@ no new level-gating logic needed, only new rank-2 data + call-site wiring per ab
 `Combatant.ability_magnitude_multiplier()` (the `StatScaling` curve off the class's `power_stat`)
 applies to an ability's authored magnitude **at every rank, including rank 1** — it is a separate,
 independent axis from rank-up, not something that only switches on once rank 2 unlocks. A
-level-1 Harvester with high Focus already gets a boosted rank-1 Ember pulse; a level-5 Harvester's
+level-1 Harvester with high Focus already gets a boosted rank-1 Touch-Me-Not pulse; a level-5 Harvester's
 rank-2 pulse gets boosted the same way on top of the bigger rank-2 base number. This confirms
 §2.2 of the level-stat-scaling spec (rank and stat-scaling are separate, additive systems) and
 resolves the one open ambiguity in that spec's implementation summary. **This rule should be
@@ -54,7 +54,7 @@ All four minions' current stage constants are flat, **not** run through
 `ability_magnitude_multiplier()` at any rank today (a gap this pass also closes — first time any
 of these four abilities gets stat-scaled at all). Rank-2 values were authored per-minion (player's
 explicit call: "per-minion, not a single formula") converging on a **same-shape "bigger numbers"
-treatment** across all four, at roughly the same escalating delta pattern used for Dew (chosen as
+treatment** across all four, at roughly the same escalating delta pattern used for Lotus (chosen as
 the reference shape: +4 stage 1, +6 stage 2, +8 stage 3), rather than new-effect content — the
 existing talent tree already covers the "new effect at a threshold" design space for this kit.
 
@@ -149,12 +149,12 @@ NEUTRAL hit too, at half value, if `harvest_favor_unleashed` is picked) procs a 
 bonus. Two of the four branches carry an authored magnitude constant; the other two extend
 existing effect durations by a flat turn count.
 
-| Constant | Rank 1 (unchanged) | Amplified (level 9+) |
-|---|---|---|
-| `HARVEST_FAVOR_EMBER_BONUS_DAMAGE` | 4 | **8** |
-| `HARVEST_FAVOR_DEW_HEAL` | 3 | **6** |
-| Misfortune duration extension | +1 turn/hit | **+2 turns/hit** |
-| Hasty duration extension | +1 turn/hit | **+2 turns/hit** |
+| Minion | Constant | Rank 1 (unchanged) | Amplified (level 9+) |
+|---|---|---|---|
+| Touch-Me-Not | `HARVEST_FAVOR_EMBER_BONUS_DAMAGE` | 4 | **8** |
+| Lotus | `HARVEST_FAVOR_DEW_HEAL` | 3 | **6** |
+| Nightshade | duration extension | +1 turn/hit | **+2 turns/hit** |
+| Wheat | duration extension | +1 turn/hit | **+2 turns/hit** |
 
 `HARVEST_FAVOR_UNLEASHED_FRACTION` (0.5, the NEUTRAL-tier reduced-value multiplier) and
 `harvest_favor_amplified_bond`'s `× minion_stage` scaling are unchanged — they apply on top of
@@ -172,14 +172,14 @@ one duration extension each:
 
 | Variant | Constant | Rank 1 (unchanged) | Rank 2 |
 |---|---|---|---|
-| Ember | `GRAND_SACRIFICE_EMBER_BURST` | 40 | **60** |
-| Dew | `GRAND_SACRIFICE_DEW_HEAL` | 30 | **45** |
-| Dew | `GRAND_SACRIFICE_DEW_THORNS_PCT` | 0.35 | **0.45** |
-| Dew | `GRAND_SACRIFICE_DEW_TURNS` | 2 | **3** |
-| Misfortune | Curse `dot_base_damage` (inline `15.0`) | 15.0 | **22.0** |
-| Misfortune | `GRAND_SACRIFICE_MISFORTUNE_TURNS` / `GRAND_SACRIFICE_CURSE_TURNS` | 2 / 3 | **3 / 4** |
-| Hasty | regen bonus | tied to `HASTY_REGEN_BONUS` (rank-aware per §2.4: 3 or 5) | same rank-aware value |
-| Hasty | `GRAND_SACRIFICE_HASTY_TURNS` | 2 | **3** |
+| Touch-Me-Not | `GRAND_SACRIFICE_EMBER_BURST` | 40 | **60** |
+| Lotus | `GRAND_SACRIFICE_DEW_HEAL` | 30 | **45** |
+| Lotus | `GRAND_SACRIFICE_DEW_THORNS_PCT` | 0.35 | **0.45** |
+| Lotus | `GRAND_SACRIFICE_DEW_TURNS` | 2 | **3** |
+| Nightshade | Curse `dot_base_damage` (inline `15.0`) | 15.0 | **22.0** |
+| Nightshade | `GRAND_SACRIFICE_MISFORTUNE_TURNS` / `GRAND_SACRIFICE_CURSE_TURNS` | 2 / 3 | **3 / 4** |
+| Wheat | regen bonus | tied to `HASTY_REGEN_BONUS` (rank-aware per §2.4: 3 or 5) | same rank-aware value |
+| Wheat | `GRAND_SACRIFICE_HASTY_TURNS` | 2 | **3** |
 
 `strawfellow_petrifying_burst`/`strawfellow_undying_bloom`/`strawfellow_withering_doom` talent
 bonuses (stun-on-burst, full cleanse, curse-doubling) are unchanged conditional add-ons layered on
