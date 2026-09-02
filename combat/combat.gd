@@ -856,13 +856,17 @@ func _apply_minion_summon_payoff(caster: Combatant, summon_tier: int) -> void:
 ## spec — this class ships 4 distinct minion types sharing the same 3-stage-then-expire
 ## mechanism). Expiry-on-stage-3-completion is handled HERE, once, rather than duplicated in each
 ## per-type helper below.
-## [param caster] is only meaningful (and only ever passed) for the SYNCHRONOUS stage-1 call from
-## _finish_spin() — stage 1 fires inside the summoning caster's own Combat phase, so a
-## duration-based buff attached to the caster specifically there gets ticked once immediately by
-## that same caster's own upcoming End phase, while every other ally (who hasn't acted yet this
-## round) doesn't. Stages 2/3 fire on the MINION's own later turn, not the caster's, so no ally
-## (including the caster) has already ticked that round by then — callers from _take_minion_turn()
-## correctly omit it (defaults to null).
+## [param caster] is only ever passed for the SYNCHRONOUS stage-1 call from _finish_spin() — stage 1
+## fires inside the summoning caster's own Combat phase, so a duration-based buff attached to the
+## caster specifically there gets ticked once immediately by that same caster's own upcoming End
+## phase, while every other ally (who hasn't acted yet this round) doesn't. Stages 2/3 fire on the
+## MINION's own later turn, not the caster's, so callers from _take_minion_turn() correctly omit it
+## (defaults to null) for that "acted this exact turn" duration-bump check.
+## 2026-09-02 harvester-rank2-content fix: rank/stat-scaling and talent lookups inside each per-type
+## helper below must NOT depend on [param caster] being passed, since it's null for the majority of
+## real stage-2/3 resolutions — each helper instead resolves its own `owner` (falling back to
+## `minion.minion_caster`, the existing summon-time-assigned field) for those lookups, keeping
+## [param caster] itself reserved for the "acted this exact turn" comparison only.
 func _run_minion_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	match minion.minion_type:
 		&"dew":
@@ -905,13 +909,14 @@ const MINION_EMBER_STAGE_DAMAGE_RANK2: Array[int] = [12, 22, 32]
 ## splashes onto a random surviving enemy), and Delayed Bloom (queues a 50%-of-damage echo that
 ## fires at the caster's next Upkeep via Combatant.pending_delayed_bloom_damage).
 func _run_ember_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
-	var rank: int = caster.ability_talent_row_rank(&"base_ability") if caster != null else 1
+	var owner: Combatant = caster if caster != null else minion.minion_caster
+	var rank: int = owner.ability_talent_row_rank(&"base_ability") if owner != null else 1
 	var base_amount: int = MINION_EMBER_STAGE_DAMAGE_RANK2[stage - 1] if rank >= 2 else MINION_BASE_STAGE_DAMAGE * stage
-	var stat_mult: float = caster.ability_magnitude_multiplier() if caster != null else 1.0
+	var stat_mult: float = owner.ability_magnitude_multiplier() if owner != null else 1.0
 	var amount: int = ceili(base_amount * stat_mult)
-	var overripe: bool = caster != null and caster.has_ability_talent(&"ember_overripe")
-	var overgrown_roots: bool = stage == 3 and caster != null and caster.has_ability_talent(&"ember_overgrown_roots")
-	var delayed_bloom: bool = caster != null and caster.has_ability_talent(&"ember_delayed_bloom")
+	var overripe: bool = owner != null and owner.has_ability_talent(&"ember_overripe")
+	var overgrown_roots: bool = stage == 3 and owner != null and owner.has_ability_talent(&"ember_overgrown_roots")
+	var delayed_bloom: bool = owner != null and owner.has_ability_talent(&"ember_delayed_bloom")
 	var enemies: Array[Combatant] = _enemies_of(minion)
 	for enemy: Combatant in enemies:
 		if not enemy.is_alive():
@@ -955,8 +960,9 @@ const DEW_STAGE2_HEAL_RANK2: int = 18
 const DEW_STAGE3_HEAL_RANK2: int = 24
 
 func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
-	var twin_petal: bool = caster != null and caster.has_ability_talent(&"dew_twin_petal")
-	var guardian_bloom: bool = caster != null and caster.has_ability_talent(&"dew_guardian_bloom")
+	var owner: Combatant = caster if caster != null else minion.minion_caster
+	var twin_petal: bool = owner != null and owner.has_ability_talent(&"dew_twin_petal")
+	var guardian_bloom: bool = owner != null and owner.has_ability_talent(&"dew_guardian_bloom")
 	if stage >= 4:
 		# Evergreen Bloom loop (2026-08-24 spec §5): a reduced heal only, no cleanse/Thorns re-trigger.
 		for ally: Combatant in _allies_of(minion):
@@ -967,13 +973,13 @@ func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> 
 				(_panels[ally] as CombatantPanel).refresh_status()
 		_log("  💧 Lotus's Evergreen Bloom loops a %d heal to the party." % DEW_EVERGREEN_LOOP_HEAL)
 		return
-	var rank: int = caster.ability_talent_row_rank(&"ability_l2") if caster != null else 1
+	var rank: int = owner.ability_talent_row_rank(&"ability_l2") if owner != null else 1
 	var heal_amount: int
 	if rank >= 2:
 		heal_amount = DEW_STAGE3_HEAL_RANK2 if stage == 3 else (DEW_STAGE2_HEAL_RANK2 if stage == 2 else DEW_STAGE1_HEAL_RANK2)
 	else:
 		heal_amount = DEW_STAGE3_HEAL if stage == 3 else (DEW_STAGE2_HEAL if stage == 2 else DEW_STAGE1_HEAL)
-	var stat_mult: float = caster.ability_magnitude_multiplier() if caster != null else 1.0
+	var stat_mult: float = owner.ability_magnitude_multiplier() if owner != null else 1.0
 	heal_amount = ceili(heal_amount * stat_mult)
 	for ally: Combatant in _allies_of(minion):
 		if not ally.is_alive():
@@ -1013,11 +1019,12 @@ func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> 
 const MISFORTUNE_WITHERING_TOUCH_HEAL_MULT: float = 0.5
 
 func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
-	var withering_touch: bool = caster != null and caster.has_ability_talent(&"misfortune_withering_touch")
-	var mutual_exhaustion: bool = caster != null and caster.has_ability_talent(&"misfortune_mutual_exhaustion")
-	var ill_fortune: bool = caster != null and caster.has_ability_talent(&"misfortune_ill_fortune")
-	var rank: int = caster.ability_talent_row_rank(&"ability_l3") if caster != null else 1
-	var stat_mult: float = caster.ability_magnitude_multiplier() if caster != null else 1.0
+	var owner: Combatant = caster if caster != null else minion.minion_caster
+	var withering_touch: bool = owner != null and owner.has_ability_talent(&"misfortune_withering_touch")
+	var mutual_exhaustion: bool = owner != null and owner.has_ability_talent(&"misfortune_mutual_exhaustion")
+	var ill_fortune: bool = owner != null and owner.has_ability_talent(&"misfortune_ill_fortune")
+	var rank: int = owner.ability_talent_row_rank(&"ability_l3") if owner != null else 1
+	var stat_mult: float = owner.ability_magnitude_multiplier() if owner != null else 1.0
 	for enemy: Combatant in _enemies_of(minion):
 		if not enemy.is_alive():
 			continue
@@ -1052,10 +1059,12 @@ func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = nu
 			(_panels[enemy] as CombatantPanel).refresh_status()
 	_log("  🌑 Nightshade (stage %d) afflicts every enemy." % stage)
 
-## Hasty Minion's 3-stage effect (2026-08-16 spec §2): a party-wide +20 Initiative buff (3 turns)
-## at stage 1, adds the resource-regen buff (Task 2) at stage 2, adds Empowered (1 turn) + the
+## Hasty Minion's 3-stage effect (2026-08-16 spec §2): a party-wide Initiative buff (3 turns)
+## at stage 1, adds the resource-regen buff (Task 2) at stage 2, adds Empowered + the
 ## reel-surge buff (Task 3, 3 turns [ASSUMPTION] — the spec doesn't give this an explicit
-## duration at the base-ability tier) at stage 3.
+## duration at the base-ability tier) at stage 3. 2026-09-02 harvester-rank2-content spec §2.4
+## adds rank-2 (level 8+) values for the Initiative bonus, regen bonus, and Empowered's duration —
+## see the RANK2 constants below.
 const HASTY_INITIATIVE_BONUS: float = 20.0
 const HASTY_INITIATIVE_TURNS: int = 3
 const HASTY_REGEN_BONUS: int = 3
@@ -1073,10 +1082,11 @@ const HASTY_REGEN_BONUS_RANK2: int = 5
 const HASTY_EMPOWERED_TURNS_RANK2: int = 2
 
 func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
-	var bountiful_harvest: bool = caster != null and caster.has_ability_talent(&"hasty_bountiful_harvest")
-	var unshakeable_roots: bool = caster != null and caster.has_ability_talent(&"hasty_unshakeable_roots")
-	var rank: int = caster.ability_talent_row_rank(&"ability_l4") if caster != null else 1
-	var stat_mult: float = caster.ability_magnitude_multiplier() if caster != null else 1.0
+	var owner: Combatant = caster if caster != null else minion.minion_caster
+	var bountiful_harvest: bool = owner != null and owner.has_ability_talent(&"hasty_bountiful_harvest")
+	var unshakeable_roots: bool = owner != null and owner.has_ability_talent(&"hasty_unshakeable_roots")
+	var rank: int = owner.ability_talent_row_rank(&"ability_l4") if owner != null else 1
+	var stat_mult: float = owner.ability_magnitude_multiplier() if owner != null else 1.0
 	var initiative_bonus: float = HASTY_INITIATIVE_BONUS_RANK2 if rank >= 2 else HASTY_INITIATIVE_BONUS
 	var regen_bonus: int = ceili((HASTY_REGEN_BONUS_RANK2 if rank >= 2 else HASTY_REGEN_BONUS) * stat_mult)
 	var empowered_turns: int = HASTY_EMPOWERED_TURNS_RANK2 if rank >= 2 else 1
@@ -1088,6 +1098,14 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 			haste.id = &"hasty_initiative"
 			haste.kind = Effect.Kind.INITIATIVE_MOD
 			haste.magnitude = initiative_bonus
+			# Stage 1 fires synchronously in the summoning caster's own Combat phase (see
+			# _run_minion_stage's [param caster] doc) — its own upcoming End phase ticks this buff
+			# once immediately, while other allies haven't acted yet this round. +1 duration so the
+			# caster still benefits over 3 FRESH turns too (same fix as Grand Sacrifice's Hasty
+			# variant / Dew's Thorns / Inspirational — see _apply_grand_sacrifice's &"hasty" branch).
+			# NOTE: this compares against `caster` (the "acted this exact turn" param), not `owner`
+			# (the ability-rank/talent lookup) — a stage-2/3 minion turn always passes caster == null,
+			# so this bonus only ever applies on the stage-1 synchronous call, by design.
 			haste.duration = HASTY_INITIATIVE_TURNS + (1 if ally == caster else 0)
 			haste.beneficial = true
 			if unshakeable_roots:
@@ -1096,7 +1114,7 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 		if stage == 2:
 			var regen := Effect.new()
 			regen.id = &"hasty_regen"
-			regen.kind = Effect.Kind.REEL_FACE_EDIT
+			regen.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — regen_bonus is read directly
 			regen.regen_bonus = regen_bonus
 			regen.duration = HASTY_REGEN_TURNS
 			regen.beneficial = true
@@ -1105,6 +1123,9 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 			if bountiful_harvest and ally.resource_pool != null:
 				ally.resource_pool.pending_ability_refund = HASTY_BOUNTIFUL_HARVEST_REFUND
 		if stage == 3:
+			# spec §5 locks this specific stage's Empowered to 1 turn at rank 1; rank 2
+			# (2026-09-02 harvester-rank2-content spec §2.4) raises it to 2 turns
+			# (HASTY_EMPOWERED_TURNS_RANK2).
 			var empowered: Effect = EffectLibrary.make(&"empowered")
 			empowered.duration = empowered_turns
 			ally.attach_effect(empowered)
@@ -1214,11 +1235,14 @@ func _apply_grand_sacrifice(caster: Combatant, variant: StringName) -> void:
 				jinx.duration = misfortune_turns
 				enemy.attach_effect(jinx)
 				# "Improved" cursed: bigger starting stacks (pre-stacked to max instead of starting at
-				# 1) AND a bigger flat baseline (15.0 vs Misfortune Minion's own stage-3 12.0), plus a
-				# longer duration (3 vs the base effect's own 3 — same, but locked here explicitly
-				# rather than left to EffectLibrary's default in case that default ever changes).
+				# 1) AND a bigger flat baseline than Misfortune Minion's own stage-3 curse (rank 1:
+				# 15.0 vs 12.0; rank 2, 2026-09-02 harvester-rank2-content spec §4: 22.0 vs 18.0 — see
+				# GRAND_SACRIFICE_MISFORTUNE_CURSE_RANK2 above), plus a longer duration (rank 1: 3 vs
+				# the base effect's own 3 — same, but locked here explicitly rather than left to
+				# EffectLibrary's default in case that default ever changes; rank 2: 4, see
+				# GRAND_SACRIFICE_CURSE_TURNS_RANK2).
 				var curse: Effect = EffectLibrary.make(&"cursed")
-				curse.dot_base_damage = curse_base  # 18 dmg/turn at stacks=3 (2026-08-17 playtest: was 3 dmg/turn)
+				curse.dot_base_damage = curse_base  # scaled by stat_mult; see curse_base above for the rank-1/rank-2 baseline
 				if caster.has_ability_talent(&"strawfellow_withering_doom") and (enemy.has_effect(&"weakened") or enemy.has_effect(&"sundered")):
 					curse.dot_base_damage *= 2.0
 				curse.duration = curse_turns
