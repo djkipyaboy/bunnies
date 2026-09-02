@@ -203,6 +203,11 @@ const MAX_LEVEL: int = 10
 const HARVEST_FAVOR_EMBER_BONUS_DAMAGE: int = 4
 const HARVEST_FAVOR_DEW_HEAL: int = 3
 
+## Amplified (level 9+) values (2026-09-02 harvester-rank2-content spec §3).
+const HARVEST_FAVOR_EMBER_BONUS_DAMAGE_AMPLIFIED: int = 8
+const HARVEST_FAVOR_DEW_HEAL_AMPLIFIED: int = 6
+const HARVEST_FAVOR_DURATION_EXTENSION_AMPLIFIED: int = 2
+
 ## Character level — gates extra_abilities (L2/L3/L4, spec 2026-07-23) and unlocks the L5 passive
 ## + L5-10 talent points (talent_points_earned()). Clamped to [1, MAX_LEVEL] on assignment — a real,
 ## enforced cap (spec 2026-07-23 §2), unlike the pre-2026-07-23 unbounded field. Still a test/tester
@@ -1334,13 +1339,17 @@ func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant], is_neutra
 		return
 	if is_neutral and not has_ability_talent(&"harvest_favor_unleashed"):
 		return
+	var amplified: bool = ability_talent_row_rank(&"passive") >= 2
 	var scale: float = HARVEST_FAVOR_UNLEASHED_FRACTION if is_neutral else 1.0
 	if has_ability_talent(&"harvest_favor_amplified_bond"):
 		scale *= float(active_minion.minion_stage)
+	var duration_extension: int = HARVEST_FAVOR_DURATION_EXTENSION_AMPLIFIED if amplified else 1
+	var stat_mult: float = ability_magnitude_multiplier()
 	match active_minion.minion_type:
 		&"ember":
 			if target != null and target.is_alive():
-				target.take_damage(ceili(HARVEST_FAVOR_EMBER_BONUS_DAMAGE * scale))
+				var base_dmg: int = HARVEST_FAVOR_EMBER_BONUS_DAMAGE_AMPLIFIED if amplified else HARVEST_FAVOR_EMBER_BONUS_DAMAGE
+				target.take_damage(ceili(base_dmg * scale * stat_mult))
 		&"dew":
 			var lowest: Combatant = null
 			for a: Combatant in allies:
@@ -1349,20 +1358,21 @@ func harvest_favor_on_hit(target: Combatant, allies: Array[Combatant], is_neutra
 				if lowest == null or a.hp < lowest.hp:
 					lowest = a
 			if lowest != null:
-				lowest.heal(ceili(HARVEST_FAVOR_DEW_HEAL * scale))
+				var base_heal: int = HARVEST_FAVOR_DEW_HEAL_AMPLIFIED if amplified else HARVEST_FAVOR_DEW_HEAL
+				lowest.heal(ceili(base_heal * scale * stat_mult))
 		&"misfortune":
 			if target == null or not target.is_alive():
 				return
 			for debuff_id: StringName in [&"weakened", &"sundered", &"cursed"]:
 				var e: Effect = target._find_effect(debuff_id)
 				if e != null:
-					e.duration += 1
+					e.duration += duration_extension
 			if has_ability_talent(&"misfortune_ill_fortune"):
 				target.attach_effect(EffectLibrary.make(&"jinxed"))
 		&"hasty":
 			for e: Effect in active_effects:
 				if e != null and e.beneficial:
-					e.duration += 1
+					e.duration += duration_extension
 
 ## Spirit Surge (2026-08-24 harvester-talent-tree spec §8): guarantees one free harvest_favor_on_hit
 ## proc at this combatant's own Upkeep, regardless of whether any hit landed that turn. No-op if
