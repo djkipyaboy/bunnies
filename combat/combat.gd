@@ -1064,9 +1064,22 @@ const HASTY_REEL_SURGE_TURNS: int = 3
 ## [ASSUMPTION] Bountiful Harvest's next-ability refund — tune by playtest.
 const HASTY_BOUNTIFUL_HARVEST_REFUND: int = 2
 
+## Rank-2 (level 8+) values (2026-09-02 harvester-rank2-content spec §2.4). Only the regen bonus
+## is magnitude-multiplied by ability_magnitude_multiplier() — Initiative bonus and Empowered's
+## duration are turn-count/Initiative-system values, not damage/heal-shaped magnitudes, matching
+## the convention StatScaling already follows elsewhere.
+const HASTY_INITIATIVE_BONUS_RANK2: float = 24.0
+const HASTY_REGEN_BONUS_RANK2: int = 5
+const HASTY_EMPOWERED_TURNS_RANK2: int = 2
+
 func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	var bountiful_harvest: bool = caster != null and caster.has_ability_talent(&"hasty_bountiful_harvest")
 	var unshakeable_roots: bool = caster != null and caster.has_ability_talent(&"hasty_unshakeable_roots")
+	var rank: int = caster.ability_talent_row_rank(&"ability_l4") if caster != null else 1
+	var stat_mult: float = caster.ability_magnitude_multiplier() if caster != null else 1.0
+	var initiative_bonus: float = HASTY_INITIATIVE_BONUS_RANK2 if rank >= 2 else HASTY_INITIATIVE_BONUS
+	var regen_bonus: int = ceili((HASTY_REGEN_BONUS_RANK2 if rank >= 2 else HASTY_REGEN_BONUS) * stat_mult)
+	var empowered_turns: int = HASTY_EMPOWERED_TURNS_RANK2 if rank >= 2 else 1
 	for ally: Combatant in _allies_of(minion):
 		if not ally.is_alive():
 			continue
@@ -1074,12 +1087,7 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 			var haste := Effect.new()
 			haste.id = &"hasty_initiative"
 			haste.kind = Effect.Kind.INITIATIVE_MOD
-			haste.magnitude = HASTY_INITIATIVE_BONUS
-			# Stage 1 fires synchronously in the summoning caster's own Combat phase (see
-			# _run_minion_stage's [param caster] doc) — its own upcoming End phase ticks this buff
-			# once immediately, while other allies haven't acted yet this round. +1 duration so the
-			# caster still benefits over 3 FRESH turns too (same fix as Grand Sacrifice's Hasty
-			# variant / Dew's Thorns / Inspirational — see _apply_grand_sacrifice's &"hasty" branch).
+			haste.magnitude = initiative_bonus
 			haste.duration = HASTY_INITIATIVE_TURNS + (1 if ally == caster else 0)
 			haste.beneficial = true
 			if unshakeable_roots:
@@ -1088,17 +1096,17 @@ func _run_hasty_stage(minion: Combatant, stage: int, caster: Combatant = null) -
 		if stage == 2:
 			var regen := Effect.new()
 			regen.id = &"hasty_regen"
-			regen.kind = Effect.Kind.REEL_FACE_EDIT  # inert marker kind — regen_bonus is read directly
-			regen.regen_bonus = HASTY_REGEN_BONUS
+			regen.kind = Effect.Kind.REEL_FACE_EDIT
+			regen.regen_bonus = regen_bonus
 			regen.duration = HASTY_REGEN_TURNS
 			regen.beneficial = true
 			ally.attach_effect(regen)
-			_log("  💨 Wheat grants %s +%d resource regen (%d turns)." % [ally.display_name, HASTY_REGEN_BONUS, HASTY_REGEN_TURNS])
+			_log("  💨 Wheat grants %s +%d resource regen (%d turns)." % [ally.display_name, regen_bonus, HASTY_REGEN_TURNS])
 			if bountiful_harvest and ally.resource_pool != null:
 				ally.resource_pool.pending_ability_refund = HASTY_BOUNTIFUL_HARVEST_REFUND
 		if stage == 3:
 			var empowered: Effect = EffectLibrary.make(&"empowered")
-			empowered.duration = 1  # spec §5 locks this specific stage's Empowered to 1 turn
+			empowered.duration = empowered_turns
 			ally.attach_effect(empowered)
 			var surge := Effect.new()
 			surge.id = &"reel_surge"
