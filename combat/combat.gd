@@ -892,6 +892,11 @@ func _dew_evergreen_active(minion: Combatant) -> bool:
 
 const MINION_BASE_STAGE_DAMAGE: int = 8
 
+## Rank-2 (level 5+) per-stage damage (2026-09-02 harvester-rank2-content spec §2.1) — not a clean
+## per-stage multiple of one scalar (12/22/32 isn't N * stage for any integer N), so an explicit
+## per-stage array unlike rank 1's `MINION_BASE_STAGE_DAMAGE * stage`.
+const MINION_EMBER_STAGE_DAMAGE_RANK2: Array[int] = [12, 22, 32]
+
 ## Ember Minion's stage effect (unchanged from the original shipped mechanism — the expiry check
 ## that used to live at the end of this function now lives in the _run_minion_stage() dispatcher
 ## above, shared across all 4 types).
@@ -900,7 +905,10 @@ const MINION_BASE_STAGE_DAMAGE: int = 8
 ## splashes onto a random surviving enemy), and Delayed Bloom (queues a 50%-of-damage echo that
 ## fires at the caster's next Upkeep via Combatant.pending_delayed_bloom_damage).
 func _run_ember_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
-	var amount: int = MINION_BASE_STAGE_DAMAGE * stage
+	var rank: int = caster.ability_talent_row_rank(&"base_ability") if caster != null else 1
+	var base_amount: int = MINION_EMBER_STAGE_DAMAGE_RANK2[stage - 1] if rank >= 2 else MINION_BASE_STAGE_DAMAGE * stage
+	var stat_mult: float = caster.ability_magnitude_multiplier() if caster != null else 1.0
+	var amount: int = ceili(base_amount * stat_mult)
 	var overripe: bool = caster != null and caster.has_ability_talent(&"ember_overripe")
 	var overgrown_roots: bool = stage == 3 and caster != null and caster.has_ability_talent(&"ember_overgrown_roots")
 	var delayed_bloom: bool = caster != null and caster.has_ability_talent(&"ember_delayed_bloom")
