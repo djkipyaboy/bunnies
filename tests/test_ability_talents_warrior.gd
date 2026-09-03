@@ -182,7 +182,7 @@ func _test_second_wind_row() -> void:
 	var c4: Combatant = _mk_warrior()
 	c4.max_hp = 100; c4.hp = 25
 	_check(c4.pick_ability_talent(&"ability_l4", &"wind_desperate_recovery"), "picks wind_desperate_recovery")
-	_check(c4.ability_talent_cooldown_delta(&"second_wind") == -2, "wind_desperate_recovery: -2 cooldown while at/below 30% HP (got %d)" % c4.ability_talent_cooldown_delta(&"second_wind"))
+	_check(c4.ability_talent_cooldown_delta(&"second_wind") == -2, "wind_desperate_recovery: -2 cooldown while at/below 30%% HP (got %d)" % c4.ability_talent_cooldown_delta(&"second_wind"))
 
 	var c5: Combatant = _mk_warrior()
 	c5.max_hp = 100; c5.hp = 50
