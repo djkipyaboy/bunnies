@@ -837,7 +837,7 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 		&"warrior":
 			match ability_id:
 				&"rend":
-					return -1 if has_ability_talent(&"rend_efficient") else 0
+					return 0
 				&"sundering_strike":
 					return -1 if has_ability_talent(&"sunder_efficient") else 0
 				_:
@@ -979,11 +979,14 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 				&"bleed":
 					if has_ability_talent(&"rend_deeper_cut"):
 						for i: int in range(effect.dot_fractions.size()):
-							effect.dot_fractions[i] *= 1.25
+							effect.dot_fractions[i] *= 1.35
 					if has_ability_talent(&"rend_lasting_wound"):
 						effect.max_stacks = 4
 						if effect.dot_fractions.size() < 4:
 							effect.dot_fractions.append(1.55)
+					if has_ability_talent(&"rend_salted_wound") and target.has_effect(&"sundered"):
+						for i: int in range(effect.dot_fractions.size()):
+							effect.dot_fractions[i] *= 1.25
 				&"sundered":
 					if has_ability_talent(&"sunder_deeper"):
 						effect.magnitude = 1.35

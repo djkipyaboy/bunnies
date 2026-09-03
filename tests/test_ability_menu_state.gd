@@ -84,8 +84,6 @@ func _init() -> void:
 	warrior.level = Combatant.MAX_LEVEL
 	var warrior_plan: MainPhasePlan = MainPhasePlan.new(warrior, warrior.ability_cost)
 	_check(AbilityMenuPanel.cost_text(warrior_plan, warrior, &"rend") == "2 STA", "baseline Rend cost text (no talent picked)")
-	_check(warrior.pick_ability_talent(&"base_ability", &"rend_efficient"), "picks rend_efficient")
-	_check(AbilityMenuPanel.cost_text(warrior_plan, warrior, &"rend") == "1 STA", "rend_efficient: Rend's live cost label shows the discounted 1 STA, not the stale 2")
 	_check(AbilityMenuPanel.cooldown_text(warrior, &"second_wind") == "Ready — 4-turn cooldown after use", "baseline Second Wind cooldown preview (no talent picked)")
 	_check(warrior.pick_ability_talent(&"ability_l4", &"wind_swift"), "picks wind_swift")
 	_check(AbilityMenuPanel.cooldown_text(warrior, &"second_wind") == "Ready — 3-turn cooldown after use", "wind_swift: Second Wind's live cooldown preview shows the discounted 3 turns, not the stale 4")

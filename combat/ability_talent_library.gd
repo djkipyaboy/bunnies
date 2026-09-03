@@ -15,15 +15,15 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var o1: AbilityTalentOption = AbilityTalentOption.new()
 					o1.id = &"rend_deeper_cut"; o1.row_id = row_id
 					o1.display_name = "Deeper Cut"
-					o1.description = "Rend's Bleed deals +25% DoT damage."
+					o1.description = "Rend's Bleed deals +35% DoT damage."
 					var o2: AbilityTalentOption = AbilityTalentOption.new()
 					o2.id = &"rend_lasting_wound"; o2.row_id = row_id
 					o2.display_name = "Lasting Wound"
 					o2.description = "Rend's Bleed can stack up to 4 times (was 3)."
 					var o3: AbilityTalentOption = AbilityTalentOption.new()
-					o3.id = &"rend_efficient"; o3.row_id = row_id
-					o3.display_name = "Efficient Rend"
-					o3.description = "Rend's Stamina cost is reduced to 1 (was 2)."
+					o3.id = &"rend_salted_wound"; o3.row_id = row_id
+					o3.display_name = "Salted Wound"
+					o3.description = "Rend's Bleed deals +25% DoT damage if the target already carries Sundered."
 					return [o1, o2, o3]
 				&"ability_l2":
 					var s1: AbilityTalentOption = AbilityTalentOption.new()

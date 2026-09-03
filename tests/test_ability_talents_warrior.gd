@@ -31,7 +31,7 @@ func _mk_warrior() -> Combatant:
 func _test_options_for_shape() -> void:
 	var rows: Array[StringName] = [&"base_ability", &"ability_l2", &"ability_l3", &"ability_l4", &"passive", &"ultimate"]
 	var all_ids: Array[StringName] = [
-		&"rend_deeper_cut", &"rend_lasting_wound", &"rend_efficient",
+		&"rend_deeper_cut", &"rend_lasting_wound", &"rend_salted_wound",
 		&"sunder_deeper", &"sunder_lingering", &"sunder_efficient",
 		&"guard_reinforced", &"guard_cleansing", &"guard_lasting",
 		&"wind_deeper", &"wind_empowering", &"wind_swift",
@@ -50,20 +50,14 @@ func _test_options_for_shape() -> void:
 		_check(id in seen, "option %s is present in AbilityTalentLibrary.options_for(&warrior, ...)" % id)
 
 func _test_rend_row() -> void:
-	var c: Combatant = _mk_warrior()
-	_check(c.ability_talent_cost_delta(&"rend") == 0, "no Rend cost delta with nothing picked")
-	_check(c.pick_ability_talent(&"base_ability", &"rend_efficient"), "picks rend_efficient")
-	_check(c.has_ability_talent(&"rend_efficient"), "has_ability_talent sees rend_efficient")
-	_check(c.ability_talent_cost_delta(&"rend") == -1, "rend_efficient: Rend costs 1 less Stamina")
-
 	var c2: Combatant = _mk_warrior()
 	_check(c2.pick_ability_talent(&"base_ability", &"rend_deeper_cut"), "picks rend_deeper_cut")
 	var bleed: Effect = EffectLibrary.make(&"bleed")
 	var base_fractions: Array = bleed.dot_fractions.duplicate()
 	c2.apply_rider_talent_adjustments(&"bleed", bleed, c2)
 	for i: int in range(base_fractions.size()):
-		_check(is_equal_approx(bleed.dot_fractions[i], base_fractions[i] * 1.25),
-			"rend_deeper_cut: Bleed fraction %d is +25%% (got %.4f, want %.4f)" % [i, bleed.dot_fractions[i], base_fractions[i] * 1.25])
+		_check(is_equal_approx(bleed.dot_fractions[i], base_fractions[i] * 1.35),
+			"rend_deeper_cut: Bleed fraction %d is +35%% (got %.4f, want %.4f)" % [i, bleed.dot_fractions[i], base_fractions[i] * 1.35])
 	_check(bleed.max_stacks == 3, "rend_deeper_cut alone leaves max_stacks at 3")
 
 	var c3: Combatant = _mk_warrior()
@@ -74,11 +68,33 @@ func _test_rend_row() -> void:
 	_check(bleed2.dot_fractions.size() == 4, "rend_lasting_wound: Bleed gained a 4th stack fraction (got %d entries)" % bleed2.dot_fractions.size())
 	_check(is_equal_approx(bleed2.dot_fractions[3], 1.55), "rend_lasting_wound: 4th stack fraction is 1.55 (got %.4f)" % bleed2.dot_fractions[3])
 
-	# Mutual exclusion: only 1 pick per row.
+	# Salted Wound: bonus only fires if the TARGET already carries Sundered.
 	var c4: Combatant = _mk_warrior()
-	_check(c4.pick_ability_talent(&"base_ability", &"rend_efficient"), "first pick on the Rend row succeeds")
-	_check(not c4.pick_ability_talent(&"base_ability", &"rend_deeper_cut"), "a second pick on an already-filled row is rejected (cap of 1/row)")
-	_check(c4.has_ability_talent(&"rend_efficient"), "the row's original pick is still active")
+	_check(c4.pick_ability_talent(&"base_ability", &"rend_salted_wound"), "picks rend_salted_wound")
+	var target_plain: Combatant = _mk_warrior()
+	var bleed3: Effect = EffectLibrary.make(&"bleed")
+	var base_fractions3: Array = bleed3.dot_fractions.duplicate()
+	c4.apply_rider_talent_adjustments(&"bleed", bleed3, target_plain)
+	for i: int in range(base_fractions3.size()):
+		_check(is_equal_approx(bleed3.dot_fractions[i], base_fractions3[i]),
+			"rend_salted_wound: no bonus vs. a target with no Sundered (fraction %d unchanged)" % i)
+
+	var c5: Combatant = _mk_warrior()
+	_check(c5.pick_ability_talent(&"base_ability", &"rend_salted_wound"), "picks rend_salted_wound")
+	var target_sundered: Combatant = _mk_warrior()
+	target_sundered.attach_effect(EffectLibrary.make(&"sundered"))
+	var bleed4: Effect = EffectLibrary.make(&"bleed")
+	var base_fractions4: Array = bleed4.dot_fractions.duplicate()
+	c5.apply_rider_talent_adjustments(&"bleed", bleed4, target_sundered)
+	for i: int in range(base_fractions4.size()):
+		_check(is_equal_approx(bleed4.dot_fractions[i], base_fractions4[i] * 1.25),
+			"rend_salted_wound: +25%% vs. a Sundered target (fraction %d got %.4f, want %.4f)" % [i, bleed4.dot_fractions[i], base_fractions4[i] * 1.25])
+
+	# Mutual exclusion: only 1 pick per row.
+	var c6: Combatant = _mk_warrior()
+	_check(c6.pick_ability_talent(&"base_ability", &"rend_deeper_cut"), "first pick on the Rend row succeeds")
+	_check(not c6.pick_ability_talent(&"base_ability", &"rend_lasting_wound"), "a second pick on an already-filled row is rejected (cap of 1/row)")
+	_check(c6.has_ability_talent(&"rend_deeper_cut"), "the row's original pick is still active")
 
 func _test_sundering_strike_row() -> void:
 	var c: Combatant = _mk_warrior()
@@ -98,7 +114,7 @@ func _test_sundering_strike_row() -> void:
 	var sundered2: Effect = EffectLibrary.make(&"sundered")
 	c3.apply_rider_talent_adjustments(&"sundered", sundered2, c3)
 	_check(sundered2.duration == 3, "sunder_lingering: Sundered lasts 3 turns (got %d)" % sundered2.duration)
-	_check(is_equal_approx(sundered2.magnitude, 1.25), "sunder_lingering alone leaves magnitude at 1.25")
+	_check(is_equal_approx(sundered2.magnitude, 1.30), "sunder_lingering alone leaves magnitude at 1.30 (baseline)")
 
 func _test_heroic_guard_row() -> void:
 	var c: Combatant = _mk_warrior()
