@@ -33,7 +33,7 @@ func _init() -> void:
 	enemy_doubly_debuffed.attach_effect(EffectLibrary.make(&"bleed"))
 	enemy_doubly_debuffed.attach_effect(EffectLibrary.make(&"sundered"))
 	_check(v.passive_outgoing_multiplier(enemy_plain) == 1.0, "stand_vengeful: no bonus vs. an undebuffed target at full HP")
-	_check(v.passive_outgoing_multiplier(enemy_doubly_debuffed) == 1.24, "stand_vengeful: +24%% vs. a Bled+Sundered target even at full HP")
+	_check(v.passive_outgoing_multiplier(enemy_doubly_debuffed) == 1.24, "stand_vengeful: +24% vs. a Bled+Sundered target even at full HP")
 	var enemy_only_bled: Combatant = Combatant.new()
 	enemy_only_bled.attach_effect(EffectLibrary.make(&"bleed"))
 	_check(v.passive_outgoing_multiplier(enemy_only_bled) == 1.0, "stand_vengeful: no bonus vs. a target with only ONE of the two debuffs")
