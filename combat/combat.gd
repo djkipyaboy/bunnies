@@ -2840,6 +2840,8 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 	var target_names: String = ", ".join(targets.map(func(t: Combatant) -> String: return t.display_name))
 	if attack.final_damage > 0:
 		for t: Combatant in targets:
+			var target_had_bleed_before_hit: bool = t.has_effect(&"bleed")
+			var target_had_sundered_before_hit: bool = t.has_effect(&"sundered")
 			t.take_damage(attack.final_damage)
 			# Summoner "reel_surge" overflow fallback (2026-08-16 summoner-ability-kit spec §6):
 			# the buff normally splices an extra reel onto the turn, but at the 5-reel cap there's
@@ -2891,6 +2893,22 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 					var talent_bonus: int = ceili(attack.final_damage * talent_bonus_pct)
 					t.take_damage(talent_bonus)
 					_log("  ✦ %s's talent adds %d bonus damage." % [_attacker.display_name, talent_bonus])
+			# Warrior "Twist the Knife" talent: Sundering Strike's own hit deals bonus damage
+			# if the target already carried Bleed BEFORE this hit (snapshot above — Bleeding
+			# Wild's block above this one can attach a fresh Bleed same-hit, which must not
+			# count).
+			if _attacker.class_id == &"warrior" and _attacker.has_ability_talent(&"sunder_twist_knife") and attack.rider_effect_id == &"sundered" and target_had_bleed_before_hit and attack.final_damage > 0:
+				var twist_bonus: int = ceili(attack.final_damage * 0.20)
+				t.take_damage(twist_bonus)
+				_log("  🗡 %s's Twist the Knife adds %d bonus damage." % [_attacker.display_name, twist_bonus])
+			# Warrior "Vicious Return" talent: Sundering Strike refunds its full Stamina cost
+			# if it lands on a target that already carried Sundered BEFORE this hit (a refresh,
+			# not a fresh application).
+			if _attacker.class_id == &"warrior" and _attacker.has_ability_talent(&"sunder_vicious_return") and attack.rider_effect_id == &"sundered" and target_had_sundered_before_hit and attack.final_damage > 0:
+				var sunder_def: AbilityDef = _attacker.find_extra_ability(&"sundering_strike")
+				if sunder_def != null:
+					_attacker.resource_pool.refund({&"stamina": sunder_def.cost})
+					_log("  ♻ %s's Vicious Return refunds %d Stamina." % [_attacker.display_name, sunder_def.cost])
 			# Ranger "Piercing Aim" talent (Task 19): the first reel that actually connects this spin
 			# (while Aimed Shot's bonus is pending from this same turn's cast) also lashes the target
 			# with a bonus stack of Weakened. Consumed once (aimed_shot_hit_pending cleared here) so a

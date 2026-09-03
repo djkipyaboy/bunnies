@@ -32,7 +32,7 @@ func _test_options_for_shape() -> void:
 	var rows: Array[StringName] = [&"base_ability", &"ability_l2", &"ability_l3", &"ability_l4", &"passive", &"ultimate"]
 	var all_ids: Array[StringName] = [
 		&"rend_deeper_cut", &"rend_lasting_wound", &"rend_salted_wound",
-		&"sunder_deeper", &"sunder_lingering", &"sunder_efficient",
+		&"sunder_deeper", &"sunder_vicious_return", &"sunder_twist_knife",
 		&"guard_reinforced", &"guard_cleansing", &"guard_lasting",
 		&"wind_deeper", &"wind_empowering", &"wind_swift",
 		&"stand_deeper", &"stand_wider", &"stand_guarded",
@@ -97,11 +97,6 @@ func _test_rend_row() -> void:
 	_check(c6.has_ability_talent(&"rend_deeper_cut"), "the row's original pick is still active")
 
 func _test_sundering_strike_row() -> void:
-	var c: Combatant = _mk_warrior()
-	_check(c.ability_talent_cost_delta(&"sundering_strike") == 0, "no Sundering Strike cost delta with nothing picked")
-	_check(c.pick_ability_talent(&"ability_l2", &"sunder_efficient"), "picks sunder_efficient")
-	_check(c.ability_talent_cost_delta(&"sundering_strike") == -1, "sunder_efficient: Sundering Strike costs 1 less Stamina")
-
 	var c2: Combatant = _mk_warrior()
 	_check(c2.pick_ability_talent(&"ability_l2", &"sunder_deeper"), "picks sunder_deeper")
 	var sundered: Effect = EffectLibrary.make(&"sundered")
@@ -109,12 +104,18 @@ func _test_sundering_strike_row() -> void:
 	_check(is_equal_approx(sundered.magnitude, 1.35), "sunder_deeper: Sundered's incoming multiplier is 1.35 (got %.3f)" % sundered.magnitude)
 	_check(sundered.duration == 2, "sunder_deeper alone leaves duration at 2")
 
+	# Vicious Return / Twist the Knife: the actual on-hit refund/bonus-damage lives in combat.gd's
+	# _apply_attack() (orchestrator-level), same documented precedent as Bleeding Wild (see this
+	# file's header comment) — headlessly we only prove the talent is a real, pickable, mutually-
+	# exclusive option on this row.
 	var c3: Combatant = _mk_warrior()
-	_check(c3.pick_ability_talent(&"ability_l2", &"sunder_lingering"), "picks sunder_lingering")
-	var sundered2: Effect = EffectLibrary.make(&"sundered")
-	c3.apply_rider_talent_adjustments(&"sundered", sundered2, c3)
-	_check(sundered2.duration == 3, "sunder_lingering: Sundered lasts 3 turns (got %d)" % sundered2.duration)
-	_check(is_equal_approx(sundered2.magnitude, 1.30), "sunder_lingering alone leaves magnitude at 1.30 (baseline)")
+	_check(c3.pick_ability_talent(&"ability_l2", &"sunder_vicious_return"), "picks sunder_vicious_return")
+	_check(c3.has_ability_talent(&"sunder_vicious_return"), "has_ability_talent sees sunder_vicious_return")
+	_check(not c3.pick_ability_talent(&"ability_l2", &"sunder_deeper"), "a second pick on an already-filled row is rejected (cap of 1/row)")
+
+	var c4: Combatant = _mk_warrior()
+	_check(c4.pick_ability_talent(&"ability_l2", &"sunder_twist_knife"), "picks sunder_twist_knife")
+	_check(c4.has_ability_talent(&"sunder_twist_knife"), "has_ability_talent sees sunder_twist_knife")
 
 func _test_heroic_guard_row() -> void:
 	var c: Combatant = _mk_warrior()

@@ -838,8 +838,6 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 			match ability_id:
 				&"rend":
 					return 0
-				&"sundering_strike":
-					return -1 if has_ability_talent(&"sunder_efficient") else 0
 				_:
 					return 0
 		&"vanguard":
@@ -990,8 +988,6 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 				&"sundered":
 					if has_ability_talent(&"sunder_deeper"):
 						effect.magnitude = 1.35
-					if has_ability_talent(&"sunder_lingering"):
-						effect.duration = 3
 		&"chancer":
 			match rider_id:
 				&"jinxed":

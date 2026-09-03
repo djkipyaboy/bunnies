@@ -29,15 +29,15 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var s1: AbilityTalentOption = AbilityTalentOption.new()
 					s1.id = &"sunder_deeper"; s1.row_id = row_id
 					s1.display_name = "Deeper Sunder"
-					s1.description = "Sundering Strike's Sundered debuff raises incoming damage taken to +35% (was +25%)."
+					s1.description = "Sundering Strike's Sundered debuff raises incoming damage taken to +35% (was +30%)."
 					var s2: AbilityTalentOption = AbilityTalentOption.new()
-					s2.id = &"sunder_lingering"; s2.row_id = row_id
-					s2.display_name = "Lingering Sunder"
-					s2.description = "Sundering Strike's Sundered debuff lasts 3 turns (was 2)."
+					s2.id = &"sunder_vicious_return"; s2.row_id = row_id
+					s2.display_name = "Vicious Return"
+					s2.description = "Sundering Strike refunds its full Stamina cost if it hits a target that's already Sundered."
 					var s3: AbilityTalentOption = AbilityTalentOption.new()
-					s3.id = &"sunder_efficient"; s3.row_id = row_id
-					s3.display_name = "Efficient Strike"
-					s3.description = "Sundering Strike's Stamina cost is reduced to 2 (was 3)."
+					s3.id = &"sunder_twist_knife"; s3.row_id = row_id
+					s3.display_name = "Twist the Knife"
+					s3.description = "Sundering Strike deals +20% bonus damage if the target already carries Bleed."
 					return [s1, s2, s3]
 				&"ability_l3":
 					var g1: AbilityTalentOption = AbilityTalentOption.new()
