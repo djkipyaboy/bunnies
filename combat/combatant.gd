@@ -910,9 +910,15 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 			return 0
 
 ## Flat cooldown-turn DISCOUNT (negative or zero) this combatant's Ability Talents grant to
-## [param ability_id] (a "Swift X" option, only meaningful on the 7 cooldown-bearing L4 extras). 0
-## for any (class_id, ability_id) with no such talent. Extended per-class in Tasks 15-21; consumed
-## by MainPhasePlan.commit()'s cooldown-start call (Step 4 below).
+## [param ability_id] (most classes: a static "Swift X" option, only meaningful on the 7
+## cooldown-bearing L4 extras). 0 for any (class_id, ability_id) with no such talent. Extended
+## per-class in Tasks 15-21; consumed by MainPhasePlan.commit()'s cooldown-start call (Step 4 below).
+##
+## Exception: Warrior's &"second_wind" arm (Desperate Recovery) is HP-DEPENDENT and time-sensitive
+## — it reads current hp%, so it must be evaluated BEFORE apply_second_wind()'s own cast-time heal
+## runs (main_phase_plan.gd computes talent_cd here first, then dispatches the ability). Reordering
+## that to read the delta AFTER casting would silently break the discount, since the heal can push
+## hp back above the threshold.
 func ability_talent_cooldown_delta(ability_id: StringName) -> int:
 	match class_id:
 		&"warrior":
@@ -1740,8 +1746,11 @@ func try_entangle(type: DamageType, cost: int, cap: int) -> bool:
 ## of this SAME casting turn, before any enemy has acted. See Combatant.attach_effect/tick_effects
 ## and Combatant.on_end for the tick timing this compensates for.
 ##
-## `cap` is the caster's reel_cap (default 999 = uncapped) — only consulted for Reckless Guard's
-## +1 action reel, mirroring the cap-respecting splice pattern other extra-reel talents use.
+## `cap` (default 999 = uncapped) is currently unused by this function's own body — Reckless Guard's
+## bonus reel now comes from a `reel_surge` Effect (see below) rather than a direct splice, so its
+## cap-respecting is handled generically by combat.gd's _commit_main1(), not here. Kept as a
+## parameter (not removed) since main_phase_plan.gd's call site already passes it; removing it would
+## just be churn.
 ##
 ## Guarded's magnitude is set explicitly here (0.70 baseline, 0.60 with guard_reinforced) rather
 ## than relying on EffectLibrary.make(&"guarded")'s shared 0.75 default — that default is also the
@@ -1757,8 +1766,12 @@ func apply_heroic_guard(cost: int, cap: int = 999) -> bool:
 	guard.duration = dur
 	attach_effect(guard)
 	if has_ability_talent(&"guard_reckless"):
-		if turn_reels.size() < cap:
-			turn_reels.append(ActionReel.make_ability_attack(weapon_type()))
+		var surge: Effect = Effect.new()
+		surge.id = &"reel_surge"
+		surge.kind = Effect.Kind.REEL_FACE_EDIT
+		surge.duration = dur
+		surge.beneficial = true
+		attach_effect(surge)
 	else:
 		var taunt: Effect = EffectLibrary.make(&"taunt")
 		taunt.duration = dur

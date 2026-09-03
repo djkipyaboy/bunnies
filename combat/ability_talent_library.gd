@@ -47,7 +47,7 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var g2: AbilityTalentOption = AbilityTalentOption.new()
 					g2.id = &"guard_vengeful"; g2.row_id = row_id
 					g2.display_name = "Vengeful Guard"
-					g2.description = "While Guarded (from Heroic Guard), your hits against a Bled or Sundered target deal +20% bonus damage."
+					g2.description = "While Guarded, your hits against a Bled or Sundered target deal +20% bonus damage."
 					var g3: AbilityTalentOption = AbilityTalentOption.new()
 					g3.id = &"guard_reckless"; g3.row_id = row_id
 					g3.display_name = "Reckless Guard"

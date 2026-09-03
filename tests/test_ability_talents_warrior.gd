@@ -137,11 +137,17 @@ func _test_heroic_guard_row() -> void:
 
 	var c3: Combatant = _mk_warrior()
 	_check(c3.pick_ability_talent(&"ability_l3", &"guard_reckless"), "picks guard_reckless")
-	var reels_before: int = c3.turn_reels.size()
 	_check(c3.apply_heroic_guard(2, 5), "casts Heroic Guard (reckless)")
 	_check(c3._find_effect(&"taunt") == null, "guard_reckless: no Taunt is applied")
 	_check(c3._find_effect(&"guarded") != null, "guard_reckless: Guarded is still applied")
-	_check(c3.turn_reels.size() == reels_before + 1, "guard_reckless: +1 action reel spliced onto this turn")
+	# The bonus reel is no longer a one-off splice inside apply_heroic_guard() itself — it now
+	# comes from a reel_surge Effect (matching Wheat's stage-3 idiom) that combat.gd's
+	# _commit_main1() re-splices EVERY turn for its whole duration, unlike the old direct splice
+	# which only ever fired once at cast time. Proving the Effect is attached with the right
+	# duration is the correct headless signal here (same precedent as Vicious Return/Twist the
+	# Knife above — the real per-turn splice lives in combat.gd, orchestrator-level).
+	var surge_effect: Effect = c3._find_effect(&"reel_surge")
+	_check(surge_effect != null and surge_effect.duration == 4, "guard_reckless: reel_surge effect attached with 4-turn duration")
 
 	var c4: Combatant = _mk_warrior()
 	_check(c4.pick_ability_talent(&"ability_l3", &"guard_vengeful"), "picks guard_vengeful")
@@ -151,6 +157,9 @@ func _test_heroic_guard_row() -> void:
 	enemy_bled.attach_effect(EffectLibrary.make(&"bleed"))
 	_check(is_equal_approx(c4.outgoing_damage_multiplier(enemy_plain), 1.0), "guard_vengeful: no bonus vs. an undebuffed target")
 	_check(is_equal_approx(c4.outgoing_damage_multiplier(enemy_bled), 1.20), "guard_vengeful: +20%% vs. a Bled target while Guarded (got %.3f)" % c4.outgoing_damage_multiplier(enemy_bled))
+	var enemy_sundered: Combatant = _mk_warrior()
+	enemy_sundered.attach_effect(EffectLibrary.make(&"sundered"))
+	_check(is_equal_approx(c4.outgoing_damage_multiplier(enemy_sundered), 1.20), "guard_vengeful: +20%% vs. a Sundered target while Guarded (the OR's other half, got %.3f)" % c4.outgoing_damage_multiplier(enemy_sundered))
 
 	var c5: Combatant = _mk_warrior()
 	_check(c5.pick_ability_talent(&"ability_l3", &"guard_vengeful"), "picks guard_vengeful")
@@ -188,6 +197,17 @@ func _test_second_wind_row() -> void:
 	c5.max_hp = 100; c5.hp = 50
 	_check(c5.pick_ability_talent(&"ability_l4", &"wind_desperate_recovery"), "picks wind_desperate_recovery")
 	_check(c5.ability_talent_cooldown_delta(&"second_wind") == 0, "wind_desperate_recovery: no discount above the threshold (got %d)" % c5.ability_talent_cooldown_delta(&"second_wind"))
+
+	# wind_desperate_recovery (row ability_l4) + stand_wider (row passive) live on different rows,
+	# so both CAN be picked on the same Combatant (unlike stand_guarded, which shares stand_wider's
+	# row and can never coexist with it). At hp=35/100 — above the base 30% Last Stand threshold
+	# but at/below stand_wider's widened 40% — Desperate Recovery must read the WIDENED threshold,
+	# not the base one.
+	var c5b: Combatant = _mk_warrior()
+	c5b.max_hp = 100; c5b.hp = 35
+	_check(c5b.pick_ability_talent(&"ability_l4", &"wind_desperate_recovery"), "picks wind_desperate_recovery (widened-threshold case)")
+	_check(c5b.pick_ability_talent(&"passive", &"stand_wider"), "picks stand_wider (widened-threshold case)")
+	_check(c5b.ability_talent_cooldown_delta(&"second_wind") == -2, "wind_desperate_recovery: -2 cooldown at 35%% HP when stand_wider widens the threshold to 40%% (got %d)" % c5b.ability_talent_cooldown_delta(&"second_wind"))
 
 	# Mutual exclusion: only 1 pick per row.
 	var c6: Combatant = _mk_warrior()
