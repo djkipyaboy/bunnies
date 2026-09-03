@@ -83,9 +83,9 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [p1, p2, p3]
 				&"ultimate":
 					var u1: AbilityTalentOption = AbilityTalentOption.new()
-					u1.id = &"wild_truer"; u1.row_id = row_id
-					u1.display_name = "Truer Wild"
-					u1.description = "Wild also grants self Empowered (x1.15 outgoing damage) for its duration."
+					u1.id = &"wild_executioner"; u1.row_id = row_id
+					u1.display_name = "Executioner's Wild"
+					u1.description = "While Wild is active, hits against a target carrying BOTH Bleed and Sundered deal +25% bonus damage."
 					var u2: AbilityTalentOption = AbilityTalentOption.new()
 					u2.id = &"wild_bleeding"; u2.row_id = row_id
 					u2.display_name = "Bleeding Wild"

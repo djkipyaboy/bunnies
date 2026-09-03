@@ -1201,6 +1201,8 @@ func outgoing_damage_multiplier(defender: Combatant = null) -> float:
 	total *= power_stat_weapon_multiplier()
 	if class_id == &"warrior" and has_ability_talent(&"guard_vengeful") and has_effect(&"guarded") and defender != null and (defender.has_effect(&"bleed") or defender.has_effect(&"sundered")):
 		total *= 1.20
+	if class_id == &"warrior" and has_ability_talent(&"wild_executioner") and sticky_wild_spins_remaining > 0 and defender != null and defender.has_effect(&"bleed") and defender.has_effect(&"sundered"):
+		total *= 1.25
 	return total
 
 ## Product of every active INCOMING MULTIPLIER_EDIT effect's magnitude (Sundered raises it, Guarded
@@ -2299,11 +2301,6 @@ func fire_sticky_wild(reel_count: int, spins: int) -> bool:
 	bonus_meter.consume()
 	sticky_wild_count = reel_count
 	sticky_wild_spins_remaining = spins
-	if class_id == &"warrior" and has_ability_talent(&"wild_truer"):
-		var empowered: Effect = EffectLibrary.make(&"empowered")
-		empowered.magnitude = 1.15
-		empowered.duration = spins
-		attach_effect(empowered)
 	if class_id == &"skirmisher" and has_ability_talent(&"sticky_deeper"):
 		var empowered2: Effect = EffectLibrary.make(&"empowered")
 		empowered2.magnitude = 1.15

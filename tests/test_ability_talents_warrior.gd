@@ -36,7 +36,7 @@ func _test_options_for_shape() -> void:
 		&"guard_reinforced", &"guard_vengeful", &"guard_reckless",
 		&"wind_deeper", &"wind_empowering", &"wind_desperate_recovery",
 		&"stand_vengeful", &"stand_wider", &"stand_guarded",
-		&"wild_truer", &"wild_bleeding", &"wild_lasting",
+		&"wild_executioner", &"wild_bleeding", &"wild_lasting",
 	]
 	var seen: Array[StringName] = []
 	for row: StringName in rows:
@@ -226,11 +226,16 @@ func _test_wild_row() -> void:
 
 	var c2: Combatant = _mk_warrior()
 	c2.bonus_meter.value = c2.bonus_meter.cap
-	_check(c2.pick_ability_talent(&"ultimate", &"wild_truer"), "picks wild_truer")
-	_check(c2.fire_sticky_wild(c2.weapon.reels.size(), 1), "fires Wild (truer)")
-	var emp: Effect = c2._find_effect(&"empowered")
-	_check(emp != null, "wild_truer: Empowered attached")
-	_check(is_equal_approx(emp.magnitude, 1.15), "wild_truer: Empowered is x1.15 (got %.3f)" % emp.magnitude)
+	_check(c2.pick_ability_talent(&"ultimate", &"wild_executioner"), "picks wild_executioner")
+	_check(c2.fire_sticky_wild(c2.weapon.reels.size(), 1), "fires Wild (executioner)")
+	var enemy_plain: Combatant = _mk_warrior()
+	var enemy_doubly_debuffed: Combatant = _mk_warrior()
+	enemy_doubly_debuffed.attach_effect(EffectLibrary.make(&"bleed"))
+	enemy_doubly_debuffed.attach_effect(EffectLibrary.make(&"sundered"))
+	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_plain), 1.0), "wild_executioner: no bonus vs. an undebuffed target")
+	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_doubly_debuffed), 1.25), "wild_executioner: +25%% vs. a Bled+Sundered target while Wild is active (got %.3f)" % c2.outgoing_damage_multiplier(enemy_doubly_debuffed))
+	c2.consume_wild_spin()
+	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_doubly_debuffed), 1.0), "wild_executioner: no bonus once Wild has been consumed")
 
 	# Bleeding Wild's precondition state (the actual on-hit attach lives in combat.gd's
 	# _apply_attack(), orchestrator-level — see the file header comment above).
