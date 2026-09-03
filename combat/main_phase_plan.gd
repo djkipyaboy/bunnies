@@ -529,7 +529,7 @@ func commit() -> void:
 			&"regrowth":
 				combatant.stage_regrowth(extra_talent_cost)  # orchestrator picks lowest-HP% ally + grants Regen
 			&"heroic_guard":
-				combatant.apply_heroic_guard(extra_talent_cost)
+				combatant.apply_heroic_guard(extra_talent_cost, reel_cap)
 			&"second_wind":
 				combatant.apply_second_wind(extra_talent_cost)
 			&"bloodwrath":

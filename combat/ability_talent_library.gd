@@ -43,15 +43,15 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var g1: AbilityTalentOption = AbilityTalentOption.new()
 					g1.id = &"guard_reinforced"; g1.row_id = row_id
 					g1.display_name = "Reinforced Guard"
-					g1.description = "Heroic Guard reduces incoming damage to 65% (was 75%)."
+					g1.description = "Heroic Guard reduces incoming damage to 60% (was 70%)."
 					var g2: AbilityTalentOption = AbilityTalentOption.new()
-					g2.id = &"guard_cleansing"; g2.row_id = row_id
-					g2.display_name = "Cleansing Guard"
-					g2.description = "Heroic Guard also cleanses your active debuffs on cast."
+					g2.id = &"guard_vengeful"; g2.row_id = row_id
+					g2.display_name = "Vengeful Guard"
+					g2.description = "While Guarded (from Heroic Guard), your hits against a Bled or Sundered target deal +20% bonus damage."
 					var g3: AbilityTalentOption = AbilityTalentOption.new()
-					g3.id = &"guard_lasting"; g3.row_id = row_id
-					g3.display_name = "Lasting Guard"
-					g3.description = "Heroic Guard and its Taunt last 4 turns (was 3)."
+					g3.id = &"guard_reckless"; g3.row_id = row_id
+					g3.display_name = "Reckless Guard"
+					g3.description = "Heroic Guard no longer applies Taunt, but grants +1 action reel for its duration."
 					return [g1, g2, g3]
 				&"ability_l4":
 					var w1: AbilityTalentOption = AbilityTalentOption.new()

@@ -33,7 +33,7 @@ func _test_options_for_shape() -> void:
 	var all_ids: Array[StringName] = [
 		&"rend_deeper_cut", &"rend_lasting_wound", &"rend_salted_wound",
 		&"sunder_deeper", &"sunder_vicious_return", &"sunder_twist_knife",
-		&"guard_reinforced", &"guard_cleansing", &"guard_lasting",
+		&"guard_reinforced", &"guard_vengeful", &"guard_reckless",
 		&"wind_deeper", &"wind_empowering", &"wind_swift",
 		&"stand_deeper", &"stand_wider", &"stand_guarded",
 		&"wild_truer", &"wild_bleeding", &"wild_lasting",
@@ -119,34 +119,49 @@ func _test_sundering_strike_row() -> void:
 
 func _test_heroic_guard_row() -> void:
 	var c: Combatant = _mk_warrior()
+	c.attach_effect(EffectLibrary.make(&"slow"))
 	_check(c.apply_heroic_guard(2), "casts Heroic Guard (baseline)")
 	var g: Effect = c._find_effect(&"guarded")
+	var t: Effect = c._find_effect(&"taunt")
 	_check(g != null, "sanity: Guarded attached")
-	_check(is_equal_approx(g.magnitude, 0.75), "baseline Heroic Guard: Guarded magnitude 0.75")
-	_check(g.duration == 3, "baseline Heroic Guard: 3-turn duration")
+	_check(is_equal_approx(g.magnitude, 0.70), "baseline Heroic Guard: Guarded magnitude 0.70 (got %.3f)" % g.magnitude)
+	_check(g.duration == 4, "baseline Heroic Guard: 4-turn duration")
+	_check(t != null and t.duration == 4, "baseline Heroic Guard: Taunt attached, 4-turn duration")
+	_check(not c.has_effect(&"slow"), "baseline Heroic Guard now cleanses on cast unconditionally")
 
 	var c2: Combatant = _mk_warrior()
 	_check(c2.pick_ability_talent(&"ability_l3", &"guard_reinforced"), "picks guard_reinforced")
 	_check(c2.apply_heroic_guard(2), "casts Heroic Guard (reinforced)")
 	var g2: Effect = c2._find_effect(&"guarded")
-	_check(is_equal_approx(g2.magnitude, 0.65), "guard_reinforced: Guarded magnitude 0.65 (got %.3f)" % g2.magnitude)
+	_check(is_equal_approx(g2.magnitude, 0.60), "guard_reinforced: Guarded magnitude 0.60 (got %.3f)" % g2.magnitude)
 
 	var c3: Combatant = _mk_warrior()
-	_check(c3.pick_ability_talent(&"ability_l3", &"guard_lasting"), "picks guard_lasting")
-	_check(c3.apply_heroic_guard(2), "casts Heroic Guard (lasting)")
-	var g3: Effect = c3._find_effect(&"guarded")
-	var t3: Effect = c3._find_effect(&"taunt")
-	_check(g3.duration == 4, "guard_lasting: Guarded lasts 4 turns (got %d)" % g3.duration)
-	_check(t3.duration == 4, "guard_lasting: Taunt lasts 4 turns too (got %d)" % t3.duration)
+	_check(c3.pick_ability_talent(&"ability_l3", &"guard_reckless"), "picks guard_reckless")
+	var reels_before: int = c3.turn_reels.size()
+	_check(c3.apply_heroic_guard(2, 5), "casts Heroic Guard (reckless)")
+	_check(c3._find_effect(&"taunt") == null, "guard_reckless: no Taunt is applied")
+	_check(c3._find_effect(&"guarded") != null, "guard_reckless: Guarded is still applied")
+	_check(c3.turn_reels.size() == reels_before + 1, "guard_reckless: +1 action reel spliced onto this turn")
 
 	var c4: Combatant = _mk_warrior()
-	_check(c4.pick_ability_talent(&"ability_l3", &"guard_cleansing"), "picks guard_cleansing")
-	var slow: Effect = EffectLibrary.make(&"slow")
-	c4.attach_effect(slow)
-	_check(c4.has_effect(&"slow"), "sanity: a debuff is active before casting")
-	_check(c4.apply_heroic_guard(2), "casts Heroic Guard (cleansing)")
-	_check(not c4.has_effect(&"slow"), "guard_cleansing: the active debuff is cleansed on cast")
-	_check(c4.has_effect(&"guarded"), "guard_cleansing still grants Guarded")
+	_check(c4.pick_ability_talent(&"ability_l3", &"guard_vengeful"), "picks guard_vengeful")
+	_check(c4.apply_heroic_guard(2), "casts Heroic Guard (vengeful)")
+	var enemy_plain: Combatant = _mk_warrior()
+	var enemy_bled: Combatant = _mk_warrior()
+	enemy_bled.attach_effect(EffectLibrary.make(&"bleed"))
+	_check(is_equal_approx(c4.outgoing_damage_multiplier(enemy_plain), 1.0), "guard_vengeful: no bonus vs. an undebuffed target")
+	_check(is_equal_approx(c4.outgoing_damage_multiplier(enemy_bled), 1.20), "guard_vengeful: +20%% vs. a Bled target while Guarded (got %.3f)" % c4.outgoing_damage_multiplier(enemy_bled))
+
+	var c5: Combatant = _mk_warrior()
+	_check(c5.pick_ability_talent(&"ability_l3", &"guard_vengeful"), "picks guard_vengeful")
+	var enemy_bled2: Combatant = _mk_warrior()
+	enemy_bled2.attach_effect(EffectLibrary.make(&"bleed"))
+	_check(is_equal_approx(c5.outgoing_damage_multiplier(enemy_bled2), 1.0), "guard_vengeful: no bonus vs. a Bled target when NOT currently Guarded")
+
+	# Mutual exclusion: only 1 pick per row.
+	var c6: Combatant = _mk_warrior()
+	_check(c6.pick_ability_talent(&"ability_l3", &"guard_reinforced"), "first pick on the Heroic Guard row succeeds")
+	_check(not c6.pick_ability_talent(&"ability_l3", &"guard_reckless"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
 func _test_second_wind_row() -> void:
 	var c: Combatant = _mk_warrior()

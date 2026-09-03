@@ -3287,7 +3287,7 @@ func _finish_spin() -> void:
 				_log("    %s +%d HP." % [ally.display_name, restored])
 			# Curing Bang: cleanse a debuff from every ally this heal reaches. No "remove exactly 1"
 			# primitive exists in this codebase — reuses the same full-cleanse() precedent as Warrior's
-			# guard_cleansing / Second Wind (Task 15's own comment).
+			# Heroic Guard / Second Wind (Task 15's own comment).
 			if _attacker.has_ability_talent(&"bigbang_curing"):
 				ally.cleanse()
 			if _panels.has(ally):

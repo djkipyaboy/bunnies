@@ -1196,6 +1196,8 @@ func outgoing_damage_multiplier(defender: Combatant = null) -> float:
 			total *= e.effective_magnitude()
 	total *= passive_outgoing_multiplier(defender)
 	total *= power_stat_weapon_multiplier()
+	if class_id == &"warrior" and has_ability_talent(&"guard_vengeful") and has_effect(&"guarded") and defender != null and (defender.has_effect(&"bleed") or defender.has_effect(&"sundered")):
+		total *= 1.20
 	return total
 
 ## Product of every active INCOMING MULTIPLIER_EDIT effect's magnitude (Sundered raises it, Guarded
@@ -1723,29 +1725,41 @@ func try_entangle(type: DamageType, cost: int, cap: int) -> bool:
 	return true
 
 ## Warrior "Heroic Guard" (L7): self-cast, no reel. Grants Guarded + Taunt so he pulls fire off
-## fragile allies. Returns false (no change) if unaffordable.
+## fragile allies, and always Cleanses on cast. Returns false (no change) if unaffordable.
 ##
 ## Duration +1 over the guarded/taunt template default (playtest 2026-07-02): a self-buff whose
 ## payoff needs an ENEMY's future turn (being guarded/taunted does nothing on the casting turn
 ## itself) loses its first nominal turn to the bearer's own on_end() tick, which fires at the end
 ## of this SAME casting turn, before any enemy has acted. See Combatant.attach_effect/tick_effects
 ## and Combatant.on_end for the tick timing this compensates for.
-func apply_heroic_guard(cost: int) -> bool:
+##
+## `cap` is the caster's reel_cap (default 999 = uncapped) — only consulted for Reckless Guard's
+## +1 action reel, mirroring the cap-respecting splice pattern other extra-reel talents use.
+##
+## Guarded's magnitude is set explicitly here (0.70 baseline, 0.60 with guard_reinforced) rather
+## than relying on EffectLibrary.make(&"guarded")'s shared 0.75 default — that default is also the
+## un-overridden magnitude Skirmisher's Feint & Riposte uses, and the starting point Vanguard's
+## Mountain Stance/Warden's Bastion explicitly replace. Touching the shared default would silently
+## change Feint & Riposte too, so Heroic Guard's numbers live only in this override.
+func apply_heroic_guard(cost: int, cap: int = 999) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	var dur: int = 4 if has_ability_talent(&"guard_lasting") else 3
+	var dur: int = 4
 	var guard: Effect = EffectLibrary.make(&"guarded")
-	if has_ability_talent(&"guard_reinforced"):
-		guard.magnitude = 0.65
+	guard.magnitude = 0.60 if has_ability_talent(&"guard_reinforced") else 0.70
 	guard.duration = dur
 	attach_effect(guard)
-	var taunt: Effect = EffectLibrary.make(&"taunt")
-	taunt.duration = dur
-	attach_effect(taunt)
-	if has_ability_talent(&"guard_cleansing"):
-		# Reuses the existing full debuff-cleanse (the same primitive Second Wind already calls) —
-		# there's no "remove exactly 1 debuff" primitive in this codebase.
-		cleanse()
+	if has_ability_talent(&"guard_reckless"):
+		if turn_reels.size() < cap:
+			turn_reels.append(ActionReel.make_ability_attack(weapon_type()))
+	else:
+		var taunt: Effect = EffectLibrary.make(&"taunt")
+		taunt.duration = dur
+		attach_effect(taunt)
+	# Reuses the existing full debuff-cleanse (the same primitive Second Wind already calls) —
+	# there's no "remove exactly 1 debuff" primitive in this codebase. Now unconditional (was
+	# gated behind guard_cleansing, since retired).
+	cleanse()
 	return true
 
 ## Warrior "Second Wind" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Heals 30% max HP (ceil),
