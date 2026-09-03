@@ -34,7 +34,7 @@ func _test_options_for_shape() -> void:
 		&"rend_deeper_cut", &"rend_lasting_wound", &"rend_salted_wound",
 		&"sunder_deeper", &"sunder_vicious_return", &"sunder_twist_knife",
 		&"guard_reinforced", &"guard_vengeful", &"guard_reckless",
-		&"wind_deeper", &"wind_empowering", &"wind_swift",
+		&"wind_deeper", &"wind_empowering", &"wind_desperate_recovery",
 		&"stand_deeper", &"stand_wider", &"stand_guarded",
 		&"wild_truer", &"wild_bleeding", &"wild_lasting",
 	]
@@ -164,29 +164,35 @@ func _test_heroic_guard_row() -> void:
 	_check(not c6.pick_ability_talent(&"ability_l3", &"guard_reckless"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
 func _test_second_wind_row() -> void:
-	var c: Combatant = _mk_warrior()
-	_check(c.ability_talent_cooldown_delta(&"second_wind") == 0, "no Second Wind cooldown delta with nothing picked")
-	_check(c.pick_ability_talent(&"ability_l4", &"wind_swift"), "picks wind_swift")
-	_check(c.ability_talent_cooldown_delta(&"second_wind") == -1, "wind_swift: Second Wind cooldown is 1 less turn")
-
 	var c2: Combatant = _mk_warrior()
 	c2.max_hp = 100; c2.hp = 10
 	_check(c2.pick_ability_talent(&"ability_l4", &"wind_deeper"), "picks wind_deeper")
 	_check(c2.apply_second_wind(2), "casts Second Wind (deeper)")
-	_check(c2.hp == 50, "wind_deeper: Second Wind heals 40%% max HP (10 + 40 = 50, got %d)" % c2.hp)
+	_check(c2.hp == 55, "wind_deeper: Second Wind heals 45%% max HP (10 + 45 = 55, got %d)" % c2.hp)
 
 	var c3: Combatant = _mk_warrior()
 	c3.max_hp = 100; c3.hp = 10
-	_check(c3.apply_second_wind(2), "casts Second Wind (baseline)")
-	_check(c3.hp == 40, "baseline Second Wind heals 30%% max HP (10 + 30 = 40, got %d)" % c3.hp)
+	_check(c3.pick_ability_talent(&"ability_l4", &"wind_empowering"), "picks wind_empowering")
+	_check(c3.apply_second_wind(2), "casts Second Wind (empowering)")
+	var emp: Effect = c3._find_effect(&"empowered")
+	_check(emp != null and emp.duration == 2, "wind_empowering: Empowered lasts 2 turns (got %d)" % (emp.duration if emp != null else -1))
 
+	# Desperate Recovery: the cooldown discount only applies while at/below Last Stand's threshold
+	# AT THE MOMENT OF CASTING (checked before this cast's own heal changes hp).
 	var c4: Combatant = _mk_warrior()
-	_check(c4.pick_ability_talent(&"ability_l4", &"wind_empowering"), "picks wind_empowering")
-	_check(c4.apply_second_wind(2), "casts Second Wind (empowering)")
-	var emp: Effect = c4._find_effect(&"empowered")
-	_check(emp != null, "wind_empowering: Empowered attached")
-	_check(is_equal_approx(emp.magnitude, 1.15), "wind_empowering: Empowered is x1.15 (got %.3f)" % emp.magnitude)
-	_check(emp.duration == 1, "wind_empowering: Empowered lasts 1 turn (got %d)" % emp.duration)
+	c4.max_hp = 100; c4.hp = 25
+	_check(c4.pick_ability_talent(&"ability_l4", &"wind_desperate_recovery"), "picks wind_desperate_recovery")
+	_check(c4.ability_talent_cooldown_delta(&"second_wind") == -2, "wind_desperate_recovery: -2 cooldown while at/below 30% HP (got %d)" % c4.ability_talent_cooldown_delta(&"second_wind"))
+
+	var c5: Combatant = _mk_warrior()
+	c5.max_hp = 100; c5.hp = 50
+	_check(c5.pick_ability_talent(&"ability_l4", &"wind_desperate_recovery"), "picks wind_desperate_recovery")
+	_check(c5.ability_talent_cooldown_delta(&"second_wind") == 0, "wind_desperate_recovery: no discount above the threshold (got %d)" % c5.ability_talent_cooldown_delta(&"second_wind"))
+
+	# Mutual exclusion: only 1 pick per row.
+	var c6: Combatant = _mk_warrior()
+	_check(c6.pick_ability_talent(&"ability_l4", &"wind_deeper"), "first pick on the Second Wind row succeeds")
+	_check(not c6.pick_ability_talent(&"ability_l4", &"wind_empowering"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
 func _test_last_stand_row() -> void:
 	var c: Combatant = _mk_warrior()

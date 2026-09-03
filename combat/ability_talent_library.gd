@@ -57,15 +57,15 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var w1: AbilityTalentOption = AbilityTalentOption.new()
 					w1.id = &"wind_deeper"; w1.row_id = row_id
 					w1.display_name = "Deeper Wind"
-					w1.description = "Second Wind heals 40% max HP (was 30%)."
+					w1.description = "Second Wind heals 45% max HP (was 40%)."
 					var w2: AbilityTalentOption = AbilityTalentOption.new()
 					w2.id = &"wind_empowering"; w2.row_id = row_id
 					w2.display_name = "Empowering Wind"
-					w2.description = "Second Wind also grants Empowered (x1.15 outgoing damage) for 1 turn."
+					w2.description = "Second Wind also grants Empowered (x1.15 outgoing damage) for 2 turns (was 1)."
 					var w3: AbilityTalentOption = AbilityTalentOption.new()
-					w3.id = &"wind_swift"; w3.row_id = row_id
-					w3.display_name = "Swift Recovery"
-					w3.description = "Second Wind's cooldown is reduced to 3 turns (was 4)."
+					w3.id = &"wind_desperate_recovery"; w3.row_id = row_id
+					w3.display_name = "Desperate Recovery"
+					w3.description = "Casting Second Wind at or below Last Stand's HP threshold instantly cuts its cooldown by 2 turns."
 					return [w1, w2, w3]
 				&"passive":
 					var p1: AbilityTalentOption = AbilityTalentOption.new()

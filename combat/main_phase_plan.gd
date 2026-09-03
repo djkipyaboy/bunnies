@@ -507,6 +507,9 @@ func commit() -> void:
 	if staged_extra_ability_id != &"":
 		var def: AbilityDef = combatant.find_extra_ability(staged_extra_ability_id)
 		var extra_talent_cost: int = def.cost + combatant.ability_talent_cost_delta(staged_extra_ability_id)
+		var talent_cd: int = -1
+		if def != null and def.cooldown_turns > 0:
+			talent_cd = maxi(1, def.cooldown_turns + combatant.ability_talent_cooldown_delta(staged_extra_ability_id))
 		match staged_extra_ability_id:
 			&"sundering_strike":
 				combatant.try_sundering_strike(combatant.weapon_type(), extra_talent_cost, reel_cap)
@@ -556,8 +559,7 @@ func commit() -> void:
 				combatant.apply_summon_misfortune(extra_talent_cost, reel_cap)
 			&"hasty_minion":
 				combatant.apply_summon_hasty(extra_talent_cost, reel_cap)
-		if def != null and def.cooldown_turns > 0:
-			var talent_cd: int = maxi(1, def.cooldown_turns + combatant.ability_talent_cooldown_delta(staged_extra_ability_id))
+		if talent_cd >= 0:
 			combatant.start_cooldown(staged_extra_ability_id, talent_cd)
 	if fire_ultimate_staged:
 		match ultimate_id:

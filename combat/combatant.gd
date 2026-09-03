@@ -918,7 +918,10 @@ func ability_talent_cooldown_delta(ability_id: StringName) -> int:
 		&"warrior":
 			match ability_id:
 				&"second_wind":
-					return -1 if has_ability_talent(&"wind_swift") else 0
+					if not has_ability_talent(&"wind_desperate_recovery"):
+						return 0
+					var stand_threshold: float = 0.40 if has_ability_talent(&"stand_wider") else 0.30
+					return -2 if (float(hp) / float(maxi(max_hp, 1))) <= stand_threshold else 0
 				_:
 					return 0
 		&"vanguard":
@@ -1770,7 +1773,7 @@ func apply_heroic_guard(cost: int, cap: int = 999) -> bool:
 func apply_second_wind(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	var heal_pct: float = 0.40 if has_ability_talent(&"wind_deeper") else 0.30
+	var heal_pct: float = 0.45 if has_ability_talent(&"wind_deeper") else 0.30
 	heal(ceili(max_hp * heal_pct))
 	cleanse()
 	var guard: Effect = EffectLibrary.make(&"guarded")
@@ -1779,7 +1782,7 @@ func apply_second_wind(cost: int) -> bool:
 	if has_ability_talent(&"wind_empowering"):
 		var empowered: Effect = EffectLibrary.make(&"empowered")
 		empowered.magnitude = 1.15
-		empowered.duration = 1
+		empowered.duration = 2
 		attach_effect(empowered)
 	return true
 

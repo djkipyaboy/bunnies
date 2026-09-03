@@ -85,6 +85,9 @@ func _init() -> void:
 	var warrior_plan: MainPhasePlan = MainPhasePlan.new(warrior, warrior.ability_cost)
 	_check(AbilityMenuPanel.cost_text(warrior_plan, warrior, &"rend") == "2 STA", "baseline Rend cost text (no talent picked)")
 	_check(AbilityMenuPanel.cooldown_text(warrior, &"second_wind") == "Ready — 4-turn cooldown after use", "baseline Second Wind cooldown preview (no talent picked)")
-	_check(warrior.pick_ability_talent(&"ability_l4", &"wind_swift"), "picks wind_swift")
-	_check(AbilityMenuPanel.cooldown_text(warrior, &"second_wind") == "Ready — 3-turn cooldown after use", "wind_swift: Second Wind's live cooldown preview shows the discounted 3 turns, not the stale 4")
+	var vanguard2: Combatant = ClassLibrary.make(&"vanguard").build_combatant(true)
+	vanguard2.level = Combatant.MAX_LEVEL
+	_check(AbilityMenuPanel.cooldown_text(vanguard2, &"mountain_stance") == "Ready — 4-turn cooldown after use", "baseline Mountain Stance cooldown preview (no talent picked)")
+	_check(vanguard2.pick_ability_talent(&"ability_l4", &"stance_swift"), "picks stance_swift")
+	_check(AbilityMenuPanel.cooldown_text(vanguard2, &"mountain_stance") == "Ready — 3-turn cooldown after use", "stance_swift: Mountain Stance's live cooldown preview shows the discounted 3 turns, not the stale 4")
 	quit()
