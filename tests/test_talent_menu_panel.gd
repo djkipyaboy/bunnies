@@ -101,7 +101,7 @@ func _init() -> void:
 	var c8: Combatant = _mk_warrior_at(10)
 	c8.pick_ability_talent(&"base_ability", &"rend_deeper_cut")
 	panel.open_for(c8, [], false)
-	_check(not panel.press_option_for_test(&"base_ability", &"rend_deeper_cut"), "outside a safe zone, pressing a DIFFERENT option in an already-spent row is refused (button is disabled)")
+	_check(not panel.press_option_for_test(&"base_ability", &"rend_lasting_wound"), "outside a safe zone, pressing a DIFFERENT option in an already-spent row is refused (button is disabled)")
 	_check(c8.has_ability_talent(&"rend_deeper_cut"), "the original pick survives untouched")
 	panel.close()
 
