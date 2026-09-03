@@ -229,16 +229,16 @@ move after playtest.
     conditional bonus-damage-vs-Bleed+Sundered check (§8.3; locate the actual resolution site during
     planning, likely `combat_resolver.gd` alongside Bleeding Wild's existing hook).
 - **Modify `combat/ability_talent_library.gd`**: rewrite the `&"warrior"` case's 6 rows per §3–§8 —
-  retiring `sunder_efficient`/`sunder_lingering`/`guard_cleansing`/`guard_lasting`/`wind_swift`/
-  `stand_deeper`/`wild_truer` (7 retired ids), adding `rend_salted_wound`/`sunder_vicious_return`/
-  `sunder_twist_knife`/`guard_vengeful`/`guard_reckless`/`wind_desperate_recovery`/`stand_vengeful`/
-  `wild_executioner` (8 new ids — Row 3 nets +1 because both its retired talents, `guard_cleansing`
-  and `guard_lasting`, are absorbed into baseline per §2 rather than 1-for-1 replaced, freeing 2
-  slots for Vengeful Guard and Reckless Guard; every other row is a plain 1-for-1 swap).
-- **Grep every existing test file** that references any of the 6 retired option ids
-  (`sunder_efficient`, `sunder_lingering`, `guard_cleansing`, `guard_lasting`, `wind_swift`,
-  `stand_deeper`, `wild_truer`) BEFORE assuming the file list is complete — per the Harvester
-  rank-2 pass's own hard-won lesson, this reliably bites multiple test files.
+  retiring `rend_efficient`/`sunder_efficient`/`sunder_lingering`/`guard_cleansing`/`guard_lasting`/
+  `wind_swift`/`stand_deeper`/`wild_truer` (8 retired ids: Row 1 and Rows 4-6 each lose 1, Rows 2-3
+  each lose 2), adding `rend_salted_wound`/`sunder_vicious_return`/`sunder_twist_knife`/
+  `guard_vengeful`/`guard_reckless`/`wind_desperate_recovery`/`stand_vengeful`/`wild_executioner`
+  (8 new ids) — every row is a plain 1-for-1 (or 2-for-2, for Rows 2 and 3) swap, no net change in
+  option count anywhere.
+- **Grep every existing test file** that references any of the 8 retired option ids
+  (`rend_efficient`, `sunder_efficient`, `sunder_lingering`, `guard_cleansing`, `guard_lasting`,
+  `wind_swift`, `stand_deeper`, `wild_truer`) BEFORE assuming the file list is complete — per the
+  Harvester rank-2 pass's own hard-won lesson, this reliably bites multiple test files.
 - **Tests**: regression for every kept/bumped baseline number (Guarded duration/magnitude/cleanse,
   Last Stand base bonus, Sundered base magnitude); one test per new/changed talent option exercising
   its behavior change (Salted Wound, Vicious Return, Twist the Knife, Vengeful Guard, Reckless

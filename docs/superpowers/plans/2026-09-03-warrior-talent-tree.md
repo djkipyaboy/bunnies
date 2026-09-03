@@ -29,10 +29,10 @@ the executable).
 - No new effect ids — every synergy check reads existing `&"bleed"`/`&"sundered"` state via
   `has_effect()`.
 - Round up (ceil) for any new damage/heal math, per project convention.
-- Before considering this plan done, grep the whole repo for all 7 retired option ids
-  (`sunder_efficient`, `sunder_lingering`, `guard_cleansing`, `guard_lasting`, `wind_swift`,
-  `stand_deeper`, `wild_truer`) — Task 8 does this explicitly, but if any earlier task's own grep
-  turns up an unexpected hit, fix it in that task rather than deferring it.
+- Before considering this plan done, grep the whole repo for all 8 retired option ids
+  (`rend_efficient`, `sunder_efficient`, `sunder_lingering`, `guard_cleansing`, `guard_lasting`,
+  `wind_swift`, `stand_deeper`, `wild_truer`) — Task 8 does this explicitly, but if any earlier
+  task's own grep turns up an unexpected hit, fix it in that task rather than deferring it.
 
 ---
 
@@ -951,11 +951,11 @@ git commit -m "feat(warrior): Wild row — Executioner's Wild (Bleed+Sundered sy
 - No production changes expected — this task is verification-only, with fixes applied inline if
   the sweep finds anything.
 
-- [ ] **Step 1: Grep for all 7 retired ids across the ENTIRE repo (not just `.gd` files — plan docs
+- [ ] **Step 1: Grep for all 8 retired ids across the ENTIRE repo (not just `.gd` files — plan docs
   and design bible files may also reference them for historical reasons, which is fine, but
   distinguish those from anything still LIVE in `combat/` or `tests/`)**
 
-Run: `grep -rn "sunder_efficient\|sunder_lingering\|guard_cleansing\|guard_lasting\|wind_swift\|stand_deeper\|wild_truer" combat/ tests/`
+Run: `grep -rn "rend_efficient\|sunder_efficient\|sunder_lingering\|guard_cleansing\|guard_lasting\|wind_swift\|stand_deeper\|wild_truer" combat/ tests/`
 Expected: zero hits. If anything turns up, fix it now (this exact failure mode — a stray reference
 surviving in an untouched test file — bit the Harvester rank-2 pass multiple times per
 `docs/superpowers/specs/2026-09-02-harvester-rank2-content-design.md`'s own retrospective).
