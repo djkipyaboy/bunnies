@@ -35,7 +35,7 @@ func _test_options_for_shape() -> void:
 		&"sunder_deeper", &"sunder_vicious_return", &"sunder_twist_knife",
 		&"guard_reinforced", &"guard_vengeful", &"guard_reckless",
 		&"wind_deeper", &"wind_empowering", &"wind_desperate_recovery",
-		&"stand_deeper", &"stand_wider", &"stand_guarded",
+		&"stand_vengeful", &"stand_wider", &"stand_guarded",
 		&"wild_truer", &"wild_bleeding", &"wild_lasting",
 	]
 	var seen: Array[StringName] = []
@@ -198,20 +198,14 @@ func _test_last_stand_row() -> void:
 	var c: Combatant = _mk_warrior()
 	c.passive_ability_id = &"last_stand"
 	c.max_hp = 100; c.hp = 30
-	_check(is_equal_approx(c.passive_outgoing_multiplier(), 1.2), "baseline Last Stand: +20% at 30% HP")
-
-	var c2: Combatant = _mk_warrior()
-	c2.passive_ability_id = &"last_stand"
-	c2.max_hp = 100; c2.hp = 30
-	_check(c2.pick_ability_talent(&"passive", &"stand_deeper"), "picks stand_deeper")
-	_check(is_equal_approx(c2.passive_outgoing_multiplier(), 1.3), "stand_deeper: +30%% at 30%% HP (got %.3f)" % c2.passive_outgoing_multiplier())
+	_check(is_equal_approx(c.passive_outgoing_multiplier(), 1.24), "baseline Last Stand: +24% at 30% HP")
 
 	var c3: Combatant = _mk_warrior()
 	c3.passive_ability_id = &"last_stand"
 	c3.max_hp = 100; c3.hp = 35
 	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.0), "sanity: 35% HP is above the baseline 30% threshold")
 	_check(c3.pick_ability_talent(&"passive", &"stand_wider"), "picks stand_wider")
-	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.2), "stand_wider: Last Stand now active at 35% HP too (widened to 40%)")
+	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.24), "stand_wider: Last Stand now active at 35% HP too (widened to 40%)")
 	c3.hp = 41
 	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.0), "stand_wider: still inactive just above the widened 40% threshold")
 

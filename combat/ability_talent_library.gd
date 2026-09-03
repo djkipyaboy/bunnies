@@ -69,9 +69,9 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [w1, w2, w3]
 				&"passive":
 					var p1: AbilityTalentOption = AbilityTalentOption.new()
-					p1.id = &"stand_deeper"; p1.row_id = row_id
-					p1.display_name = "Deeper Grit"
-					p1.description = "Last Stand's damage bonus increases to +30% (was +20%)."
+					p1.id = &"stand_vengeful"; p1.row_id = row_id
+					p1.display_name = "Vengeful Stand"
+					p1.description = "Last Stand's damage bonus also activates against any target that carries BOTH Bleed and Sundered, regardless of your own HP."
 					var p2: AbilityTalentOption = AbilityTalentOption.new()
 					p2.id = &"stand_wider"; p2.row_id = row_id
 					p2.display_name = "Wider Window"

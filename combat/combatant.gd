@@ -1230,8 +1230,10 @@ func passive_outgoing_multiplier(defender: Combatant = null) -> float:
 	match passive_ability_id:
 		&"last_stand":
 			var threshold: float = 0.40 if has_ability_talent(&"stand_wider") else 0.30
-			var bonus: float = 1.3 if has_ability_talent(&"stand_deeper") else 1.2
-			return bonus if (float(hp) / float(maxi(max_hp, 1))) <= threshold else 1.0
+			var bonus: float = 1.24
+			var self_triggered: bool = (float(hp) / float(maxi(max_hp, 1))) <= threshold
+			var vengeful_triggered: bool = has_ability_talent(&"stand_vengeful") and defender != null and defender.has_effect(&"bleed") and defender.has_effect(&"sundered")
+			return bonus if (self_triggered or vengeful_triggered) else 1.0
 		&"opportunist":
 			if defender == null:
 				return 1.0
