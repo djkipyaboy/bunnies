@@ -57,7 +57,7 @@ static func make(id: StringName) -> Effect:
 			return e
 		&"sundered":
 			var e: Effect = Effect.new()
-			e.id = &"sundered"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 1.25
+			e.id = &"sundered"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 1.30
 			e.affects_incoming = true; e.duration = 2; e.beneficial = false
 			return e
 		&"weakened":

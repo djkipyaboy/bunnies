@@ -14,6 +14,7 @@ func _init() -> void:
 	_check(sundered.kind == Effect.Kind.MULTIPLIER_EDIT and sundered.affects_incoming and not sundered.beneficial, "sundered: incoming debuff multiplier")
 	var guarded: Effect = EffectLibrary.make(&"guarded")
 	_check(guarded.kind == Effect.Kind.MULTIPLIER_EDIT and guarded.affects_incoming and guarded.beneficial, "guarded: incoming buff multiplier")
+	_check(is_equal_approx(sundered.magnitude, 1.30), "sundered: baseline incoming multiplier is 1.30 (got %.3f)" % sundered.magnitude)
 	var empowered: Effect = EffectLibrary.make(&"empowered")
 	_check(empowered.kind == Effect.Kind.MULTIPLIER_EDIT and not empowered.affects_incoming and empowered.beneficial, "empowered: outgoing buff multiplier")
 	var rooted: Effect = EffectLibrary.make(&"rooted")
