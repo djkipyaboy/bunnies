@@ -3420,7 +3420,21 @@ func _finish_spin() -> void:
 	# the splash is verified headlessly with a synthetic 3-enemy setup. [ASSUMPTION] splash = total/2,
 	# off the type chart for now (per-target type recompute is the same future N-vs-M refinement as Rampage).
 	if _attacker.is_collateral_active():
-		var splashed: Array[Combatant] = _splash_half_to_others(_attacker, _collateral_total, "Piercing", 0.5)
+		# Rank 2 (2026-09-04 ranger-rank2-content spec §7.1): splash fraction 0.5 -> 2/3, a
+		# deliberate callback to exactly what the now-retired collateral_deeper talent used to do,
+		# now automatic baseline growth instead of a pick.
+		var collateral_rank2: bool = _attacker.ability_talent_row_rank(&"ultimate") >= 2
+		var splash_fraction: float = (2.0 / 3.0) if collateral_rank2 else 0.5
+		var splashed: Array[Combatant] = _splash_half_to_others(_attacker, _collateral_total, "Piercing", splash_fraction)
+		# Rank 2 (spec §7.2): every splashed enemy also gets a stack of Weakened, unconditional and
+		# independent of the Marking Collateral talent below (both can apply to the same enemies).
+		if collateral_rank2:
+			for other: Combatant in splashed:
+				if other.is_alive():
+					other.attach_effect(EffectLibrary.make(&"weakened"))
+					_log("  🎯 Collateral Damage (rank 2): %s is also WEAKENED." % other.display_name)
+					if _panels.has(other):
+						(_panels[other] as CombatantPanel).refresh_status()
 		# Ranger "Marking Collateral" talent (Task 19): every enemy the splash actually hit also gets
 		# Hunter's Mark — reuses _splash_half_to_others()'s existing return value (already there for
 		# Earthquake's own force-stun follow-up below), so no extra enemy-iteration logic is needed.
