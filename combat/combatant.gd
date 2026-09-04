@@ -324,8 +324,8 @@ var hunters_mark_pending: bool = false
 ## Empowered with a bonus magnitude if the defender is already Marked (combat.gd, Task 23 wiring).
 var aimed_shot_pending: bool = false
 
-## Ranger "Piercing Aim" talent (Task 19) pending flag: set alongside aimed_shot_pending's own
-## commit-time attach when the aim_piercing talent is picked. Consumed the first time a reel
+## Ranger "Weakening Aim" talent pending flag: set alongside aimed_shot_pending's own
+## commit-time attach when the aim_weakening talent is picked. Consumed the first time a reel
 ## actually connects this same spin (combat.gd's _apply_attack()), which attaches a bonus stack of
 ## Weakened to the target and clears the flag — mirrors loaded_dice_pending's same-turn
 ## set-then-consume shape exactly.
@@ -880,9 +880,7 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 				_:
 					return 0
 		&"ranger":
-			match ability_id:
-				_:
-					return 0
+			return 0
 		&"warden":
 			match ability_id:
 				&"rallying_cry":

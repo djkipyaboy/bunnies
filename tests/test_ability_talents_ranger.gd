@@ -160,6 +160,42 @@ func _test_snare_trap_row() -> void:
 	_check(c5.pick_ability_talent(&"ability_l3", &"snare_wider"), "first pick on the Snare Trap row succeeds")
 	_check(not c5.pick_ability_talent(&"ability_l3", &"snare_marking"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
+## Focused Trap (final-review fix, 2026-09-04): proves the "guaranteed critical" promise actually
+## survives the Marked-defender reel-rebuild. Builds a Snare Trap reel exactly like try_snare_trap()
+## does, applies the SAME upgrade Focused Trap's fixed combat.gd code now uses (the shared
+## ActionReel.force_guaranteed_crit() helper — also used by Point Blank's identical block), then runs
+## it through Combatant.hunters_mark_reels() (simulating the Marked-defender reel-rebuild that
+## _do_spin() performs after Focused Trap's own upgrade, since Focused Trap's own precondition
+## REQUIRES the defender to already be Marked). Before the fix, hunters_mark_reels() would convert
+## CRIT_FAILURE faces and half the FAILURE faces back into plain SUCCESS (multiplier 1.0) — a
+## non-crit landing face — because the old code only upgraded SUCCESS faces, leaving
+## CRIT_FAILURE/FAILURE faces for hunters_mark_reels() to rebuild into non-crit hits.
+func _test_focused_trap_guaranteed_crit() -> void:
+	var c: Combatant = _mk_ranger()
+	var snare_reel: ActionReel = ActionReel.make_ability_attack(c.weapon_type(), &"rooted")
+	_check(snare_reel.faces.size() > 0, "sanity: Snare Trap reel has faces")
+	var non_crit_before: int = 0
+	for f: ReelFace in snare_reel.faces:
+		if f.result_tier != ReelFace.ResultTier.CRIT_SUCCESS:
+			non_crit_before += 1
+	_check(non_crit_before > 0, "sanity: a freshly-built Snare Trap reel has non-crit faces before any upgrade")
+
+	# Focused Trap's fixed upgrade: every face, unconditionally (matches Point Blank's block).
+	snare_reel.force_guaranteed_crit()
+	for f: ReelFace in snare_reel.faces:
+		_check(f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS, "force_guaranteed_crit: every face is CRIT_SUCCESS pre-rebuild")
+
+	# Simulate the Marked-defender reel-rebuild that runs later in _do_spin() (guaranteed to run,
+	# since Focused Trap's own precondition requires the defender to already be Marked).
+	var rebuilt: Array[ActionReel] = Combatant.hunters_mark_reels([snare_reel])
+	_check(rebuilt.size() == 1, "sanity: hunters_mark_reels() returns exactly 1 reel back")
+	var rebuilt_reel: ActionReel = rebuilt[0]
+	var non_crit_after: int = 0
+	for f: ReelFace in rebuilt_reel.faces:
+		if f.result_tier != ReelFace.ResultTier.CRIT_SUCCESS:
+			non_crit_after += 1
+	_check(non_crit_after == 0, "Focused Trap survives hunters_mark_reels(): zero non-crit faces remain (got %d)" % non_crit_after)
+
 func _test_crippling_shot_row() -> void:
 	var c: Combatant = _mk_ranger()
 	_check(c.ability_talent_cooldown_delta(&"crippling_shot") == 0, "no Crippling Shot cooldown delta with nothing picked")
@@ -267,6 +303,7 @@ func _init() -> void:
 	_test_hunters_mark_row()
 	_test_aimed_shot_row()
 	_test_snare_trap_row()
+	_test_focused_trap_guaranteed_crit()
 	_test_crippling_shot_row()
 	_test_steady_aim_row()
 	_test_collateral_row()

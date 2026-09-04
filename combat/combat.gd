@@ -2488,14 +2488,16 @@ func _commit_main1() -> void:
 	if did_extra != &"":
 		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(did_extra)])
 	# Ranger "Focused Trap" talent (2026-09-03 ranger-talent-tree spec §5.3): if Snare Trap was just
-	# staged this commit and the target is already Marked, its reel's SUCCESS faces are upgraded to
-	# guaranteed CRIT_SUCCESS (a miss can still happen; a HIT is now always a crit).
+	# staged this commit and the target is already Marked, its reel is upgraded to a GUARANTEED
+	# crit via ActionReel.force_guaranteed_crit() — every face becomes CRIT_SUCCESS, not just SUCCESS
+	# ones. (Combatant.hunters_mark_reels() runs later in _do_spin() whenever the defender is Marked
+	# — which this talent's own precondition guarantees — and it rebuilds CRIT_FAILURE/FAILURE faces
+	# back into plain SUCCESS; upgrading only SUCCESS faces here would leave some of those rebuilt
+	# faces as non-crit hits, breaking the "guaranteed critical" promise. Same helper as Point Blank
+	# below, so the two talents can never drift apart again.)
 	if did_extra == &"snare_trap" and _attacker.has_ability_talent(&"snare_focused") and _defender.has_effect(&"hunters_mark"):
 		var snare_reel: ActionReel = _attacker.turn_reels[_attacker.turn_reels.size() - 1]
-		for f: ReelFace in snare_reel.faces:
-			if f.result_tier == ReelFace.ResultTier.SUCCESS:
-				f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
-				f.multiplier = 2.0
+		snare_reel.force_guaranteed_crit()
 	if did_ultimate:
 		_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
 		if _attacker.ultimate_id == &"dark_reinforcements":
@@ -2511,9 +2513,7 @@ func _commit_main1() -> void:
 		# computed from this reel's own (now bigger) final_damage later in _finish_spin.
 		if _attacker.ultimate_id == &"collateral" and _attacker.has_ability_talent(&"collateral_point_blank") and _defender.has_effect(&"hunters_mark"):
 			var collateral_reel: ActionReel = _attacker.turn_reels[_attacker.turn_reels.size() - 1]
-			for f: ReelFace in collateral_reel.faces:
-				f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
-				f.multiplier = 2.0
+			collateral_reel.force_guaranteed_crit()
 	if _attacker.hp > hp_before:
 		_log("  ✚ %s heals %d HP (%d/%d)." % [_attacker.display_name, _attacker.hp - hp_before, _attacker.hp, _attacker.max_hp])
 	# Immediate status/resource refresh (playtest 2026-07-04): self-cast buffs with no pending-flag
@@ -2529,9 +2529,12 @@ func _commit_main1() -> void:
 	# downstream crit-fail→hit swap in _do_spin is side-agnostic, so an enemy's mark helps every enemy.
 	if _attacker.hunters_mark_pending:
 		var mark: Effect = EffectLibrary.make(&"hunters_mark")
-		# Ranger Ability Talents (Task 19): Deeper Mark (duration) / Weakening Mark (bonus Weakened) —
-		# mirrors Warrior's Bleeding Wild precedent (Task 15) of calling apply_rider_talent_adjustments()
-		# directly at a bespoke manual-attach site, not only the one generic shared rider-attach site.
+		# Ranger Hunter's Mark row talent (2026-09-03 ranger-talent-tree spec §3): Rooting Mark also
+		# attaches Rooted alongside the mark itself (see apply_rider_talent_adjustments()'s &"ranger"
+		# case) — mirrors Warrior's Bleeding Wild precedent (Task 15) of calling
+		# apply_rider_talent_adjustments() directly at a bespoke manual-attach site, not only the one
+		# generic shared rider-attach site. (Marksman's Call / Marksman's Mark are separate Hunter's
+		# Mark-row options handled elsewhere, not here.)
 		_attacker.apply_rider_talent_adjustments(&"hunters_mark", mark, _defender)
 		_defender.attach_effect(mark)
 		_attacker.hunters_mark_pending = false
@@ -2947,7 +2950,7 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				if sunder_def != null:
 					_attacker.resource_pool.refund({&"stamina": sunder_def.cost})
 					_log("  ♻ %s's Vicious Return refunds %d Stamina." % [_attacker.display_name, sunder_def.cost])
-			# Ranger "Piercing Aim" talent (Task 19): the first reel that actually connects this spin
+			# Ranger "Weakening Aim" talent: the first reel that actually connects this spin
 			# (while Aimed Shot's bonus is pending from this same turn's cast) also lashes the target
 			# with a bonus stack of Weakened. Consumed once (aimed_shot_hit_pending cleared here) so a
 			# 4-reel spin doesn't re-log the same debuff attach on every subsequent connecting reel.
@@ -2955,14 +2958,14 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				var piercing_weak: Effect = EffectLibrary.make(&"weakened")
 				t.attach_effect(piercing_weak)
 				_attacker.aimed_shot_hit_pending = false
-				_log("  🏹 Piercing Aim: %s is WEAKENED." % t.display_name)
+				_log("  🏹 Weakening Aim: %s is WEAKENED." % t.display_name)
 				if _panels.has(t):
 					(_panels[t] as CombatantPanel).refresh_status()
 			# Ranger "Rooting Aim" talent (2026-09-03 ranger-talent-tree spec §4.1): mirrors the
 			# Weakening Aim block immediately above exactly, but attaches Rooted instead.
 			if _attacker.aimed_shot_root_pending and attack.final_damage > 0:
-				var piercing_root: Effect = EffectLibrary.make(&"rooted")
-				t.attach_effect(piercing_root)
+				var root_effect: Effect = EffectLibrary.make(&"rooted")
+				t.attach_effect(root_effect)
 				_attacker.aimed_shot_root_pending = false
 				_log("  🏹 Rooting Aim: %s is ROOTED." % t.display_name)
 				if _panels.has(t):
@@ -3301,6 +3304,8 @@ func _fire_marksmans_call(ranger: Combatant, target: Combatant) -> void:
 		_log("  🏹 %s's MARKSMAN'S CALL adds a bow shot on %s for %d damage.  %s" % [ranger.display_name, target.display_name, attack.final_damage, TypeVisuals.effectiveness_tag(mult)])
 	if ranger.bonus_meter != null and attack.charges_meter:
 		ranger.bonus_meter.charge(attack.face.result_tier)
+		if _panels.has(ranger):
+			(_panels[ranger] as CombatantPanel).refresh_resources()
 	if _panels.has(target):
 		(_panels[target] as CombatantPanel).refresh_status()
 

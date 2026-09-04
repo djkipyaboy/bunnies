@@ -119,6 +119,18 @@ static func make_ability_attack(type: DamageType, rider_id: StringName = &"", bo
 	reel.faces.shuffle()
 	return reel
 
+## Upgrades every face on this reel to a guaranteed CRIT_SUCCESS (multiplier 2.0), unconditionally
+## — used by "guaranteed crit on this reel" talents (Ranger Focused Trap on Snare Trap, Ranger Point
+## Blank on Collateral Damage). Deliberately upgrades ALL tiers, not just SUCCESS: whenever the
+## defender is already Marked (both talents require this as their own precondition), Combatant.
+## hunters_mark_reels() runs later in the spin and rebuilds CRIT_FAILURE/FAILURE faces back into
+## plain SUCCESS — upgrading only SUCCESS faces here would leave some of those rebuilt faces as
+## non-crit hits, breaking the "guaranteed critical" promise.
+func force_guaranteed_crit() -> void:
+	for f: ReelFace in faces:
+		f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
+		f.multiplier = 2.0
+
 ## Chancer "Double or Nothing" (L9) wild gambler's reel (playtest 2026-07-04, player-specified exact
 ## distribution): a genuine ALL-OR-NOTHING reel — no FAILURE or NEUTRAL faces at all. Scaled 5x
 ## (2026-08-13 accuracy-stat spec §2) to a 100-face strip (not 20) for consistency with every other
