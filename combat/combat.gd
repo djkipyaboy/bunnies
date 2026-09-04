@@ -2556,11 +2556,18 @@ func _commit_main1() -> void:
 		var target_marked: bool = _defender.has_effect(&"hunters_mark")
 		var e: Effect = EffectLibrary.make(&"empowered")
 		var base_magnitude: float = 1.6 if target_marked else 1.3
-		# Rank 2 (2026-09-04 ranger-rank2-content spec §3.1): recasting while the Ranger's OWN
-		# Empowered buff is still active STACKS the magnitude (+0.10/stack) instead of just
-		# refreshing it. has_effect(&"empowered") at cast time doubles as "is a stack still live" —
-		# an expired buff naturally resets aimed_shot_stacks to 0 here. Capped at 2 additional
-		# stacks (base cast + 2 = 3 total applications).
+		# Rank 2 (2026-09-04 ranger-rank2-content spec §3.1): recasting while an Empowered buff is
+		# still active STACKS the magnitude (+0.10/stack) instead of just refreshing it.
+		# has_effect(&"empowered") at cast time doubles as "is a stack still live" — an expired buff
+		# naturally resets aimed_shot_stacks to 0 here. Capped at 2 additional stacks (base cast + 2 =
+		# 3 total applications). NOTE: &"empowered" is a generic, cross-class-shared buff id (Harvester
+		# Hasty minion, Warden wind_empowering, Skirmisher sticky_deeper, boss phases all attach it
+		# too) — this check cannot distinguish "the Ranger's own prior Aimed Shot" from "any other
+		# source's Empowered happens to be active right now," so a rank-2 Ranger fighting alongside an
+		# ally whose buff attaches Empowered can get a free stack on their FIRST cast of a fight, not
+		# just a genuine recast. Accepted as a known [ASSUMPTION]-tier balance quirk (final whole-
+		# branch review, 2026-09-04) rather than adding new per-caster tracking state this late —
+		# flag for playtest with a Ranger+Harvester party present.
 		if _attacker.ability_talent_row_rank(&"ability_l2") >= 2 and _attacker.has_effect(&"empowered"):
 			_attacker.aimed_shot_stacks = mini(_attacker.aimed_shot_stacks + 1, 2)
 		else:
@@ -2925,8 +2932,9 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 						_log("  🎯 Marked for the Kill adds %d more bonus damage." % marked_bonus)
 			# Ranger "Deadeye" talent (2026-09-03 ranger-talent-tree spec §7.3): any CRIT_SUCCESS
 			# face landed against a Marked defender deals a further bonus, ON TOP of Steady Aim's
-			# own unchanged +10%-vs-Marked baseline multiplier (already folded into attack.final_damage
-			# via outgoing_damage_multiplier before this function ever runs).
+			# own +10% (or +20% amplified, level 9+, 2026-09-04 ranger-rank2-content spec §6.1)
+			# vs-Marked baseline multiplier (already folded into attack.final_damage via
+			# outgoing_damage_multiplier before this function ever runs).
 			if _attacker.class_id == &"ranger" and _attacker.has_ability_talent(&"steady_deadeye") and attack.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS and t.has_effect(&"hunters_mark") and attack.final_damage > 0:
 				var deadeye_bonus: int = ceili(attack.final_damage * 0.15)
 				t.take_damage(deadeye_bonus)
@@ -3275,8 +3283,10 @@ func _on_boss_phase_minion_defeated(c: Combatant) -> void:
 ## type chart (flat fraction) — the deferred N-vs-M per-target-type simplification. Returns the enemies
 ## actually damaged (for Earthquake's follow-up force-stun, and now Ranger's Marking Collateral talent).
 ## Shared by Ranger Collateral and Warden Earthquake — [param fraction] defaults to 0.5 (the original,
-## unchanged behavior), so Earthquake's own call site needs no edit; only Ranger's "Deeper Collateral"
-## talent (Task 19) ever passes a non-default value. 1v1 → no-op.
+## unchanged behavior), so Earthquake's own call site needs no edit; a non-default value is passed by
+## Ranger Collateral's own rank-2 baseline (2026-09-04 ranger-rank2-content spec §7.1, 0.5 -> 2/3 at
+## level 10 — the now-retired "Deeper Collateral" talent used to pass this same 2/3 value) and by
+## Warden's "Deeper Quake" talent (Task 21, see its own call site below). 1v1 → no-op.
 func _splash_half_to_others(attacker: Combatant, total: int, type_label: String, fraction: float = 0.5) -> Array[Combatant]:
 	var damaged: Array[Combatant] = []
 	var base_splash: int = ceili(total * fraction)
@@ -3478,8 +3488,8 @@ func _finish_spin() -> void:
 	# turn). "Successful attack" = the spin dealt that enemy > 0 damage.
 	if _attacker.is_earthquake_active():
 		# Warden "Deeper Quake" talent (Task 21): the splash fraction of the primary total rises from
-		# 1/2 to 2/3, reusing _splash_half_to_others()'s optional fraction param (added by Ranger's
-		# Deeper Collateral, Task 19) directly — no second parameter invented.
+		# 1/2 to 2/3, reusing _splash_half_to_others()'s optional fraction param (originally added for
+		# Ranger's now-retired "Deeper Collateral" talent, Task 19) directly — no second parameter invented.
 		var earthquake_fraction: float = (2.0 / 3.0) if _attacker.has_ability_talent(&"quake_deeper") else 0.5
 		var quaked: Array[Combatant] = _splash_half_to_others(_attacker, _earthquake_total, "Earth", earthquake_fraction)
 		# Warden "Rooting Quake" talent (Task 21): every enemy Earthquake actually hit (primary +
