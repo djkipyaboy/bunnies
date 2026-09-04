@@ -3101,6 +3101,13 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 	# but is a different class_id.
 	if _attacker.class_id == &"ranger" and attack.rider_effect_id == &"rooted" and attack.final_damage > 0:
 		for t: Combatant in targets:
+			# Rank 2 (2026-09-04 ranger-rank2-content spec §4.1): the PRIMARY target also gets
+			# stunned next turn (force_stun_next_turn, the same mechanism Warden's Earthquake uses),
+			# stacked on top of the existing 2-turn Rooted. Splash targets (the loop below) are
+			# unaffected.
+			if _attacker.ability_talent_row_rank(&"ability_l3") >= 2:
+				t.force_stun_next_turn = true
+				_log("  🪤 Snare Trap (rank 2) → %s is STUNNED next turn (initiative unchanged)." % t.display_name)
 			# Hunter "Marking Snare" talent (§5.2): auto-applies Hunter's Mark to the PRIMARY
 			# target only (does not apply to splash targets below).
 			if _attacker.has_ability_talent(&"snare_marking"):
