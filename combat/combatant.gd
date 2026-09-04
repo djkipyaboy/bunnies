@@ -881,8 +881,6 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 					return 0
 		&"ranger":
 			match ability_id:
-				&"snare_trap":
-					return -1 if has_ability_talent(&"snare_efficient") else 0
 				_:
 					return 0
 		&"warden":
