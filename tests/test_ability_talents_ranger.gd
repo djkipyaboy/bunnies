@@ -44,7 +44,7 @@ func _test_options_for_shape() -> void:
 		&"mark_rooting", &"mark_marksmans_call", &"mark_marksman",
 		&"aim_rooting", &"aim_weakening", &"aim_practiced",
 		&"snare_wider", &"snare_marking", &"snare_focused",
-		&"crippling_deeper", &"crippling_lasting", &"crippling_swift",
+		&"crippling_swift", &"crippling_lasting", &"crippling_marked",
 		&"steady_deeper", &"steady_wider", &"steady_charging",
 		&"collateral_deeper", &"collateral_marking", &"collateral_lasting",
 	]
@@ -173,13 +173,13 @@ func _test_crippling_shot_row() -> void:
 	c2.apply_rider_talent_adjustments(&"weakened", weakened, c2)
 	_check(weakened.duration == 3, "crippling_lasting: Weakened lasts 3 turns (got %d)" % weakened.duration)
 
-	# Deeper Crippling's actual +65%-instead-of-+50% CC-exploit bonus lives in combat.gd's
-	# _apply_attack() — it bumps an EXISTING inline bonus_vs_cc calculation, not a new separate hit,
-	# so it's checked directly there rather than through rider_talent_bonus_damage_pct() (see this
+	# Marked for the Kill's actual ADDITIONAL +25%-if-also-Marked bonus lives in combat.gd's
+	# _apply_attack() — it stacks on top of the EXISTING bonus_vs_cc inline calculation, not a new
+	# separate hit, so it's checked directly there rather than through a generic hook (see this
 	# task's Implementation notes). Orchestrator-level, NOT headlessly tested here.
 	var c3: Combatant = _mk_ranger()
-	_check(c3.pick_ability_talent(&"ability_l4", &"crippling_deeper"), "picks crippling_deeper")
-	_check(c3.has_ability_talent(&"crippling_deeper"), "has_ability_talent sees crippling_deeper")
+	_check(c3.pick_ability_talent(&"ability_l4", &"crippling_marked"), "picks crippling_marked")
+	_check(c3.has_ability_talent(&"crippling_marked"), "has_ability_talent sees crippling_marked")
 	_check(c3.try_crippling_shot(c3.weapon_type(), 5, 6), "casts Crippling Shot (sanity: unaffected structurally by talents)")
 
 func _test_steady_aim_row() -> void:

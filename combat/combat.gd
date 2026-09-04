@@ -2878,14 +2878,16 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				# their stunned turn ends until their own NEXT on_end, which is exactly the window a
 				# called shot like this should be able to exploit.
 				if t.has_effect(&"slow") or t.has_effect(&"rooted") or t.stunned_last_turn:
-					# Ranger "Deeper Crippling" talent (Task 19): bumps this EXISTING bonus from 50% to
-					# 65% — modifying an existing bonus rather than adding a new one, so this is a direct
-					# inline check rather than the generic rider_talent_bonus_damage_pct hook (Deeper
-					# Snare uses that hook instead, for the opposite reason: it adds a NEW bonus hit).
-					var cc_bonus_pct: float = 0.65 if _attacker.has_ability_talent(&"crippling_deeper") else 0.5
-					var bonus: int = ceili(attack.final_damage * cc_bonus_pct)
+					var bonus: int = ceili(attack.final_damage * 0.5)
 					t.take_damage(bonus)
 					_log("  🎯 Crippling Shot exploits %s's condition for %d bonus damage." % [t.display_name, bonus])
+					# Ranger "Marked for the Kill" talent (2026-09-03 ranger-talent-tree spec §6.3):
+					# an ADDITIONAL bonus if the target is ALSO Marked at the same moment — stacks
+					# with, does not replace, the CC-exploit bonus above.
+					if _attacker.has_ability_talent(&"crippling_marked") and t.has_effect(&"hunters_mark"):
+						var marked_bonus: int = ceili(attack.final_damage * 0.25)
+						t.take_damage(marked_bonus)
+						_log("  🎯 Marked for the Kill adds %d more bonus damage." % marked_bonus)
 			# Ranger "Marksman's Mark" talent (2026-09-03 ranger-talent-tree spec §3.3): the
 			# Ranger's OWN hits against a Marked target deal additional bonus damage. This is
 			# _attacker's own turn here — Marksman's Call's separately-resolved bonus reel never

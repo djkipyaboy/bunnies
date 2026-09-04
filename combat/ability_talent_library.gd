@@ -407,9 +407,9 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [s1, s2, s3]
 				&"ability_l4":
 					var c1: AbilityTalentOption = AbilityTalentOption.new()
-					c1.id = &"crippling_deeper"; c1.row_id = row_id
-					c1.display_name = "Deeper Crippling"
-					c1.description = "Crippling Shot's CC-exploit bonus rises to +65% (was +50%)."
+					c1.id = &"crippling_marked"; c1.row_id = row_id
+					c1.display_name = "Marked for the Kill"
+					c1.description = "Crippling Shot's CC-exploit bonus gets an additional +25% if the target is also Marked."
 					var c2: AbilityTalentOption = AbilityTalentOption.new()
 					c2.id = &"crippling_lasting"; c2.row_id = row_id
 					c2.display_name = "Lasting Crippling"
