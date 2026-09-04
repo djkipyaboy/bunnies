@@ -2504,6 +2504,16 @@ func _commit_main1() -> void:
 			var r2: Combatant = _spawn_enemy_mid_combat(&"warden_acolyte_lesser_curser")
 			_attacker.boss_reinforcement_ids.append_array([r1, r2])
 			_log("  ☾ Dark Reinforcements — 2 acolytes join the fight!")
+		# Ranger "Point Blank" talent (2026-09-03 ranger-talent-tree spec §8.3): if the primary
+		# target is already Marked when Collateral Damage resolves, its primary-target reel (the
+		# last reel fire_collateral() appended) is upgraded to a GUARANTEED crit — every face
+		# becomes CRIT_SUCCESS. Splash damage/logic to other enemies is untouched; it's simply
+		# computed from this reel's own (now bigger) final_damage later in _finish_spin.
+		if _attacker.ultimate_id == &"collateral" and _attacker.has_ability_talent(&"collateral_point_blank") and _defender.has_effect(&"hunters_mark"):
+			var collateral_reel: ActionReel = _attacker.turn_reels[_attacker.turn_reels.size() - 1]
+			for f: ReelFace in collateral_reel.faces:
+				f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
+				f.multiplier = 2.0
 	if _attacker.hp > hp_before:
 		_log("  ✚ %s heals %d HP (%d/%d)." % [_attacker.display_name, _attacker.hp - hp_before, _attacker.hp, _attacker.max_hp])
 	# Immediate status/resource refresh (playtest 2026-07-04): self-cast buffs with no pending-flag
@@ -3343,11 +3353,7 @@ func _finish_spin() -> void:
 	# the splash is verified headlessly with a synthetic 3-enemy setup. [ASSUMPTION] splash = total/2,
 	# off the type chart for now (per-target type recompute is the same future N-vs-M refinement as Rampage).
 	if _attacker.is_collateral_active():
-		# Ranger "Deeper Collateral" talent (Task 19): the splash fraction of the primary total rises
-		# from 1/2 to 2/3. _splash_half_to_others()'s new optional fraction param defaults to 0.5, so
-		# Warden's Earthquake call site below is completely unaffected.
-		var collateral_fraction: float = (2.0 / 3.0) if _attacker.has_ability_talent(&"collateral_deeper") else 0.5
-		var splashed: Array[Combatant] = _splash_half_to_others(_attacker, _collateral_total, "Piercing", collateral_fraction)
+		var splashed: Array[Combatant] = _splash_half_to_others(_attacker, _collateral_total, "Piercing", 0.5)
 		# Ranger "Marking Collateral" talent (Task 19): every enemy the splash actually hit also gets
 		# Hunter's Mark — reuses _splash_half_to_others()'s existing return value (already there for
 		# Earthquake's own force-stun follow-up below), so no extra enemy-iteration logic is needed.

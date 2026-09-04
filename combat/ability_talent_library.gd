@@ -435,9 +435,9 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [p1, p2, p3]
 				&"ultimate":
 					var u1: AbilityTalentOption = AbilityTalentOption.new()
-					u1.id = &"collateral_deeper"; u1.row_id = row_id
-					u1.display_name = "Deeper Collateral"
-					u1.description = "Collateral Damage's splash fraction rises to 2/3 of the primary total (was 1/2)."
+					u1.id = &"collateral_point_blank"; u1.row_id = row_id
+					u1.display_name = "Point Blank"
+					u1.description = "If the primary target is already Marked, Collateral Damage's primary hit is a guaranteed critical."
 					var u2: AbilityTalentOption = AbilityTalentOption.new()
 					u2.id = &"collateral_marking"; u2.row_id = row_id
 					u2.display_name = "Marking Collateral"

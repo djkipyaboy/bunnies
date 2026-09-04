@@ -46,7 +46,7 @@ func _test_options_for_shape() -> void:
 		&"snare_wider", &"snare_marking", &"snare_focused",
 		&"crippling_swift", &"crippling_lasting", &"crippling_marked",
 		&"steady_controlled", &"steady_wider", &"steady_deadeye",
-		&"collateral_deeper", &"collateral_marking", &"collateral_lasting",
+		&"collateral_lasting", &"collateral_marking", &"collateral_point_blank",
 	]
 	var seen: Array[StringName] = []
 	for row: StringName in rows:
@@ -218,14 +218,13 @@ func _test_steady_aim_row() -> void:
 	_check(not c4.pick_ability_talent(&"passive", &"steady_controlled"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
 func _test_collateral_row() -> void:
-	# Deeper Collateral's splash-fraction formula (proof of the math, mirroring
-	# tests/test_collateral.gd's own convention of replicating the orchestrator's formula directly,
-	# since _splash_half_to_others() is a private Combat-scene method with no live scene here).
-	_check(ceili(20 * 0.5) == 10, "sanity: baseline (1/2) splash of 20 is 10")
-	_check(ceili(20 * (2.0 / 3.0)) == 14, "collateral_deeper: 2/3 splash of 20 is 14, rounded up (got %d)" % ceili(20 * (2.0 / 3.0)))
+	# Point Blank's actual guaranteed-crit face upgrade (only when the primary target is already
+	# Marked) lives in combat.gd's _commit_main1(), right after fire_collateral() appends its reel —
+	# orchestrator-level (needs _defender), NOT headlessly tested here (see this file's header
+	# comment).
 	var c: Combatant = _mk_ranger()
-	_check(c.pick_ability_talent(&"ultimate", &"collateral_deeper"), "picks collateral_deeper")
-	_check(c.has_ability_talent(&"collateral_deeper"), "has_ability_talent sees collateral_deeper")
+	_check(c.pick_ability_talent(&"ultimate", &"collateral_point_blank"), "picks collateral_point_blank")
+	_check(c.has_ability_talent(&"collateral_point_blank"), "has_ability_talent sees collateral_point_blank")
 
 	# Marking Collateral: manually simulates the exact splash+mark loop combat.gd's _finish_spin()
 	# performs (mirroring test_collateral.gd's own synthetic-3-enemy manual-simulation technique,
@@ -260,7 +259,7 @@ func _test_collateral_row() -> void:
 
 	# Mutual exclusion (ultimate row): only 1 pick per row.
 	var c5: Combatant = _mk_ranger()
-	_check(c5.pick_ability_talent(&"ultimate", &"collateral_deeper"), "first pick on the Collateral Damage row succeeds")
+	_check(c5.pick_ability_talent(&"ultimate", &"collateral_point_blank"), "first pick on the Collateral Damage row succeeds")
 	_check(not c5.pick_ability_talent(&"ultimate", &"collateral_marking"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
 func _init() -> void:
