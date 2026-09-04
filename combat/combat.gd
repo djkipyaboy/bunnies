@@ -3220,6 +3220,24 @@ func _on_paylines_resolved(hits: Array) -> void:
 					_gain_jackpot_logged(PartyInventory.JACKPOT_PER_UTIL_PAYLINE)
 		_highlight_payline(hit)
 
+## Ranger "Marksman's Call" talent (2026-09-03 ranger-talent-tree spec §3.2): resolves one
+## independent bonus weapon-attack reel with [param ranger] as the effective attacker (their own
+## outgoing multipliers/passive/talents apply, exactly like one of the Ranger's own action reels),
+## damaging [param target]. NOT spliced into anyone's turn_reels — a same-moment follow-up shot,
+## resolved and applied immediately, with no strip animation (no running spin to attach one to).
+func _fire_marksmans_call(ranger: Combatant, target: Combatant) -> void:
+	var reel: ActionReel = ActionReel.make_ability_attack(ranger.weapon_type())
+	var dmg_mult: float = ranger.outgoing_damage_multiplier(target) * target.incoming_damage_multiplier()
+	var attack: CombatResolver.AttackResult = _resolver.resolve_single_reel(reel, ranger.weapon_effective_base_damage(), target.defense_type, ranger.might_damage_bonus_per_reel(1), dmg_mult)
+	if attack.final_damage > 0:
+		target.take_damage(attack.final_damage)
+		var mult: float = reel.damage_type.multiplier_against(target.defense_type) if reel.damage_type != null else 1.0
+		_log("  🏹 %s's MARKSMAN'S CALL adds a bow shot on %s for %d damage.  %s" % [ranger.display_name, target.display_name, attack.final_damage, TypeVisuals.effectiveness_tag(mult)])
+	if ranger.bonus_meter != null and attack.charges_meter:
+		ranger.bonus_meter.charge(attack.face.result_tier)
+	if _panels.has(target):
+		(_panels[target] as CombatantPanel).refresh_status()
+
 ## All combatants on the same side as [param c] (its allies, including itself).
 func _allies_of(c: Combatant) -> Array[Combatant]:
 	var out: Array[Combatant] = []
@@ -3255,6 +3273,15 @@ func _append_banner(tag: String) -> void:
 	_payline_banner.text = ("Lines: " + tag) if _payline_banner.text == "" else (_payline_banner.text + "  •  " + tag)
 
 func _finish_spin() -> void:
+	# Ranger "Marksman's Call" talent (2026-09-03 ranger-talent-tree spec §3.2): this runs once per
+	# spin/turn (not per reel), which naturally satisfies "once per ally-turn" with no extra
+	# bookkeeping. If this turn's attacker is an ALLY of a Marksman's-Call Ranger (not the Ranger's
+	# own turn) and the defender is still alive and Hunter's-Marked, the Ranger fires one
+	# independent bonus reel at the same target.
+	if _defender != null and _defender.is_alive() and _defender.has_effect(&"hunters_mark"):
+		for ally: Combatant in _allies_of(_attacker):
+			if ally != _attacker and ally.class_id == &"ranger" and ally.is_alive() and ally.has_ability_talent(&"mark_marksmans_call"):
+				_fire_marksmans_call(ally, _defender)
 	# Collateral Damage (Ranger Ultimate): the primary took full damage from each reel; now splash half
 	# its total (ceil) to every OTHER enemy as Piercing (spec §3.4). 1v1 has no other enemies → no-op;
 	# the splash is verified headlessly with a synthetic 3-enemy setup. [ASSUMPTION] splash = total/2,

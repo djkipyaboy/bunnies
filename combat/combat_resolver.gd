@@ -142,6 +142,15 @@ func _resolve_single(reel: ActionReel, base_damage: float, target_type: DamageTy
 func reresolve_reel(reel: ActionReel, base_damage: float, target_type: DamageType, flat_damage_bonus: int = 0) -> AttackResult:
 	return _resolve_single(reel, base_damage, target_type, false, flat_damage_bonus, 1.0)
 
+## Resolves ONE reel into a fresh AttackResult with a normal (non-wild) weighted spin AND the
+## given [param damage_multiplier] applied (unlike [method reresolve_reel], which hardcodes 1.0
+## for the Chancer reroll/gamble paths, which apply their own separate multiplier afterward).
+## Used by Ranger "Marksman's Call" (2026-09-03 ranger-talent-tree spec §3.2), which needs the
+## Ranger's own full outgoing/incoming multiplier product baked in, exactly like a normal
+## weapon-attack reel.
+func resolve_single_reel(reel: ActionReel, base_damage: float, target_type: DamageType, flat_damage_bonus: int = 0, damage_multiplier: float = 1.0) -> AttackResult:
+	return _resolve_single(reel, base_damage, target_type, false, flat_damage_bonus, damage_multiplier)
+
 ## Rebuilds last_grid from the given attacks' landed indices and returns the payline hits (does not emit).
 ## Lets the orchestrator re-score paylines after swapping a reel's result (the reroll path).
 func evaluate_paylines(reels: Array[ActionReel], attacks: Array[AttackResult], weapon_reel_count: int, extra_lines: Array = []) -> Array:
