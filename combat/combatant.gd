@@ -1254,7 +1254,9 @@ func passive_outgoing_multiplier(defender: Combatant = null) -> float:
 				triggered = triggered or defender.has_effect(&"rooted") or defender.has_effect(&"slow") or defender.stunned_last_turn
 			if not triggered:
 				return 1.0
-			return 1.10
+			# Amplified (level 9+, 2026-09-04 ranger-rank2-content spec §6.1): +10% -> +20%. The
+			# trigger-widening talents above are unaffected — they only decide WHETHER this fires.
+			return 1.20 if ability_talent_row_rank(&"passive") >= 2 else 1.10
 		_:
 			return 1.0
 

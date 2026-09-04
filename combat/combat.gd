@@ -3355,6 +3355,15 @@ func _fire_marksmans_call(ranger: Combatant, target: Combatant) -> void:
 		target.take_damage(attack.final_damage)
 		var mult: float = reel.damage_type.multiplier_against(target.defense_type) if reel.damage_type != null else 1.0
 		_log("  🏹 %s's MARKSMAN'S CALL adds a bow shot on %s for %d damage.  %s" % [ranger.display_name, target.display_name, attack.final_damage, TypeVisuals.effectiveness_tag(mult)])
+		# Steady Aim amplified (2026-09-04 ranger-rank2-content spec §6.2): bridges Deadeye's own
+		# +15%-on-crit-vs-Marked bonus (see _apply_attack()'s own Deadeye block) onto Marksman's
+		# Call's independently-resolved reel — a gap the talent-tree rework's final review flagged
+		# as a playtest note. Below level 9, or without Deadeye picked, the gap remains exactly as
+		# documented — intentionally gated to the amplified rank, not made permanently on.
+		if ranger.ability_talent_row_rank(&"passive") >= 2 and ranger.has_ability_talent(&"steady_deadeye") and attack.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS and attack.final_damage > 0:
+			var deadeye_bonus: int = ceili(attack.final_damage * 0.15)
+			target.take_damage(deadeye_bonus)
+			_log("  🎯 %s's Deadeye adds %d bonus damage to Marksman's Call." % [ranger.display_name, deadeye_bonus])
 	if ranger.bonus_meter != null and attack.charges_meter:
 		ranger.bonus_meter.charge(attack.face.result_tier)
 		if _panels.has(ranger):
