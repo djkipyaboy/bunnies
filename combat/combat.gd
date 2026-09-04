@@ -2487,6 +2487,15 @@ func _commit_main1() -> void:
 		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(_attacker.ability_id)])
 	if did_extra != &"":
 		_log("  ⮞ %s uses %s." % [_attacker.display_name, _ability_name(did_extra)])
+	# Ranger "Focused Trap" talent (2026-09-03 ranger-talent-tree spec §5.3): if Snare Trap was just
+	# staged this commit and the target is already Marked, its reel's SUCCESS faces are upgraded to
+	# guaranteed CRIT_SUCCESS (a miss can still happen; a HIT is now always a crit).
+	if did_extra == &"snare_trap" and _attacker.has_ability_talent(&"snare_focused") and _defender.has_effect(&"hunters_mark"):
+		var snare_reel: ActionReel = _attacker.turn_reels[_attacker.turn_reels.size() - 1]
+		for f: ReelFace in snare_reel.faces:
+			if f.result_tier == ReelFace.ResultTier.SUCCESS:
+				f.result_tier = ReelFace.ResultTier.CRIT_SUCCESS
+				f.multiplier = 2.0
 	if did_ultimate:
 		_log("  ★ %s fires ULTIMATE — %s!" % [_attacker.display_name, _ultimate_name(_attacker.ultimate_id)])
 		if _attacker.ultimate_id == &"dark_reinforcements":
@@ -3037,6 +3046,33 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				# Sync the panel name label's "(init N)" to the new current_initiative after the rider.
 				(_panels[t] as CombatantPanel).refresh_initiative()
 		_turn_order_bar.set_order(_turn_manager.get_turn_order())
+
+	# Ranger "Snare Trap" additions (2026-09-03 ranger-talent-tree spec §2.2/§5): identified by
+	# class_id + the rooted rider — Crippling Shot's own reel carries &"weakened", never &"rooted",
+	# so no cross-ability collision within Ranger's kit; Warden's Entangle also carries &"rooted"
+	# but is a different class_id.
+	if _attacker.class_id == &"ranger" and attack.rider_effect_id == &"rooted" and attack.final_damage > 0:
+		for t: Combatant in targets:
+			# Hunter "Marking Snare" talent (§5.2): auto-applies Hunter's Mark to the PRIMARY
+			# target only (does not apply to splash targets below).
+			if _attacker.has_ability_talent(&"snare_marking"):
+				t.attach_effect(EffectLibrary.make(&"hunters_mark"))
+				_log("  ⊕ Marking Snare: %s is also MARKED." % t.display_name)
+				if _panels.has(t):
+					(_panels[t] as CombatantPanel).refresh_status()
+		# Baseline AoE splash (§2.2): half damage + a shorter Rooted to every OTHER enemy.
+		var splashed: Array[Combatant] = _splash_half_to_others(_attacker, attack.final_damage, _type_name(attack.damage_type), 0.5)
+		# Control "Wider Snare" talent (§5.1): splash Rooted matches the primary's full 2-turn
+		# duration instead of the shorter 1-turn splash duration.
+		var splash_rooted_duration: int = 2 if _attacker.has_ability_talent(&"snare_wider") else 1
+		for other: Combatant in splashed:
+			if other.is_alive():
+				var splash_rooted: Effect = EffectLibrary.make(&"rooted")
+				splash_rooted.duration = splash_rooted_duration
+				other.attach_effect(splash_rooted)
+				_log("  🪤 Snare Trap's splash ROOTS %s (%d turns)." % [other.display_name, splash_rooted.duration])
+				if _panels.has(other):
+					(_panels[other] as CombatantPanel).refresh_status()
 
 	# Chancer "Double or Nothing" (L9) post-spin bookkeeping: tallied per-reel here, applied/cleared
 	# once the whole spin has resolved (below) — a crit-fail recoils as self-damage, any other non-fail

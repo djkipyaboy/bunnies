@@ -43,7 +43,7 @@ func _test_options_for_shape() -> void:
 	var all_ids: Array[StringName] = [
 		&"mark_rooting", &"mark_marksmans_call", &"mark_marksman",
 		&"aim_rooting", &"aim_weakening", &"aim_practiced",
-		&"snare_deeper", &"snare_lasting", &"snare_efficient",
+		&"snare_wider", &"snare_marking", &"snare_focused",
 		&"crippling_deeper", &"crippling_lasting", &"crippling_swift",
 		&"steady_deeper", &"steady_wider", &"steady_charging",
 		&"collateral_deeper", &"collateral_marking", &"collateral_lasting",
@@ -123,24 +123,42 @@ func _test_aimed_shot_row() -> void:
 
 func _test_snare_trap_row() -> void:
 	var c: Combatant = _mk_ranger()
-	_check(c.ability_talent_cost_delta(&"snare_trap") == 0, "no Snare Trap cost delta with nothing picked")
-	_check(c.pick_ability_talent(&"ability_l3", &"snare_efficient"), "picks snare_efficient")
-	_check(c.ability_talent_cost_delta(&"snare_trap") == -1, "snare_efficient: Snare Trap costs 1 less Stamina")
+	_check(c.pick_ability_talent(&"ability_l3", &"snare_wider"), "picks snare_wider")
+	_check(c.has_ability_talent(&"snare_wider"), "has_ability_talent sees snare_wider")
 
 	var c2: Combatant = _mk_ranger()
-	_check(c2.pick_ability_talent(&"ability_l3", &"snare_deeper"), "picks snare_deeper")
-	_check(is_equal_approx(c2.rider_talent_bonus_damage_pct(&"rooted"), 0.15), "snare_deeper: +15%% bonus damage on Snare Trap's own hit (got %.3f)" % c2.rider_talent_bonus_damage_pct(&"rooted"))
-	_check(is_equal_approx(c2.rider_talent_bonus_damage_pct(&"weakened"), 0.0), "snare_deeper only applies to the rooted rider id, not any other")
+	_check(c2.pick_ability_talent(&"ability_l3", &"snare_marking"), "picks snare_marking")
+	_check(c2.has_ability_talent(&"snare_marking"), "has_ability_talent sees snare_marking")
 
 	var c3: Combatant = _mk_ranger()
-	_check(c3.pick_ability_talent(&"ability_l3", &"snare_lasting"), "picks snare_lasting")
-	var rooted: Effect = EffectLibrary.make(&"rooted")
-	_check(rooted.duration == 2, "sanity: Rooted's baseline duration is 2")
-	c3.apply_rider_talent_adjustments(&"rooted", rooted, c3)
-	_check(rooted.duration == 3, "snare_lasting: Rooted lasts 3 turns (got %d)" % rooted.duration)
+	_check(c3.pick_ability_talent(&"ability_l3", &"snare_focused"), "picks snare_focused")
+	_check(c3.has_ability_talent(&"snare_focused"), "has_ability_talent sees snare_focused")
+
+	# Baseline AoE splash math (proof of the formula, mirroring tests/test_collateral.gd's own
+	# convention of replicating the orchestrator's formula directly — _splash_half_to_others() is a
+	# private Combat-scene method with no live scene here). Snare Trap's own primary hit + the
+	# actual splash/Rooted-attach/Marking-Snare loop are all orchestrator-level (combat.gd's
+	# _apply_attack()), NOT headlessly tested here (see this file's header comment).
+	_check(ceili(20 * 0.5) == 10, "sanity: baseline (1/2) splash of 20 is 10")
+	var other_a: Combatant = _mk_ranger()
+	var other_b: Combatant = _mk_ranger()
+	var splashed: Array[Combatant] = [other_a, other_b]
+	_check(not other_a.has_effect(&"rooted") and not other_b.has_effect(&"rooted"), "sanity: neither splashed enemy starts Rooted")
+	var wide_duration: int = 2 if c.has_ability_talent(&"snare_wider") else 1
+	for other: Combatant in splashed:
+		var splash_rooted: Effect = EffectLibrary.make(&"rooted")
+		splash_rooted.duration = wide_duration
+		other.attach_effect(splash_rooted)
+	_check(other_a.has_effect(&"rooted") and other_b.has_effect(&"rooted"), "every splashed enemy is also Rooted")
+	_check(other_a._find_effect(&"rooted").duration == 2, "snare_wider: splash Rooted matches the primary's full 2-turn duration (got %d)" % other_a._find_effect(&"rooted").duration)
 
 	var c4: Combatant = _mk_ranger()
 	_check(c4.try_snare_trap(c4.weapon_type(), 4, 6), "casts Snare Trap (sanity: unaffected structurally by talents)")
+
+	# Mutual exclusion: only 1 pick per row.
+	var c5: Combatant = _mk_ranger()
+	_check(c5.pick_ability_talent(&"ability_l3", &"snare_wider"), "first pick on the Snare Trap row succeeds")
+	_check(not c5.pick_ability_talent(&"ability_l3", &"snare_marking"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
 func _test_crippling_shot_row() -> void:
 	var c: Combatant = _mk_ranger()

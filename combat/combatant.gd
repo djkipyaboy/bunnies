@@ -1012,9 +1012,6 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 				&"hunters_mark":
 					if has_ability_talent(&"mark_rooting"):
 						target.attach_effect(EffectLibrary.make(&"rooted"))
-				&"rooted":
-					if has_ability_talent(&"snare_lasting"):
-						effect.duration = 3
 				&"weakened":
 					if has_ability_talent(&"crippling_lasting"):
 						effect.duration = 3
@@ -1059,12 +1056,6 @@ func rider_talent_bonus_damage_pct(rider_id: StringName) -> float:
 			match rider_id:
 				&"jinxed":
 					return 0.15 if has_ability_talent(&"jinx_deeper") else 0.0
-				_:
-					return 0.0
-		&"ranger":
-			match rider_id:
-				&"rooted":
-					return 0.15 if has_ability_talent(&"snare_deeper") else 0.0
 				_:
 					return 0.0
 		&"warden":

@@ -393,17 +393,17 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [a1, a2, a3]
 				&"ability_l3":
 					var s1: AbilityTalentOption = AbilityTalentOption.new()
-					s1.id = &"snare_deeper"; s1.row_id = row_id
-					s1.display_name = "Deeper Snare"
-					s1.description = "Snare Trap's own hit deals +15% bonus damage."
+					s1.id = &"snare_wider"; s1.row_id = row_id
+					s1.display_name = "Wider Snare"
+					s1.description = "Snare Trap's splash Rooted lasts as long as the primary target's (2 turns, was 1)."
 					var s2: AbilityTalentOption = AbilityTalentOption.new()
-					s2.id = &"snare_lasting"; s2.row_id = row_id
-					s2.display_name = "Lasting Snare"
-					s2.description = "Rooted (from this ability) lasts 3 turns (was 2)."
+					s2.id = &"snare_marking"; s2.row_id = row_id
+					s2.display_name = "Marking Snare"
+					s2.description = "Snare Trap automatically applies Hunter's Mark to its target on a hit."
 					var s3: AbilityTalentOption = AbilityTalentOption.new()
-					s3.id = &"snare_efficient"; s3.row_id = row_id
-					s3.display_name = "Efficient Snare"
-					s3.description = "Snare Trap's Stamina cost is reduced to 3 (was 4)."
+					s3.id = &"snare_focused"; s3.row_id = row_id
+					s3.display_name = "Focused Trap"
+					s3.description = "If the target is already Marked, Snare Trap's hits are guaranteed critical."
 					return [s1, s2, s3]
 				&"ability_l4":
 					var c1: AbilityTalentOption = AbilityTalentOption.new()
