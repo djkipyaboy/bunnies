@@ -65,6 +65,21 @@ static func make(id: StringName) -> Effect:
 			e.id = &"weakened"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 0.75
 			e.affects_incoming = false; e.duration = 2; e.beneficial = false
 			return e
+		&"wounded":
+			# Standalone healing-reduction debuff (2026-09-04 ranger-rank2-content spec §5.1) —
+			# Ranger Crippling Shot's rank-2 wrinkle, and the retrofitted target of Harvester's
+			# Nightshade "Withering Touch" talent (previously a heal_multiplier set directly on the
+			# Cursed DoT — see combat.gd's _run_misfortune_stage()). MULTIPLIER_EDIT/magnitude 1.0 is
+			# a neutral, "chosen loosely" kind/magnitude pair (same convention as Hunter's Mark/
+			# Taunt's own inert kinds) — the real payload is heal_multiplier, read directly by
+			# Combatant.heal() regardless of kind. Deliberately a STANDALONE, separately
+			# has_effect()-checkable debuff (not a field bundled onto Weakened or Cursed) so a future
+			# class's "damage scales with debuff count" mechanic can count it. No duration set here —
+			# every caller sets it explicitly (no single correct default to bake in).
+			var e: Effect = Effect.new()
+			e.id = &"wounded"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 1.0
+			e.affects_incoming = true; e.heal_multiplier = 0.5; e.beneficial = false
+			return e
 		&"exhausted_weakened":
 			# Mutual Exhaustion's outgoing half (2026-09-02 harvester-rank2-content spec §2.3) — same
 			# magnitude as plain "weakened" but a DISTINCT id, so a later plain Weakened application

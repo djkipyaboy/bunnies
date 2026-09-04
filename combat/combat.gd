@@ -1014,9 +1014,9 @@ func _run_dew_stage(minion: Combatant, stage: int, caster: Combatant = null) -> 
 ## 2026-09-02 harvester-rank2-content spec §2.3) bumps Cursed's dot_base_damage 12.0 -> 18.0 (scaled
 ## by ability_magnitude_multiplier()) and makes stage 3's Weakened/Sundered reapply unconditional —
 ## unless the Mutual Exhaustion talent is picked and the target already carries both, in which case
-## they merge into Exhausted (+ Slow) instead.
-## [ASSUMPTION] Withering Touch's heal-reduction on the target while Cursed — tune by playtest.
-const MISFORTUNE_WITHERING_TOUCH_HEAL_MULT: float = 0.5
+## they merge into Exhausted (+ Slow) instead. Withering Touch's heal-reduction (2026-09-04
+## ranger-rank2-content spec §5.2 retrofit) now attaches the standalone &"wounded" effect instead of
+## setting heal_multiplier directly on Cursed — see the withering_touch branch below.
 
 func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = null) -> void:
 	var owner: Combatant = caster if caster != null else minion.minion_caster
@@ -1052,9 +1052,17 @@ func _run_misfortune_stage(minion: Combatant, stage: int, caster: Combatant = nu
 					enemy.attach_effect(EffectLibrary.make(&"sundered"))
 			var curse: Effect = EffectLibrary.make(&"cursed")
 			curse.dot_base_damage = (18.0 if rank >= 2 else 12.0) * stat_mult
-			if withering_touch:
-				curse.heal_multiplier = MISFORTUNE_WITHERING_TOUCH_HEAL_MULT
 			enemy.attach_effect(curse)
+			# Retrofit (2026-09-04 ranger-rank2-content spec §5.2): Withering Touch now attaches the
+			# same standalone Wounded effect Ranger's Crippling Shot rank-2 introduced, instead of
+			# setting heal_multiplier directly on the Cursed DoT. Behavior-preserving — same 50% heal
+			# reduction, duration matched to this cast's own Cursed duration (a flat 3, unmodified by
+			# any Nightshade talent) — its only observable difference is has_effect(&"wounded") now
+			# also returns true on a Withering-Touch-cursed target.
+			if withering_touch:
+				var wounded: Effect = EffectLibrary.make(&"wounded")
+				wounded.duration = curse.duration
+				enemy.attach_effect(wounded)
 		if _panels.has(enemy):
 			(_panels[enemy] as CombatantPanel).refresh_status()
 	_log("  🌑 Nightshade (stage %d) afflicts every enemy." % stage)
@@ -3083,6 +3091,19 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 					rider.dot_base_damage = _attacker.weapon_effective_base_damage()
 				_attacker.apply_rider_talent_adjustments(attack.rider_effect_id, rider, t)
 				t.attach_effect(rider)
+				# Ranger Crippling Shot rank-2 (2026-09-04 ranger-rank2-content spec §5.1): a
+				# standalone Wounded debuff, attached ALONGSIDE Weakened (not instead of it).
+				# Duration mirrors whatever duration Weakened's own rider just got THIS cast
+				# (rider.duration already reflects the Lasting Crippling adjustment from
+				# apply_rider_talent_adjustments above), read directly rather than round-tripped
+				# through a second effect instance.
+				if _attacker.class_id == &"ranger" and attack.rider_effect_id == &"weakened" and _attacker.ability_talent_row_rank(&"ability_l4") >= 2 and attack.final_damage > 0:
+					var wounded: Effect = EffectLibrary.make(&"wounded")
+					wounded.duration = rider.duration
+					t.attach_effect(wounded)
+					_log("  🤕 %s is WOUNDED — healing reduced (%d turns)." % [t.display_name, wounded.duration])
+					if _panels.has(t):
+						(_panels[t] as CombatantPanel).refresh_status()
 				if attack.source_reel != null and attack.source_reel.talent_extra_rider_stack:
 					# Vanguard "Heavier Slam" talent (Task 16): attach_effect() merges by id (the
 					# same stacking-debuff primitive every multi-stack debuff already uses), so

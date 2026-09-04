@@ -46,10 +46,17 @@ func _test_withering_touch_reduces_healing() -> void:
 	enemy.hp = 1
 	inst._run_minion_stage(minion, 3, pc)
 	var curse: Effect = enemy._find_effect(&"cursed")
-	_check(curse != null and curse.heal_multiplier < 1.0, "misfortune_withering_touch: Cursed carries a heal_multiplier below 1.0 (got %.2f)" % (curse.heal_multiplier if curse != null else -1.0))
+	_check(curse != null, "misfortune_withering_touch: Cursed is attached")
+	# Retrofit (2026-09-04 ranger-rank2-content spec §5.2): Withering Touch now attaches the
+	# standalone &"wounded" effect instead of setting heal_multiplier directly on Cursed — Cursed
+	# itself stays at the neutral default (1.0).
+	_check(curse != null and is_equal_approx(curse.heal_multiplier, 1.0), "misfortune_withering_touch: Cursed no longer carries its own heal_multiplier (got %.2f)" % (curse.heal_multiplier if curse != null else -1.0))
+	var wounded: Effect = enemy._find_effect(&"wounded")
+	_check(wounded != null and is_equal_approx(wounded.heal_multiplier, 0.5), "misfortune_withering_touch: a standalone Wounded effect (heal_multiplier 0.5) is attached (got %.2f)" % (wounded.heal_multiplier if wounded != null else -1.0))
+	_check(wounded != null and curse != null and wounded.duration == curse.duration, "misfortune_withering_touch: Wounded's duration matches Cursed's own duration (got %d vs %d)" % [wounded.duration if wounded != null else -1, curse.duration if curse != null else -1])
 	var before: int = enemy.hp
 	enemy.heal(20)
-	_check(enemy.hp < before + 20, "misfortune_withering_touch: heal() actually respects heal_multiplier (healed to %d, expected less than %d)" % [enemy.hp, before + 20])
+	_check(enemy.hp < before + 20, "misfortune_withering_touch: heal() actually respects Wounded's heal_multiplier (healed to %d, expected less than %d) — behavior-preserving regression for Harvester" % [enemy.hp, before + 20])
 	inst.queue_free()
 
 func _test_mutual_exhaustion_merges_debuffs() -> void:
