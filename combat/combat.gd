@@ -2518,22 +2518,23 @@ func _commit_main1() -> void:
 		_attacker.hunters_mark_pending = false
 		_log("  ⊕ %s MARKS %s — crit-fails become hits vs it (%d turns)." % [_attacker.display_name, _defender.display_name, mark.duration])
 		(_panels[_defender] as CombatantPanel).refresh_status()
-	# Aimed Shot (Task 23): a self-buff, so the orchestrator sizes it here where the defender's Mark
-	# status is known — bigger bonus when the shot is lined up on an already-Marked target.
 	if _attacker.aimed_shot_pending:
-		# Ranger "Deeper Aim" talent (Task 19): both bonus tiers rise by +10 points (+30%/+60% ->
-		# +40%/+70%).
-		var marked_bonus: float = 1.7 if _attacker.has_ability_talent(&"aim_deeper") else 1.6
-		var unmarked_bonus: float = 1.4 if _attacker.has_ability_talent(&"aim_deeper") else 1.3
+		var target_marked: bool = _defender.has_effect(&"hunters_mark")
 		var e: Effect = EffectLibrary.make(&"empowered")
-		e.magnitude = marked_bonus if _defender.has_effect(&"hunters_mark") else unmarked_bonus
-		e.duration = 1
+		e.magnitude = 1.6 if target_marked else 1.3
+		# Ranger "Practiced Aim" talent (2026-09-03 ranger-talent-tree spec §4.3): the Empowered
+		# buff lasts an extra turn when the target is already Marked.
+		e.duration = 2 if (target_marked and _attacker.has_ability_talent(&"aim_practiced")) else 1
 		_attacker.attach_effect(e)
 		_attacker.aimed_shot_pending = false
-		# Ranger "Piercing Aim" talent (Task 19): flags a bonus Weakened application, consumed the
-		# first time a reel connects this spin (combat.gd's _apply_attack()).
-		if _attacker.has_ability_talent(&"aim_piercing"):
+		# Ranger "Weakening Aim" talent (was "Piercing Aim"): flags a bonus Weakened application,
+		# consumed the first time a reel connects this spin (combat.gd's _apply_attack()).
+		if _attacker.has_ability_talent(&"aim_weakening"):
 			_attacker.aimed_shot_hit_pending = true
+		# Ranger "Rooting Aim" talent (2026-09-03 ranger-talent-tree spec §4.1): mirrors Weakening
+		# Aim's own pending-flag shape exactly, but applies Rooted instead of Weakened.
+		if _attacker.has_ability_talent(&"aim_rooting"):
+			_attacker.aimed_shot_root_pending = true
 		_log("  ⊕ %s takes Aimed Shot — damage empowered %.0f%% this turn." % [_attacker.display_name, (e.magnitude - 1.0) * 100.0])
 		(_panels[_attacker] as CombatantPanel).refresh_status()
 	# Foresight (Task 27): a support ability with no ally-click targeting UI yet (YAGNI), so the
@@ -2926,6 +2927,15 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				t.attach_effect(piercing_weak)
 				_attacker.aimed_shot_hit_pending = false
 				_log("  🏹 Piercing Aim: %s is WEAKENED." % t.display_name)
+				if _panels.has(t):
+					(_panels[t] as CombatantPanel).refresh_status()
+			# Ranger "Rooting Aim" talent (2026-09-03 ranger-talent-tree spec §4.1): mirrors the
+			# Weakening Aim block immediately above exactly, but attaches Rooted instead.
+			if _attacker.aimed_shot_root_pending and attack.final_damage > 0:
+				var piercing_root: Effect = EffectLibrary.make(&"rooted")
+				t.attach_effect(piercing_root)
+				_attacker.aimed_shot_root_pending = false
+				_log("  🏹 Rooting Aim: %s is ROOTED." % t.display_name)
 				if _panels.has(t):
 					(_panels[t] as CombatantPanel).refresh_status()
 			# Vanguard "Slowing Rampage" talent (Task 16): any hit landed while Rampage's AoE window

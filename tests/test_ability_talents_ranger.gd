@@ -42,7 +42,7 @@ func _test_options_for_shape() -> void:
 	var rows: Array[StringName] = [&"base_ability", &"ability_l2", &"ability_l3", &"ability_l4", &"passive", &"ultimate"]
 	var all_ids: Array[StringName] = [
 		&"mark_rooting", &"mark_marksmans_call", &"mark_marksman",
-		&"aim_deeper", &"aim_piercing", &"aim_efficient",
+		&"aim_rooting", &"aim_weakening", &"aim_practiced",
 		&"snare_deeper", &"snare_lasting", &"snare_efficient",
 		&"crippling_deeper", &"crippling_lasting", &"crippling_swift",
 		&"steady_deeper", &"steady_wider", &"steady_charging",
@@ -94,32 +94,32 @@ func _test_hunters_mark_row() -> void:
 
 func _test_aimed_shot_row() -> void:
 	var c: Combatant = _mk_ranger()
-	_check(c.ability_talent_cost_delta(&"aimed_shot") == 0, "no Aimed Shot cost delta with nothing picked")
-	_check(c.pick_ability_talent(&"ability_l2", &"aim_efficient"), "picks aim_efficient")
-	_check(c.ability_talent_cost_delta(&"aimed_shot") == -1, "aim_efficient: Aimed Shot costs 1 less Stamina")
+	_check(c.ability_talent_cost_delta(&"aimed_shot") == 0, "no Aimed Shot cost delta (aim_efficient retired)")
+	_check(c.pick_ability_talent(&"ability_l2", &"aim_rooting"), "picks aim_rooting")
+	_check(not c.aimed_shot_root_pending, "sanity: aimed_shot_root_pending starts false")
+	_check(c.stage_aimed_shot(3), "stages Aimed Shot (rooting)")
+	_check(c.aimed_shot_pending, "Aimed Shot is pending for combat.gd's commit-time wiring (which sets aimed_shot_root_pending) to read")
 
-	# Deeper Aim's actual +40%/+70% magnitude bump lives in combat.gd's own _commit_main1() —
-	# orchestrator-level (Aimed Shot's whole magnitude computation already lived there before this
-	# task, sized by the defender's Mark status) — NOT headlessly tested here (see this file's
-	# header comment). This proves the precondition state combat.gd's wiring reads.
 	var c2: Combatant = _mk_ranger()
-	_check(c2.pick_ability_talent(&"ability_l2", &"aim_deeper"), "picks aim_deeper")
-	_check(c2.stage_aimed_shot(3), "stages Aimed Shot (deeper)")
-	_check(c2.aimed_shot_pending, "Aimed Shot is pending for combat.gd's commit-time wiring to read")
+	_check(c2.pick_ability_talent(&"ability_l2", &"aim_weakening"), "picks aim_weakening")
+	_check(not c2.aimed_shot_hit_pending, "sanity: aimed_shot_hit_pending starts false")
+	_check(c2.stage_aimed_shot(3), "stages Aimed Shot (weakening)")
+	_check(c2.aimed_shot_pending, "Aimed Shot is pending for combat.gd's commit-time wiring (which sets aimed_shot_hit_pending) to read")
 
-	# Piercing Aim's actual bonus Weakened application (on this spin's first connecting hit) lives
-	# in combat.gd's _apply_attack() — same precedent, not headlessly tested here.
+	# Practiced Aim's actual Empowered-duration extension (2 turns instead of 1, when the target is
+	# already Marked) lives in combat.gd's own commit-time resolution — orchestrator-level (Aimed
+	# Shot's whole magnitude/duration computation already lived there before this task, sized by the
+	# defender's Mark status) — NOT headlessly tested here (see this file's header comment).
 	var c3: Combatant = _mk_ranger()
-	_check(c3.pick_ability_talent(&"ability_l2", &"aim_piercing"), "picks aim_piercing")
-	_check(c3.has_ability_talent(&"aim_piercing"), "has_ability_talent sees aim_piercing")
-	_check(not c3.aimed_shot_hit_pending, "sanity: aimed_shot_hit_pending starts false")
-	_check(c3.stage_aimed_shot(3), "stages Aimed Shot (piercing)")
-	_check(c3.aimed_shot_pending, "Aimed Shot is pending for combat.gd's commit-time wiring (which sets aimed_shot_hit_pending) to read")
+	_check(c3.pick_ability_talent(&"ability_l2", &"aim_practiced"), "picks aim_practiced")
+	_check(c3.has_ability_talent(&"aim_practiced"), "has_ability_talent sees aim_practiced")
+	_check(c3.stage_aimed_shot(3), "stages Aimed Shot (practiced)")
+	_check(c3.aimed_shot_pending, "Aimed Shot is pending for combat.gd's commit-time wiring to read")
 
 	# Mutual exclusion: only 1 pick per row.
 	var c4: Combatant = _mk_ranger()
-	_check(c4.pick_ability_talent(&"ability_l2", &"aim_efficient"), "first pick on the Aimed Shot row succeeds")
-	_check(not c4.pick_ability_talent(&"ability_l2", &"aim_deeper"), "a second pick on an already-filled row is rejected (cap of 1/row)")
+	_check(c4.pick_ability_talent(&"ability_l2", &"aim_rooting"), "first pick on the Aimed Shot row succeeds")
+	_check(not c4.pick_ability_talent(&"ability_l2", &"aim_weakening"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
 func _test_snare_trap_row() -> void:
 	var c: Combatant = _mk_ranger()

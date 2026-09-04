@@ -331,6 +331,15 @@ var aimed_shot_pending: bool = false
 ## set-then-consume shape exactly.
 var aimed_shot_hit_pending: bool = false
 
+## Ranger "Rooting Aim" talent (2026-09-03 ranger-talent-tree spec §4.1) pending flag: mirrors
+## aimed_shot_hit_pending's exact shape (set alongside aimed_shot_pending's own commit-time attach,
+## consumed the first time a reel actually connects this same spin in combat.gd's _apply_attack()).
+## Kept as a SEPARATE flag (rather than reusing aimed_shot_hit_pending for a different rider) so
+## Rooting Aim's and Weakening Aim's own consume-on-hit logic can never cross-fire — only one of
+## the two can ever be picked on this row, but keeping them as two distinct fields makes that true
+## by construction, not by convention.
+var aimed_shot_root_pending: bool = false
+
 ## Seer "Foresight" (L7) pending flag: the orchestrator picks the lowest-HP% living ally
 ## (combat.gd, Task 27 wiring) and shields them.
 var foresight_pending: bool = false
@@ -872,8 +881,6 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 					return 0
 		&"ranger":
 			match ability_id:
-				&"aimed_shot":
-					return -1 if has_ability_talent(&"aim_efficient") else 0
 				&"snare_trap":
 					return -1 if has_ability_talent(&"snare_efficient") else 0
 				_:

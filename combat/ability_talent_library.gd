@@ -379,17 +379,17 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [m1, m2, m3]
 				&"ability_l2":
 					var a1: AbilityTalentOption = AbilityTalentOption.new()
-					a1.id = &"aim_deeper"; a1.row_id = row_id
-					a1.display_name = "Deeper Aim"
-					a1.description = "Aimed Shot's damage bonus rises to +40% (unmarked) / +70% (vs a Marked target), was +30%/+60%."
+					a1.id = &"aim_rooting"; a1.row_id = row_id
+					a1.display_name = "Rooting Aim"
+					a1.description = "Aimed Shot's own hit also applies a stack of Rooted."
 					var a2: AbilityTalentOption = AbilityTalentOption.new()
-					a2.id = &"aim_piercing"; a2.row_id = row_id
-					a2.display_name = "Piercing Aim"
-					a2.description = "Aimed Shot also applies a stack of Weakened on this spin's hit."
+					a2.id = &"aim_weakening"; a2.row_id = row_id
+					a2.display_name = "Weakening Aim"
+					a2.description = "Aimed Shot's own hit also applies a stack of Weakened."
 					var a3: AbilityTalentOption = AbilityTalentOption.new()
-					a3.id = &"aim_efficient"; a3.row_id = row_id
-					a3.display_name = "Efficient Aim"
-					a3.description = "Aimed Shot's Stamina cost is reduced to 2 (was 3)."
+					a3.id = &"aim_practiced"; a3.row_id = row_id
+					a3.display_name = "Practiced Aim"
+					a3.description = "If the target is already Marked, Aimed Shot's Empowered buff lasts 2 turns instead of 1."
 					return [a1, a2, a3]
 				&"ability_l3":
 					var s1: AbilityTalentOption = AbilityTalentOption.new()
