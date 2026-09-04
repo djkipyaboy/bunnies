@@ -365,17 +365,17 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 			match row_id:
 				&"base_ability":
 					var m1: AbilityTalentOption = AbilityTalentOption.new()
-					m1.id = &"mark_deeper"; m1.row_id = row_id
-					m1.display_name = "Deeper Mark"
-					m1.description = "Hunter's Mark lasts 4 turns (was 3)."
+					m1.id = &"mark_rooting"; m1.row_id = row_id
+					m1.display_name = "Rooting Mark"
+					m1.description = "Hunter's Mark also applies a stack of Rooted to the target."
 					var m2: AbilityTalentOption = AbilityTalentOption.new()
-					m2.id = &"mark_weakening"; m2.row_id = row_id
-					m2.display_name = "Weakening Mark"
-					m2.description = "Hunter's Mark also applies a stack of Weakened."
+					m2.id = &"mark_marksmans_call"; m2.row_id = row_id
+					m2.display_name = "Marksman's Call"
+					m2.description = "Once per ally per round, when an ally attacks your Marked target, you fire an independent bonus shot at it."
 					var m3: AbilityTalentOption = AbilityTalentOption.new()
-					m3.id = &"mark_efficient"; m3.row_id = row_id
-					m3.display_name = "Efficient Mark"
-					m3.description = "Hunter's Mark's Stamina cost is reduced to 2 (was 3)."
+					m3.id = &"mark_marksman"; m3.row_id = row_id
+					m3.display_name = "Marksman's Mark"
+					m3.description = "Your own hits against a Marked target deal +20% bonus damage."
 					return [m1, m2, m3]
 				&"ability_l2":
 					var a1: AbilityTalentOption = AbilityTalentOption.new()

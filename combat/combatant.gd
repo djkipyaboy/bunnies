@@ -872,8 +872,6 @@ func ability_talent_cost_delta(ability_id: StringName) -> int:
 					return 0
 		&"ranger":
 			match ability_id:
-				&"hunters_mark":
-					return -1 if has_ability_talent(&"mark_efficient") else 0
 				&"aimed_shot":
 					return -1 if has_ability_talent(&"aim_efficient") else 0
 				&"snare_trap":
@@ -1005,14 +1003,8 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 		&"ranger":
 			match rider_id:
 				&"hunters_mark":
-					# mark_weakening's OWN bonus Weakened (see combat.gd's hunters_mark_pending block)
-					# is attached separately via a plain EffectLibrary.make() call that never routes
-					# through this function — so it stays decoupled from crippling_lasting's duration
-					# bump below, even though both ultimately use rider id &"weakened".
-					if has_ability_talent(&"mark_deeper"):
-						effect.duration = 4
-					if has_ability_talent(&"mark_weakening"):
-						target.attach_effect(EffectLibrary.make(&"weakened"))
+					if has_ability_talent(&"mark_rooting"):
+						target.attach_effect(EffectLibrary.make(&"rooted"))
 				&"rooted":
 					if has_ability_talent(&"snare_lasting"):
 						effect.duration = 3
@@ -2135,10 +2127,20 @@ static func hunters_mark_reels(reels: Array) -> Array[ActionReel]:
 	for r: ActionReel in reels:
 		if r != null and r.is_weapon_attack:
 			var copy: ActionReel = r.duplicate(true)  # deep: its own faces
+			var failure_count: int = 0
+			for f: ReelFace in copy.faces:
+				if f.result_tier == ReelFace.ResultTier.FAILURE:
+					failure_count += 1
+			var failures_to_convert: int = failure_count / 2  # floor, per the widened-accuracy baseline
+			var failures_converted: int = 0
 			for f: ReelFace in copy.faces:
 				if f.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
 					f.result_tier = ReelFace.ResultTier.SUCCESS
 					f.multiplier = 1.0
+				elif f.result_tier == ReelFace.ResultTier.FAILURE and failures_converted < failures_to_convert:
+					f.result_tier = ReelFace.ResultTier.SUCCESS
+					f.multiplier = 1.0
+					failures_converted += 1
 			out.append(copy)
 		else:
 			out.append(r)

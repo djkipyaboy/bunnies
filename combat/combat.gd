@@ -2876,6 +2876,14 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 					var bonus: int = ceili(attack.final_damage * cc_bonus_pct)
 					t.take_damage(bonus)
 					_log("  🎯 Crippling Shot exploits %s's condition for %d bonus damage." % [t.display_name, bonus])
+			# Ranger "Marksman's Mark" talent (2026-09-03 ranger-talent-tree spec §3.3): the
+			# Ranger's OWN hits against a Marked target deal additional bonus damage. This is
+			# _attacker's own turn here — Marksman's Call's separately-resolved bonus reel never
+			# re-enters this function, so no double-count risk.
+			if _attacker.class_id == &"ranger" and _attacker.has_ability_talent(&"mark_marksman") and t.has_effect(&"hunters_mark") and attack.final_damage > 0:
+				var marksman_bonus: int = ceili(attack.final_damage * 0.20)
+				t.take_damage(marksman_bonus)
+				_log("  🎯 %s's Marksman's Mark adds %d bonus damage." % [_attacker.display_name, marksman_bonus])
 			# Warrior "Bleeding Wild" talent (Task 15): any hit landed while the Wild Ultimate is
 			# still active this spin also lashes the target with a stack of Bleed. Checked BEFORE
 			# consume_wild_spin() (called once for the whole spin in _finish_spin()), so

@@ -41,7 +41,7 @@ func _mk_ranger() -> Combatant:
 func _test_options_for_shape() -> void:
 	var rows: Array[StringName] = [&"base_ability", &"ability_l2", &"ability_l3", &"ability_l4", &"passive", &"ultimate"]
 	var all_ids: Array[StringName] = [
-		&"mark_deeper", &"mark_weakening", &"mark_efficient",
+		&"mark_rooting", &"mark_marksmans_call", &"mark_marksman",
 		&"aim_deeper", &"aim_piercing", &"aim_efficient",
 		&"snare_deeper", &"snare_lasting", &"snare_efficient",
 		&"crippling_deeper", &"crippling_lasting", &"crippling_swift",
@@ -61,32 +61,36 @@ func _test_options_for_shape() -> void:
 
 func _test_hunters_mark_row() -> void:
 	var c: Combatant = _mk_ranger()
-	_check(c.ability_talent_cost_delta(&"hunters_mark") == 0, "no Hunter's Mark cost delta with nothing picked")
-	_check(c.pick_ability_talent(&"base_ability", &"mark_efficient"), "picks mark_efficient")
-	_check(c.has_ability_talent(&"mark_efficient"), "has_ability_talent sees mark_efficient")
-	_check(c.ability_talent_cost_delta(&"hunters_mark") == -1, "mark_efficient: Hunter's Mark costs 1 less Stamina")
+	_check(c.ability_talent_cost_delta(&"hunters_mark") == 0, "no Hunter's Mark cost delta (mark_efficient retired)")
 
 	var c2: Combatant = _mk_ranger()
-	_check(c2.pick_ability_talent(&"base_ability", &"mark_deeper"), "picks mark_deeper")
-	var mark: Effect = EffectLibrary.make(&"hunters_mark")
-	_check(mark.duration == 3, "sanity: Hunter's Mark's baseline duration is 3")
-	c2.apply_rider_talent_adjustments(&"hunters_mark", mark, c2)
-	_check(mark.duration == 4, "mark_deeper: Hunter's Mark lasts 4 turns (got %d)" % mark.duration)
-
-	var c3: Combatant = _mk_ranger()
 	var target: Combatant = _mk_ranger()
-	_check(c3.pick_ability_talent(&"base_ability", &"mark_weakening"), "picks mark_weakening")
-	var mark3: Effect = EffectLibrary.make(&"hunters_mark")
-	_check(not target.has_effect(&"weakened"), "sanity: target starts unweakened")
-	c3.apply_rider_talent_adjustments(&"hunters_mark", mark3, target)
-	_check(target.has_effect(&"weakened"), "mark_weakening: the target also gets a stack of Weakened")
-	_check(mark3.duration == 3, "mark_weakening alone leaves Hunter's Mark's own duration at 3")
+	_check(c2.pick_ability_talent(&"base_ability", &"mark_rooting"), "picks mark_rooting")
+	var mark: Effect = EffectLibrary.make(&"hunters_mark")
+	_check(not target.has_effect(&"rooted"), "sanity: target starts unrooted")
+	c2.apply_rider_talent_adjustments(&"hunters_mark", mark, target)
+	_check(target.has_effect(&"rooted"), "mark_rooting: the target also gets a stack of Rooted")
+	_check(mark.duration == 3, "mark_rooting alone leaves Hunter's Mark's own duration at 3")
+
+	# Marksman's Call/Marksman's Mark: the actual bonus-reel firing and the +20% bonus-vs-Marked
+	# damage both live in combat.gd (orchestrator-level — Marksman's Call needs a running Combat
+	# scene's _finish_spin/_resolver, Marksman's Mark reads _apply_attack()'s live per-hit state),
+	# consistent with this file's own header-comment precedent. This proves the precondition state
+	# combat.gd's wiring reads. Marksman's Call's own resolver math is covered in
+	# tests/test_marksmans_call.gd (Task 2).
+	var c3: Combatant = _mk_ranger()
+	_check(c3.pick_ability_talent(&"base_ability", &"mark_marksmans_call"), "picks mark_marksmans_call")
+	_check(c3.has_ability_talent(&"mark_marksmans_call"), "has_ability_talent sees mark_marksmans_call")
+
+	var c4: Combatant = _mk_ranger()
+	_check(c4.pick_ability_talent(&"base_ability", &"mark_marksman"), "picks mark_marksman")
+	_check(c4.has_ability_talent(&"mark_marksman"), "has_ability_talent sees mark_marksman")
 
 	# Mutual exclusion: only 1 pick per row.
-	var c4: Combatant = _mk_ranger()
-	_check(c4.pick_ability_talent(&"base_ability", &"mark_efficient"), "first pick on the Hunter's Mark row succeeds")
-	_check(not c4.pick_ability_talent(&"base_ability", &"mark_deeper"), "a second pick on an already-filled row is rejected (cap of 1/row)")
-	_check(c4.has_ability_talent(&"mark_efficient"), "the row's original pick is still active")
+	var c5: Combatant = _mk_ranger()
+	_check(c5.pick_ability_talent(&"base_ability", &"mark_rooting"), "first pick on the Hunter's Mark row succeeds")
+	_check(not c5.pick_ability_talent(&"base_ability", &"mark_marksman"), "a second pick on an already-filled row is rejected (cap of 1/row)")
+	_check(c5.has_ability_talent(&"mark_rooting"), "the row's original pick is still active")
 
 func _test_aimed_shot_row() -> void:
 	var c: Combatant = _mk_ranger()
