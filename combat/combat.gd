@@ -2529,6 +2529,10 @@ func _commit_main1() -> void:
 	# downstream crit-fail→hit swap in _do_spin is side-agnostic, so an enemy's mark helps every enemy.
 	if _attacker.hunters_mark_pending:
 		var mark: Effect = EffectLibrary.make(&"hunters_mark")
+		# Rank 2 (2026-09-04 ranger-rank2-content spec §2.1): duration bumps 3 -> 4 turns. Applied
+		# here (not in EffectLibrary.make()) since the effect has no access to the caster's level.
+		if _attacker.ability_talent_row_rank(&"base_ability") >= 2:
+			mark.duration = 4
 		# Ranger Hunter's Mark row talent (2026-09-03 ranger-talent-tree spec §3): Rooting Mark also
 		# attaches Rooted alongside the mark itself (see apply_rider_talent_adjustments()'s &"ranger"
 		# case) — mirrors Warrior's Bleeding Wild precedent (Task 15) of calling
@@ -2917,6 +2921,17 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				var marksman_bonus: int = ceili(attack.final_damage * 0.20)
 				t.take_damage(marksman_bonus)
 				_log("  🎯 %s's Marksman's Mark adds %d bonus damage." % [_attacker.display_name, marksman_bonus])
+			# Ranger Hunter's Mark rank-2 (2026-09-04 ranger-rank2-content spec §2.2): any ALLY's
+			# CRIT_SUCCESS landed on a rank-2 Ranger's Marked target feeds that Ranger's own Bonus
+			# Meter — a low-stakes resource trickle, uncapped, excluding the Ranger's own hits (those
+			# already get plenty of separate bonuses above).
+			if attack.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS and attack.final_damage > 0 and t.has_effect(&"hunters_mark"):
+				for ally: Combatant in _allies_of(_attacker):
+					if ally != _attacker and ally.class_id == &"ranger" and ally.is_alive() and ally.ability_talent_row_rank(&"base_ability") >= 2 and ally.bonus_meter != null:
+						ally.bonus_meter.add_flat(1)
+						_log("  🏹 %s's Marked target is struck true — BM +1  (%d/%d)" % [ally.display_name, ally.bonus_meter.value, ally.bonus_meter.cap])
+						if _panels.has(ally):
+							(_panels[ally] as CombatantPanel).refresh_resources()
 			# Warrior "Bleeding Wild" talent (Task 15): any hit landed while the Wild Ultimate is
 			# still active this spin also lashes the target with a stack of Bleed. Checked BEFORE
 			# consume_wild_spin() (called once for the whole spin in _finish_spin()), so
