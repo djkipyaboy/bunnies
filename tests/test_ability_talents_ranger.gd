@@ -223,7 +223,7 @@ func _test_steady_aim_row() -> void:
 	c.passive_ability_id = &"steady_aim"
 	var marked: Combatant = _mk_ranger()
 	marked.attach_effect(EffectLibrary.make(&"hunters_mark"))
-	_check(is_equal_approx(c.passive_outgoing_multiplier(marked), 1.10), "baseline Steady Aim: +10% vs a Marked defender")
+	_check(is_equal_approx(c.passive_outgoing_multiplier(marked), 1.20), "baseline Steady Aim (at MAX_LEVEL, rank 2): +20% vs a Marked defender")
 
 	var c2: Combatant = _mk_ranger()
 	c2.passive_ability_id = &"steady_aim"
@@ -231,7 +231,7 @@ func _test_steady_aim_row() -> void:
 	cc_defender.attach_effect(EffectLibrary.make(&"rooted"))
 	_check(is_equal_approx(c2.passive_outgoing_multiplier(cc_defender), 1.0), "sanity: baseline Steady Aim does NOT trigger vs a merely-Rooted defender")
 	_check(c2.pick_ability_talent(&"passive", &"steady_controlled"), "picks steady_controlled")
-	_check(is_equal_approx(c2.passive_outgoing_multiplier(cc_defender), 1.10), "steady_controlled: now also triggers vs a Rooted defender (got %.3f)" % c2.passive_outgoing_multiplier(cc_defender))
+	_check(is_equal_approx(c2.passive_outgoing_multiplier(cc_defender), 1.20), "steady_controlled: now also triggers vs a Rooted defender, at the amplified +20%% magnitude (got %.3f)" % c2.passive_outgoing_multiplier(cc_defender))
 
 	var c3: Combatant = _mk_ranger()
 	c3.passive_ability_id = &"steady_aim"
@@ -239,16 +239,17 @@ func _test_steady_aim_row() -> void:
 	weakened_defender.attach_effect(EffectLibrary.make(&"weakened"))
 	_check(is_equal_approx(c3.passive_outgoing_multiplier(weakened_defender), 1.0), "sanity: baseline Steady Aim does NOT trigger vs a merely-Weakened defender")
 	_check(c3.pick_ability_talent(&"passive", &"steady_wider"), "picks steady_wider")
-	_check(is_equal_approx(c3.passive_outgoing_multiplier(weakened_defender), 1.10), "steady_wider: now also triggers vs a Weakened defender (got %.3f)" % c3.passive_outgoing_multiplier(weakened_defender))
+	_check(is_equal_approx(c3.passive_outgoing_multiplier(weakened_defender), 1.20), "steady_wider: now also triggers vs a Weakened defender, at the amplified +20%% magnitude (got %.3f)" % c3.passive_outgoing_multiplier(weakened_defender))
 
 	# Deadeye's actual +15%-on-CRIT_SUCCESS-vs-Marked bonus lives in combat.gd's _apply_attack() —
-	# a crit-specific layer ON TOP OF the unchanged +10% baseline above, not a bigger baseline
-	# multiplier — orchestrator-level, NOT headlessly tested here (see this file's header comment).
+	# a crit-specific layer ON TOP OF whatever baseline is currently active (1.20 at MAX_LEVEL/rank 2,
+	# per the 2026-09-04 ranger-rank2-content amplification), not itself a bigger baseline multiplier
+	# — orchestrator-level, NOT headlessly tested here (see this file's header comment).
 	var c4: Combatant = _mk_ranger()
 	c4.passive_ability_id = &"steady_aim"
 	_check(c4.pick_ability_talent(&"passive", &"steady_deadeye"), "picks steady_deadeye")
 	_check(c4.has_ability_talent(&"steady_deadeye"), "has_ability_talent sees steady_deadeye")
-	_check(is_equal_approx(c4.passive_outgoing_multiplier(marked), 1.10), "steady_deadeye alone leaves the baseline +10%-vs-Marked bonus unchanged")
+	_check(is_equal_approx(c4.passive_outgoing_multiplier(marked), 1.20), "steady_deadeye alone leaves the (amplified) baseline +20%-vs-Marked bonus unchanged — picking Deadeye itself does not change the passive's own magnitude")
 
 	# Mutual exclusion (passive row): only 1 pick per row.
 	_check(not c4.pick_ability_talent(&"passive", &"steady_controlled"), "a second pick on an already-filled row is rejected (cap of 1/row)")
