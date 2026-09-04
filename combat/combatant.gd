@@ -1245,9 +1245,11 @@ func passive_outgoing_multiplier(defender: Combatant = null) -> float:
 			var triggered: bool = defender.has_effect(&"hunters_mark")
 			if has_ability_talent(&"steady_wider"):
 				triggered = triggered or defender.has_effect(&"weakened")
+			if has_ability_talent(&"steady_controlled"):
+				triggered = triggered or defender.has_effect(&"rooted") or defender.has_effect(&"slow") or defender.stunned_last_turn
 			if not triggered:
 				return 1.0
-			return 1.20 if has_ability_talent(&"steady_deeper") else 1.10
+			return 1.10
 		_:
 			return 1.0
 

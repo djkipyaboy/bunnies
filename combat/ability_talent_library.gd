@@ -421,17 +421,17 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [c1, c2, c3]
 				&"passive":
 					var p1: AbilityTalentOption = AbilityTalentOption.new()
-					p1.id = &"steady_deeper"; p1.row_id = row_id
-					p1.display_name = "Deadeye"
-					p1.description = "Steady Aim's damage bonus increases to +20% (was +10%)."
+					p1.id = &"steady_controlled"; p1.row_id = row_id
+					p1.display_name = "Controlled Aim"
+					p1.description = "Steady Aim's bonus also triggers vs a Rooted/Slowed/Stunned defender."
 					var p2: AbilityTalentOption = AbilityTalentOption.new()
 					p2.id = &"steady_wider"; p2.row_id = row_id
 					p2.display_name = "Wider Aim"
 					p2.description = "Steady Aim's bonus also applies vs a Weakened defender."
 					var p3: AbilityTalentOption = AbilityTalentOption.new()
-					p3.id = &"steady_charging"; p3.row_id = row_id
-					p3.display_name = "Charging Aim"
-					p3.description = "Landing a hit via Steady Aim also grants +1 flat Bonus Meter charge."
+					p3.id = &"steady_deadeye"; p3.row_id = row_id
+					p3.display_name = "Deadeye"
+					p3.description = "Any CRIT_SUCCESS hit against a Marked defender deals a further +15% bonus damage."
 					return [p1, p2, p3]
 				&"ultimate":
 					var u1: AbilityTalentOption = AbilityTalentOption.new()

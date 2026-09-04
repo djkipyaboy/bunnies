@@ -45,7 +45,7 @@ func _test_options_for_shape() -> void:
 		&"aim_rooting", &"aim_weakening", &"aim_practiced",
 		&"snare_wider", &"snare_marking", &"snare_focused",
 		&"crippling_swift", &"crippling_lasting", &"crippling_marked",
-		&"steady_deeper", &"steady_wider", &"steady_charging",
+		&"steady_controlled", &"steady_wider", &"steady_deadeye",
 		&"collateral_deeper", &"collateral_marking", &"collateral_lasting",
 	]
 	var seen: Array[StringName] = []
@@ -191,8 +191,11 @@ func _test_steady_aim_row() -> void:
 
 	var c2: Combatant = _mk_ranger()
 	c2.passive_ability_id = &"steady_aim"
-	_check(c2.pick_ability_talent(&"passive", &"steady_deeper"), "picks steady_deeper")
-	_check(is_equal_approx(c2.passive_outgoing_multiplier(marked), 1.20), "steady_deeper: +20%% vs a Marked defender (got %.3f)" % c2.passive_outgoing_multiplier(marked))
+	var cc_defender: Combatant = _mk_ranger()
+	cc_defender.attach_effect(EffectLibrary.make(&"rooted"))
+	_check(is_equal_approx(c2.passive_outgoing_multiplier(cc_defender), 1.0), "sanity: baseline Steady Aim does NOT trigger vs a merely-Rooted defender")
+	_check(c2.pick_ability_talent(&"passive", &"steady_controlled"), "picks steady_controlled")
+	_check(is_equal_approx(c2.passive_outgoing_multiplier(cc_defender), 1.10), "steady_controlled: now also triggers vs a Rooted defender (got %.3f)" % c2.passive_outgoing_multiplier(cc_defender))
 
 	var c3: Combatant = _mk_ranger()
 	c3.passive_ability_id = &"steady_aim"
@@ -202,17 +205,17 @@ func _test_steady_aim_row() -> void:
 	_check(c3.pick_ability_talent(&"passive", &"steady_wider"), "picks steady_wider")
 	_check(is_equal_approx(c3.passive_outgoing_multiplier(weakened_defender), 1.10), "steady_wider: now also triggers vs a Weakened defender (got %.3f)" % c3.passive_outgoing_multiplier(weakened_defender))
 
-	# Charging Aim's ACTUAL on-hit meter charge lives in combat.gd's _apply_attack() — see the file
-	# header comment above. This proves the precondition state combat.gd's wiring reads (mirrors
-	# Skirmisher's opportunist_charging test exactly).
+	# Deadeye's actual +15%-on-CRIT_SUCCESS-vs-Marked bonus lives in combat.gd's _apply_attack() —
+	# a crit-specific layer ON TOP OF the unchanged +10% baseline above, not a bigger baseline
+	# multiplier — orchestrator-level, NOT headlessly tested here (see this file's header comment).
 	var c4: Combatant = _mk_ranger()
 	c4.passive_ability_id = &"steady_aim"
-	_check(c4.pick_ability_talent(&"passive", &"steady_charging"), "picks steady_charging")
-	_check(c4.has_ability_talent(&"steady_charging"), "has_ability_talent sees steady_charging")
-	_check(c4.passive_outgoing_multiplier(marked) > 1.0, "steady_charging precondition: passive_outgoing_multiplier(defender) > 1.0 vs a Marked defender")
+	_check(c4.pick_ability_talent(&"passive", &"steady_deadeye"), "picks steady_deadeye")
+	_check(c4.has_ability_talent(&"steady_deadeye"), "has_ability_talent sees steady_deadeye")
+	_check(is_equal_approx(c4.passive_outgoing_multiplier(marked), 1.10), "steady_deadeye alone leaves the baseline +10%-vs-Marked bonus unchanged")
 
 	# Mutual exclusion (passive row): only 1 pick per row.
-	_check(not c4.pick_ability_talent(&"passive", &"steady_deeper"), "a second pick on an already-filled row is rejected (cap of 1/row)")
+	_check(not c4.pick_ability_talent(&"passive", &"steady_controlled"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 
 func _test_collateral_row() -> void:
 	# Deeper Collateral's splash-fraction formula (proof of the math, mirroring

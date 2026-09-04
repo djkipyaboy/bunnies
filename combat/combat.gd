@@ -2888,6 +2888,14 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 						var marked_bonus: int = ceili(attack.final_damage * 0.25)
 						t.take_damage(marked_bonus)
 						_log("  🎯 Marked for the Kill adds %d more bonus damage." % marked_bonus)
+			# Ranger "Deadeye" talent (2026-09-03 ranger-talent-tree spec §7.3): any CRIT_SUCCESS
+			# face landed against a Marked defender deals a further bonus, ON TOP of Steady Aim's
+			# own unchanged +10%-vs-Marked baseline multiplier (already folded into attack.final_damage
+			# via outgoing_damage_multiplier before this function ever runs).
+			if _attacker.class_id == &"ranger" and _attacker.has_ability_talent(&"steady_deadeye") and attack.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS and t.has_effect(&"hunters_mark") and attack.final_damage > 0:
+				var deadeye_bonus: int = ceili(attack.final_damage * 0.15)
+				t.take_damage(deadeye_bonus)
+				_log("  🎯 %s's Deadeye adds %d bonus damage." % [_attacker.display_name, deadeye_bonus])
 			# Ranger "Marksman's Mark" talent (2026-09-03 ranger-talent-tree spec §3.3): the
 			# Ranger's OWN hits against a Marked target deal additional bonus damage. This is
 			# _attacker's own turn here — Marksman's Call's separately-resolved bonus reel never
@@ -2995,11 +3003,11 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 		if attack.final_damage > 0 and _attacker.class_id == &"skirmisher" and _attacker.has_ability_talent(&"opportunist_charging") and _attacker.passive_outgoing_multiplier(_defender) > 1.0:
 			_attacker.bonus_meter.add_flat(1)
 			_log("    ⚔ Opportunist strikes true — BM +1  (%d/%d)" % [_attacker.bonus_meter.value, _attacker.bonus_meter.cap])
-		# Ranger "Charging Aim" talent (Task 19): an extra flat +1 charge whenever this hit actually
-		# benefited from the Steady Aim passive bonus — mirrors Skirmisher's Charging Opportunist
-		# precedent (Task 17) exactly, reading passive_outgoing_multiplier(_defender) against the same
-		# primary defender the actual damage math used this spin.
-		if attack.final_damage > 0 and _attacker.class_id == &"ranger" and _attacker.has_ability_talent(&"steady_charging") and _attacker.passive_outgoing_multiplier(_defender) > 1.0:
+		# Ranger Steady Aim (2026-09-03 ranger-talent-tree spec §2.3, baseline): an extra flat +1
+		# charge whenever this hit actually benefited from the Steady Aim passive bonus — mirrors
+		# Skirmisher's Charging Opportunist precedent exactly, reading passive_outgoing_multiplier
+		# (_defender) against the same primary defender the actual damage math used this spin.
+		if attack.final_damage > 0 and _attacker.class_id == &"ranger" and _attacker.passive_outgoing_multiplier(_defender) > 1.0:
 			_attacker.bonus_meter.add_flat(1)
 			_log("    🏹 Steady Aim strikes true — BM +1  (%d/%d)" % [_attacker.bonus_meter.value, _attacker.bonus_meter.cap])
 	# Chancer "Wider Edge" talent (Task 18): House Edge's baseline (passive_on_payline_scored) only
