@@ -2547,7 +2547,17 @@ func _commit_main1() -> void:
 	if _attacker.aimed_shot_pending:
 		var target_marked: bool = _defender.has_effect(&"hunters_mark")
 		var e: Effect = EffectLibrary.make(&"empowered")
-		e.magnitude = 1.6 if target_marked else 1.3
+		var base_magnitude: float = 1.6 if target_marked else 1.3
+		# Rank 2 (2026-09-04 ranger-rank2-content spec §3.1): recasting while the Ranger's OWN
+		# Empowered buff is still active STACKS the magnitude (+0.10/stack) instead of just
+		# refreshing it. has_effect(&"empowered") at cast time doubles as "is a stack still live" —
+		# an expired buff naturally resets aimed_shot_stacks to 0 here. Capped at 2 additional
+		# stacks (base cast + 2 = 3 total applications).
+		if _attacker.ability_talent_row_rank(&"ability_l2") >= 2 and _attacker.has_effect(&"empowered"):
+			_attacker.aimed_shot_stacks = mini(_attacker.aimed_shot_stacks + 1, 2)
+		else:
+			_attacker.aimed_shot_stacks = 0
+		e.magnitude = base_magnitude + 0.10 * _attacker.aimed_shot_stacks
 		# Ranger "Practiced Aim" talent (2026-09-03 ranger-talent-tree spec §4.3): the Empowered
 		# buff lasts an extra turn when the target is already Marked.
 		e.duration = 2 if (target_marked and _attacker.has_ability_talent(&"aim_practiced")) else 1

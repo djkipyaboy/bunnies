@@ -324,6 +324,13 @@ var hunters_mark_pending: bool = false
 ## Empowered with a bonus magnitude if the defender is already Marked (combat.gd, Task 23 wiring).
 var aimed_shot_pending: bool = false
 
+## Ranger "Aimed Shot" rank-2 (2026-09-04 ranger-rank2-content spec §3.1): live stack count for the
+## "recast while still Empowered stacks instead of refreshing" mechanic. Read/written only in
+## combat.gd's _commit_main1() aimed_shot_pending block — has_effect(&"empowered") at cast time IS
+## the "is a stack still live" test, so an expired buff naturally resets this to 0 on the next cast
+## (no separate expiry hook needed). Capped at 2 (base cast + 2 stacks = 3 total applications).
+var aimed_shot_stacks: int = 0
+
 ## Ranger "Weakening Aim" talent pending flag: set alongside aimed_shot_pending's own
 ## commit-time attach when the aim_weakening talent is picked. Consumed the first time a reel
 ## actually connects this same spin (combat.gd's _apply_attack()), which attaches a bonus stack of
