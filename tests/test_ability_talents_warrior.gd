@@ -110,7 +110,7 @@ func _test_sundering_strike_row() -> void:
 	_check(c2.pick_ability_talent(&"ability_l2", &"sunder_deeper"), "picks sunder_deeper")
 	var sundered: Effect = EffectLibrary.make(&"sundered")
 	c2.apply_rider_talent_adjustments(&"sundered", sundered, c2)
-	_check(is_equal_approx(sundered.magnitude, 1.35), "sunder_deeper: Sundered's incoming multiplier is 1.35 (got %.3f)" % sundered.magnitude)
+	_check(is_equal_approx(sundered.magnitude, 1.45), "sunder_deeper (rank 2): Sundered's incoming multiplier is 1.45 (got %.3f)" % sundered.magnitude)
 	_check(sundered.duration == 2, "sunder_deeper alone leaves duration at 2")
 
 	# Vicious Return / Twist the Knife: the actual on-hit refund/bonus-damage lives in combat.gd's
@@ -125,6 +125,19 @@ func _test_sundering_strike_row() -> void:
 	var c4: Combatant = _mk_warrior()
 	_check(c4.pick_ability_talent(&"ability_l2", &"sunder_twist_knife"), "picks sunder_twist_knife")
 	_check(c4.has_ability_talent(&"sunder_twist_knife"), "has_ability_talent sees sunder_twist_knife")
+
+	# Rank<2 regression + rank-2-no-talent baseline.
+	var c7: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
+	c7.level = 1
+	var sundered2: Effect = EffectLibrary.make(&"sundered")
+	c7.apply_rider_talent_adjustments(&"sundered", sundered2, c7)
+	_check(is_equal_approx(sundered2.magnitude, 1.30), "rank<2: Sundered baseline magnitude untouched at 1.30 (got %.3f)" % sundered2.magnitude)
+
+	var c8: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
+	c8.level = 6  # ability_l2's rank-2 threshold, no talent picked
+	var sundered3: Effect = EffectLibrary.make(&"sundered")
+	c8.apply_rider_talent_adjustments(&"sundered", sundered3, c8)
+	_check(is_equal_approx(sundered3.magnitude, 1.40), "rank 2 baseline (no talent): Sundered magnitude is 1.40 (got %.3f)" % sundered3.magnitude)
 
 func _test_heroic_guard_row() -> void:
 	var c: Combatant = _mk_warrior()

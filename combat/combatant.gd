@@ -1009,8 +1009,11 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 						for i: int in range(effect.dot_fractions.size()):
 							effect.dot_fractions[i] *= 1.25
 				&"sundered":
+					var sunder_rank: int = ability_talent_row_rank(&"ability_l2")
 					if has_ability_talent(&"sunder_deeper"):
-						effect.magnitude = 1.35
+						effect.magnitude = 1.45 if sunder_rank >= 2 else 1.35
+					elif sunder_rank >= 2:
+						effect.magnitude = 1.40
 		&"chancer":
 			match rider_id:
 				&"jinxed":
