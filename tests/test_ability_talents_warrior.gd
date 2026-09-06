@@ -198,8 +198,10 @@ func _test_second_wind_row() -> void:
 	var c2: Combatant = _mk_warrior()
 	c2.max_hp = 100; c2.hp = 10
 	_check(c2.pick_ability_talent(&"ability_l4", &"wind_deeper"), "picks wind_deeper")
-	_check(c2.apply_second_wind(2), "casts Second Wind (deeper)")
-	_check(c2.hp == 55, "wind_deeper: Second Wind heals 45%% max HP (10 + 45 = 55, got %d)" % c2.hp)
+	_check(c2.apply_second_wind(2), "casts Second Wind (deeper, rank 2)")
+	_check(c2.hp == 60, "wind_deeper (rank 2): Second Wind heals 50%% max HP (10 + 50 = 60, got %d)" % c2.hp)
+	var hot2: Effect = c2._find_effect(&"second_wind_hot")
+	_check(hot2 != null and hot2.duration == 3, "wind_deeper (rank 2): HoT lasts 3 turns (got %d)" % (hot2.duration if hot2 != null else -1))
 
 	var c3: Combatant = _mk_warrior()
 	c3.max_hp = 100; c3.hp = 10
