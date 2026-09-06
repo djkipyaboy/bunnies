@@ -1648,7 +1648,7 @@ func try_rend_reel(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	turn_reels.append(ActionReel.make_rend(type))
+	turn_reels.append(ActionReel.make_rend(type, ability_talent_row_rank(&"base_ability") >= 2))
 	return true
 
 ## Warrior "Sundering Strike" (spec §4, L5): splices one [param type]-typed reel that deals REAL

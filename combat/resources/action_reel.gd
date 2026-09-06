@@ -72,9 +72,17 @@ static func make_default(type: DamageType = null) -> ActionReel:
 ## reel in that spec's scope), but its HIT faces (success / crit-success) deal NO direct weapon
 ## damage (multiplier 0) and instead carry a &"bleed" rider. So landing a hit on this reel applies
 ## a BLEED stack rather than swinging for damage.
-static func make_rend(type: DamageType = null) -> ActionReel:
+## [param rank2] (2026-09-06 warrior-rank2-content spec §2.1): at rank 2, converts every CRIT_FAILURE
+## face into a SUCCESS face BEFORE the hit-face loop below zeroes its multiplier and attaches the
+## bleed rider — so the converted faces become full hit faces too, taking the composition from
+## 70% -> 80% hit rate (5 crit-fail/10 fail/30 success/5 crit-success -> 0/10/35/5).
+static func make_rend(type: DamageType = null, rank2: bool = false) -> ActionReel:
 	var reel: ActionReel = make_ability_attack(type)
 	reel.is_weapon_attack = false  # Rend hits apply BLEED (a debuff), not a weapon swing — out of paylines
+	if rank2:
+		for face: ReelFace in reel.faces:
+			if face.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
+				face.result_tier = ReelFace.ResultTier.SUCCESS
 	for face: ReelFace in reel.faces:
 		if face.result_tier == ReelFace.ResultTier.SUCCESS or face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
 			face.multiplier = 0.0

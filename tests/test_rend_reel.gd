@@ -42,5 +42,20 @@ func _initialize() -> void:
 	_check(b[0].final_damage > 0, "normal success still deals damage (got %d)" % b[0].final_damage)
 	_check(b[0].rider_effect_id == &"", "normal success has no per-face rider")
 
+	# Rank 2 (2026-09-06 warrior-rank2-content spec §2.1): the 5 crit-fail faces convert to
+	# success faces (still 0-multiplier, still bleed-riddled) — 70% -> 80% hit rate.
+	var rend2: ActionReel = ActionReel.make_rend(slashing, true)
+	var hit_faces2: int = 0
+	var crit_fail_faces2: int = 0
+	for f: ReelFace in rend2.faces:
+		if f.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
+			crit_fail_faces2 += 1
+		if f.result_tier == ReelFace.ResultTier.SUCCESS or f.result_tier == ReelFace.ResultTier.CRIT_SUCCESS:
+			hit_faces2 += 1
+			_check(f.multiplier == 0.0, "rend rank 2 hit face has 0 multiplier")
+			_check(f.rider_effect_id == &"bleed", "rend rank 2 hit face carries bleed rider")
+	_check(crit_fail_faces2 == 0, "rend rank 2 has 0 crit-fail faces (converted to success)")
+	_check(hit_faces2 == 40, "rend rank 2 has 40 hit faces (80%% hit rate, got %d)" % hit_faces2)
+
 	print(("REND REEL TEST PASSED" if _failures == 0 else "REND REEL TEST FAILED: %d" % _failures))
 	quit(_failures)
