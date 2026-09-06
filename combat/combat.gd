@@ -2895,6 +2895,17 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 			var target_had_bleed_before_hit: bool = t.has_effect(&"bleed")
 			var target_had_sundered_before_hit: bool = t.has_effect(&"sundered")
 			t.take_damage(attack.final_damage)
+			# Warrior "Heroic Guard" rank-2 (2026-09-06 warrior-rank2-content spec §4): any hit
+			# that connects on a Guarded Warrior at rank 2 grants a flat Bonus Meter charge — a
+			# low-stakes trickle (any result tier, uncapped per turn), not a milestone burst like
+			# Rend's stack-cap payoff. Gated on class_id: no other Warrior ability attaches
+			# &"guarded", so this can't fire off a Guarded granted by another class's own kit
+			# (those live on entirely different combatants).
+			if t.class_id == &"warrior" and t.has_effect(&"guarded") and t.ability_talent_row_rank(&"ability_l3") >= 2 and t.bonus_meter != null:
+				t.bonus_meter.add_flat(1)
+				_log("  🛡 %s's Heroic Guard absorbs a hit — BM +1 (%d/%d)." % [t.display_name, t.bonus_meter.value, t.bonus_meter.cap])
+				if _panels.has(t):
+					(_panels[t] as CombatantPanel).refresh_resources()
 			# Summoner "reel_surge" overflow fallback (2026-08-16 summoner-ability-kit spec §6):
 			# the buff normally splices an extra reel onto the turn, but at the 5-reel cap there's
 			# no room, so the FIRST successful hit that lands this spin gets its damage doubled

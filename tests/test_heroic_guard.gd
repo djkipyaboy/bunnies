@@ -49,4 +49,13 @@ func _init() -> void:
 	_check(direct_c.resource_pool.stamina == direct_before_stamina - 3, "apply_heroic_guard spent stamina")
 	_check(not direct_c.apply_heroic_guard(999), "apply_heroic_guard fails when unaffordable")
 
+	# Rank-2 meter-charge-on-absorbed-hit mechanic (2026-09-06 warrior-rank2-content spec §4): the
+	# actual per-hit charge lives in combat.gd's _apply_attack() (orchestrator-level, needs a live
+	# Combat scene) — headlessly, prove the rank gate itself reads correctly at the right levels.
+	var rank_c: Combatant = cc.build_combatant(true)
+	rank_c.level = 6
+	_check(rank_c.ability_talent_row_rank(&"ability_l3") == 1, "rank<2 below level 7 (got %d)" % rank_c.ability_talent_row_rank(&"ability_l3"))
+	rank_c.level = 7
+	_check(rank_c.ability_talent_row_rank(&"ability_l3") == 2, "rank 2 at level 7 (got %d)" % rank_c.ability_talent_row_rank(&"ability_l3"))
+
 	quit()
