@@ -53,48 +53,57 @@ func _test_rend_row() -> void:
 	var c2: Combatant = _mk_warrior()
 	_check(c2.pick_ability_talent(&"base_ability", &"rend_deeper_cut"), "picks rend_deeper_cut")
 	var bleed: Effect = EffectLibrary.make(&"bleed")
-	var base_fractions: Array = bleed.dot_fractions.duplicate()
 	c2.apply_rider_talent_adjustments(&"bleed", bleed, c2)
-	for i: int in range(base_fractions.size()):
-		_check(is_equal_approx(bleed.dot_fractions[i], base_fractions[i] * 1.35),
-			"rend_deeper_cut: Bleed fraction %d is +35%% (got %.4f, want %.4f)" % [i, bleed.dot_fractions[i], base_fractions[i] * 1.35])
-	_check(bleed.max_stacks == 3, "rend_deeper_cut alone leaves max_stacks at 3")
+	var rank2_base: Array = [0.60, 0.95, 1.35, 1.70, 2.25]
+	for i: int in range(rank2_base.size()):
+		_check(is_equal_approx(bleed.dot_fractions[i], rank2_base[i] * 1.35),
+			"rend_deeper_cut (rank 2): Bleed fraction %d is the rank-2 curve +35%% (got %.4f, want %.4f)" % [i, bleed.dot_fractions[i], rank2_base[i] * 1.35])
+	_check(bleed.max_stacks == 4, "rend_deeper_cut alone (rank 2, no rend_lasting_wound): max_stacks is 4 (got %d)" % bleed.max_stacks)
 
 	var c3: Combatant = _mk_warrior()
 	_check(c3.pick_ability_talent(&"base_ability", &"rend_lasting_wound"), "picks rend_lasting_wound")
 	var bleed2: Effect = EffectLibrary.make(&"bleed")
 	c3.apply_rider_talent_adjustments(&"bleed", bleed2, c3)
-	_check(bleed2.max_stacks == 4, "rend_lasting_wound: Bleed max_stacks is 4 (got %d)" % bleed2.max_stacks)
-	_check(bleed2.dot_fractions.size() == 4, "rend_lasting_wound: Bleed gained a 4th stack fraction (got %d entries)" % bleed2.dot_fractions.size())
-	_check(is_equal_approx(bleed2.dot_fractions[3], 1.55), "rend_lasting_wound: 4th stack fraction is 1.55 (got %.4f)" % bleed2.dot_fractions[3])
+	_check(bleed2.max_stacks == 5, "rend_lasting_wound (rank 2): Bleed max_stacks is 5 (got %d)" % bleed2.max_stacks)
+	_check(bleed2.dot_fractions.size() == 5, "rend_lasting_wound (rank 2): Bleed curve has 5 entries (got %d)" % bleed2.dot_fractions.size())
+	_check(is_equal_approx(bleed2.dot_fractions[4], 2.25), "rend_lasting_wound (rank 2): 5th stack fraction is the deliberate spike, 2.25 (got %.4f)" % bleed2.dot_fractions[4])
 
 	# Salted Wound: bonus only fires if the TARGET already carries Sundered.
 	var c4: Combatant = _mk_warrior()
 	_check(c4.pick_ability_talent(&"base_ability", &"rend_salted_wound"), "picks rend_salted_wound")
 	var target_plain: Combatant = _mk_warrior()
 	var bleed3: Effect = EffectLibrary.make(&"bleed")
-	var base_fractions3: Array = bleed3.dot_fractions.duplicate()
 	c4.apply_rider_talent_adjustments(&"bleed", bleed3, target_plain)
-	for i: int in range(base_fractions3.size()):
-		_check(is_equal_approx(bleed3.dot_fractions[i], base_fractions3[i]),
-			"rend_salted_wound: no bonus vs. a target with no Sundered (fraction %d unchanged)" % i)
+	for i: int in range(rank2_base.size()):
+		_check(is_equal_approx(bleed3.dot_fractions[i], rank2_base[i]),
+			"rend_salted_wound (rank 2): no bonus vs. a target with no Sundered (fraction %d unchanged from the rank-2 curve)" % i)
 
 	var c5: Combatant = _mk_warrior()
 	_check(c5.pick_ability_talent(&"base_ability", &"rend_salted_wound"), "picks rend_salted_wound")
 	var target_sundered: Combatant = _mk_warrior()
 	target_sundered.attach_effect(EffectLibrary.make(&"sundered"))
 	var bleed4: Effect = EffectLibrary.make(&"bleed")
-	var base_fractions4: Array = bleed4.dot_fractions.duplicate()
 	c5.apply_rider_talent_adjustments(&"bleed", bleed4, target_sundered)
-	for i: int in range(base_fractions4.size()):
-		_check(is_equal_approx(bleed4.dot_fractions[i], base_fractions4[i] * 1.25),
-			"rend_salted_wound: +25%% vs. a Sundered target (fraction %d got %.4f, want %.4f)" % [i, bleed4.dot_fractions[i], base_fractions4[i] * 1.25])
+	for i: int in range(rank2_base.size()):
+		_check(is_equal_approx(bleed4.dot_fractions[i], rank2_base[i] * 1.25),
+			"rend_salted_wound (rank 2): +25%% vs. a Sundered target (fraction %d got %.4f, want %.4f)" % [i, bleed4.dot_fractions[i], rank2_base[i] * 1.25])
 
 	# Mutual exclusion: only 1 pick per row.
 	var c6: Combatant = _mk_warrior()
 	_check(c6.pick_ability_talent(&"base_ability", &"rend_deeper_cut"), "first pick on the Rend row succeeds")
 	_check(not c6.pick_ability_talent(&"base_ability", &"rend_lasting_wound"), "a second pick on an already-filled row is rejected (cap of 1/row)")
 	_check(c6.has_ability_talent(&"rend_deeper_cut"), "the row's original pick is still active")
+
+	# Rank<2 regression: below base_ability's rank-2/talent threshold (level 5), the OLD rank-1
+	# curve/cap still apply (no talent can be picked this low, so this proves the untouched branch).
+	var c7: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
+	c7.level = 1
+	var bleed5: Effect = EffectLibrary.make(&"bleed")
+	var rank1_base: Array = bleed5.dot_fractions.duplicate()
+	c7.apply_rider_talent_adjustments(&"bleed", bleed5, c7)
+	_check(rank1_base == [0.50, 0.80, 1.15], "sanity: EffectLibrary's Bleed default is still the rank-1 curve")
+	_check(bleed5.dot_fractions == rank1_base, "rank<2: Bleed curve is untouched at level 1")
+	_check(bleed5.max_stacks == 3, "rank<2: Bleed max_stacks is untouched at 3 (got %d)" % bleed5.max_stacks)
 
 func _test_sundering_strike_row() -> void:
 	var c2: Combatant = _mk_warrior()

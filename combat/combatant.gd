@@ -992,13 +992,19 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 		&"warrior":
 			match rider_id:
 				&"bleed":
-					if has_ability_talent(&"rend_deeper_cut"):
-						for i: int in range(effect.dot_fractions.size()):
-							effect.dot_fractions[i] *= 1.35
-					if has_ability_talent(&"rend_lasting_wound"):
+					# Rank-2 (2026-09-06 warrior-rank2-content spec §2): swap the base curve/cap
+					# BEFORE the existing talent multiplies below run, so they still compose UNDER
+					# the new rank-2 numbers rather than needing their own rank-aware branches.
+					if ability_talent_row_rank(&"base_ability") >= 2:
+						effect.dot_fractions = [0.60, 0.95, 1.35, 1.70, 2.25]
+						effect.max_stacks = 5 if has_ability_talent(&"rend_lasting_wound") else 4
+					elif has_ability_talent(&"rend_lasting_wound"):
 						effect.max_stacks = 4
 						if effect.dot_fractions.size() < 4:
 							effect.dot_fractions.append(1.55)
+					if has_ability_talent(&"rend_deeper_cut"):
+						for i: int in range(effect.dot_fractions.size()):
+							effect.dot_fractions[i] *= 1.35
 					if has_ability_talent(&"rend_salted_wound") and target.has_effect(&"sundered"):
 						for i: int in range(effect.dot_fractions.size()):
 							effect.dot_fractions[i] *= 1.25
