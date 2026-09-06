@@ -19,7 +19,7 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var o2: AbilityTalentOption = AbilityTalentOption.new()
 					o2.id = &"rend_lasting_wound"; o2.row_id = row_id
 					o2.display_name = "Lasting Wound"
-					o2.description = "Rend's Bleed can stack up to 4 times (was 3)."
+					o2.description = "Rend's Bleed can stack up to 5 times (was 4)."
 					var o3: AbilityTalentOption = AbilityTalentOption.new()
 					o3.id = &"rend_salted_wound"; o3.row_id = row_id
 					o3.display_name = "Salted Wound"
@@ -29,7 +29,7 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var s1: AbilityTalentOption = AbilityTalentOption.new()
 					s1.id = &"sunder_deeper"; s1.row_id = row_id
 					s1.display_name = "Deeper Sunder"
-					s1.description = "Sundering Strike's Sundered debuff raises incoming damage taken to +35% (was +30%)."
+					s1.description = "Sundering Strike's Sundered debuff raises incoming damage taken to +45% (was +40%)."
 					var s2: AbilityTalentOption = AbilityTalentOption.new()
 					s2.id = &"sunder_vicious_return"; s2.row_id = row_id
 					s2.display_name = "Vicious Return"
@@ -57,7 +57,7 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					var w1: AbilityTalentOption = AbilityTalentOption.new()
 					w1.id = &"wind_deeper"; w1.row_id = row_id
 					w1.display_name = "Deeper Wind"
-					w1.description = "Second Wind heals 45% max HP (was 40%)."
+					w1.description = "Second Wind heals 50% max HP (was 40%)."
 					var w2: AbilityTalentOption = AbilityTalentOption.new()
 					w2.id = &"wind_empowering"; w2.row_id = row_id
 					w2.display_name = "Empowering Wind"
