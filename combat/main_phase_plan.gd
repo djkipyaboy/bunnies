@@ -32,8 +32,11 @@ const BIG_BANG_SPINS: int = 1
 ## Earthquake (Warden) is a single-turn Ultimate (+1 WILD reel, splash + stun for the fired spin only).
 const EARTHQUAKE_SPINS: int = 1
 ## Crit-bias WILD spin counts, separated per class (spec 2026-06-21 iteration 2):
-## the Warrior's &"wild" is single-spin; the Skirmisher's &"sticky_wild" rides for two.
-const WILD_SPINS: int = 1
+## the Warrior's &"devastating_strikes" is single-spin; the Skirmisher's &"sticky_wild" rides for two.
+const DEVASTATING_STRIKES_SPINS: int = 1
+## Rank-2 (2026-09-06 warrior-rank2-content spec §7.1): Devastating Strikes tops the loadout to this
+## many reels (the project's hard 5-reel-per-turn ceiling) instead of the plain weapon baseline.
+const DEVASTATING_STRIKES_RANK2_REELS: int = 5
 const STICKY_WILD_SPINS: int = 2
 
 ## Extra-ability ids that append a reel to this turn's loadout (mirrors _ability_adds_reel for the
@@ -162,7 +165,7 @@ func toggle_extra_ability(id: StringName) -> void:
 
 ## True when the active Ultimate is a crit-bias WILD variant (Warrior 1-spin / Skirmisher 2-spin sticky).
 func _is_wild_ultimate() -> bool:
-	return ultimate_id == &"wild" or ultimate_id == &"sticky_wild"
+	return ultimate_id == &"devastating_strikes" or ultimate_id == &"sticky_wild"
 
 ## True when the Rampage Ultimate would include the Heft base ability (the Vanguard pairing).
 func _rampage_includes_heft() -> bool:
@@ -423,7 +426,7 @@ func will_consume_meter() -> bool:
 ## The reels that WOULD be wild at spin: already-active carryover wild unioned with a staged fire.
 func effective_wild_indices() -> Array[int]:
 	var out: Array[int] = combatant.wild_reel_indices().duplicate()
-	# Only the crit-bias WILD Ultimates (Warrior &"wild" / Skirmisher &"sticky_wild") glow; Rampage doesn't.
+	# Only the crit-bias WILD Ultimates (Warrior &"devastating_strikes" / Skirmisher &"sticky_wild") glow; Rampage doesn't.
 	if fire_ultimate_staged and _is_wild_ultimate():
 		for i: int in range(_weapon_reel_count()):
 			if not (i in out):
@@ -563,17 +566,27 @@ func commit() -> void:
 			combatant.start_cooldown(staged_extra_ability_id, talent_cd)
 	if fire_ultimate_staged:
 		match ultimate_id:
-			&"wild":
-				# Warrior "Lasting Wild" talent (Task 15): the crit bias lasts 2 spins instead of 1.
-				var spins: int = (WILD_SPINS + 1) if combatant.has_ability_talent(&"wild_lasting") else WILD_SPINS
-				combatant.fire_sticky_wild(_weapon_reel_count(), spins)        # single spin (Warrior), +1 with Lasting Wild
+			&"devastating_strikes":
+				# Warrior "Lasting Strikes" talent: the crit bias lasts 2 spins instead of 1.
+				var spins: int = (DEVASTATING_STRIKES_SPINS + 1) if combatant.has_ability_talent(&"devastating_lasting") else DEVASTATING_STRIKES_SPINS
+				var reel_count: int = _weapon_reel_count()
+				if combatant.ability_talent_row_rank(&"ultimate") >= 2:
+					# Rank-2 (2026-09-06 warrior-rank2-content spec §7.1): tops the loadout up to the
+					# project's 5-reel ceiling before marking every reel wild — the "one legendary
+					# blow" alpha-strike variant chosen over a "2 spins/4 reels" alternative during
+					# brainstorming. Performed here (the caller), NOT inside fire_sticky_wild() itself,
+					# so that shared function (also used by the Skirmisher) stays untouched.
+					reel_count = DEVASTATING_STRIKES_RANK2_REELS
+					while combatant.turn_reels.size() < reel_count:
+						combatant.turn_reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
+				combatant.fire_sticky_wild(reel_count, spins)  # single spin baseline (Warrior), +1 with Lasting Strikes
 			&"sticky_wild":
 				# Skirmisher "Lasting Sticky Wild" talent (Task 17): the crit bias lasts 3 spins instead of 2.
 				var sticky_spins: int = (STICKY_WILD_SPINS + 1) if combatant.has_ability_talent(&"sticky_lasting") else STICKY_WILD_SPINS
 				combatant.fire_sticky_wild(_weapon_reel_count(), sticky_spins)  # two spins (Skirmisher), +1 with Lasting Sticky Wild
 			&"rampage":
 				# Vanguard "Lasting Rampage" talent (Task 16): the AoE window lasts 2 spins instead
-				# of 1 — same pattern as &"wild"'s wild_lasting just above.
+				# of 1 — same pattern as &"devastating_strikes"'s devastating_lasting just above.
 				var rampage_spins: int = (RAMPAGE_SPINS + 1) if combatant.has_ability_talent(&"rampage_lasting") else RAMPAGE_SPINS
 				combatant.fire_rampage(combatant.weapon_type(), RAMPAGE_CONVERSIONS, rampage_spins)
 			&"wildcard_gamble":

@@ -36,7 +36,7 @@ func _test_options_for_shape() -> void:
 		&"guard_reinforced", &"guard_vengeful", &"guard_reckless",
 		&"wind_deeper", &"wind_empowering", &"wind_desperate_recovery",
 		&"stand_vengeful", &"stand_wider", &"stand_guarded",
-		&"wild_executioner", &"wild_bleeding", &"wild_lasting",
+		&"devastating_executioner", &"devastating_bleeding", &"devastating_lasting",
 	]
 	var seen: Array[StringName] = []
 	for row: StringName in rows:
@@ -269,49 +269,67 @@ func _test_last_stand_row() -> void:
 	c9.max_hp = 100; c9.hp = 30
 	_check(is_equal_approx(c9.passive_outgoing_multiplier(), 1.24), "rank<2: Last Stand is still +24%% at 30%% HP (unamplified)")
 
-func _test_wild_row() -> void:
+func _test_devastating_strikes_row() -> void:
 	var c: Combatant = _mk_warrior()
 	c.bonus_meter.value = c.bonus_meter.cap
-	_check(c.fire_sticky_wild(c.weapon.reels.size(), 1), "fires Wild (baseline)")
-	_check(not c.has_effect(&"empowered"), "baseline Wild grants no Empowered")
+	_check(c.fire_sticky_wild(c.weapon.reels.size(), 1), "fires Devastating Strikes (baseline, direct low-level call)")
+	_check(not c.has_effect(&"empowered"), "baseline Devastating Strikes grants no Empowered")
 
 	var c2: Combatant = _mk_warrior()
 	c2.bonus_meter.value = c2.bonus_meter.cap
-	_check(c2.pick_ability_talent(&"ultimate", &"wild_executioner"), "picks wild_executioner")
-	_check(c2.fire_sticky_wild(c2.weapon.reels.size(), 1), "fires Wild (executioner)")
+	_check(c2.pick_ability_talent(&"ultimate", &"devastating_executioner"), "picks devastating_executioner")
+	_check(c2.fire_sticky_wild(c2.weapon.reels.size(), 1), "fires Devastating Strikes (executioner)")
 	var enemy_plain: Combatant = _mk_warrior()
 	var enemy_doubly_debuffed: Combatant = _mk_warrior()
 	enemy_doubly_debuffed.attach_effect(EffectLibrary.make(&"bleed"))
 	enemy_doubly_debuffed.attach_effect(EffectLibrary.make(&"sundered"))
-	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_plain), 1.0), "wild_executioner: no bonus vs. an undebuffed target")
-	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_doubly_debuffed), 1.25), "wild_executioner: +25%% vs. a Bled+Sundered target while Wild is active (got %.3f)" % c2.outgoing_damage_multiplier(enemy_doubly_debuffed))
+	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_plain), 1.0), "devastating_executioner: no bonus vs. an undebuffed target")
+	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_doubly_debuffed), 1.25), "devastating_executioner: +25%% vs. a Bled+Sundered target while active (got %.3f)" % c2.outgoing_damage_multiplier(enemy_doubly_debuffed))
 	c2.consume_wild_spin()
-	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_doubly_debuffed), 1.0), "wild_executioner: no bonus once Wild has been consumed")
+	_check(is_equal_approx(c2.outgoing_damage_multiplier(enemy_doubly_debuffed), 1.0), "devastating_executioner: no bonus once consumed")
 
-	# Bleeding Wild's precondition state (the actual on-hit attach lives in combat.gd's
-	# _apply_attack(), orchestrator-level — see the file header comment above).
+	# Bleeding's precondition state (the actual on-hit attach lives in combat.gd's _apply_attack(),
+	# orchestrator-level — see the file header comment above).
 	var c3: Combatant = _mk_warrior()
 	c3.bonus_meter.value = c3.bonus_meter.cap
-	_check(c3.pick_ability_talent(&"ultimate", &"wild_bleeding"), "picks wild_bleeding")
-	_check(c3.fire_sticky_wild(c3.weapon.reels.size(), 1), "fires Wild (bleeding)")
-	_check(c3.sticky_wild_spins_remaining > 0, "Wild is active for combat.gd's wild_bleeding check to read")
+	_check(c3.pick_ability_talent(&"ultimate", &"devastating_bleeding"), "picks devastating_bleeding")
+	_check(c3.fire_sticky_wild(c3.weapon.reels.size(), 1), "fires Devastating Strikes (bleeding)")
+	_check(c3.sticky_wild_spins_remaining > 0, "Devastating Strikes is active for combat.gd's devastating_bleeding check to read")
 
+	# c4/c5 are level MAX (rank 2 for the ultimate row) via _mk_warrior(), so committing through the
+	# real MainPhasePlan dispatch now exercises the rank-2 reel top-up (§7.1) for real.
 	var c4: Combatant = _mk_warrior()
+	c4.begin_turn()  # seeds turn_reels from the weapon (3 reels) — matches combat.gd's real turn order
 	c4.bonus_meter.value = c4.bonus_meter.cap
 	var plan: MainPhasePlan = MainPhasePlan.new(c4)
-	_check(plan.ultimate_id == &"wild", "sanity: Warrior's Ultimate id is &wild")
+	_check(plan.ultimate_id == &"devastating_strikes", "sanity: Warrior's Ultimate id is &devastating_strikes")
 	plan.toggle_ultimate()
-	_check(plan.fire_ultimate_staged, "Wild ultimate stages when the meter is armed")
+	_check(plan.fire_ultimate_staged, "Devastating Strikes stages when the meter is armed")
 	plan.commit()
-	_check(c4.sticky_wild_spins_remaining == 1, "without Lasting Wild, firing Wild grants 1 spin (got %d)" % c4.sticky_wild_spins_remaining)
+	_check(c4.sticky_wild_spins_remaining == 1, "without Lasting Strikes, firing grants 1 spin (got %d)" % c4.sticky_wild_spins_remaining)
+	_check(c4.turn_reels.size() == 5, "rank 2: reel top-up fills the loadout to 5 (got %d)" % c4.turn_reels.size())
+	_check(c4.sticky_wild_count == 5, "rank 2: all 5 topped-up reels are marked wild (got %d)" % c4.sticky_wild_count)
 
 	var c5: Combatant = _mk_warrior()
+	c5.begin_turn()  # seeds turn_reels from the weapon (3 reels) — matches combat.gd's real turn order
 	c5.bonus_meter.value = c5.bonus_meter.cap
-	_check(c5.pick_ability_talent(&"ultimate", &"wild_lasting"), "picks wild_lasting")
+	_check(c5.pick_ability_talent(&"ultimate", &"devastating_lasting"), "picks devastating_lasting")
 	var plan2: MainPhasePlan = MainPhasePlan.new(c5)
 	plan2.toggle_ultimate()
 	plan2.commit()
-	_check(c5.sticky_wild_spins_remaining == 2, "wild_lasting: firing Wild grants 2 spins (got %d)" % c5.sticky_wild_spins_remaining)
+	_check(c5.sticky_wild_spins_remaining == 2, "devastating_lasting: firing grants 2 spins (got %d)" % c5.sticky_wild_spins_remaining)
+	_check(c5.turn_reels.size() == 5, "rank 2 + devastating_lasting: reel top-up still fills to 5 (got %d)" % c5.turn_reels.size())
+
+	# Rank<2 regression: a fresh level-1 Combatant (ultimate row's rank-2 threshold is level 10 —
+	# MAX_LEVEL itself — so this can't be tested via _mk_warrior()).
+	var c6: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
+	c6.begin_turn()  # seeds turn_reels from the weapon (3 reels) — matches combat.gd's real turn order
+	c6.bonus_meter.value = c6.bonus_meter.cap
+	var plan3: MainPhasePlan = MainPhasePlan.new(c6)
+	plan3.toggle_ultimate()
+	plan3.commit()
+	_check(c6.turn_reels.size() == 3, "rank<2: no reel top-up, stays at the weapon baseline of 3 (got %d)" % c6.turn_reels.size())
+	_check(c6.sticky_wild_count == 3, "rank<2: only the 3 baseline reels are marked wild (got %d)" % c6.sticky_wild_count)
 
 func _init() -> void:
 	_test_options_for_shape()
@@ -320,6 +338,6 @@ func _init() -> void:
 	_test_heroic_guard_row()
 	_test_second_wind_row()
 	_test_last_stand_row()
-	_test_wild_row()
+	_test_devastating_strikes_row()
 	print(("WARRIOR ABILITY TALENTS TEST PASSED" if _failures == 0 else "WARRIOR ABILITY TALENTS TEST FAILED: %d" % _failures))
 	quit(_failures)

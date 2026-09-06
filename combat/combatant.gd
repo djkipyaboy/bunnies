@@ -1209,7 +1209,7 @@ func outgoing_damage_multiplier(defender: Combatant = null) -> float:
 	total *= power_stat_weapon_multiplier()
 	if class_id == &"warrior" and has_ability_talent(&"guard_vengeful") and has_effect(&"guarded") and defender != null and (defender.has_effect(&"bleed") or defender.has_effect(&"sundered")):
 		total *= 1.20
-	if class_id == &"warrior" and has_ability_talent(&"wild_executioner") and sticky_wild_spins_remaining > 0 and defender != null and defender.has_effect(&"bleed") and defender.has_effect(&"sundered"):
+	if class_id == &"warrior" and has_ability_talent(&"devastating_executioner") and sticky_wild_spins_remaining > 0 and defender != null and defender.has_effect(&"bleed") and defender.has_effect(&"sundered"):
 		total *= 1.25
 	return total
 

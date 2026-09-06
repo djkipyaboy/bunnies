@@ -83,17 +83,17 @@ static func options_for(class_id: StringName, row_id: StringName) -> Array[Abili
 					return [p1, p2, p3]
 				&"ultimate":
 					var u1: AbilityTalentOption = AbilityTalentOption.new()
-					u1.id = &"wild_executioner"; u1.row_id = row_id
-					u1.display_name = "Executioner's Wild"
-					u1.description = "While Wild is active, hits against a target carrying BOTH Bleed and Sundered deal +25% bonus damage."
+					u1.id = &"devastating_executioner"; u1.row_id = row_id
+					u1.display_name = "Executioner's Strikes"
+					u1.description = "While Devastating Strikes is active, hits against a target carrying BOTH Bleed and Sundered deal +25% bonus damage."
 					var u2: AbilityTalentOption = AbilityTalentOption.new()
-					u2.id = &"wild_bleeding"; u2.row_id = row_id
-					u2.display_name = "Bleeding Wild"
-					u2.description = "Any hit landed while Wild is active also applies a stack of Bleed."
+					u2.id = &"devastating_bleeding"; u2.row_id = row_id
+					u2.display_name = "Bleeding Strikes"
+					u2.description = "Any hit landed while Devastating Strikes is active also applies a stack of Bleed."
 					var u3: AbilityTalentOption = AbilityTalentOption.new()
-					u3.id = &"wild_lasting"; u3.row_id = row_id
-					u3.display_name = "Lasting Wild"
-					u3.description = "Wild's crit bias lasts 2 spins instead of 1."
+					u3.id = &"devastating_lasting"; u3.row_id = row_id
+					u3.display_name = "Lasting Strikes"
+					u3.description = "Devastating Strikes' crit bias lasts 2 spins instead of 1."
 					return [u1, u2, u3]
 				_:
 					return []

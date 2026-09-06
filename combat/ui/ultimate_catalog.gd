@@ -10,7 +10,7 @@ extends RefCounted
 static func display_name(id: StringName) -> String:
 	match id:
 		&"rampage": return "RAMPAGE (+1 reel, Heft-all, AoE)"
-		&"wild": return "WILD (all reels crit-biased, 1 spin)"
+		&"devastating_strikes": return "DEVASTATING STRIKES (all reels crit-biased, 1 spin, +reels at rank 2)"
 		&"sticky_wild": return "STICKY WILD (all reels crit-biased, 2 spins)"
 		&"wildcard_gamble": return "WILDCARD GAMBLE (re-roll non-crits, double-or-nothing)"
 		&"collateral": return "COLLATERAL DAMAGE (+1 reel, splash all enemies)"
@@ -22,7 +22,7 @@ static func display_name(id: StringName) -> String:
 
 static func description(id: StringName) -> String:
 	match id:
-		&"wild": return "Wild (full meter): all weapon reels crit-biased for 1 spin. Your base ability still works — fire both."
+		&"devastating_strikes": return "Devastating Strikes (full meter): all weapon reels crit-biased for 1 spin. At rank 2 (level 10), the loadout tops up to 5 reels and any crit landed deals +20% bonus damage. Your base ability still works — fire both."
 		&"sticky_wild": return "Sticky Wild (full meter): all weapon reels crit-biased for 2 spins. Your base ability still works — fire both."
 		&"rampage": return "Rampage (full meter): +1 reel, all misses removed (includes Heft free), hits ALL enemies."
 		&"wildcard_gamble": return "Wildcard Gamble (full meter): re-rolls every non-crit reel double-or-nothing. Replaces Re-roll — don't stage both."

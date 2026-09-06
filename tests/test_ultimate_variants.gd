@@ -25,12 +25,13 @@ func _initialize() -> void:
 	var slashing: DamageType = load("res://combat/resources/types/slashing.tres")
 	var crushing: DamageType = load("res://combat/resources/types/crushing.tres")
 
-	# Warrior &"wild": single-spin.
-	var w: Combatant = _pc(&"rend", &"wild", 3, slashing, 10)
+	# Warrior &"devastating_strikes": single-spin (this combatant is built at the default level 1,
+	# below the ultimate row's rank-2 threshold of 10, so no reel top-up applies here).
+	var w: Combatant = _pc(&"rend", &"devastating_strikes", 3, slashing, 10)
 	var pw: MainPhasePlan = MainPhasePlan.new(w, 2, 5, 2)
 	pw.toggle_ultimate()
 	pw.commit()
-	_check(w.sticky_wild_spins_remaining == 1, "Warrior wild = 1 spin (got %d)" % w.sticky_wild_spins_remaining)
+	_check(w.sticky_wild_spins_remaining == 1, "Warrior Devastating Strikes = 1 spin (got %d)" % w.sticky_wild_spins_remaining)
 
 	# Skirmisher &"sticky_wild": two spins.
 	var s: Combatant = _pc(&"flurry", &"sticky_wild", 4, slashing, 10)

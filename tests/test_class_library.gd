@@ -16,7 +16,7 @@ func _initialize() -> void:
 	_check(warrior.display_name == "Martin (Mouse)", "warrior is Martin")
 	_check(warrior.weapon_base_damage == 8.0, "warrior sword base 8")
 
-	_check(warrior.ultimate_id == &"wild", "warrior ultimate = wild (single-spin)")
+	_check(warrior.ultimate_id == &"devastating_strikes", "warrior ultimate = devastating_strikes (single-spin)")
 
 	var vanguard: CharacterClass = ClassLibrary.make(&"vanguard")
 	_check(vanguard.reel_count == 2 and vanguard.base_stats.vigor == 5, "vanguard: 2 reels, Vigor 5")

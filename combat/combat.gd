@@ -1852,7 +1852,7 @@ func _ability_name(id: StringName) -> String:
 func _ultimate_label(id: StringName) -> String:
 	match id:
 		&"rampage": return "ULTIMATE: Rampage (AoE)"
-		&"wild": return "ULTIMATE: Wild (1 spin)"
+		&"devastating_strikes": return "ULTIMATE: Devastating Strikes (1 spin)"
 		&"sticky_wild": return "ULTIMATE: Sticky Wild (2 spins)"
 		&"wildcard_gamble": return "ULTIMATE: Wildcard Gamble"
 		&"collateral": return "ULTIMATE: Collateral Damage"
@@ -2973,7 +2973,7 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 			# still active this spin also lashes the target with a stack of Bleed. Checked BEFORE
 			# consume_wild_spin() (called once for the whole spin in _finish_spin()), so
 			# sticky_wild_spins_remaining is still the pre-decrement value for every reel this spin.
-			if _attacker.class_id == &"warrior" and _attacker.has_ability_talent(&"wild_bleeding") and _attacker.sticky_wild_spins_remaining > 0:
+			if _attacker.class_id == &"warrior" and _attacker.has_ability_talent(&"devastating_bleeding") and _attacker.sticky_wild_spins_remaining > 0:
 				var wild_bleed: Effect = EffectLibrary.make(&"bleed")
 				wild_bleed.dot_base_damage = _attacker.weapon_effective_base_damage()
 				_attacker.apply_rider_talent_adjustments(&"bleed", wild_bleed, t)
@@ -3002,6 +3002,15 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				if sunder_def != null:
 					_attacker.resource_pool.refund({&"stamina": sunder_def.cost})
 					_log("  ♻ %s's Vicious Return refunds %d Stamina." % [_attacker.display_name, sunder_def.cost])
+			# Warrior "Devastating Strikes" rank-2 (2026-09-06 warrior-rank2-content spec §7.3): any
+			# CRIT landed while its guaranteed-feeling crit-bias window is active deals +20% bonus
+			# damage. Gated on the actual result tier (NOT just "while active") since WILD_CRIT_CHANCE
+			# is a 65% BIAS, not a guarantee — some wild-marked reels still land as ordinary hits and
+			# must not get this bonus.
+			if _attacker.class_id == &"warrior" and _attacker.ability_talent_row_rank(&"ultimate") >= 2 and _attacker.sticky_wild_spins_remaining > 0 and attack.face.result_tier == ReelFace.ResultTier.CRIT_SUCCESS and attack.final_damage > 0:
+				var devastating_bonus: int = ceili(attack.final_damage * 0.20)
+				t.take_damage(devastating_bonus)
+				_log("  ⚡ %s's Devastating Strikes adds %d bonus damage." % [_attacker.display_name, devastating_bonus])
 			# Ranger "Weakening Aim" talent: the first reel that actually connects this spin
 			# (while Aimed Shot's bonus is pending from this same turn's cast) also lashes the target
 			# with a bonus stack of Weakened. Consumed once (aimed_shot_hit_pending cleared here) so a
