@@ -242,16 +242,16 @@ func _test_last_stand_row() -> void:
 	var c: Combatant = _mk_warrior()
 	c.passive_ability_id = &"last_stand"
 	c.max_hp = 100; c.hp = 30
-	_check(is_equal_approx(c.passive_outgoing_multiplier(), 1.24), "baseline Last Stand: +24% at 30% HP")
+	_check(is_equal_approx(c.passive_outgoing_multiplier(), 1.34), "rank 2 (amplified): Last Stand is +34%% at 30%% HP")
 
 	var c3: Combatant = _mk_warrior()
 	c3.passive_ability_id = &"last_stand"
 	c3.max_hp = 100; c3.hp = 35
-	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.0), "sanity: 35% HP is above the baseline 30% threshold")
+	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.0), "sanity: 35%% HP is above the baseline 30%% threshold")
 	_check(c3.pick_ability_talent(&"passive", &"stand_wider"), "picks stand_wider")
-	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.24), "stand_wider: Last Stand now active at 35% HP too (widened to 40%)")
+	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.34), "stand_wider (rank 2): Last Stand now active at 35%% HP too (widened to 40%%), +34%%")
 	c3.hp = 41
-	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.0), "stand_wider: still inactive just above the widened 40% threshold")
+	_check(is_equal_approx(c3.passive_outgoing_multiplier(), 1.0), "stand_wider: still inactive just above the widened 40%% threshold")
 
 	var c4: Combatant = _mk_warrior()
 	c4.passive_ability_id = &"last_stand"
@@ -261,6 +261,13 @@ func _test_last_stand_row() -> void:
 	_check(is_equal_approx(c4.passive_incoming_multiplier(), 0.9), "stand_guarded: -10%% incoming while Last Stand is active (got %.3f)" % c4.passive_incoming_multiplier())
 	c4.hp = 31
 	_check(is_equal_approx(c4.passive_incoming_multiplier(), 1.0), "stand_guarded: no reduction once Last Stand's own condition drops off")
+
+	# Rank<2 regression: below the passive row's amplification threshold (level 9).
+	var c9: Combatant = ClassLibrary.make(&"warrior").build_combatant(true)
+	c9.level = 8  # >= 5 (passive active) but < 9 (still rank-1)
+	c9.passive_ability_id = &"last_stand"
+	c9.max_hp = 100; c9.hp = 30
+	_check(is_equal_approx(c9.passive_outgoing_multiplier(), 1.24), "rank<2: Last Stand is still +24%% at 30%% HP (unamplified)")
 
 func _test_wild_row() -> void:
 	var c: Combatant = _mk_warrior()
