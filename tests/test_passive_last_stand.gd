@@ -25,7 +25,7 @@ func _init() -> void:
 	var v: Combatant = Combatant.new()
 	v.class_id = &"warrior"  # pick_ability_talent() validates against AbilityTalentLibrary.options_for(class_id, ...)
 	v.passive_ability_id = &"last_stand"
-	v.level = 9
+	v.level = 8  # below the passive row's amplification threshold (9) — pure rank-1 vengeful test
 	v.max_hp = 100; v.hp = 100  # full HP — the self-HP trigger would NOT fire
 	_check(v.pick_ability_talent(&"passive", &"stand_vengeful"), "picks stand_vengeful")
 	var enemy_plain: Combatant = Combatant.new()
@@ -33,8 +33,18 @@ func _init() -> void:
 	enemy_doubly_debuffed.attach_effect(EffectLibrary.make(&"bleed"))
 	enemy_doubly_debuffed.attach_effect(EffectLibrary.make(&"sundered"))
 	_check(v.passive_outgoing_multiplier(enemy_plain) == 1.0, "stand_vengeful: no bonus vs. an undebuffed target at full HP")
-	_check(v.passive_outgoing_multiplier(enemy_doubly_debuffed) == 1.24, "stand_vengeful: +24% vs. a Bled+Sundered target even at full HP")
+	_check(v.passive_outgoing_multiplier(enemy_doubly_debuffed) == 1.24, "stand_vengeful: +24%% vs. a Bled+Sundered target even at full HP")
 	var enemy_only_bled: Combatant = Combatant.new()
 	enemy_only_bled.attach_effect(EffectLibrary.make(&"bleed"))
 	_check(v.passive_outgoing_multiplier(enemy_only_bled) == 1.0, "stand_vengeful: no bonus vs. a target with only ONE of the two debuffs")
+
+	# Rank-2 amplify (2026-09-06 warrior-rank2-content spec §6): +24% -> +34% at level 9+.
+	var v2: Combatant = Combatant.new()
+	v2.class_id = &"warrior"
+	v2.passive_ability_id = &"last_stand"
+	v2.level = 9
+	v2.max_hp = 100; v2.hp = 30
+	_check(v2.passive_outgoing_multiplier() == 1.34, "rank 2 (amplified): Last Stand is +34%% at 30%% HP (got %.3f)" % v2.passive_outgoing_multiplier())
+	v2.hp = 31
+	_check(v2.passive_outgoing_multiplier() == 1.0, "rank 2: neutral just above 30%% HP")
 	quit()
