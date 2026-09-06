@@ -130,11 +130,12 @@ connects on the Warrior (`attack.final_damage > 0`, ANY result tier — being ta
 trigger, not just a big hit) grants **+1 flat Bonus Meter charge**, uncapped per turn — a low-stakes
 trickle, the same shape as Ranger's Hunter's-Mark-ally-crit mechanic, not a milestone burst like
 Rend's stack-cap payoff. Checked in `_apply_attack()`'s per-target loop, gated by `class_id ==
-&"warrior"` (no other Warrior ability attaches `&"guarded"`, so no source-collision risk from other
-Guarded sources like Skirmisher's Feint & Riposte or Warden's Bastion, which live on different
-combatants entirely). Reinforces the "Heroic" theme: the Warrior earns Devastating Strikes' charge by
-soaking hits for the team — a genuinely different trigger from Rend's sustained-Bleed-pressure payoff,
-not overlapping it.
+&"warrior"` (final-review correction: Second Wind ALSO attaches Guarded to the same Warrior, so this
+trickle intentionally fires off either source — being Guarded at rank 2 is the trigger, not
+specifically Heroic Guard's own cast; no cross-CLASS collision risk either way, since Skirmisher's
+Feint & Riposte/Warden's Bastion live on entirely different combatants). Reinforces the "Heroic" theme:
+the Warrior earns Devastating Strikes' charge by soaking hits for the team — a genuinely different
+trigger from Rend's sustained-Bleed-pressure payoff, not overlapping it.
 
 ## 5. Second Wind — ranks to 2 at level 8
 

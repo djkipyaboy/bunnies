@@ -326,7 +326,7 @@ func preview_reels() -> Array[ActionReel]:
 			&"flurry":
 				reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
 			&"rend":
-				reels.append(ActionReel.make_rend(combatant.weapon_type()))
+				reels.append(ActionReel.make_rend(combatant.weapon_type(), combatant.ability_talent_row_rank(&"base_ability") >= 2))
 			&"select_fate":
 				reels.append(ActionReel.make_ability_attack(selected_fate_type))  # joins paylines (a weapon-attack reel)
 			&"rallying_cry":
@@ -336,7 +336,7 @@ func preview_reels() -> Array[ActionReel]:
 	if staged_extra_ability_id != &"" and staged_extra_ability_id in REEL_ADDING_EXTRA_IDS and reels.size() < reel_cap:
 		match staged_extra_ability_id:
 			&"sundering_strike":
-				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"sundered"))
+				reels.append(ActionReel.make_sundering_strike(combatant.weapon_type(), combatant.ability_talent_row_rank(&"ability_l2") >= 2))
 			&"quake_slam":
 				reels.append(ActionReel.make_ability_attack(combatant.weapon_type(), &"slow"))
 			&"jinx_the_odds":
@@ -379,6 +379,14 @@ func preview_reels() -> Array[ActionReel]:
 	# The Big Bang tops the loadout up to 4 reels (the Seer's 2 → 4) — preview the added strips.
 	if fire_ultimate_staged and ultimate_id == &"big_bang":
 		while reels.size() < mini(BIG_BANG_REELS, reel_cap):
+			reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
+	# Devastating Strikes rank 2 (2026-09-06 warrior-rank2-content spec §7.1, final-review fix):
+	# tops the loadout up to 5 reels — preview the added strips, mirroring Big Bang's own top-up
+	# preview above. Placed here (before the item-use/reel_surge appends below) to match the real
+	# commit-time order — see this function's own big comment block further down for why that
+	# ordering matters.
+	if fire_ultimate_staged and ultimate_id == &"devastating_strikes" and combatant.ability_talent_row_rank(&"ultimate") >= 2:
+		while reels.size() < mini(DEVASTATING_STRIKES_RANK2_REELS, reel_cap):
 			reels.append(ActionReel.make_ability_attack(combatant.weapon_type()))
 	# Item-use reel: appended whenever an item is staged, UNCONDITIONAL on reel_cap (player's call,
 	# 2026-07-16 design §2) — staging an item always adds its reel regardless of loadout size.
@@ -428,7 +436,12 @@ func effective_wild_indices() -> Array[int]:
 	var out: Array[int] = combatant.wild_reel_indices().duplicate()
 	# Only the crit-bias WILD Ultimates (Warrior &"devastating_strikes" / Skirmisher &"sticky_wild") glow; Rampage doesn't.
 	if fire_ultimate_staged and _is_wild_ultimate():
-		for i: int in range(_weapon_reel_count()):
+		# Devastating Strikes rank 2 (final-review fix): glow all 5 topped-up reels, not just the
+		# 3-reel weapon baseline. Skirmisher's sticky_wild is untouched (ultimate_id check excludes it).
+		var glow_count: int = _weapon_reel_count()
+		if ultimate_id == &"devastating_strikes" and combatant.ability_talent_row_rank(&"ultimate") >= 2:
+			glow_count = DEVASTATING_STRIKES_RANK2_REELS
+		for i: int in range(glow_count):
 			if not (i in out):
 				out.append(i)
 		out.sort()

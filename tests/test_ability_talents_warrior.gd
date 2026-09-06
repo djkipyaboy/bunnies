@@ -2,11 +2,11 @@ extends SceneTree
 
 # Headless test: the Warrior's 18 Ability Talent options (Task 15) — one row of 3 mutually-
 # exclusive picks per Warrior ability (Rend / Sundering Strike / Heroic Guard / Second Wind /
-# Last Stand / Wild). Exercises AbilityTalentLibrary.options_for(&"warrior", row_id),
+# Last Stand / Devastating Strikes). Exercises AbilityTalentLibrary.options_for(&"warrior", row_id),
 # pick_ability_talent()/has_ability_talent(), the cost/cooldown-delta dispatch methods, and
 # apply_rider_talent_adjustments() for the Bleed/Sundered riders.
 #
-# Bleeding Wild's ACTUAL on-hit attach lives in combat.gd's _apply_attack() — orchestrator-level,
+# Bleeding Strikes' ACTUAL on-hit attach lives in combat.gd's _apply_attack() — orchestrator-level,
 # requires a running Combat scene — and is NOT headlessly tested here, consistent with this
 # codebase's own documented precedent (tests/test_crippling_shot.gd's header comment on its
 # bonus_vs_cc check). This test instead proves the precondition state combat.gd's wiring reads.
@@ -114,7 +114,7 @@ func _test_sundering_strike_row() -> void:
 	_check(sundered.duration == 2, "sunder_deeper alone leaves duration at 2")
 
 	# Vicious Return / Twist the Knife: the actual on-hit refund/bonus-damage lives in combat.gd's
-	# _apply_attack() (orchestrator-level), same documented precedent as Bleeding Wild (see this
+	# _apply_attack() (orchestrator-level), same documented precedent as Bleeding Strikes (see this
 	# file's header comment) — headlessly we only prove the talent is a real, pickable, mutually-
 	# exclusive option on this row.
 	var c3: Combatant = _mk_warrior()
@@ -305,10 +305,17 @@ func _test_devastating_strikes_row() -> void:
 	_check(plan.ultimate_id == &"devastating_strikes", "sanity: Warrior's Ultimate id is &devastating_strikes")
 	plan.toggle_ultimate()
 	_check(plan.fire_ultimate_staged, "Devastating Strikes stages when the meter is armed")
+	# Final-review fix (2026-09-06): capture the Main-1 PREVIEW state before commit() mutates
+	# anything — this proves the planning-phase preview already shows the rank-2 top-up, not just
+	# the real post-commit state (which the assertions below already covered).
+	var previewed_reel_count: int = plan.preview_reels().size()
+	var previewed_wild_count: int = plan.effective_wild_indices().size()
 	plan.commit()
 	_check(c4.sticky_wild_spins_remaining == 1, "without Lasting Strikes, firing grants 1 spin (got %d)" % c4.sticky_wild_spins_remaining)
 	_check(c4.turn_reels.size() == 5, "rank 2: reel top-up fills the loadout to 5 (got %d)" % c4.turn_reels.size())
 	_check(c4.sticky_wild_count == 5, "rank 2: all 5 topped-up reels are marked wild (got %d)" % c4.sticky_wild_count)
+	_check(previewed_reel_count == 5, "rank 2: Main-1 PREVIEW already shows 5 reels before commit (got %d)" % previewed_reel_count)
+	_check(previewed_wild_count == 5, "rank 2: Main-1 PREVIEW already glows all 5 reels wild before commit (got %d)" % previewed_wild_count)
 
 	var c5: Combatant = _mk_warrior()
 	c5.begin_turn()  # seeds turn_reels from the weapon (3 reels) — matches combat.gd's real turn order

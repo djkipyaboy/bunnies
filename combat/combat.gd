@@ -1576,7 +1576,7 @@ func _enemy_select_tooltip(id: StringName) -> String:
 ## Per-class one-line summaries for the class-picker button tooltips.
 func _class_tooltip(id: StringName) -> String:
 	match id:
-		&"warrior": return "Warrior — Slashing, 3 reels. Rend stacks BLEED; Wild Ultimate (1 spin)."
+		&"warrior": return "Warrior — Slashing, 3 reels. Rend stacks BLEED; Devastating Strikes Ultimate (1 spin)."
 		&"vanguard": return "Vanguard — Crushing, 2 heavy reels. Heft removes misses; Rampage (AoE, includes Heft)."
 		&"skirmisher": return "Skirmisher — Slashing, 4 fast reels. Flurry adds a swing; Sticky Wild (2 spins)."
 		&"chancer": return "Chancer — Storm, 4 reels, Luck. Re-roll worst reel; Wildcard Gamble (casino lines)."
@@ -2543,7 +2543,7 @@ func _commit_main1() -> void:
 			mark.duration = 4
 		# Ranger Hunter's Mark row talent (2026-09-03 ranger-talent-tree spec §3): Rooting Mark also
 		# attaches Rooted alongside the mark itself (see apply_rider_talent_adjustments()'s &"ranger"
-		# case) — mirrors Warrior's Bleeding Wild precedent (Task 15) of calling
+		# case) — mirrors Warrior's Bleeding Strikes precedent (Task 15) of calling
 		# apply_rider_talent_adjustments() directly at a bespoke manual-attach site, not only the one
 		# generic shared rider-attach site. (Marksman's Call / Marksman's Mark are separate Hunter's
 		# Mark-row options handled elsewhere, not here.)
@@ -2898,12 +2898,14 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 			# Warrior "Heroic Guard" rank-2 (2026-09-06 warrior-rank2-content spec §4): any hit
 			# that connects on a Guarded Warrior at rank 2 grants a flat Bonus Meter charge — a
 			# low-stakes trickle (any result tier, uncapped per turn), not a milestone burst like
-			# Rend's stack-cap payoff. Gated on class_id: no other Warrior ability attaches
-			# &"guarded", so this can't fire off a Guarded granted by another class's own kit
-			# (those live on entirely different combatants).
+			# Rend's stack-cap payoff. Gated on class_id (final-review correction: the spec originally
+			# claimed "no other Warrior ability attaches &"guarded"", which is wrong — Second Wind ALSO
+			# attaches Guarded to the same Warrior. That's an acceptable, intentional overlap — this
+			# trickle is meant to reward being Guarded at rank 2, regardless of which ability granted
+			# it — but the log below must not claim it's specifically Heroic Guard).
 			if t.class_id == &"warrior" and t.has_effect(&"guarded") and t.ability_talent_row_rank(&"ability_l3") >= 2 and t.bonus_meter != null:
 				t.bonus_meter.add_flat(1)
-				_log("  🛡 %s's Heroic Guard absorbs a hit — BM +1 (%d/%d)." % [t.display_name, t.bonus_meter.value, t.bonus_meter.cap])
+				_log("  🛡 %s absorbs a hit while GUARDED — BM +1 (%d/%d)." % [t.display_name, t.bonus_meter.value, t.bonus_meter.cap])
 				if _panels.has(t):
 					(_panels[t] as CombatantPanel).refresh_resources()
 			# Summoner "reel_surge" overflow fallback (2026-08-16 summoner-ability-kit spec §6):
@@ -2969,9 +2971,10 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 						_log("  🏹 %s's Marked target is struck true — BM +1  (%d/%d)" % [ally.display_name, ally.bonus_meter.value, ally.bonus_meter.cap])
 						if _panels.has(ally):
 							(_panels[ally] as CombatantPanel).refresh_resources()
-			# Warrior "Bleeding Wild" talent (Task 15): any hit landed while the Wild Ultimate is
-			# still active this spin also lashes the target with a stack of Bleed. Checked BEFORE
-			# consume_wild_spin() (called once for the whole spin in _finish_spin()), so
+			# Warrior "Bleeding Strikes" talent (Task 15, renamed 2026-09-06): any hit landed while
+			# Devastating Strikes is still active this spin also lashes the target with a stack of
+			# Bleed. Checked BEFORE consume_wild_spin() (called once for the whole spin in
+			# _finish_spin()), so
 			# sticky_wild_spins_remaining is still the pre-decrement value for every reel this spin.
 			if _attacker.class_id == &"warrior" and _attacker.has_ability_talent(&"devastating_bleeding") and _attacker.sticky_wild_spins_remaining > 0:
 				var wild_bleed: Effect = EffectLibrary.make(&"bleed")
@@ -3033,7 +3036,7 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 					(_panels[t] as CombatantPanel).refresh_status()
 			# Vanguard "Slowing Rampage" talent (Task 16): any hit landed while Rampage's AoE window
 			# is active also lashes the target with a stack of Slow — mirrors Task 15's Warrior
-			# "Bleeding Wild" block (is_aoe_active() is only true during Rampage's own spin(s)).
+			# "Bleeding Strikes" block (is_aoe_active() is only true during Rampage's own spin(s)).
 			if _attacker.class_id == &"vanguard" and _attacker.has_ability_talent(&"rampage_slowing") and _attacker.is_aoe_active():
 				t.attach_effect(EffectLibrary.make(&"slow"))
 				_log("  🐌 %s's RAMPAGE lashes %s with a stack of SLOW." % [_attacker.display_name, t.display_name])
@@ -3072,7 +3075,7 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 		# "_attacker.outgoing_damage_multiplier(_defender)") — never per-target — so reading
 		# passive_outgoing_multiplier(_defender) here reuses the exact same defender the actual damage
 		# math used this spin. Opportunist isn't a rider, so neither of Task 14's generic per-rider-id
-		# hooks apply — checked directly here instead, the same way Task 15/16 added Bleeding Wild/
+		# hooks apply — checked directly here instead, the same way Task 15/16 added Bleeding Strikes/
 		# Slowing Rampage directly at their own orchestrator sites.
 		if attack.final_damage > 0 and _attacker.class_id == &"skirmisher" and _attacker.has_ability_talent(&"opportunist_charging") and _attacker.passive_outgoing_multiplier(_defender) > 1.0:
 			_attacker.bonus_meter.add_flat(1)
@@ -3532,7 +3535,7 @@ func _finish_spin() -> void:
 		# Warden "Rooting Quake" talent (Task 21): every enemy Earthquake actually hit (primary +
 		# splashed) also gets Rooted. Routed through apply_rider_talent_adjustments() so a Warden who
 		# ALSO picked "Lasting Entangle" gets the 3-turn Rooted duration here too — a deliberate,
-		# consistent bonus, mirroring Warrior's Bleeding Wild precedent (Task 15).
+		# consistent bonus, mirroring Warrior's Bleeding Strikes precedent (Task 15).
 		if _earthquake_total > 0 and _defender.is_alive():
 			_defender.force_stun_next_turn = true
 			_log("  ☷ EARTHQUAKE → %s is STUNNED next turn (initiative unchanged)." % _defender.display_name)

@@ -1032,7 +1032,7 @@ func apply_rider_talent_adjustments(rider_id: StringName, effect: Effect, target
 				&"rooted":
 					# Also fires when Earthquake's own "Rooting Quake" talent applies Rooted (see
 					# combat.gd's Earthquake block below) — a deliberate, consistent bonus, not an
-					# oversight (mirrors Warrior's Bleeding Wild precedent, Task 15).
+					# oversight (mirrors Warrior's Bleeding Strikes precedent, Task 15).
 					if has_ability_talent(&"entangle_lasting"):
 						effect.duration = 3
 				&"regen":
@@ -1790,7 +1790,8 @@ func apply_heroic_guard(cost: int, cap: int = 999) -> bool:
 	cleanse()
 	return true
 
-## Warrior "Second Wind" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Heals 30% max HP (ceil),
+## Warrior "Second Wind" (L9, ultimate-tier, 4-turn CD): self-cast, no reel. Heals 30% max HP (ceil,
+## 40%/50% at rank 2 — see the rank-2 branch below), plus a new rank-2 Heal-over-Time on top.
 ## Cleanses every debuff, and grants Guarded — he comes back hardened, not just patched up. Returns
 ## false (no change) if unaffordable.
 ##
