@@ -89,6 +89,20 @@ static func make_rend(type: DamageType = null, rank2: bool = false) -> ActionRee
 			face.rider_effect_id = &"bleed"
 	return reel
 
+## Builds the Warrior's "Sundering Strike" reel (2026-09-06 warrior-rank2-content spec §3.2):
+## real-damage weapon-type reel whose hit faces carry the &"sundered" rider — unlike Rend, this
+## deals real damage. At rank 2, converts CRIT_FAILURE faces into SUCCESS faces (same accuracy
+## bump shape as make_rend's own rank2 param) — 70% -> 80% hit rate.
+static func make_sundering_strike(type: DamageType, rank2: bool = false) -> ActionReel:
+	var reel: ActionReel = make_ability_attack(type, &"sundered")
+	if rank2:
+		for face: ReelFace in reel.faces:
+			if face.result_tier == ReelFace.ResultTier.CRIT_FAILURE:
+				face.result_tier = ReelFace.ResultTier.SUCCESS
+				face.multiplier = 1.0
+				face.rider_effect_id = &"sundered"
+	return reel
+
 ## The shared composition for every reel that exists because of a resource-costed ability — NOT
 ## the plain weapon-swing baseline (2026-08-13 accuracy-stat spec §2, replacing the old
 ## RIDER_COMPOSITION/make_rider_attack "called shot" concept). Removes the NEUTRAL tier entirely

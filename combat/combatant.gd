@@ -1664,7 +1664,7 @@ func try_sundering_strike(type: DamageType, cost: int, cap: int) -> bool:
 		return false
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	turn_reels.append(ActionReel.make_ability_attack(type, &"sundered"))
+	turn_reels.append(ActionReel.make_sundering_strike(type, ability_talent_row_rank(&"ability_l2") >= 2))
 	return true
 
 ## Vanguard "Quake Slam" (L7): splices a real-damage reel that reliably applies SLOW on a hit.
