@@ -3098,7 +3098,24 @@ func _apply_attack(attack, reel_index: int = -1) -> void:
 				if rider.kind == Effect.Kind.DAMAGE_OVER_TIME and _attacker.weapon != null:
 					rider.dot_base_damage = _attacker.weapon_effective_base_damage()
 				_attacker.apply_rider_talent_adjustments(attack.rider_effect_id, rider, t)
+				# Warrior Rend rank-2 (2026-09-06 warrior-rank2-content spec §2.4): snapshot the
+				# target's CURRENT Bleed stack count before this attach, so the check below can
+				# tell "just reached the new max cap this hit" from "was already at cap".
+				var bleed_stacks_before_this_hit: int = 0
+				if rider.id == &"bleed":
+					for e2: Effect in t.active_effects:
+						if e2.id == &"bleed":
+							bleed_stacks_before_this_hit = e2.stacks
 				t.attach_effect(rider)
+				if rider.id == &"bleed" and _attacker.class_id == &"warrior" and _attacker.ability_talent_row_rank(&"base_ability") >= 2 and _attacker.bonus_meter != null:
+					for e2: Effect in t.active_effects:
+						if e2.id == &"bleed" and e2.stacks == e2.max_stacks and bleed_stacks_before_this_hit < e2.max_stacks:
+							var meter_bonus: int = 8 if e2.max_stacks == 5 else 5
+							_attacker.bonus_meter.add_flat(meter_bonus)
+							_log("  💢 %s's Bleed reaches max stacks — BM +%d (%d/%d)" % [_attacker.display_name, meter_bonus, _attacker.bonus_meter.value, _attacker.bonus_meter.cap])
+							if _panels.has(_attacker):
+								(_panels[_attacker] as CombatantPanel).refresh_resources()
+							break
 				# Ranger Crippling Shot rank-2 (2026-09-04 ranger-rank2-content spec §5.1): a
 				# standalone Wounded debuff, attached ALONGSIDE Weakened (not instead of it).
 				# Duration mirrors whatever duration Weakened's own rider just got THIS cast
