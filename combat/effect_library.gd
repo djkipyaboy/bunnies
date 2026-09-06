@@ -158,5 +158,16 @@ static func make(id: StringName) -> Effect:
 			e.id = &"indestructible"; e.kind = Effect.Kind.MULTIPLIER_EDIT; e.magnitude = 0.0
 			e.affects_incoming = true; e.duration = 99; e.beneficial = true
 			return e
+		&"second_wind_hot":
+			# Warrior "Second Wind" rank-2 (2026-09-06 warrior-rank2-content spec §5.2): a standalone
+			# HoT id (deliberately NOT the shared &"regen" id — attach_effect() merges by id, and this
+			# must never blend with a Warden Regrowth/Wheat Hasty-Minion-granted regen on the same
+			# ally). Non-stacking (max_stacks 1): dot_damage() always reads dot_fractions[0], so a
+			# single 0.05 entry ticks a flat 5% of dot_base_damage every turn for however many turns
+			# duration lasts — the caller sets dot_base_damage (to max_hp) and duration (2 or 3).
+			var e: Effect = Effect.new()
+			e.id = &"second_wind_hot"; e.kind = Effect.Kind.DAMAGE_OVER_TIME
+			e.dot_fractions = [0.05]; e.max_stacks = 1; e.beneficial = true
+			return e
 		_:
 			return null

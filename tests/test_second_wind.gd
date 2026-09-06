@@ -68,4 +68,39 @@ func _init() -> void:
 	_check(direct_c.resource_pool.stamina == direct_before_stamina - 5, "apply_second_wind spent stamina")
 	_check(not direct_c.apply_second_wind(999), "apply_second_wind fails when unaffordable")
 
+	# Rank-2 (2026-09-06 warrior-rank2-content spec §5): heal 30%% -> 40%%, plus a new 2-turn HoT
+	# at 5%% max HP per turn (10%% total). ability_l4 ranks to 2 at level 8.
+	var rank2_c: Combatant = cc.build_combatant(true)
+	rank2_c.level = 8
+	rank2_c.resource_pool.stamina = rank2_c.resource_pool.max_stamina
+	rank2_c.max_hp = 100; rank2_c.hp = 10
+	_check(rank2_c.apply_second_wind(5), "apply_second_wind succeeds at rank 2")
+	_check(rank2_c.hp == 50, "rank 2 baseline: heals 40%% max HP (10 + 40 = 50, got %d)" % rank2_c.hp)
+	var hot: Effect = rank2_c._find_effect(&"second_wind_hot")
+	_check(hot != null, "rank 2: a second_wind_hot HoT is attached")
+	_check(hot != null and hot.duration == 2, "rank 2 baseline: HoT lasts 2 turns (got %d)" % (hot.duration if hot != null else -1))
+	_check(hot != null and hot.beneficial, "the HoT is beneficial (heals, doesn't damage)")
+	_check(hot != null and is_equal_approx(hot.dot_base_damage, 100.0), "the HoT's dot_base_damage is max_hp (got %.1f)" % (hot.dot_base_damage if hot != null else -1.0))
+	_check(hot != null and hot.dot_fractions == [0.05], "the HoT ticks a flat 5%% every turn (got %s)" % str(hot.dot_fractions if hot != null else []))
+
+	# Rank 2 + wind_deeper: heal 40%% + 10 = 50%%, HoT extends to 3 turns (same 5%%/turn rate, 15%% total).
+	var rank2_deeper_c: Combatant = cc.build_combatant(true)
+	rank2_deeper_c.level = 8
+	rank2_deeper_c.resource_pool.stamina = rank2_deeper_c.resource_pool.max_stamina
+	rank2_deeper_c.max_hp = 100; rank2_deeper_c.hp = 10
+	_check(rank2_deeper_c.pick_ability_talent(&"ability_l4", &"wind_deeper"), "picks wind_deeper")
+	_check(rank2_deeper_c.apply_second_wind(5), "apply_second_wind succeeds at rank 2 + wind_deeper")
+	_check(rank2_deeper_c.hp == 60, "rank 2 + wind_deeper: heals 50%% max HP (10 + 50 = 60, got %d)" % rank2_deeper_c.hp)
+	var hot_deeper: Effect = rank2_deeper_c._find_effect(&"second_wind_hot")
+	_check(hot_deeper != null and hot_deeper.duration == 3, "rank 2 + wind_deeper: HoT lasts 3 turns (got %d)" % (hot_deeper.duration if hot_deeper != null else -1))
+
+	# Rank<2 regression: no HoT, heal stays at the old 30%%.
+	var rank1_c: Combatant = cc.build_combatant(true)
+	rank1_c.level = 4
+	rank1_c.resource_pool.stamina = rank1_c.resource_pool.max_stamina
+	rank1_c.max_hp = 100; rank1_c.hp = 10
+	_check(rank1_c.apply_second_wind(5), "apply_second_wind succeeds at rank<2")
+	_check(rank1_c.hp == 40, "rank<2: still heals 30%% max HP (10 + 30 = 40, got %d)" % rank1_c.hp)
+	_check(rank1_c._find_effect(&"second_wind_hot") == null, "rank<2: no HoT attached")
+
 	quit()

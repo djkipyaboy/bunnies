@@ -1796,12 +1796,22 @@ func apply_heroic_guard(cost: int, cap: int = 999) -> bool:
 func apply_second_wind(cost: int) -> bool:
 	if resource_pool == null or not resource_pool.spend({&"stamina": cost}):
 		return false
-	var heal_pct: float = 0.45 if has_ability_talent(&"wind_deeper") else 0.30
+	var rank: int = ability_talent_row_rank(&"ability_l4")
+	var heal_pct: float
+	if rank >= 2:
+		heal_pct = 0.50 if has_ability_talent(&"wind_deeper") else 0.40
+	else:
+		heal_pct = 0.45 if has_ability_talent(&"wind_deeper") else 0.30
 	heal(ceili(max_hp * heal_pct))
 	cleanse()
 	var guard: Effect = EffectLibrary.make(&"guarded")
 	guard.duration = 3
 	attach_effect(guard)
+	if rank >= 2:
+		var hot: Effect = EffectLibrary.make(&"second_wind_hot")
+		hot.dot_base_damage = max_hp
+		hot.duration = 3 if has_ability_talent(&"wind_deeper") else 2
+		attach_effect(hot)
 	if has_ability_talent(&"wind_empowering"):
 		var empowered: Effect = EffectLibrary.make(&"empowered")
 		empowered.magnitude = 1.15
